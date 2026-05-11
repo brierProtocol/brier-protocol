@@ -4,14 +4,19 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { BotCharacter } from '@/components/BotCharacter';
-import { getBotsByRank } from '@/data/bots';
+import { useBots } from '@/hooks/useBots';
 import toast from 'react-hot-toast';
 
 type TimeRange = 'all' | 'month' | 'week';
 
 export default function LeaderboardPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
-  const rankedBots = getBotsByRank();
+  const { data: rankedBots = [], isLoading } = useBots('brier', 'all');
+  
+  if (isLoading) {
+    return <div className="min-h-screen px-4 py-20 text-center font-[var(--font-dm-mono)] opacity-50 bg-[#F5F3EE]">Loading leaderboard...</div>;
+  }
+
   const top3 = rankedBots.slice(0, 3);
   const rest = rankedBots.slice(3);
 
@@ -62,58 +67,64 @@ export default function LeaderboardPage() {
           className="mb-16 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-5xl mx-auto items-end pt-20"
         >
           {/* 2nd place */}
-          <Link href={`/vault/${top3[1].id}`} className="block sm:order-1 transition-transform hover:-translate-y-2">
-            <div className="relative rounded-[24px] p-6 pt-16 flex flex-col items-center text-center shadow-lg" style={{ background: top3[1].color, minHeight: '260px' }}>
-              <span className="absolute -top-[70px] left-1/2 -translate-x-1/2 font-[var(--font-syne)] text-[120px] font-[900] leading-none text-white/90 drop-shadow-md">
-                2
-              </span>
-              <BotCharacter color={top3[1].color} mood={top3[1].mood} size="md" animated />
-              <p className="font-[var(--font-syne)] text-[24px] font-[900] uppercase text-white mt-4">{top3[1].name}</p>
-              <div className="mt-4 bg-white/20 rounded-[12px] px-4 py-2 backdrop-blur-sm">
-                <p className="font-[var(--font-dm-mono)] text-xl font-bold text-white">{top3[1].brierScore.toFixed(3)}</p>
-                <p className="text-[10px] text-white/80 uppercase tracking-wider font-bold">Brier</p>
-              </div>
-            </div>
-          </Link>
-
-          {/* 1st place */}
-          <Link href={`/vault/${top3[0].id}`} className="block sm:order-2 transition-transform hover:-translate-y-2 z-10">
-            <div className="relative rounded-[24px] p-6 pt-20 flex flex-col items-center text-center shadow-2xl" style={{ background: top3[0].color, minHeight: '320px' }}>
-              <span className="absolute -top-[80px] left-1/2 -translate-x-1/2 font-[var(--font-syne)] text-[140px] font-[900] leading-none text-white drop-shadow-lg">
-                1
-              </span>
-              <BotCharacter color={top3[0].color} mood={top3[0].mood} size="lg" animated className="scale-110 mb-4" />
-              <p className="font-[var(--font-syne)] text-[32px] font-[900] uppercase text-white mt-2 leading-tight">{top3[0].name}</p>
-              <span className="bg-white text-[#0A0A0A] text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full mt-2">
-                Top Alpha
-              </span>
-              <div className="mt-5 w-full bg-white/20 rounded-[16px] px-4 py-3 backdrop-blur-sm grid grid-cols-2 gap-2">
-                <div>
-                  <p className="font-[var(--font-dm-mono)] text-2xl font-bold text-white">{top3[0].brierScore.toFixed(3)}</p>
+          {top3[1] && (
+            <Link href={`/vault/${top3[1].id}`} className="block sm:order-1 transition-transform hover:-translate-y-2">
+              <div className="relative rounded-[24px] p-6 pt-16 flex flex-col items-center text-center shadow-lg" style={{ background: top3[1].color, minHeight: '260px' }}>
+                <span className="absolute -top-[70px] left-1/2 -translate-x-1/2 font-[var(--font-syne)] text-[120px] font-[900] leading-none text-white/90 drop-shadow-md">
+                  2
+                </span>
+                <BotCharacter color={top3[1].color} mood={top3[1].mood} size="md" animated />
+                <p className="font-[var(--font-syne)] text-[24px] font-[900] uppercase text-white mt-4">{top3[1].name}</p>
+                <div className="mt-4 bg-white/20 rounded-[12px] px-4 py-2 backdrop-blur-sm">
+                  <p className="font-[var(--font-dm-mono)] text-xl font-bold text-white">{top3[1].brierScore.toFixed(3)}</p>
                   <p className="text-[10px] text-white/80 uppercase tracking-wider font-bold">Brier</p>
                 </div>
-                <div>
-                  <p className="font-[var(--font-dm-mono)] text-2xl font-bold text-white">{(top3[0].winRate * 100).toFixed(0)}%</p>
-                  <p className="text-[10px] text-white/80 uppercase tracking-wider font-bold">Win Rate</p>
+              </div>
+            </Link>
+          )}
+
+          {/* 1st place */}
+          {top3[0] && (
+            <Link href={`/vault/${top3[0].id}`} className="block sm:order-2 transition-transform hover:-translate-y-2 z-10">
+              <div className="relative rounded-[24px] p-6 pt-20 flex flex-col items-center text-center shadow-2xl" style={{ background: top3[0].color, minHeight: '320px' }}>
+                <span className="absolute -top-[80px] left-1/2 -translate-x-1/2 font-[var(--font-syne)] text-[140px] font-[900] leading-none text-white drop-shadow-lg">
+                  1
+                </span>
+                <BotCharacter color={top3[0].color} mood={top3[0].mood} size="lg" animated className="scale-110 mb-4" />
+                <p className="font-[var(--font-syne)] text-[32px] font-[900] uppercase text-white mt-2 leading-tight">{top3[0].name}</p>
+                <span className="bg-white text-[#0A0A0A] text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full mt-2">
+                  Top Alpha
+                </span>
+                <div className="mt-5 w-full bg-white/20 rounded-[16px] px-4 py-3 backdrop-blur-sm grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="font-[var(--font-dm-mono)] text-2xl font-bold text-white">{top3[0].brierScore.toFixed(3)}</p>
+                    <p className="text-[10px] text-white/80 uppercase tracking-wider font-bold">Brier</p>
+                  </div>
+                  <div>
+                    <p className="font-[var(--font-dm-mono)] text-2xl font-bold text-white">{(top3[0].winRate * 100).toFixed(0)}%</p>
+                    <p className="text-[10px] text-white/80 uppercase tracking-wider font-bold">Win Rate</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          </Link>
+            </Link>
+          )}
 
           {/* 3rd place */}
-          <Link href={`/vault/${top3[2].id}`} className="block sm:order-3 transition-transform hover:-translate-y-2">
-            <div className="relative rounded-[24px] p-6 pt-16 flex flex-col items-center text-center shadow-lg" style={{ background: top3[2].color, minHeight: '240px' }}>
-              <span className="absolute -top-[65px] left-1/2 -translate-x-1/2 font-[var(--font-syne)] text-[110px] font-[900] leading-none text-white/90 drop-shadow-md">
-                3
-              </span>
-              <BotCharacter color={top3[2].color} mood={top3[2].mood} size="md" animated />
-              <p className="font-[var(--font-syne)] text-[20px] font-[900] uppercase text-white mt-4">{top3[2].name}</p>
-              <div className="mt-4 bg-white/20 rounded-[12px] px-4 py-2 backdrop-blur-sm">
-                <p className="font-[var(--font-dm-mono)] text-lg font-bold text-white">{top3[2].brierScore.toFixed(3)}</p>
-                <p className="text-[10px] text-white/80 uppercase tracking-wider font-bold">Brier</p>
+          {top3[2] && (
+            <Link href={`/vault/${top3[2].id}`} className="block sm:order-3 transition-transform hover:-translate-y-2">
+              <div className="relative rounded-[24px] p-6 pt-16 flex flex-col items-center text-center shadow-lg" style={{ background: top3[2].color, minHeight: '240px' }}>
+                <span className="absolute -top-[65px] left-1/2 -translate-x-1/2 font-[var(--font-syne)] text-[110px] font-[900] leading-none text-white/90 drop-shadow-md">
+                  3
+                </span>
+                <BotCharacter color={top3[2].color} mood={top3[2].mood} size="md" animated />
+                <p className="font-[var(--font-syne)] text-[20px] font-[900] uppercase text-white mt-4">{top3[2].name}</p>
+                <div className="mt-4 bg-white/20 rounded-[12px] px-4 py-2 backdrop-blur-sm">
+                  <p className="font-[var(--font-dm-mono)] text-lg font-bold text-white">{top3[2].brierScore.toFixed(3)}</p>
+                  <p className="text-[10px] text-white/80 uppercase tracking-wider font-bold">Brier</p>
+                </div>
               </div>
-            </div>
-          </Link>
+            </Link>
+          )}
         </motion.div>
 
         {/* ═══ TABLE AS CARDS ═══ */}
@@ -137,7 +148,7 @@ export default function LeaderboardPage() {
                   </div>
                   <div className="flex items-center gap-4 flex-1">
                     <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center shrink-0" style={{ background: bot.color }}>
-                      <BotCharacter color={bot.color} mood={bot.mood} size="sm" animated={false} className="scale-75" />
+                      <BotCharacter color={bot.color} mood={bot.mood as any} size="sm" animated={false} className="scale-75" />
                     </div>
                     <div>
                       <Link href={`/vault/${bot.id}`}>
@@ -151,7 +162,7 @@ export default function LeaderboardPage() {
                 </div>
 
                 {/* Desktop Stats Grid */}
-                <div className="grid grid-cols-4 gap-4 md:gap-8 flex-1 w-full md:w-auto mt-4 md:mt-0 text-center md:text-left">
+                <div className="grid grid-cols-3 gap-4 md:gap-8 flex-1 w-full md:w-auto mt-4 md:mt-0 text-center md:text-left">
                   <div>
                     <p className="text-[10px] uppercase tracking-wider font-bold text-[#0A0A0A]/40 mb-1">Brier</p>
                     <p className="font-[var(--font-dm-mono)] text-lg font-bold text-[#0A0A0A]">{bot.brierScore.toFixed(3)}</p>
@@ -163,12 +174,6 @@ export default function LeaderboardPage() {
                   <div className="hidden sm:block">
                     <p className="text-[10px] uppercase tracking-wider font-bold text-[#0A0A0A]/40 mb-1">TVL</p>
                     <p className="font-[var(--font-dm-mono)] text-lg font-bold text-[#0A0A0A]">${(bot.tvl / 1000).toFixed(0)}K</p>
-                  </div>
-                  <div className="hidden sm:block">
-                    <p className="text-[10px] uppercase tracking-wider font-bold text-[#0A0A0A]/40 mb-1">7D Return</p>
-                    <p className={`font-[var(--font-dm-mono)] text-lg font-bold ${bot.return7d >= 0 ? 'text-[#C8FF00]' : 'text-[#FF3D00]'}`}>
-                      {bot.return7d >= 0 ? '+' : ''}{bot.return7d.toFixed(1)}%
-                    </p>
                   </div>
                 </div>
 

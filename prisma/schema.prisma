@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// SQLite doesn't support Enums natively in Prisma, so we use String
+// BotStatus: INCUBATING, PENDING, LIVE, PAUSED, RETIRED
+// DataSource: KALSHI, POLYMARKET
+// TradeDirection: YES, NO
+// TradeResult: WIN, LOSS, PENDING
+
+model Bot {
+  id              String     @id @default(cuid())
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  slug            String     @unique
+  name            String
+  builderAddress  String
+  tagline         String
+  color           String
+  mood            String     @default("neutral")
+  status          String     @default("INCUBATING")
+  builderCarry    Int        @default(20)
+  markets         String     @default("Crypto")
+  strategyType    String     @default("hybrid")
+  description     String     @default("")
+
+  kalshiConnection    KalshiConnection?
+  polyConnection      PolyConnection?
+  scores              BotScore[]
+  trades              TradeEvent[]
+  pnlSnapshots        PnlSnapshot[]
+  incubationLog       IncubationLog[]
+}
+
+model KalshiConnection {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  botId           String   @unique
+  bot             Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+  encryptedKey    String
+  keyIv           String
+  keyAuthTag      String
+  kalshiUserId    String
+  lastSyncAt      DateTime?
+  lastCursorToken String?
+  syncStatus      String   @default("idle")
+}
+
+model PolyConnection {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  botId           String   @unique
+  bot             Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+  walletAddress   String
+  lastBlockSynced BigInt   @default(0)
+  lastSyncAt      DateTime?
+}
+
+model TradeEvent {
+  id              String         @id @default(cuid())
+  createdAt       DateTime       @default(now())
+  botId           String
+  bot             Bot            @relation(fields: [botId], references: [id])
+  source          String
+  externalTradeId String
+  marketTicker    String
+  marketTitle     String
+  direction       String
+  entryOdds       Float
+  usdAmount       Float
+  result          String         @default("PENDING")
+  resolvedAt      DateTime?
+  brierContrib    Float?
+  rawPayload      String
+
+  @@unique([source, externalTradeId])
+  @@index([botId, createdAt])
+  @@index([botId, result])
+}
+
+model BotScore {
+  id              String   @id @default(cuid())
+  computedAt      DateTime @default(now())
+  botId           String
+  bot             Bot      @relation(fields: [botId], references: [id])
+  brierScore      Float
+  winRate         Float
+  totalTrades     Int
+  resolvedTrades  Int
+  wins            Int
+  losses          Int
+  pnlUsd          Float
+  sharpeRatio     Float?
+  isLatest        Boolean  @default(true)
+
+  @@index([botId, computedAt(sort: Desc)])
+  @@index([botId, isLatest])
+}
+
+model PnlSnapshot {
+  id              String   @id @default(cuid())
+  botId           String
+  bot             Bot      @relation(fields: [botId], references: [id])
+  date            DateTime
+  pnlUsd          Float
+  cumulativePnl   Float
+  tradesCount     Int
+
+  @@unique([botId, date])
+  @@index([botId, date(sort: Desc)])
+}
+
+model IncubationLog {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  botId       String
+  bot         Bot       @relation(fields: [botId], references: [id])
+  event       String
+  fromStatus  String
+  toStatus    String
+  reason      String
+  triggeredBy String
+}

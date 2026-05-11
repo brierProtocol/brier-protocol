@@ -8,7 +8,7 @@ import {
   BarChart, Bar,
 } from 'recharts';
 import { BotCharacter } from '@/components/BotCharacter';
-import { getBotById } from '@/data/bots';
+import { useBot } from '@/hooks/useBots';
 import { mockTrades } from '@/data/trades';
 import toast from 'react-hot-toast';
 
@@ -18,9 +18,13 @@ type TimeRange = '7d' | '30d' | '90d' | 'all';
 export default function VaultPage() {
   const params = useParams();
   const botId = params.botId as string;
-  const bot = getBotById(botId);
+  const { data: bot, isLoading } = useBot(botId);
   const [chartView, setChartView] = useState<ChartView>('cumulative');
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
+
+  if (isLoading) {
+    return <div className="min-h-screen px-4 py-20 text-center font-[var(--font-dm-mono)] opacity-50 bg-[#F5F3EE]">Loading vault...</div>;
+  }
 
   if (!bot) {
     return (

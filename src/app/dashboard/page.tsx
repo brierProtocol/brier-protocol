@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { BotCard } from '@/components/BotCard';
-import { bots } from '@/data/bots';
+import { useBots } from '@/hooks/useBots';
+import { useAccount } from 'wagmi';
 import toast from 'react-hot-toast';
 
 const mockEarnings = [
@@ -33,12 +34,59 @@ const publishSteps = [
 export default function DashboardPage() {
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishStep, setPublishStep] = useState(1);
+  
+  // Form State
+  const { address } = useAccount();
+  const [formData, setFormData] = useState({
+    name: '',
+    tagline: '',
+    color: '#0A0A0A',
+    strategyType: '',
+    description: '',
+    source: 'POLYMARKET',
+    polyWalletAddress: '',
+    builderCarry: 20,
+    markets: 'Crypto',
+  });
 
-  // Mock: user's bots (first 2)
+  const { data: bots = [] } = useBots();
   const myBots = bots.slice(0, 2);
 
   const handleComingSoon = (action: string) => {
     toast(`Coming Soon — ${action} is not yet available.`, { icon: '🔐' });
+  };
+
+  const handleDeploy = async () => {
+    if (!address) {
+      toast.error('Please connect your wallet first.');
+      return;
+    }
+
+    try {
+      const payload = {
+        ...formData,
+        builderAddress: address,
+        markets: formData.markets.split(',').map(m => m.trim()),
+        builderCarry: Number(formData.builderCarry)
+      };
+
+      const res = await fetch('/api/bots/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to submit bot');
+      }
+
+      toast.success('Bot successfully deployed for incubation!');
+      setShowPublishModal(false);
+      setPublishStep(1);
+    } catch (error: any) {
+      toast.error(error.message);
+    }
   };
 
   return (
@@ -289,18 +337,64 @@ export default function DashboardPage() {
                   {publishSteps[publishStep - 1].title}
                 </h3>
                 <div className="space-y-4">
-                  {publishSteps[publishStep - 1].fields.map((field) => (
-                    <div key={field}>
-                      <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">
-                        {field}
-                      </label>
-                      <input
-                        type="text"
-                        placeholder={`Enter ${field.toLowerCase()}`}
-                        className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm text-[#0A0A0A] placeholder-[#0A0A0A]/30 outline-none focus:ring-2 focus:ring-[#0A0A0A] transition-all"
-                      />
+                  {publishStep === 1 && (
+                    <>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">Bot Name</label>
+                        <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">Tagline</label>
+                        <input type="text" value={formData.tagline} onChange={e => setFormData({...formData, tagline: e.target.value})} className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">Brand Color (Hex)</label>
+                        <input type="text" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                      </div>
+                    </>
+                  )}
+                  {publishStep === 2 && (
+                    <>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">Data Source</label>
+                        <select value={formData.source} onChange={e => setFormData({...formData, source: e.target.value})} className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm outline-none focus:ring-2 focus:ring-[#0A0A0A]">
+                          <option value="POLYMARKET">Polymarket</option>
+                          <option value="KALSHI">Kalshi</option>
+                        </select>
+                      </div>
+                      {formData.source === 'POLYMARKET' ? (
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">Polygon Wallet Address</label>
+                          <input type="text" value={formData.polyWalletAddress} onChange={e => setFormData({...formData, polyWalletAddress: e.target.value})} className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">Kalshi API Key</label>
+                          <input type="password" placeholder="Enter read-only API key" className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {publishStep === 3 && (
+                    <>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">Builder Carry (%)</label>
+                        <input type="number" value={formData.builderCarry} onChange={e => setFormData({...formData, builderCarry: Number(e.target.value)})} className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">Strategy Description</label>
+                        <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm outline-none focus:ring-2 focus:ring-[#0A0A0A] min-h-[100px]" />
+                      </div>
+                    </>
+                  )}
+                  {publishStep === 4 && (
+                    <div className="bg-[#F5F3EE] rounded-[16px] p-6 text-sm font-[var(--font-dm-mono)]">
+                      <p className="mb-2"><strong>Name:</strong> {formData.name}</p>
+                      <p className="mb-2"><strong>Source:</strong> {formData.source}</p>
+                      <p className="mb-2"><strong>Carry:</strong> {formData.builderCarry}%</p>
+                      <p className="text-xs opacity-50 mt-4">By deploying, you agree to the Brier Protocol terms. Your bot will enter a 30-day incubation period.</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 
@@ -320,8 +414,7 @@ export default function DashboardPage() {
                     if (publishStep < 4) {
                       setPublishStep(publishStep + 1);
                     } else {
-                      handleComingSoon('Publishing');
-                      setShowPublishModal(false);
+                      handleDeploy();
                     }
                   }}
                   className="flex-1 rounded-[999px] bg-[#0A0A0A] py-4 font-[var(--font-dm-mono)] text-sm font-bold uppercase tracking-wider text-white transition-all hover:opacity-90 active:scale-[0.97]"

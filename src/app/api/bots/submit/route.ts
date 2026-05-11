@@ -1,0 +1,86 @@
+import { z } from 'zod'
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { encryptApiKey } from '@/lib/crypto'
+
+const CreateBotSchema = z.object({
+  // Step 1
+  name: z.string().min(3).max(40),
+  tagline: z.string().min(10).max(120),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  strategyType: z.string().min(2),
+  description: z.string().min(20).max(500),
+  // Step 2
+  source: z.enum(['KALSHI', 'POLYMARKET']),
+  kalshiApiKey: z.string().optional(),
+  polyWalletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
+  // Step 3
+  builderCarry: z.number().min(0).max(30),
+  markets: z.array(z.string()).min(1).max(10),
+  // Step 4 — builder's wallet (from Wagmi on frontend)
+  builderAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+})
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const data = CreateBotSchema.parse(body)
+
+    const slug = data.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+
+    // Check slug uniqueness
+    const existing = await prisma.bot.findUnique({ where: { slug } })
+    if (existing) {
+      return NextResponse.json({ error: 'Bot name already taken' }, { status: 409 })
+    }
+
+    // Create bot in INCUBATING status
+    const bot = await prisma.bot.create({
+      data: {
+        slug,
+        name: data.name,
+        tagline: data.tagline,
+        color: data.color,
+        strategyType: data.strategyType,
+        description: data.description,
+        builderCarry: data.builderCarry,
+        markets: data.markets.join(', '),
+        builderAddress: data.builderAddress,
+        status: 'INCUBATING',
+      }
+    })
+
+    // Connect data source
+    if (data.source === 'KALSHI' && data.kalshiApiKey) {
+      const encrypted = encryptApiKey(data.kalshiApiKey)
+      // Verify key works
+      const verify = await fetch('https://trading-api.kalshi.com/trade-api/v2/user/me', {
+        headers: { Authorization: `Bearer ${data.kalshiApiKey}` }
+      })
+      if (!verify.ok) {
+        await prisma.bot.delete({ where: { id: bot.id } })
+        return NextResponse.json({ error: 'Invalid Kalshi API key' }, { status: 422 })
+      }
+      const user = await verify.json()
+      await prisma.kalshiConnection.create({
+        data: { botId: bot.id, ...encrypted, kalshiUserId: user.user.id }
+      })
+    }
+
+    if (data.source === 'POLYMARKET' && data.polyWalletAddress) {
+      await prisma.polyConnection.create({
+        data: { botId: bot.id, walletAddress: data.polyWalletAddress }
+      })
+    }
+
+    return NextResponse.json({ ok: true, botId: bot.id, slug: bot.slug })
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ errors: err.flatten() }, { status: 400 })
+    }
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}

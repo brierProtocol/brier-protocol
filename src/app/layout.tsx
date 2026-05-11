@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Syne, DM_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import { Navbar } from "@/components/Navbar";
+import { Web3Provider } from "@/providers/web3";
 import "./globals.css";
 
 const syne = Syne({
@@ -33,21 +34,23 @@ export default function RootLayout({
       className={`${syne.variable} ${dmMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#F5F3EE] text-[#0A0A0A]">
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Toaster
-          position="bottom-center"
-          toastOptions={{
-            style: {
-              background: "#0A0A0A",
-              color: "#FFFFFF",
-              borderRadius: "999px",
-              fontFamily: "var(--font-dm-mono), monospace",
-              fontSize: "13px",
-              padding: "12px 24px",
-            },
-          }}
-        />
+        <Web3Provider>
+          <Navbar />
+          <main className="flex-1">{children}</main>
+          <Toaster
+            position="bottom-center"
+            toastOptions={{
+              style: {
+                background: "#0A0A0A",
+                color: "#FFFFFF",
+                borderRadius: "999px",
+                fontFamily: "var(--font-dm-mono), monospace",
+                fontSize: "13px",
+                padding: "12px 24px",
+              },
+            }}
+          />
+        </Web3Provider>
       </body>
     </html>
   );

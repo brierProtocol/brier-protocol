@@ -72,3 +72,21 @@ button:active, a:active {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
 }
+
+.wallet-pill {
+  font-family: var(--font-dm-mono), monospace;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--color-ink);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.wallet-pill:hover { opacity: 0.8; }
+.wallet-pill.connected {
+  background: var(--color-accent);
+  color: var(--color-ink);
+}

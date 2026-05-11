@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { BotCard } from '@/components/BotCard';
-import { bots as allBots } from '@/data/bots';
+import { useBots } from '@/hooks/useBots';
 
 type SortKey = 'brier' | 'wr' | 'tvl' | 'newest';
 type FilterKey = 'all' | 'hot' | 'new' | 'top';
@@ -12,6 +12,8 @@ export default function DiscoverPage() {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortKey>('brier');
   const [filter, setFilter] = useState<FilterKey>('all');
+
+  const { data: allBots = [], isLoading } = useBots(sort, filter);
 
   const filteredBots = useMemo(() => {
     let result = [...allBots];
@@ -29,31 +31,19 @@ export default function DiscoverPage() {
 
     // Filter
     if (filter === 'hot') {
-      result = result.filter((b) => b.return7d > 3);
-    } else if (filter === 'new') {
-      result = result.filter((b) => b.publishedDays <= 30);
+      result = result.filter((b) => b.mood === 'happy' || b.mood === 'cool');
     } else if (filter === 'top') {
       result = result.filter((b) => b.brierScore < 0.2);
     }
 
-    // Sort
-    switch (sort) {
-      case 'brier':
-        result.sort((a, b) => a.brierScore - b.brierScore);
-        break;
-      case 'wr':
-        result.sort((a, b) => b.winRate - a.winRate);
-        break;
-      case 'tvl':
-        result.sort((a, b) => b.tvl - a.tvl);
-        break;
-      case 'newest':
-        result.sort((a, b) => a.publishedDays - b.publishedDays);
-        break;
-    }
+    // Note: sorting is handled by the API now, but we apply search/filter client-side
 
     return result;
-  }, [search, sort, filter]);
+  }, [allBots, search, filter]);
+
+  if (isLoading) {
+    return <div className="min-h-screen px-4 py-20 text-center font-[var(--font-dm-mono)] opacity-50 bg-[#F5F3EE]">Loading vaults...</div>;
+  }
 
   return (
     <div className="min-h-screen px-4 py-10 sm:py-16 bg-[#F5F3EE]">

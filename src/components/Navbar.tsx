@@ -6,6 +6,34 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
+import { useConnect, useAccount, useDisconnect } from 'wagmi';
+
+function ConnectButton() {
+  const { address, isConnected } = useAccount();
+  const { connect, connectors } = useConnect();
+  const { disconnect } = useDisconnect();
+
+  if (isConnected) {
+    return (
+      <button
+        onClick={() => disconnect()}
+        className="wallet-pill connected"
+      >
+        {address?.slice(0, 6)}...{address?.slice(-4)}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => connect({ connector: connectors[0] })}
+      className="wallet-pill"
+    >
+      Connect Wallet
+    </button>
+  );
+}
+
 const navLinks = [
   { href: '/discover', label: 'Discover' },
   { href: '/leaderboard', label: 'Leaderboard' },
@@ -21,12 +49,6 @@ export function Navbar() {
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
-
-  const handleWallet = () => {
-    toast('Coming Soon — Wallet connect is not yet available.', {
-      icon: '🔐',
-    });
-  };
 
   return (
     <nav
@@ -77,12 +99,7 @@ export function Navbar() {
               />
             )}
           </Link>
-          <button
-            onClick={handleWallet}
-            className="rounded-full bg-[#0A0A0A] px-6 py-2.5 text-xs font-bold text-white transition-all hover:opacity-80 active:scale-[0.97]"
-          >
-            Connect Wallet
-          </button>
+          <ConnectButton />
         </div>
 
         {/* Mobile hamburger */}
@@ -133,15 +150,7 @@ export function Navbar() {
               >
                 Dashboard
               </Link>
-              <button
-                onClick={() => {
-                  handleWallet();
-                  setMobileOpen(false);
-                }}
-                className="mt-2 rounded-full bg-[#0A0A0A] px-6 py-3 text-sm font-bold text-white active:scale-[0.97]"
-              >
-                Connect Wallet
-              </button>
+              <ConnectButton />
             </div>
           </motion.div>
         )}
