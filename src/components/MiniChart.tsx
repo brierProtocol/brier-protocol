@@ -8,9 +8,7 @@ interface MiniChartProps {
   height?: number;
 }
 
-export function MiniChart({ data, color, height = 40 }: MiniChartProps) {
-  const isPositive = data.length >= 2 && data[data.length - 1] > data[0];
-  const lineColor = color || (isPositive ? '#C8FF00' : '#FF3D00');
+export function MiniChart({ data, color = '#0A0A0A', height = 48 }: MiniChartProps) {
   const chartData = data.map((v, i) => ({ i, v }));
 
   return (
@@ -21,8 +19,8 @@ export function MiniChart({ data, color, height = 40 }: MiniChartProps) {
           <Line
             type="monotone"
             dataKey="v"
-            stroke={lineColor}
-            strokeWidth={1.5}
+            stroke={color}
+            strokeWidth={2}
             dot={false}
             isAnimationActive={false}
           />

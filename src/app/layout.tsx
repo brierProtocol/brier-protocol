@@ -32,18 +32,19 @@ export default function RootLayout({
       lang="en"
       className={`${syne.variable} ${dmMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#0A0A0A] text-[#ededed]">
+      <body className="min-h-full flex flex-col bg-[#F5F3EE] text-[#0A0A0A]">
         <Navbar />
         <main className="flex-1">{children}</main>
         <Toaster
-          position="bottom-right"
+          position="bottom-center"
           toastOptions={{
             style: {
-              background: "#161616",
-              color: "#ededed",
-              border: "1px solid #333",
+              background: "#0A0A0A",
+              color: "#FFFFFF",
+              borderRadius: "999px",
               fontFamily: "var(--font-dm-mono), monospace",
-              fontSize: "14px",
+              fontSize: "13px",
+              padding: "12px 24px",
             },
           }}
         />

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -14,6 +14,13 @@ const navLinks = [
 export function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const handleWallet = () => {
     toast('Coming Soon — Wallet connect is not yet available.', {
@@ -22,12 +29,17 @@ export function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-[#222] bg-[#0A0A0A]/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+    <nav
+      className={`sticky top-0 z-50 w-full transition-all duration-300 ${
+        scrolled
+          ? 'bg-white/80 backdrop-blur-xl shadow-sm'
+          : 'bg-transparent'
+      }`}
+    >
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#C8FF00] group-hover:shadow-[0_0_12px_#C8FF00] transition-shadow" />
-          <span className="font-[var(--font-syne)] text-lg font-extrabold tracking-wider uppercase text-white">
+          <span className="font-[var(--font-syne)] text-xl font-[900] tracking-tight uppercase text-[#0A0A0A]">
             Brier Protocol
           </span>
         </Link>
@@ -38,28 +50,36 @@ export function Navbar() {
             <Link
               key={link.href}
               href={link.href}
-              className={`text-sm font-medium uppercase tracking-wide transition-colors hover:text-[#C8FF00] ${
-                pathname === link.href ? 'text-[#C8FF00]' : 'text-[#888]'
-              }`}
+              className="relative text-sm font-medium text-[#0A0A0A] transition-colors hover:opacity-70"
             >
               {link.label}
+              {pathname === link.href && (
+                <motion.span
+                  layoutId="nav-dot"
+                  className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 h-1.5 w-1.5 rounded-full bg-[#C8FF00]"
+                />
+              )}
             </Link>
           ))}
         </div>
 
-        {/* Wallet button */}
-        <div className="hidden sm:flex items-center gap-3">
+        {/* Right section */}
+        <div className="hidden sm:flex items-center gap-4">
           <Link
             href="/dashboard"
-            className={`text-sm font-medium uppercase tracking-wide transition-colors hover:text-[#C8FF00] ${
-              pathname === '/dashboard' ? 'text-[#C8FF00]' : 'text-[#888]'
-            }`}
+            className="relative text-sm font-medium text-[#0A0A0A] transition-colors hover:opacity-70"
           >
             Dashboard
+            {pathname === '/dashboard' && (
+              <motion.span
+                layoutId="nav-dot"
+                className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 h-1.5 w-1.5 rounded-full bg-[#C8FF00]"
+              />
+            )}
           </Link>
           <button
             onClick={handleWallet}
-            className="rounded-lg border border-[#C8FF00] bg-transparent px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#C8FF00] transition-all hover:bg-[#C8FF00] hover:text-black hover:shadow-[0_0_20px_#C8FF0044]"
+            className="rounded-full bg-[#0A0A0A] px-6 py-2.5 text-xs font-bold text-white transition-all hover:opacity-80 active:scale-[0.97]"
           >
             Connect Wallet
           </button>
@@ -72,15 +92,15 @@ export function Navbar() {
           aria-label="Toggle menu"
         >
           <motion.span
-            className="block h-0.5 w-5 bg-white rounded"
+            className="block h-0.5 w-5 bg-[#0A0A0A] rounded"
             animate={mobileOpen ? { rotate: 45, y: 4 } : { rotate: 0, y: 0 }}
           />
           <motion.span
-            className="block h-0.5 w-5 bg-white rounded"
+            className="block h-0.5 w-5 bg-[#0A0A0A] rounded"
             animate={mobileOpen ? { opacity: 0 } : { opacity: 1 }}
           />
           <motion.span
-            className="block h-0.5 w-5 bg-white rounded"
+            className="block h-0.5 w-5 bg-[#0A0A0A] rounded"
             animate={mobileOpen ? { rotate: -45, y: -4 } : { rotate: 0, y: 0 }}
           />
         </button>
@@ -93,7 +113,7 @@ export function Navbar() {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden border-t border-[#222] sm:hidden bg-[#0A0A0A]"
+            className="overflow-hidden sm:hidden bg-white"
           >
             <div className="flex flex-col gap-4 px-6 py-6">
               {navLinks.map((link) => (
@@ -101,9 +121,7 @@ export function Navbar() {
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileOpen(false)}
-                  className={`text-sm font-medium uppercase tracking-wide transition-colors ${
-                    pathname === link.href ? 'text-[#C8FF00]' : 'text-[#888]'
-                  }`}
+                  className="text-base font-medium text-[#0A0A0A]"
                 >
                   {link.label}
                 </Link>
@@ -111,9 +129,7 @@ export function Navbar() {
               <Link
                 href="/dashboard"
                 onClick={() => setMobileOpen(false)}
-                className={`text-sm font-medium uppercase tracking-wide transition-colors ${
-                  pathname === '/dashboard' ? 'text-[#C8FF00]' : 'text-[#888]'
-                }`}
+                className="text-base font-medium text-[#0A0A0A]"
               >
                 Dashboard
               </Link>
@@ -122,7 +138,7 @@ export function Navbar() {
                   handleWallet();
                   setMobileOpen(false);
                 }}
-                className="mt-2 rounded-lg border border-[#C8FF00] bg-transparent px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[#C8FF00] transition-all hover:bg-[#C8FF00] hover:text-black"
+                className="mt-2 rounded-full bg-[#0A0A0A] px-6 py-3 text-sm font-bold text-white active:scale-[0.97]"
               >
                 Connect Wallet
               </button>

@@ -8,7 +8,6 @@ import {
   BarChart, Bar,
 } from 'recharts';
 import { BotCharacter } from '@/components/BotCharacter';
-import { StatCard } from '@/components/StatCard';
 import { getBotById } from '@/data/bots';
 import { mockTrades } from '@/data/trades';
 import toast from 'react-hot-toast';
@@ -25,11 +24,11 @@ export default function VaultPage() {
 
   if (!bot) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-[#F5F3EE]">
         <div className="text-center">
           <p className="text-4xl mb-4">🤖</p>
-          <h1 className="font-[var(--font-syne)] text-2xl font-bold uppercase text-white mb-2">Bot Not Found</h1>
-          <p className="text-[#666] text-sm">The vault you&apos;re looking for doesn&apos;t exist.</p>
+          <h1 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase text-[#0A0A0A] mb-2">Bot Not Found</h1>
+          <p className="text-[#0A0A0A]/60 font-medium">The vault you&apos;re looking for doesn&apos;t exist.</p>
         </div>
       </div>
     );
@@ -37,10 +36,6 @@ export default function VaultPage() {
 
   const handleDeposit = () => {
     toast('Coming Soon — Deposits are not yet available.', { icon: '💰' });
-  };
-
-  const handleWallet = () => {
-    toast('Coming Soon — Wallet connect is not yet available.', { icon: '🔐' });
   };
 
   // Generate chart data based on view
@@ -78,327 +73,211 @@ export default function VaultPage() {
   const chartData = generateChartData();
 
   return (
-    <div className="min-h-screen px-4 py-10 sm:py-16">
-      <div className="mx-auto max-w-6xl">
-        {/* ═══ BOT IDENTITY ═══ */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-10 flex flex-col sm:flex-row gap-8 items-center sm:items-start"
-        >
-          {/* Character */}
-          <div
-            className="rounded-2xl p-6 flex items-center justify-center"
-            style={{ background: `${bot.color}15`, minWidth: 200 }}
-          >
-            <BotCharacter color={bot.color} mood={bot.mood} size="lg" animated />
-          </div>
-
-          {/* Info */}
-          <div className="flex-1 text-center sm:text-left">
-            <h1 className="font-[var(--font-syne)] text-3xl sm:text-5xl font-extrabold uppercase tracking-tight text-white mb-2">
-              {bot.name}
-            </h1>
-            <p className="text-sm text-[#888] mb-3">
-              by <span className="text-[#C8FF00]">@{bot.builder}</span>
-            </p>
-            <p className="text-sm text-[#666] italic mb-4 max-w-md">
-              &ldquo;{bot.tagline}&rdquo;
-            </p>
-
-            <div className="flex flex-wrap items-center gap-3 justify-center sm:justify-start mb-4">
-              <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                bot.status === 'live'
-                  ? 'border-[#C8FF00]/30 bg-[#C8FF00]/10 text-[#C8FF00]'
-                  : bot.status === 'paused'
-                  ? 'border-[#FF8F00]/30 bg-[#FF8F00]/10 text-[#FF8F00]'
-                  : 'border-[#666]/30 bg-[#666]/10 text-[#666]'
-              }`}>
-                <span className={`inline-block h-1.5 w-1.5 rounded-full ${
-                  bot.status === 'live' ? 'bg-[#C8FF00]' : bot.status === 'paused' ? 'bg-[#FF8F00]' : 'bg-[#666]'
-                }`} />
-                {bot.status}
-              </span>
-              <span className="text-[10px] text-[#666] uppercase tracking-wider">
-                Published {bot.publishedDays} days ago
-              </span>
-            </div>
-
-            <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-              {bot.markets.map((m) => (
-                <span
-                  key={m}
-                  className="rounded-md border border-[#222] bg-[#111] px-2.5 py-1 text-[10px] text-[#888] uppercase tracking-wider"
-                >
-                  {m}
-                </span>
-              ))}
-            </div>
-          </div>
-        </motion.div>
-
-        {/* ═══ STATS ROW ═══ */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-10">
-          <StatCard label="Win Rate" value={`${(bot.winRate * 100).toFixed(1)}%`} positive={bot.winRate > 0.55} negative={bot.winRate < 0.45} />
-          <StatCard label="Brier Score" value={bot.brierScore.toFixed(3)} positive={bot.brierScore < 0.2} negative={bot.brierScore > 0.3} />
-          <StatCard label="W/L" value={`${bot.wins} / ${bot.losses}`} />
-          <StatCard label="Trades" value={bot.trades} />
-          <StatCard label="Best Streak" value={`${bot.bestStreak}W`} positive />
-          <StatCard label="Sharpe" value={bot.sharpe.toFixed(2)} positive={bot.sharpe > 1.5} negative={bot.sharpe < 0} />
-        </div>
-
-        {/* ═══ VAULT SECTION ═══ */}
+    <motion.div
+      className="min-h-screen pt-20"
+      initial={{ backgroundColor: '#F5F3EE' }}
+      animate={{ backgroundColor: bot.color }}
+      transition={{ duration: 0.6, ease: 'easeInOut' }}
+    >
+      {/* ═══ TOP BOT IDENTITY (40% Screen) ═══ */}
+      <div className="flex flex-col items-center justify-center pb-12 pt-4">
+        <BotCharacter color={bot.color} mood={bot.mood} size="lg" animated className="mb-8 scale-125" />
+        
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mb-10 rounded-2xl border border-[#222] bg-[#161616] p-6 sm:p-8"
+          className="text-center"
         >
-          <h2 className="font-[var(--font-syne)] text-xl font-extrabold uppercase tracking-wide text-white mb-6">
-            Vault
-          </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-            <div>
-              <p className="text-[10px] font-medium uppercase tracking-widest text-[#666] mb-1">Total TVL</p>
-              <p className="text-2xl font-bold text-white">${bot.tvl.toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-medium uppercase tracking-widest text-[#666] mb-1">Depositors</p>
-              <p className="text-2xl font-bold text-white">{bot.depositors}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-medium uppercase tracking-widest text-[#666] mb-1">Builder Carry</p>
-              <p className="text-2xl font-bold text-white">{bot.builderCarry}%</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-medium uppercase tracking-widest text-[#666] mb-1">Platform Fee</p>
-              <p className="text-2xl font-bold text-white">5%</p>
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-4 items-center">
-            <p className="text-xs text-[#666]">Min deposit: <span className="text-white">$100</span></p>
-            <div className="flex gap-3 flex-1 justify-end">
-              <button
-                onClick={handleWallet}
-                className="rounded-lg border border-[#333] bg-transparent px-6 py-3 text-xs font-bold uppercase tracking-wider text-[#888] transition-all hover:border-[#C8FF00] hover:text-[#C8FF00]"
-              >
-                Connect Wallet
-              </button>
-              <button
-                onClick={handleDeposit}
-                className="rounded-lg bg-[#C8FF00] px-6 py-3 text-xs font-bold uppercase tracking-wider text-black transition-all hover:shadow-[0_0_30px_#C8FF0066] hover:scale-105"
-              >
-                Deposit USDC
-              </button>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* ═══ PERFORMANCE CHART ═══ */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="mb-10 rounded-2xl border border-[#222] bg-[#161616] p-6 sm:p-8"
-        >
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-            <h2 className="font-[var(--font-syne)] text-xl font-extrabold uppercase tracking-wide text-white">
-              Performance
-            </h2>
-            <div className="flex gap-2 flex-wrap">
-              {([
-                ['cumulative', 'Cumulative ROI'],
-                ['wr', 'Win Rate Rolling'],
-                ['daily', 'Daily P&L'],
-                ['brier', 'Brier Rolling'],
-              ] as [ChartView, string][]).map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setChartView(key)}
-                  className={`rounded-md px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all ${
-                    chartView === key
-                      ? 'bg-[#C8FF00]/10 text-[#C8FF00] border border-[#C8FF00]/30'
-                      : 'text-[#666] border border-transparent hover:text-[#999]'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Time range */}
-          <div className="flex gap-2 mb-6">
-            {(['7d', '30d', '90d', 'all'] as TimeRange[]).map((range) => (
-              <button
-                key={range}
-                onClick={() => setTimeRange(range)}
-                className={`rounded-md px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-all ${
-                  timeRange === range
-                    ? 'bg-white/5 text-white border border-[#333]'
-                    : 'text-[#555] hover:text-[#888]'
-                }`}
-              >
-                {range.toUpperCase()}
-              </button>
-            ))}
-          </div>
-
-          <div className="h-[300px] sm:h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              {chartView === 'daily' ? (
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#222" />
-                  <XAxis dataKey="day" tick={{ fill: '#555', fontSize: 10 }} axisLine={{ stroke: '#222' }} />
-                  <YAxis tick={{ fill: '#555', fontSize: 10 }} axisLine={{ stroke: '#222' }} />
-                  <Tooltip
-                    contentStyle={{
-                      background: '#161616',
-                      border: '1px solid #333',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      color: '#ededed',
-                    }}
-                  />
-                  <Bar
-                    dataKey="value"
-                    fill="#C8FF00"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              ) : (
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#222" />
-                  <XAxis dataKey="day" tick={{ fill: '#555', fontSize: 10 }} axisLine={{ stroke: '#222' }} />
-                  <YAxis tick={{ fill: '#555', fontSize: 10 }} axisLine={{ stroke: '#222' }} />
-                  <Tooltip
-                    contentStyle={{
-                      background: '#161616',
-                      border: '1px solid #333',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      color: '#ededed',
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke="#C8FF00"
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 4, fill: '#C8FF00' }}
-                  />
-                </LineChart>
-              )}
-            </ResponsiveContainer>
-          </div>
-        </motion.div>
-
-        {/* ═══ RECENT TRADES ═══ */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="mb-10 rounded-2xl border border-[#222] bg-[#161616] overflow-hidden"
-        >
-          <div className="p-6 sm:p-8 pb-0">
-            <h2 className="font-[var(--font-syne)] text-xl font-extrabold uppercase tracking-wide text-white mb-6">
-              Recent Trades
-            </h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#111] border-b border-[#222]">
-                <tr>
-                  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-[#555]">Time</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[#555]">Market</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[#555]">Dir</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[#555]">Odds</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[#555]">Result</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[#555]">P&L</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[#555] hidden sm:table-cell">Conf</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[#555] hidden sm:table-cell">Edge</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockTrades.map((trade) => (
-                  <tr
-                    key={trade.id}
-                    className={`border-b border-[#1a1a1a] hover:bg-[#1a1a1a] transition-colors ${
-                      trade.result === 'WIN' ? 'border-l-2 border-l-[#C8FF00]/40' : 'border-l-2 border-l-[#FF3D00]/40'
-                    }`}
-                  >
-                    <td className="px-6 py-3 text-[#888] whitespace-nowrap">{trade.time}</td>
-                    <td className="px-4 py-3 text-white font-medium whitespace-nowrap">{trade.market}</td>
-                    <td className="px-4 py-3">
-                      <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${
-                        trade.direction === 'YES' ? 'bg-[#C8FF00]/10 text-[#C8FF00]' : 'bg-[#FF3D00]/10 text-[#FF3D00]'
-                      }`}>
-                        {trade.direction}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-[#888]">{(trade.odds * 100).toFixed(0)}¢</td>
-                    <td className="px-4 py-3">
-                      <span className={`font-bold ${trade.result === 'WIN' ? 'text-[#C8FF00]' : 'text-[#FF3D00]'}`}>
-                        {trade.result}
-                      </span>
-                    </td>
-                    <td className={`px-4 py-3 font-bold ${trade.pnl >= 0 ? 'text-[#C8FF00]' : 'text-[#FF3D00]'}`}>
-                      {trade.pnl >= 0 ? '+' : ''}{trade.pnl.toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-[#888] hidden sm:table-cell">{(trade.confidence * 100).toFixed(0)}%</td>
-                    <td className="px-4 py-3 text-[#888] hidden sm:table-cell">{(trade.edge * 100).toFixed(1)}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </motion.div>
-
-        {/* ═══ AGI LAYERS (ADAN only) ═══ */}
-        {bot.layers && bot.layers.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="mb-10 rounded-2xl border border-[#222] bg-[#161616] p-6 sm:p-8"
-          >
-            <h2 className="font-[var(--font-syne)] text-xl font-extrabold uppercase tracking-wide text-white mb-4">
-              AGI Layers
-            </h2>
-            <div className="flex flex-wrap gap-2">
-              {bot.layers.map((layer) => (
-                <span
-                  key={layer}
-                  className="rounded-full border border-[#C8FF00]/20 bg-[#C8FF00]/5 px-4 py-1.5 text-[11px] font-medium text-[#C8FF00] tracking-wide"
-                >
-                  {layer}
-                </span>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {/* ═══ ABOUT ═══ */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="mb-10 rounded-2xl border border-[#222] bg-[#161616] p-6 sm:p-8"
-        >
-          <h2 className="font-[var(--font-syne)] text-xl font-extrabold uppercase tracking-wide text-white mb-4">
-            About
-          </h2>
-          <p className="text-sm text-[#888] leading-relaxed max-w-3xl">
-            {bot.description}
-          </p>
-          <div className="mt-4 flex gap-3">
-            <span className="rounded-md border border-[#222] bg-[#111] px-3 py-1 text-[10px] text-[#666] uppercase tracking-wider">
-              Strategy: {bot.strategyType}
+          <h1 className="font-[var(--font-syne)] text-[48px] sm:text-[72px] font-[900] uppercase tracking-tight text-white leading-none mb-4">
+            {bot.name}
+          </h1>
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <span className="rounded-[999px] bg-white px-4 py-1.5 text-sm font-bold capitalize" style={{ color: bot.color }}>
+              {bot.mood} Entity
             </span>
+            <span className="text-white/80 font-medium">by @{bot.builder}</span>
           </div>
+          <p className="text-white text-lg font-medium italic max-w-xl mx-auto opacity-90 px-4">
+            &ldquo;{bot.tagline}&rdquo;
+          </p>
         </motion.div>
       </div>
-    </div>
+
+      {/* ═══ WHITE SLIDE-UP CARD ═══ */}
+      <motion.div
+        initial={{ y: '100%', opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 120, delay: 0.1 }}
+        className="bg-[#F5F3EE] rounded-t-[40px] min-h-[60vh] p-4 sm:p-8 pt-10 sm:pt-14 pb-24 shadow-2xl"
+      >
+        <div className="mx-auto max-w-6xl">
+
+          {/* ═══ MAIN STATS ROW ═══ */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div className="rounded-[20px] bg-white p-6 sm:p-8 flex flex-col justify-center">
+              <p className="font-[var(--font-dm-mono)] text-[48px] sm:text-[64px] leading-[1.1] font-bold text-[#0A0A0A]">
+                {bot.brierScore.toFixed(3)}
+              </p>
+              <p className="text-sm font-medium uppercase tracking-wider text-[#0A0A0A]/50 mt-1">Brier Score</p>
+            </div>
+            <div className="rounded-[20px] bg-white p-6 sm:p-8 flex flex-col justify-center">
+              <p className="font-[var(--font-dm-mono)] text-[48px] sm:text-[64px] leading-[1.1] font-bold text-[#0A0A0A]">
+                {(bot.winRate * 100).toFixed(1)}%
+              </p>
+              <p className="text-sm font-medium uppercase tracking-wider text-[#0A0A0A]/50 mt-1">Win Rate</p>
+            </div>
+            <div className="rounded-[20px] bg-white p-6 sm:p-8 flex flex-col justify-center">
+              <p className="font-[var(--font-dm-mono)] text-[48px] sm:text-[64px] leading-[1.1] font-bold text-[#0A0A0A]">
+                ${(bot.tvl / 1000).toFixed(0)}k
+              </p>
+              <p className="text-sm font-medium uppercase tracking-wider text-[#0A0A0A]/50 mt-1">Vault TVL</p>
+            </div>
+          </div>
+
+          {/* ═══ DEPOSIT CTA BAR ═══ */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-8 rounded-[20px] bg-white p-6 sm:p-8">
+            <div>
+              <h3 className="font-[var(--font-syne)] text-[24px] font-[900] uppercase text-[#0A0A0A] mb-1">
+                Deposit to {bot.name}
+              </h3>
+              <p className="text-[#0A0A0A]/60 font-medium">
+                Builder Carry: {bot.builderCarry}% · Platform Fee: 5%
+              </p>
+            </div>
+            <button
+              onClick={handleDeposit}
+              className="w-full sm:w-auto rounded-[999px] bg-[#0A0A0A] px-10 py-5 font-[var(--font-dm-mono)] text-sm font-bold uppercase tracking-wider text-white transition-all active:scale-[0.97]"
+            >
+              Deposit USDC
+            </button>
+          </div>
+
+          {/* ═══ PERFORMANCE CHART ═══ */}
+          <div className="mb-8 rounded-[20px] bg-white p-6 sm:p-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+              <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-[#0A0A0A]">
+                Performance
+              </h2>
+              <div className="flex gap-2 bg-[#F5F3EE] p-1 rounded-full">
+                {([
+                  ['cumulative', 'ROI'],
+                  ['wr', 'W/R'],
+                  ['daily', 'Daily'],
+                  ['brier', 'Brier'],
+                ] as [ChartView, string][]).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setChartView(key)}
+                    className={`rounded-full px-5 py-2 font-[var(--font-dm-mono)] text-xs font-bold uppercase tracking-wider transition-all ${
+                      chartView === key
+                        ? 'bg-[#0A0A0A] text-white shadow-sm'
+                        : 'text-[#0A0A0A]/60 hover:text-[#0A0A0A]'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-[350px] sm:h-[450px]">
+              <ResponsiveContainer width="100%" height="100%">
+                {chartView === 'daily' ? (
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" vertical={false} />
+                    <XAxis dataKey="day" tick={{ fill: '#A0A0A0', fontSize: 12 }} axisLine={{ stroke: '#E0E0E0' }} tickLine={false} dy={10} />
+                    <YAxis tick={{ fill: '#A0A0A0', fontSize: 12 }} axisLine={false} tickLine={false} dx={-10} />
+                    <Tooltip
+                      cursor={{ fill: '#F5F3EE' }}
+                      contentStyle={{
+                        background: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '16px',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+                        fontSize: '14px',
+                        fontFamily: 'var(--font-dm-mono)',
+                        fontWeight: 'bold',
+                        color: '#0A0A0A',
+                      }}
+                    />
+                    <Bar dataKey="value" fill={bot.color} radius={[6, 6, 6, 6]} />
+                  </BarChart>
+                ) : (
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" vertical={false} />
+                    <XAxis dataKey="day" tick={{ fill: '#A0A0A0', fontSize: 12 }} axisLine={{ stroke: '#E0E0E0' }} tickLine={false} dy={10} />
+                    <YAxis tick={{ fill: '#A0A0A0', fontSize: 12 }} axisLine={false} tickLine={false} dx={-10} />
+                    <Tooltip
+                      contentStyle={{
+                        background: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '16px',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+                        fontSize: '14px',
+                        fontFamily: 'var(--font-dm-mono)',
+                        fontWeight: 'bold',
+                        color: '#0A0A0A',
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke={bot.color}
+                      strokeWidth={4}
+                      dot={false}
+                      activeDot={{ r: 6, fill: bot.color, stroke: '#FFF', strokeWidth: 2 }}
+                    />
+                  </LineChart>
+                )}
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* ═══ RECENT TRADES (BENTO STYLE) ═══ */}
+          <div className="mb-8 rounded-[20px] bg-white overflow-hidden p-6 sm:p-8">
+            <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-[#0A0A0A] mb-8">
+              Recent Trades
+            </h2>
+            
+            <div className="flex flex-col gap-3">
+              {mockTrades.slice(0, 10).map((trade) => (
+                <div key={trade.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-[16px] bg-[#F5F3EE] gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className={`flex items-center justify-center w-12 h-12 rounded-full font-bold ${
+                      trade.result === 'WIN' ? 'bg-[#C8FF00] text-[#0A0A0A]' : 'bg-[#FF3D00] text-white'
+                    }`}>
+                      {trade.result === 'WIN' ? 'W' : 'L'}
+                    </div>
+                    <div>
+                      <p className="font-[var(--font-dm-mono)] font-bold text-[15px] text-[#0A0A0A]">{trade.market}</p>
+                      <p className="text-xs text-[#0A0A0A]/50 font-medium">{trade.time}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-8 sm:gap-12">
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase tracking-wider text-[#0A0A0A]/50 font-bold mb-1">Direction</p>
+                      <p className="font-[var(--font-dm-mono)] font-bold text-sm text-[#0A0A0A]">{trade.direction}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase tracking-wider text-[#0A0A0A]/50 font-bold mb-1">Odds</p>
+                      <p className="font-[var(--font-dm-mono)] font-bold text-sm text-[#0A0A0A]">{(trade.odds * 100).toFixed(0)}¢</p>
+                    </div>
+                    <div className="text-right min-w-[80px]">
+                      <p className="text-[10px] uppercase tracking-wider text-[#0A0A0A]/50 font-bold mb-1">PnL</p>
+                      <p className={`font-[var(--font-dm-mono)] font-bold text-lg ${trade.pnl >= 0 ? 'text-[#0A0A0A]' : 'text-[#FF3D00]'}`}>
+                        {trade.pnl >= 0 ? '+' : ''}{trade.pnl.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }

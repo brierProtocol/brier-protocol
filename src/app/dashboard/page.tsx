@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { BotCharacter } from '@/components/BotCharacter';
 import { BotCard } from '@/components/BotCard';
 import { bots } from '@/data/bots';
 import toast from 'react-hot-toast';
@@ -19,9 +18,9 @@ const mockEarnings = [
 ];
 
 const mockDeposits = [
-  { bot: 'HERMES-Q', deposited: 10000, current: 14780, roi: 47.8 },
-  { bot: 'PHANTOM-X', deposited: 5000, current: 6925, roi: 38.5 },
-  { bot: 'SIGMA-FLOW', deposited: 3000, current: 3807, roi: 26.9 },
+  { bot: 'HERMES-Q', deposited: 10000, current: 14780, roi: 47.8, color: '#7B2FFF' },
+  { bot: 'PHANTOM-X', deposited: 5000, current: 6925, roi: 38.5, color: '#FF1493' },
+  { bot: 'SIGMA-FLOW', deposited: 3000, current: 3807, roi: 26.9, color: '#00BCD4' },
 ];
 
 const publishSteps = [
@@ -43,51 +42,58 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen px-4 py-10 sm:py-16">
+    <div className="min-h-screen px-4 py-10 sm:py-16 bg-[#F5F3EE]">
       <div className="mx-auto max-w-6xl">
         {/* ═══ PROFILE HEADER ═══ */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-10 flex flex-col sm:flex-row gap-6 items-center sm:items-start"
+          className="mb-16 flex flex-col sm:flex-row gap-8 items-center sm:items-start bg-white p-8 sm:p-10 rounded-[24px] shadow-sm"
         >
           {/* Geometric avatar */}
-          <div className="relative">
-            <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-[#C8FF00] to-[#7B2FFF] p-[2px]">
-              <div className="h-full w-full rounded-2xl bg-[#161616] flex items-center justify-center">
-                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                  <rect x="4" y="4" width="14" height="14" rx="2" fill="#C8FF00" />
-                  <rect x="22" y="4" width="14" height="14" rx="2" fill="#7B2FFF" />
-                  <rect x="4" y="22" width="14" height="14" rx="2" fill="#00C2FF" />
-                  <rect x="22" y="22" width="14" height="14" rx="2" fill="#FF6B35" />
+          <div className="relative shrink-0">
+            <div className="h-28 w-28 rounded-[20px] bg-[#0A0A0A] p-[2px]">
+              <div className="h-full w-full rounded-[18px] bg-white flex items-center justify-center overflow-hidden">
+                <svg width="60" height="60" viewBox="0 0 40 40" fill="none">
+                  <rect x="4" y="4" width="14" height="14" rx="4" fill="#C8FF00" />
+                  <rect x="22" y="4" width="14" height="14" rx="4" fill="#7B2FFF" />
+                  <rect x="4" y="22" width="14" height="14" rx="4" fill="#00C2FF" />
+                  <rect x="22" y="22" width="14" height="14" rx="4" fill="#FF6B35" />
                 </svg>
               </div>
             </div>
-            <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-[#161616] bg-[#C8FF00]" />
+            <span className="absolute -bottom-2 -right-2 h-8 w-8 flex items-center justify-center rounded-full border-[3px] border-white bg-[#C8FF00] text-[#0A0A0A] text-lg">
+              ✦
+            </span>
           </div>
 
           <div className="text-center sm:text-left flex-1">
-            <h1 className="font-[var(--font-syne)] text-2xl sm:text-3xl font-extrabold uppercase tracking-tight text-white mb-1">
+            <h1 className="font-[var(--font-syne)] text-[32px] sm:text-[48px] font-[900] uppercase tracking-tight text-[#0A0A0A] mb-1 leading-none">
               @Lord14sol
             </h1>
-            <p className="text-xs text-[#666] font-mono mb-3">
-              Wallet: 0x1234...5678
+            <p className="font-[var(--font-dm-mono)] text-sm text-[#0A0A0A]/50 font-bold mb-5">
+              0x1234...5678
             </p>
-            <div className="flex flex-wrap gap-4 justify-center sm:justify-start text-xs">
+            
+            <div className="flex flex-wrap gap-x-8 gap-y-4 justify-center sm:justify-start">
               <div>
-                <span className="text-[#666] uppercase tracking-wider">Builder since</span>
-                <span className="ml-2 text-white font-medium">Jan 2025</span>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-[#0A0A0A]/40 mb-1">Builder Since</p>
+                <p className="font-[var(--font-dm-mono)] font-bold text-[#0A0A0A] text-lg">Jan 2025</p>
               </div>
               <div>
-                <span className="text-[#666] uppercase tracking-wider">Total earnings</span>
-                <span className="ml-2 text-[#C8FF00] font-bold">$12,847</span>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-[#0A0A0A]/40 mb-1">Total Earnings</p>
+                <p className="font-[var(--font-dm-mono)] font-bold text-[#0A0A0A] text-lg bg-[#C8FF00] px-2 rounded-md inline-block">$12,847</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-[#0A0A0A]/40 mb-1">Active Vaults</p>
+                <p className="font-[var(--font-dm-mono)] font-bold text-[#0A0A0A] text-lg">2</p>
               </div>
             </div>
           </div>
 
           <button
             onClick={() => handleComingSoon('Settings')}
-            className="rounded-lg border border-[#333] px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#888] transition-all hover:border-[#C8FF00] hover:text-[#C8FF00]"
+            className="rounded-full border-2 border-[#0A0A0A] bg-transparent px-8 py-3 font-[var(--font-dm-mono)] text-sm font-bold uppercase tracking-wider text-[#0A0A0A] transition-all hover:bg-[#0A0A0A] hover:text-white active:scale-[0.97]"
           >
             Settings
           </button>
@@ -98,9 +104,9 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-12"
+          className="mb-16"
         >
-          <h2 className="font-[var(--font-syne)] text-xl font-extrabold uppercase tracking-wide text-white mb-6">
+          <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-[#0A0A0A] mb-6">
             My Bots
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -116,12 +122,15 @@ export default function DashboardPage() {
               }}
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: myBots.length * 0.06 }}
-              className="group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#333] bg-[#111] py-16 transition-all hover:border-[#C8FF00] hover:bg-[#161616] cursor-pointer min-h-[400px]"
+              transition={{ delay: myBots.length * 0.05 }}
+              whileHover={{ y: -4 }}
+              className="group relative flex flex-col items-center justify-center rounded-[20px] bg-white border-2 border-dashed border-[#E0E0E0] py-16 transition-all hover:border-[#0A0A0A] cursor-pointer min-h-[380px]"
             >
-              <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">➕</div>
-              <span className="font-[var(--font-syne)] text-sm font-bold uppercase tracking-wider text-[#888] group-hover:text-[#C8FF00] transition-colors">
-                Publish New Bot
+              <div className="w-16 h-16 rounded-full bg-[#F5F3EE] flex items-center justify-center text-2xl mb-4 group-hover:bg-[#0A0A0A] group-hover:text-white transition-colors">
+                +
+              </div>
+              <span className="font-[var(--font-syne)] text-[24px] font-[900] uppercase tracking-tight text-[#0A0A0A]">
+                Deploy Bot
               </span>
             </motion.button>
           </div>
@@ -132,84 +141,95 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mb-12"
+          className="mb-16"
         >
-          <h2 className="font-[var(--font-syne)] text-xl font-extrabold uppercase tracking-wide text-white mb-6">
-            My Earnings
+          <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-[#0A0A0A] mb-6">
+            Earnings
           </h2>
 
-          {/* Earning stats */}
-          <div className="grid sm:grid-cols-3 gap-4 mb-6">
-            <div className="rounded-xl border border-[#222] bg-[#161616] p-5">
-              <p className="text-[10px] font-medium uppercase tracking-widest text-[#666] mb-1">Total Carry Earned</p>
-              <p className="text-2xl font-bold text-[#C8FF00] font-[var(--font-syne)]">$12,847</p>
+          <div className="bg-white rounded-[24px] p-6 sm:p-8 shadow-sm">
+            {/* Earning stats */}
+            <div className="grid sm:grid-cols-3 gap-4 mb-8">
+              <div className="rounded-[16px] bg-[#F5F3EE] p-6">
+                <p className="font-[var(--font-dm-mono)] text-[40px] leading-none font-bold text-[#0A0A0A] mb-2">$12,847</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50">Total Carry Earned</p>
+              </div>
+              <div className="rounded-[16px] bg-[#C8FF00] p-6">
+                <p className="font-[var(--font-dm-mono)] text-[40px] leading-none font-bold text-[#0A0A0A] mb-2">$2,341</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/70">This Month</p>
+              </div>
+              <div className="rounded-[16px] bg-[#F5F3EE] p-6">
+                <p className="font-[var(--font-dm-mono)] text-[40px] leading-none font-bold text-[#0A0A0A] mb-2">$891</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50">Pending (Unrealized)</p>
+              </div>
             </div>
-            <div className="rounded-xl border border-[#222] bg-[#161616] p-5">
-              <p className="text-[10px] font-medium uppercase tracking-widest text-[#666] mb-1">This Month</p>
-              <p className="text-2xl font-bold text-[#C8FF00] font-[var(--font-syne)]">$2,341</p>
-            </div>
-            <div className="rounded-xl border border-[#222] bg-[#161616] p-5">
-              <p className="text-[10px] font-medium uppercase tracking-widest text-[#666] mb-1">Pending (Unrealized)</p>
-              <p className="text-2xl font-bold text-white font-[var(--font-syne)]">$891</p>
-            </div>
-          </div>
 
-          {/* Earnings chart */}
-          <div className="rounded-xl border border-[#222] bg-[#161616] p-6 h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={mockEarnings}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#222" />
-                <XAxis dataKey="month" tick={{ fill: '#555', fontSize: 11 }} axisLine={{ stroke: '#222' }} />
-                <YAxis tick={{ fill: '#555', fontSize: 11 }} axisLine={{ stroke: '#222' }} />
-                <Tooltip
-                  contentStyle={{
-                    background: '#161616',
-                    border: '1px solid #333',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    color: '#ededed',
-                  }}
-                  formatter={(value) => [`$${value}`, 'Earnings']}
-                />
-                <Bar dataKey="earnings" fill="#C8FF00" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {/* Earnings chart */}
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={mockEarnings}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fill: '#A0A0A0', fontSize: 12 }} axisLine={{ stroke: '#E0E0E0' }} tickLine={false} dy={10} />
+                  <YAxis tick={{ fill: '#A0A0A0', fontSize: 12 }} axisLine={false} tickLine={false} dx={-10} />
+                  <Tooltip
+                    cursor={{ fill: '#F5F3EE' }}
+                    contentStyle={{
+                      background: '#FFFFFF',
+                      border: 'none',
+                      borderRadius: '16px',
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+                      fontSize: '14px',
+                      fontFamily: 'var(--font-dm-mono)',
+                      fontWeight: 'bold',
+                      color: '#0A0A0A',
+                    }}
+                    formatter={(value) => [`$${value}`, 'Earnings']}
+                  />
+                  <Bar dataKey="earnings" fill="#0A0A0A" radius={[6, 6, 6, 6]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </motion.div>
 
-        {/* ═══ MY DEPOSITS ═══ */}
+        {/* ═══ MY DEPOSITS (Bento style) ═══ */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="mb-12"
+          className="mb-16"
         >
-          <h2 className="font-[var(--font-syne)] text-xl font-extrabold uppercase tracking-wide text-white mb-6">
+          <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-[#0A0A0A] mb-6">
             My Deposits
           </h2>
-          <div className="overflow-x-auto rounded-xl border border-[#222] bg-[#161616]">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#111] border-b border-[#222]">
-                <tr>
-                  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-[#555]">Bot</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[#555]">Deposited</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[#555]">Current Value</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[#555]">ROI</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockDeposits.map((dep) => (
-                  <tr key={dep.bot} className="border-b border-[#1a1a1a] hover:bg-[#1a1a1a] transition-colors">
-                    <td className="px-6 py-4 font-[var(--font-syne)] font-bold uppercase text-white">{dep.bot}</td>
-                    <td className="px-4 py-4 text-[#888]">${dep.deposited.toLocaleString()}</td>
-                    <td className="px-4 py-4 text-white font-medium">${dep.current.toLocaleString()}</td>
-                    <td className={`px-4 py-4 font-bold ${dep.roi >= 0 ? 'text-[#C8FF00]' : 'text-[#FF3D00]'}`}>
-                      +{dep.roi.toFixed(1)}%
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="bg-white rounded-[24px] p-6 sm:p-8 shadow-sm">
+            <div className="flex flex-col gap-3">
+              {mockDeposits.map((dep) => (
+                <div key={dep.bot} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-[16px] bg-[#F5F3EE] gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-4 h-12 rounded-full" style={{ background: dep.color }} />
+                    <span className="font-[var(--font-syne)] text-[24px] font-[900] uppercase text-[#0A0A0A]">{dep.bot}</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-6 sm:gap-12 text-right">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider font-bold text-[#0A0A0A]/40 mb-1">Deposited</p>
+                      <p className="font-[var(--font-dm-mono)] font-bold text-base text-[#0A0A0A]">${dep.deposited.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider font-bold text-[#0A0A0A]/40 mb-1">Current</p>
+                      <p className="font-[var(--font-dm-mono)] font-bold text-base text-[#0A0A0A]">${dep.current.toLocaleString()}</p>
+                    </div>
+                    <div className="min-w-[70px]">
+                      <p className="text-[10px] uppercase tracking-wider font-bold text-[#0A0A0A]/40 mb-1">ROI</p>
+                      <p className={`font-[var(--font-dm-mono)] font-bold text-xl ${dep.roi >= 0 ? 'text-[#0A0A0A]' : 'text-[#FF3D00]'}`}>
+                        +{dep.roi.toFixed(1)}%
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </motion.div>
       </div>
@@ -221,42 +241,42 @@ export default function DashboardPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md"
             onClick={() => setShowPublishModal(false)}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-lg rounded-2xl border border-[#222] bg-[#111] p-6 sm:p-8"
+              className="w-full max-w-xl rounded-[32px] bg-white p-8 sm:p-10 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="font-[var(--font-syne)] text-xl font-extrabold uppercase tracking-wide text-white">
-                  Publish New Bot
+              <div className="flex items-center justify-between mb-10">
+                <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-[#0A0A0A]">
+                  Publish Bot
                 </h2>
                 <button
                   onClick={() => setShowPublishModal(false)}
-                  className="text-[#666] hover:text-white transition-colors text-xl"
+                  className="h-10 w-10 rounded-full bg-[#F5F3EE] text-[#0A0A0A] flex items-center justify-center text-xl hover:bg-[#E0E0E0] transition-colors"
                 >
                   ✕
                 </button>
               </div>
 
               {/* Step indicators */}
-              <div className="flex items-center gap-2 mb-8">
+              <div className="flex items-center gap-2 mb-10">
                 {publishSteps.map((step) => (
                   <div key={step.id} className="flex items-center gap-2 flex-1">
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                    <div className={`h-10 w-10 rounded-full flex items-center justify-center font-[var(--font-dm-mono)] text-sm font-bold transition-all ${
                       publishStep >= step.id
-                        ? 'bg-[#C8FF00] text-black'
-                        : 'bg-[#222] text-[#666]'
+                        ? 'bg-[#0A0A0A] text-white'
+                        : 'bg-[#F5F3EE] text-[#0A0A0A]/40'
                     }`}>
                       {publishStep > step.id ? '✓' : step.id}
                     </div>
                     {step.id < 4 && (
-                      <div className={`flex-1 h-0.5 rounded-full transition-all ${
-                        publishStep > step.id ? 'bg-[#C8FF00]' : 'bg-[#222]'
+                      <div className={`flex-1 h-1 rounded-full transition-all ${
+                        publishStep > step.id ? 'bg-[#0A0A0A]' : 'bg-[#F5F3EE]'
                       }`} />
                     )}
                   </div>
@@ -264,20 +284,20 @@ export default function DashboardPage() {
               </div>
 
               {/* Current step content */}
-              <div className="mb-8">
-                <h3 className="font-[var(--font-syne)] text-base font-bold uppercase text-white mb-4">
-                  Step {publishStep}: {publishSteps[publishStep - 1].title}
+              <div className="mb-10 min-h-[220px]">
+                <h3 className="font-[var(--font-syne)] text-[24px] font-[900] uppercase text-[#0A0A0A] mb-6">
+                  {publishSteps[publishStep - 1].title}
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {publishSteps[publishStep - 1].fields.map((field) => (
                     <div key={field}>
-                      <label className="block text-[10px] font-medium uppercase tracking-widest text-[#666] mb-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">
                         {field}
                       </label>
                       <input
                         type="text"
-                        placeholder={field}
-                        className="w-full rounded-lg border border-[#222] bg-[#161616] px-4 py-2.5 text-sm text-white placeholder-[#444] outline-none focus:border-[#C8FF00] transition-colors"
+                        placeholder={`Enter ${field.toLowerCase()}`}
+                        className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm text-[#0A0A0A] placeholder-[#0A0A0A]/30 outline-none focus:ring-2 focus:ring-[#0A0A0A] transition-all"
                       />
                     </div>
                   ))}
@@ -285,13 +305,13 @@ export default function DashboardPage() {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 justify-between">
+              <div className="flex gap-4">
                 <button
                   onClick={() => {
                     if (publishStep > 1) setPublishStep(publishStep - 1);
                     else setShowPublishModal(false);
                   }}
-                  className="rounded-lg border border-[#333] px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-[#888] transition-all hover:border-[#666]"
+                  className="flex-1 rounded-[999px] border-2 border-[#0A0A0A] bg-transparent py-4 font-[var(--font-dm-mono)] text-sm font-bold uppercase tracking-wider text-[#0A0A0A] transition-all hover:bg-[#0A0A0A] hover:text-white active:scale-[0.97]"
                 >
                   {publishStep === 1 ? 'Cancel' : 'Back'}
                 </button>
@@ -304,9 +324,9 @@ export default function DashboardPage() {
                       setShowPublishModal(false);
                     }
                   }}
-                  className="rounded-lg bg-[#C8FF00] px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-black transition-all hover:shadow-[0_0_20px_#C8FF0044]"
+                  className="flex-1 rounded-[999px] bg-[#0A0A0A] py-4 font-[var(--font-dm-mono)] text-sm font-bold uppercase tracking-wider text-white transition-all hover:opacity-90 active:scale-[0.97]"
                 >
-                  {publishStep === 4 ? 'Publish Bot' : 'Next'}
+                  {publishStep === 4 ? 'Deploy' : 'Next Step'}
                 </button>
               </div>
             </motion.div>
