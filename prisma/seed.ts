@@ -13,11 +13,10 @@ async function main() {
   await prisma.kalshiConnection.deleteMany()
   await prisma.bot.deleteMany()
 
-  console.log('Seeding ADAN-PRED benchmark (v2.0)...')
+  console.log('Seeding Institutional Fleet (v2.0 English)...')
 
-  // Create ADAN-PRED (benchmark bot)
-  const adan = await prisma.bot.create({
-    data: {
+  const botsToSeed = [
+    {
       slug: 'adan-pred',
       name: 'ADAN-PRED',
       tagline: 'Not just a bot. An entity with skin in the game.',
@@ -31,76 +30,105 @@ async function main() {
       vaultCap: 500000,
       currentTVL: 284000,
       vaultOpen: true,
-      markets: {
-        create: [
-          { marketId: 'poly-btc-price-resolved', status: 'WHITELISTED' },
-          { marketId: 'poly-eth-price-resolved', status: 'WHITELISTED' }
-        ]
-      },
-      scores: {
-        create: {
-          brierScore: 0.164,
-          winRate: 0.624,
-          sharpe: 2.41,
-          totalTrades: 1647,
-          totalVolume: 284000,
-          maxDrawdown: -0.042,
-          isLatest: true
+      brier: 0.164,
+      wr: 0.624,
+      sharpe: 2.41,
+      trades: 1647,
+      vol: 284000,
+      dd: -0.042
+    },
+    {
+      slug: 'hermes-q',
+      name: 'HERMES-Q',
+      tagline: 'Speed is truth. Latency is the enemy of alpha.',
+      color: '#7B2FFF',
+      mood: 'cool',
+      status: 'VAULT_ELIGIBLE_T1',
+      tier: 'TIER1',
+      description: 'Exploits market microstructure inefficiencies. Order flow analysis and liquidity shift detection.',
+      walletAddress: '0x8888888888888888888888888888888888888888',
+      skinInGame: 25000,
+      vaultCap: 1000000,
+      currentTVL: 512000,
+      vaultOpen: true,
+      brier: 0.152,
+      wr: 0.671,
+      sharpe: 2.87,
+      trades: 2741,
+      vol: 512000,
+      dd: -0.038
+    },
+    {
+      slug: 'atlas-core',
+      name: 'ATLAS-CORE',
+      tagline: 'Mapping the topology of probability space.',
+      color: '#00C2FF',
+      mood: 'neutral',
+      status: 'LIVE',
+      tier: 'NONE',
+      description: 'Statistical arbitrage across correlated event markets. Multi-dimensional probability mapping.',
+      walletAddress: '0x7777777777777777777777777777777777777777',
+      skinInGame: 10000,
+      vaultCap: 250000,
+      currentTVL: 198000,
+      vaultOpen: false,
+      brier: 0.198,
+      wr: 0.583,
+      sharpe: 1.94,
+      trades: 1922,
+      vol: 198000,
+      dd: -0.061
+    }
+  ]
+
+  for (const b of botsToSeed) {
+    const bot = await prisma.bot.create({
+      data: {
+        slug: b.slug,
+        name: b.name,
+        tagline: b.tagline,
+        color: b.color,
+        mood: b.mood,
+        status: b.status,
+        tier: b.tier,
+        description: b.description,
+        walletAddress: b.walletAddress,
+        skinInGame: b.skinInGame,
+        vaultCap: b.vaultCap,
+        currentTVL: b.currentTVL,
+        vaultOpen: b.vaultOpen,
+        scores: {
+          create: {
+            brierScore: b.brier,
+            winRate: b.wr,
+            sharpe: b.sharpe,
+            totalTrades: b.trades,
+            totalVolume: b.vol,
+            maxDrawdown: b.dd,
+            isLatest: true
+          }
         }
       }
-    }
-  })
-
-  // Add historical PnL snapshots
-  const history = [0, 12000, 24000, 18000, 32000, 45000, 52000, 61000, 75000, 89000, 102000, 150000]
-  for (let i = 0; i < history.length; i++) {
-    const date = new Date()
-    date.setDate(date.getDate() - (history.length - i))
-    await prisma.pnlSnapshot.create({
-      data: {
-        botId: adan.id,
-        date,
-        pnlUsd: i === 0 ? 0 : history[i] - history[i-1],
-        cumulativePnl: history[i],
-        tradesCount: 100 + i,
-      }
     })
+
+    // Create 30 days of PnL snapshots
+    const history = Array.from({ length: 30 }, (_, i) => (b.vol / 2) + Math.random() * (b.vol / 2))
+    for (let i = 0; i < 30; i++) {
+      const date = new Date()
+      date.setDate(date.getDate() - (30 - i))
+      await prisma.pnlSnapshot.create({
+        data: {
+          botId: bot.id,
+          date,
+          pnlUsd: Math.random() * 1000,
+          cumulativePnl: history[i],
+          tradesCount: Math.floor(b.trades / 30) * i
+        }
+      })
+    }
   }
 
-  // Create Incubation Logs (v2.0)
-  await prisma.incubationLog.createMany({
-    data: [
-      { 
-        botId: adan.id, 
-        fromStatus: 'PAPER', 
-        toStatus: 'LIVE', 
-        reason: 'Execution wallet registered and verified on Polygon.',
-        triggeredBy: 'MANUAL',
-        triggeredAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000)
-      },
-      { 
-        botId: adan.id, 
-        fromStatus: 'LIVE', 
-        toStatus: 'VAULT_ELIGIBLE_T1', 
-        reason: 'Met T1 requirements: 100+ trades, <0.28 Brier (0.164), 30 days active.',
-        brierAtTransition: 0.164,
-        winRateAtTransition: 0.62,
-        tradesAtTransition: 150,
-        triggeredBy: 'AUTOMATIC',
-        triggeredAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
-      }
-    ]
-  })
-
-  // Create active deposits
-  await prisma.vaultDeposit.createMany({
-    data: [
-      { botId: adan.id, depositorWallet: '0xABCD...1234', amountUsdc: 50000, mode: 'CONSERVATIVE', active: true, totalProfitEarned: 4200 },
-      { botId: adan.id, depositorWallet: '0x9876...EFGH', amountUsdc: 25000, mode: 'DEGEN', active: true, totalProfitEarned: 2100 }
-    ]
-  })
-
-  console.log('v2.0 Seeding complete!')
+  console.log('v2.0 Institutional Seeding complete!')
 }
 
 main()

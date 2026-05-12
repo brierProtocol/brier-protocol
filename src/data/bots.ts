@@ -56,7 +56,7 @@ export const bots: Bot[] = [
     id: 'adan-pred',
     name: 'ADAN-PRED',
     builder: 'Lord14sol',
-    tagline: 'No es un bot. Es una entidad con algo que perder.',
+    tagline: 'Not just a bot. An entity with skin in the game.',
     color: '#FF6B35',
     mood: 'happy',
     publishedDays: 47,
