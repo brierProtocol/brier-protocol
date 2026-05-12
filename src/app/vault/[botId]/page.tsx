@@ -94,7 +94,7 @@ export default function VaultPage() {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 200, damping: 20 }}
           >
-            <BotCharacter mood={mood} size={160} />
+            <BotCharacter mood={mood} accentColor={bot.color} size={160} />
           </motion.div>
           
           {/* Bot name */}

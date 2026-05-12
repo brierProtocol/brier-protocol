@@ -84,12 +84,14 @@ const moodColors: Record<Mood, string> = {
 export function BotCharacter({ 
   mood = 'neutral', 
   size = 120,
+  accentColor,
   animate = true,
   className = ''
 }: BotCharacterProps) {
   const color = moodColors[mood]
   const config = faceConfig[mood]
   const bodyAnim = animate ? bodyAnimations[mood] : {}
+  const primaryColor = accentColor || color
 
   return (
     <motion.div
@@ -111,7 +113,7 @@ export function BotCharacter({
           x="20" y="20"
           width="80" height="85"
           rx="35" ry="35"
-          fill={color}
+          fill={primaryColor}
           stroke="#080808"
           strokeWidth="3.5"
         />
@@ -125,12 +127,12 @@ export function BotCharacter({
         />
 
         {/* ARMS */}
-        <path d="M20,60 Q5,65 10,80" fill="none" stroke="#080808" strokeWidth="3.5" strokeLinecap="round" />
-        <path d="M100,60 Q115,65 110,80" fill="none" stroke="#080808" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M20,60 Q5,65 10,80" fill={primaryColor} stroke="#080808" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M100,60 Q115,65 110,80" fill={primaryColor} stroke="#080808" strokeWidth="3.5" strokeLinecap="round" />
 
         {/* LEGS */}
-        <path d="M45,105 L42,112" stroke="#080808" strokeWidth="3.5" strokeLinecap="round" />
-        <path d="M75,105 L78,112" stroke="#080808" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M45,105 L42,112" fill={primaryColor} stroke="#080808" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M75,105 L78,112" fill={primaryColor} stroke="#080808" strokeWidth="3.5" strokeLinecap="round" />
 
         {/* FACE CIRCLE */}
         <ellipse

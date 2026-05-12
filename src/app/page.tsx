@@ -19,36 +19,36 @@ export default function HomePage() {
         {/* Floating background characters (decorative, blurred) */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {[
-            { mood: 'cool',    top: '10%', left: '5%',  size: 80,  opacity: 0.15 },
-            { mood: 'happy',   top: '20%', right: '8%', size: 64,  opacity: 0.10 },
-            { mood: 'excited', top: '65%', left: '8%',  size: 56,  opacity: 0.12 },
-            { mood: 'sad',     top: '70%', right: '5%', size: 48,  opacity: 0.08 },
-            { mood: 'neutral', top: '40%', left: '2%',  size: 40,  opacity: 0.06 },
-          ].map(({ mood, top, left, right, size, opacity }, i) => (
+            { mood: 'cool',    top: '10%', left: '5%',  size: 80,  opacity: 0.15, color: '#FF6B35' },
+            { mood: 'happy',   top: '20%', right: '8%', size: 64,  opacity: 0.10, color: '#7B2FFF' },
+            { mood: 'excited', top: '65%', left: '8%',  size: 56,  opacity: 0.12, color: '#00FFC8' },
+            { mood: 'sad',     top: '70%', right: '5%', size: 48,  opacity: 0.08, color: '#FF3B3B' },
+            { mood: 'neutral', top: '40%', left: '2%',  size: 40,  opacity: 0.06, color: '#888888' },
+          ].map(({ mood, top, left, right, size, opacity, color }, i) => (
+              <motion.div
+                key={i}
+                className="absolute"
+                style={{ top, left, right, opacity, filter: 'blur(1px)' }}
+                animate={{ y: [0, -10, 0] }}
+                transition={{ repeat: Infinity, duration: 4 + i, ease: 'easeInOut', delay: i * 0.8 }}
+              >
+                <BotCharacter mood={mood as Mood} accentColor={color} size={size} animate={false} />
+              </motion.div>
+            ))}
+          </div>
+  
+          {/* Main content */}
+          <div className="relative z-10 text-center px-6 max-w-4xl">
+            
+            {/* Hero character */}
             <motion.div
-              key={i}
-              className="absolute"
-              style={{ top, left, right, opacity, filter: 'blur(1px)' }}
-              animate={{ y: [0, -10, 0] }}
-              transition={{ repeat: Infinity, duration: 4 + i, ease: 'easeInOut', delay: i * 0.8 }}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+              className="flex justify-center mb-8"
             >
-              <BotCharacter mood={mood as Mood} size={size} animate={false} />
+              <BotCharacter mood="cool" accentColor="#C8FF00" size={160} />
             </motion.div>
-          ))}
-        </div>
-
-        {/* Main content */}
-        <div className="relative z-10 text-center px-6 max-w-4xl">
-          
-          {/* Hero character */}
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-            className="flex justify-center mb-8"
-          >
-            <BotCharacter mood="cool" size={160} />
-          </motion.div>
 
           {/* Headline */}
           <motion.h1

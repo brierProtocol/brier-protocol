@@ -92,7 +92,7 @@ export function BotCard({ bot, rank, onClick }: BotCardProps) {
           <div className="flex items-center gap-4 mb-5">
             {/* Character */}
             <div className="relative flex-shrink-0">
-              <BotCharacter mood={mood} size={72} />
+              <BotCharacter mood={mood} accentColor={bot.color} size={72} />
               {/* Status dot on character */}
               <div
                 className="absolute bottom-1 right-1 w-3 h-3 rounded-full border-2"
