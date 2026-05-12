@@ -10,7 +10,8 @@ import {
 import { BotCharacter } from '@/components/BotCharacter';
 import { useBot } from '@/hooks/useBots';
 import toast from 'react-hot-toast';
-import { Liveline } from 'liveline';
+import dynamic from 'next/dynamic';
+const Liveline = dynamic(() => import('liveline').then(mod => mod.Liveline), { ssr: false });
 import type { LivelinePoint } from 'liveline';
 
 type ChartView = 'cumulative' | 'wr' | 'daily' | 'brier';

@@ -91,18 +91,21 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen px-4 py-10 sm:py-16 bg-[#F5F3EE]">
-      <div className="mx-auto max-w-6xl">
+    <div className="min-h-screen px-4 py-10 sm:py-20 bg-[#0A0A0A] relative overflow-hidden">
+      {/* Ambient Glow */}
+      <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-[#C8FF00]/5 to-transparent pointer-events-none" />
+
+      <div className="mx-auto max-w-7xl relative z-10">
         {/* ═══ PROFILE HEADER ═══ */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-16 flex flex-col sm:flex-row gap-8 items-center sm:items-start bg-white p-8 sm:p-10 rounded-[24px] shadow-sm"
+          className="mb-16 flex flex-col lg:flex-row gap-12 items-center lg:items-start bg-white/5 backdrop-blur-3xl p-10 sm:p-12 rounded-[48px] border border-white/10 shadow-2xl"
         >
           {/* Geometric avatar */}
           <div className="relative shrink-0">
-            <div className="h-28 w-28 rounded-[20px] bg-[#0A0A0A] p-[2px]">
-              <div className="h-full w-full rounded-[18px] bg-white flex items-center justify-center overflow-hidden">
+            <div className="h-32 w-32 rounded-[32px] bg-white/10 p-[1px]">
+              <div className="h-full w-full rounded-[31px] bg-[#0A0A0A] flex items-center justify-center overflow-hidden">
                 <svg width="60" height="60" viewBox="0 0 40 40" fill="none">
                   <rect x="4" y="4" width="14" height="14" rx="4" fill="#C8FF00" />
                   <rect x="22" y="4" width="14" height="14" rx="4" fill="#7B2FFF" />
@@ -111,40 +114,46 @@ export default function DashboardPage() {
                 </svg>
               </div>
             </div>
-            <span className="absolute -bottom-2 -right-2 h-8 w-8 flex items-center justify-center rounded-full border-[3px] border-white bg-[#C8FF00] text-[#0A0A0A] text-lg">
+            <motion.span 
+              animate={{ rotate: 360 }}
+              transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+              className="absolute -bottom-2 -right-2 h-10 w-10 flex items-center justify-center rounded-full border-2 border-[#0A0A0A] bg-[#C8FF00] text-[#0A0A0A] text-xl shadow-[0_0_20px_rgba(200,255,0,0.4)]"
+            >
               ✦
-            </span>
+            </motion.span>
           </div>
 
-          <div className="text-center sm:text-left flex-1">
-            <h1 className="font-[var(--font-syne)] text-[32px] sm:text-[48px] font-[900] uppercase tracking-tight text-[#0A0A0A] mb-1 leading-none">
-              @Lord14sol
-            </h1>
-            <p className="font-[var(--font-dm-mono)] text-sm text-[#0A0A0A]/50 font-bold mb-5">
-              0x1234...5678
-            </p>
+          <div className="text-center lg:text-left flex-1">
+            <div className="flex flex-col lg:flex-row lg:items-end gap-4 mb-8">
+              <h1 className="font-[var(--font-syne)] text-[48px] sm:text-[64px] font-[900] uppercase tracking-tighter text-white leading-none">
+                {address ? `@${address.slice(0, 6)}...${address.slice(-4)}` : '@Lord14sol'}
+              </h1>
+              <div className="px-4 py-1.5 rounded-full bg-[#C8FF00] text-[#0A0A0A] text-[10px] font-[900] uppercase tracking-widest self-center lg:mb-2">
+                Elite Builder
+              </div>
+            </div>
             
-            <div className="flex flex-wrap gap-x-8 gap-y-4 justify-center sm:justify-start">
+            <div className="flex flex-wrap gap-x-12 gap-y-6 justify-center lg:justify-start">
               <div>
-                <p className="text-[10px] uppercase tracking-wider font-bold text-[#0A0A0A]/40 mb-1">Builder Since</p>
-                <p className="font-[var(--font-dm-mono)] font-bold text-[#0A0A0A] text-lg">Jan 2025</p>
+                <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-white/30 mb-2">Protocol Joined</p>
+                <p className="font-[var(--font-dm-mono)] font-bold text-white text-xl">JAN 2025</p>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wider font-bold text-[#0A0A0A]/40 mb-1">Total Earnings</p>
-                <p className="font-[var(--font-dm-mono)] font-bold text-[#0A0A0A] text-lg bg-[#C8FF00] px-2 rounded-md inline-block">$12,847</p>
+                <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-white/30 mb-2">Total Alpha Yield</p>
+                <p className="font-[var(--font-dm-mono)] font-bold text-[#C8FF00] text-xl tracking-tight">$12,847.42</p>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wider font-bold text-[#0A0A0A]/40 mb-1">Active Vaults</p>
-                <p className="font-[var(--font-dm-mono)] font-bold text-[#0A0A0A] text-lg">2</p>
+                <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-white/30 mb-2">Active Entities</p>
+                <p className="font-[var(--font-dm-mono)] font-bold text-white text-xl">02 / 10</p>
               </div>
             </div>
           </div>
 
           <button
             onClick={() => handleComingSoon('Settings')}
-            className="rounded-full border-2 border-[#0A0A0A] bg-transparent px-8 py-3 font-[var(--font-dm-mono)] text-sm font-bold uppercase tracking-wider text-[#0A0A0A] transition-all hover:bg-[#0A0A0A] hover:text-white active:scale-[0.97]"
+            className="rounded-2xl border border-white/10 bg-white/5 px-10 py-4 font-[var(--font-dm-mono)] text-[11px] font-bold uppercase tracking-[0.2em] text-white transition-all hover:bg-white hover:text-[#0A0A0A] active:scale-[0.95]"
           >
-            Settings
+            Terminal Settings
           </button>
         </motion.div>
 
@@ -153,12 +162,12 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-16"
+          className="mb-20"
         >
-          <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-[#0A0A0A] mb-6">
-            My Bots
+          <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-white mb-10">
+            My Entities
           </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {myBots.map((bot, i) => (
               <BotCard key={bot.id} bot={bot} index={i} />
             ))}
@@ -172,15 +181,17 @@ export default function DashboardPage() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: myBots.length * 0.05 }}
-              whileHover={{ y: -4 }}
-              className="group relative flex flex-col items-center justify-center rounded-[20px] bg-white border-2 border-dashed border-[#E0E0E0] py-16 transition-all hover:border-[#0A0A0A] cursor-pointer min-h-[380px]"
+              whileHover={{ y: -8, borderColor: '#C8FF00' }}
+              className="group relative flex flex-col items-center justify-center rounded-[40px] bg-white/5 border-2 border-dashed border-white/10 py-16 transition-all cursor-pointer min-h-[380px] overflow-hidden"
             >
-              <div className="w-16 h-16 rounded-full bg-[#F5F3EE] flex items-center justify-center text-2xl mb-4 group-hover:bg-[#0A0A0A] group-hover:text-white transition-colors">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#C8FF00]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center text-3xl mb-6 group-hover:bg-[#C8FF00] group-hover:text-[#0A0A0A] transition-all group-hover:scale-110 shadow-2xl relative z-10">
                 +
               </div>
-              <span className="font-[var(--font-syne)] text-[24px] font-[900] uppercase tracking-tight text-[#0A0A0A]">
+              <span className="font-[var(--font-syne)] text-[24px] font-[900] uppercase tracking-tight text-white relative z-10">
                 Deploy Bot
               </span>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/20 mt-3 relative z-10 group-hover:text-white/40 transition-colors">Submit to Incubation</p>
             </motion.button>
           </div>
         </motion.div>
@@ -190,51 +201,63 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mb-16"
+          className="mb-20"
         >
-          <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-[#0A0A0A] mb-6">
-            Earnings
+          <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-white mb-10">
+            Performance Alpha
           </h2>
 
-          <div className="bg-white rounded-[24px] p-6 sm:p-8 shadow-sm">
+          <div className="bg-white/5 backdrop-blur-3xl rounded-[48px] p-8 sm:p-12 border border-white/10 shadow-2xl">
             {/* Earning stats */}
-            <div className="grid sm:grid-cols-3 gap-4 mb-8">
-              <div className="rounded-[16px] bg-[#F5F3EE] p-6">
-                <p className="font-[var(--font-dm-mono)] text-[40px] leading-none font-bold text-[#0A0A0A] mb-2">$12,847</p>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50">Total Carry Earned</p>
+            <div className="grid sm:grid-cols-3 gap-8 mb-16">
+              <div className="rounded-[32px] bg-white/5 p-8 border border-white/5 hover:bg-white/10 transition-colors">
+                <p className="font-[var(--font-dm-mono)] text-[40px] leading-none font-bold text-white mb-3 tracking-tighter">$12,847</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Total Carry Earned</p>
               </div>
-              <div className="rounded-[16px] bg-[#C8FF00] p-6">
-                <p className="font-[var(--font-dm-mono)] text-[40px] leading-none font-bold text-[#0A0A0A] mb-2">$2,341</p>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/70">This Month</p>
+              <div className="rounded-[32px] bg-[#C8FF00] p-8 shadow-[0_20px_50px_rgba(200,255,0,0.15)] group hover:scale-[1.02] transition-transform">
+                <p className="font-[var(--font-dm-mono)] text-[40px] leading-none font-bold text-[#0A0A0A] mb-3 tracking-tighter">$2,341</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#0A0A0A]/60">30D Momentum</p>
               </div>
-              <div className="rounded-[16px] bg-[#F5F3EE] p-6">
-                <p className="font-[var(--font-dm-mono)] text-[40px] leading-none font-bold text-[#0A0A0A] mb-2">$891</p>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50">Pending (Unrealized)</p>
+              <div className="rounded-[32px] bg-white/5 p-8 border border-white/5 hover:bg-white/10 transition-colors">
+                <p className="font-[var(--font-dm-mono)] text-[40px] leading-none font-bold text-white/60 mb-3 tracking-tighter">$891</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/20">Pending Settlement</p>
               </div>
             </div>
 
             {/* Earnings chart */}
-            <div className="h-[300px]">
+            <div className="h-[350px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={mockEarnings}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fill: '#A0A0A0', fontSize: 12 }} axisLine={{ stroke: '#E0E0E0' }} tickLine={false} dy={10} />
-                  <YAxis tick={{ fill: '#A0A0A0', fontSize: 12 }} axisLine={false} tickLine={false} dx={-10} />
-                  <Tooltip
-                    cursor={{ fill: '#F5F3EE' }}
-                    contentStyle={{
-                      background: '#FFFFFF',
-                      border: 'none',
-                      borderRadius: '16px',
-                      boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-                      fontSize: '14px',
-                      fontFamily: 'var(--font-dm-mono)',
-                      fontWeight: 'bold',
-                      color: '#0A0A0A',
-                    }}
-                    formatter={(value) => [`$${value}`, 'Earnings']}
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis 
+                    dataKey="month" 
+                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 'bold' }} 
+                    axisLine={false} 
+                    tickLine={false} 
+                    dy={10} 
                   />
-                  <Bar dataKey="earnings" fill="#0A0A0A" radius={[6, 6, 6, 6]} />
+                  <YAxis 
+                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 'bold' }} 
+                    axisLine={false} 
+                    tickLine={false} 
+                    dx={-10} 
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+                    contentStyle={{
+                      background: '#111111',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '20px',
+                      padding: '16px',
+                      fontSize: '12px',
+                      fontFamily: 'var(--font-dm-mono)',
+                      color: '#fff',
+                    }}
+                    itemStyle={{ color: '#C8FF00', fontWeight: 'bold' }}
+                    labelStyle={{ color: 'rgba(255,255,255,0.4)', marginBottom: '8px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em' }}
+                    formatter={(value) => [`$${value}`, 'YIELD']}
+                  />
+                  <Bar dataKey="earnings" fill="#C8FF00" radius={[12, 12, 4, 4]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -248,30 +271,33 @@ export default function DashboardPage() {
           transition={{ delay: 0.3 }}
           className="mb-16"
         >
-          <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-[#0A0A0A] mb-6">
-            My Deposits
+          <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-white mb-10">
+            Active Allocations
           </h2>
-          <div className="bg-white rounded-[24px] p-6 sm:p-8 shadow-sm">
-            <div className="flex flex-col gap-3">
+          <div className="bg-white/5 backdrop-blur-3xl rounded-[48px] p-8 sm:p-12 border border-white/10 shadow-2xl">
+            <div className="flex flex-col gap-4">
               {mockDeposits.map((dep) => (
-                <div key={dep.bot} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-[16px] bg-[#F5F3EE] gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-4 h-12 rounded-full" style={{ background: dep.color }} />
-                    <span className="font-[var(--font-syne)] text-[24px] font-[900] uppercase text-[#0A0A0A]">{dep.bot}</span>
+                <div key={dep.bot} className="flex flex-col lg:flex-row lg:items-center justify-between p-8 rounded-[32px] bg-white/5 border border-white/5 hover:border-white/20 transition-all gap-8">
+                  <div className="flex items-center gap-6">
+                    <div className="w-5 h-16 rounded-full shadow-2xl" style={{ background: dep.color }} />
+                    <div>
+                      <span className="font-[var(--font-syne)] text-[28px] font-[900] uppercase text-white tracking-tighter leading-none">{dep.bot}</span>
+                      <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-white/20 mt-2">Active Vault Position</p>
+                    </div>
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-6 sm:gap-12 text-right">
+                  <div className="grid grid-cols-3 gap-12 lg:gap-20 text-right">
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider font-bold text-[#0A0A0A]/40 mb-1">Deposited</p>
-                      <p className="font-[var(--font-dm-mono)] font-bold text-base text-[#0A0A0A]">${dep.deposited.toLocaleString()}</p>
+                      <p className="text-[9px] uppercase tracking-widest font-bold text-white/20 mb-3">Principal</p>
+                      <p className="font-[var(--font-dm-mono)] font-bold text-lg text-white leading-none">${dep.deposited.toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider font-bold text-[#0A0A0A]/40 mb-1">Current</p>
-                      <p className="font-[var(--font-dm-mono)] font-bold text-base text-[#0A0A0A]">${dep.current.toLocaleString()}</p>
+                      <p className="text-[9px] uppercase tracking-widest font-bold text-white/20 mb-3">Valuation</p>
+                      <p className="font-[var(--font-dm-mono)] font-bold text-lg text-white leading-none">${dep.current.toLocaleString()}</p>
                     </div>
-                    <div className="min-w-[70px]">
-                      <p className="text-[10px] uppercase tracking-wider font-bold text-[#0A0A0A]/40 mb-1">ROI</p>
-                      <p className={`font-[var(--font-dm-mono)] font-bold text-xl ${dep.roi >= 0 ? 'text-[#0A0A0A]' : 'text-[#FF3D00]'}`}>
+                    <div className="min-w-[100px]">
+                      <p className="text-[9px] uppercase tracking-widest font-bold text-white/20 mb-3">Alpha</p>
+                      <p className={`font-[var(--font-dm-mono)] font-bold text-2xl leading-none ${dep.roi >= 0 ? 'text-[#C8FF00]' : 'text-[#FF3D00]'}`}>
                         +{dep.roi.toFixed(1)}%
                       </p>
                     </div>
@@ -290,42 +316,45 @@ export default function DashboardPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl"
             onClick={() => setShowPublishModal(false)}
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 40 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-xl rounded-[32px] bg-white p-8 sm:p-10 shadow-2xl"
+              exit={{ opacity: 0, scale: 0.95, y: 40 }}
+              className="w-full max-w-2xl rounded-[48px] bg-[#0A0A0A] p-10 sm:p-14 shadow-[0_40px_120px_rgba(0,0,0,0.8)] border border-white/10 relative overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-10">
-                <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-[#0A0A0A]">
-                  Publish Bot
+              {/* Background ambient light */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-[#C8FF00]/5 blur-[100px] pointer-events-none" />
+
+              <div className="flex items-center justify-between mb-12 relative z-10">
+                <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-white leading-none">
+                  Deploy <span className="text-[#C8FF00]">Entity</span>
                 </h2>
                 <button
                   onClick={() => setShowPublishModal(false)}
-                  className="h-10 w-10 rounded-full bg-[#F5F3EE] text-[#0A0A0A] flex items-center justify-center text-xl hover:bg-[#E0E0E0] transition-colors"
+                  className="h-12 w-12 rounded-full bg-white/5 text-white flex items-center justify-center text-xl hover:bg-white/10 transition-all active:scale-90"
                 >
                   ✕
                 </button>
               </div>
 
               {/* Step indicators */}
-              <div className="flex items-center gap-2 mb-10">
+              <div className="flex items-center gap-4 mb-16 relative z-10">
                 {publishSteps.map((step) => (
-                  <div key={step.id} className="flex items-center gap-2 flex-1">
-                    <div className={`h-10 w-10 rounded-full flex items-center justify-center font-[var(--font-dm-mono)] text-sm font-bold transition-all ${
+                  <div key={step.id} className="flex items-center gap-4 flex-1">
+                    <div className={`h-12 w-12 rounded-2xl flex items-center justify-center font-[var(--font-dm-mono)] text-xs font-bold transition-all ${
                       publishStep >= step.id
-                        ? 'bg-[#0A0A0A] text-white'
-                        : 'bg-[#F5F3EE] text-[#0A0A0A]/40'
+                        ? 'bg-[#C8FF00] text-[#0A0A0A] shadow-[0_0_20px_rgba(200,255,0,0.3)]'
+                        : 'bg-white/5 text-white/20'
                     }`}>
-                      {publishStep > step.id ? '✓' : step.id}
+                      {publishStep > step.id ? '✓' : `0${step.id}`}
                     </div>
                     {step.id < 4 && (
-                      <div className={`flex-1 h-1 rounded-full transition-all ${
-                        publishStep > step.id ? 'bg-[#0A0A0A]' : 'bg-[#F5F3EE]'
+                      <div className={`flex-1 h-[1px] transition-all ${
+                        publishStep > step.id ? 'bg-[#C8FF00]' : 'bg-white/10'
                       }`} />
                     )}
                   </div>
@@ -333,82 +362,93 @@ export default function DashboardPage() {
               </div>
 
               {/* Current step content */}
-              <div className="mb-10 min-h-[220px]">
-                <h3 className="font-[var(--font-syne)] text-[24px] font-[900] uppercase text-[#0A0A0A] mb-6">
+              <div className="mb-16 min-h-[260px] relative z-10">
+                <h3 className="font-[var(--font-syne)] text-[20px] font-[900] uppercase text-white/40 mb-8 tracking-widest">
                   {publishSteps[publishStep - 1].title}
                 </h3>
-                <div className="space-y-4">
+                <div className="space-y-8">
                   {publishStep === 1 && (
-                    <>
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">Bot Name</label>
-                        <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                      <div className="sm:col-span-2">
+                        <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Quantitative Entity Name</label>
+                        <input type="text" placeholder="e.g. ALPHA-CENTAURI" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">Tagline</label>
-                        <input type="text" value={formData.tagline} onChange={e => setFormData({...formData, tagline: e.target.value})} className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                        <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Institutional Tagline</label>
+                        <input type="text" placeholder="Execution philosophy..." value={formData.tagline} onChange={e => setFormData({...formData, tagline: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">Brand Color (Hex)</label>
-                        <input type="text" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                        <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Identity Color</label>
+                        <input type="text" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
                       </div>
-                    </>
+                    </div>
                   )}
                   {publishStep === 2 && (
-                    <>
+                    <div className="space-y-8">
                       <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">Data Source</label>
-                        <select value={formData.source} onChange={e => setFormData({...formData, source: e.target.value})} className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm outline-none focus:ring-2 focus:ring-[#0A0A0A]">
-                          <option value="POLYMARKET">Polymarket</option>
-                          <option value="KALSHI">Kalshi</option>
+                        <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Source Integration</label>
+                        <select value={formData.source} onChange={e => setFormData({...formData, source: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all appearance-none">
+                          <option value="POLYMARKET">Polymarket Network</option>
+                          <option value="KALSHI">Kalshi Markets</option>
                         </select>
                       </div>
                       {formData.source === 'POLYMARKET' ? (
                         <div>
-                          <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">Polygon Wallet Address</label>
-                          <input type="text" value={formData.polyWalletAddress} onChange={e => setFormData({...formData, polyWalletAddress: e.target.value})} className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                          <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Execution Wallet (Polygon)</label>
+                          <input type="text" placeholder="0x..." value={formData.polyWalletAddress} onChange={e => setFormData({...formData, polyWalletAddress: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
                         </div>
                       ) : (
                         <div>
-                          <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">Kalshi API Key</label>
-                          <input type="password" placeholder="Enter read-only API key" className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                          <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Kalshi Read-Only API Key</label>
+                          <input type="password" placeholder="••••••••••••••••" className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
                         </div>
                       )}
-                    </>
+                    </div>
                   )}
                   {publishStep === 3 && (
-                    <>
+                    <div className="space-y-8">
                       <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">Builder Carry (%)</label>
-                        <input type="number" value={formData.builderCarry} onChange={e => setFormData({...formData, builderCarry: Number(e.target.value)})} className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm outline-none focus:ring-2 focus:ring-[#0A0A0A]" />
+                        <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Performance Carry (%)</label>
+                        <input type="number" value={formData.builderCarry} onChange={e => setFormData({...formData, builderCarry: Number(e.target.value)})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-widest text-[#0A0A0A]/50 mb-2">Strategy Description</label>
-                        <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full rounded-[16px] bg-[#F5F3EE] px-5 py-4 font-[var(--font-dm-mono)] text-sm outline-none focus:ring-2 focus:ring-[#0A0A0A] min-h-[100px]" />
+                        <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Alpha Logic Summary</label>
+                        <textarea placeholder="Describe the quantitative edge..." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all min-h-[120px]" />
                       </div>
-                    </>
+                    </div>
                   )}
                   {publishStep === 4 && (
-                    <div className="bg-[#F5F3EE] rounded-[16px] p-6 text-sm font-[var(--font-dm-mono)]">
-                      <p className="mb-2"><strong>Name:</strong> {formData.name}</p>
-                      <p className="mb-2"><strong>Source:</strong> {formData.source}</p>
-                      <p className="mb-2"><strong>Carry:</strong> {formData.builderCarry}%</p>
-                      <p className="text-xs opacity-50 mt-4">By deploying, you agree to the Brier Protocol terms. Your bot will enter a 30-day incubation period.</p>
+                    <div className="bg-white/5 border border-white/10 rounded-3xl p-8 text-sm font-[var(--font-dm-mono)] text-white/60">
+                      <div className="flex justify-between items-center mb-4 pb-4 border-b border-white/5">
+                        <span className="text-[9px] font-bold uppercase text-white/20">Entity</span>
+                        <span className="text-white font-bold">{formData.name || 'UNNAMED'}</span>
+                      </div>
+                      <div className="flex justify-between items-center mb-4 pb-4 border-b border-white/5">
+                        <span className="text-[9px] font-bold uppercase text-white/20">Source</span>
+                        <span className="text-white font-bold">{formData.source}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-bold uppercase text-white/20">Carry Structure</span>
+                        <span className="text-[#C8FF00] font-bold">{formData.builderCarry}%</span>
+                      </div>
+                      <p className="text-[10px] font-medium text-white/20 mt-10 leading-relaxed text-center italic">
+                        "By deploying, you initiate the 30-day proof-of-alpha incubation period. Your execution will be monitored on-chain for institutional validation."
+                      </p>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="flex gap-4">
+              <div className="flex gap-6 relative z-10">
                 <button
                   onClick={() => {
                     if (publishStep > 1) setPublishStep(publishStep - 1);
                     else setShowPublishModal(false);
                   }}
-                  className="flex-1 rounded-[999px] border-2 border-[#0A0A0A] bg-transparent py-4 font-[var(--font-dm-mono)] text-sm font-bold uppercase tracking-wider text-[#0A0A0A] transition-all hover:bg-[#0A0A0A] hover:text-white active:scale-[0.97]"
+                  className="flex-1 rounded-2xl border border-white/10 bg-white/5 py-5 font-[var(--font-dm-mono)] text-xs font-bold uppercase tracking-widest text-white transition-all hover:bg-white hover:text-[#0A0A0A] active:scale-[0.95]"
                 >
-                  {publishStep === 1 ? 'Cancel' : 'Back'}
+                  {publishStep === 1 ? 'Abort' : 'Previous'}
                 </button>
                 <button
                   onClick={() => {
@@ -418,9 +458,9 @@ export default function DashboardPage() {
                       handleDeploy();
                     }
                   }}
-                  className="flex-1 rounded-[999px] bg-[#0A0A0A] py-4 font-[var(--font-dm-mono)] text-sm font-bold uppercase tracking-wider text-white transition-all hover:opacity-90 active:scale-[0.97]"
+                  className="flex-1 rounded-2xl bg-white py-5 font-[var(--font-dm-mono)] text-xs font-bold uppercase tracking-widest text-[#0A0A0A] transition-all hover:bg-[#C8FF00] active:scale-[0.95] shadow-2xl"
                 >
-                  {publishStep === 4 ? 'Deploy' : 'Next Step'}
+                  {publishStep === 4 ? 'Deploy to Incubation' : 'Continue'}
                 </button>
               </div>
             </motion.div>

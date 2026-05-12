@@ -63,6 +63,7 @@ function ConnectButton() {
 const navLinks = [
   { href: '/discover', label: 'Discover' },
   { href: '/leaderboard', label: 'Leaderboard' },
+  { href: '/dashboard', label: 'Dashboard' },
 ];
 
 export function Navbar() {
