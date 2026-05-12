@@ -78,23 +78,32 @@ export default function VaultPage() {
 
   return (
     <motion.div
-      className="min-h-screen pt-20"
-      initial={{ backgroundColor: '#F5F3EE' }}
-      animate={{ backgroundColor: bot.color }}
-      transition={{ duration: 0.6, ease: 'easeInOut' }}
+      className="min-h-screen pt-20 bg-[#0A0A0A]"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6 }}
     >
       {/* ═══ TOP BOT IDENTITY (40% Screen) ═══ */}
-      <div className="flex flex-col items-center justify-center pb-16 pt-8 relative">
-        <div className="relative group">
-          <div className="absolute inset-0 bg-[#C8FF00] opacity-20 blur-3xl rounded-full group-hover:opacity-30 transition-opacity" />
-          <BotCharacter color={bot.color} mood={bot.mood} size="lg" animated className="mb-8 scale-125 relative z-10" />
+      <div className="flex flex-col items-center justify-center pb-24 pt-12 relative overflow-hidden">
+        {/* Ambient Bot Color Glow */}
+        <div 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full blur-[180px] opacity-20 pointer-events-none"
+          style={{ backgroundColor: bot.color }}
+        />
+        
+        <div className="relative group mb-12">
+          <div 
+            className="absolute inset-0 blur-3xl opacity-30 rounded-full scale-150 transition-opacity" 
+            style={{ backgroundColor: bot.color }}
+          />
+          <BotCharacter color={bot.color} mood={bot.mood} size="lg" animated className="scale-125 relative z-10" />
           <motion.div 
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="absolute top-0 -right-4 bg-white text-[#0A0A0A] p-2 rounded-full shadow-[0_0_20px_rgba(200,255,0,0.4)] z-20"
+            className="absolute top-0 -right-4 bg-[#C8FF00] text-[#0A0A0A] p-2.5 rounded-xl shadow-[0_0_30px_rgba(200,255,0,0.5)] z-20"
             title="Verified on-chain via Brier Protocol"
           >
-            <svg className="w-6 h-6 text-[#C8FF00]" fill="currentColor" viewBox="0 0 20 20">
+            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.64.304 1.25.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
           </motion.div>
@@ -104,24 +113,25 @@ export default function VaultPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="text-center relative z-10"
+          className="text-center relative z-10 px-6"
         >
-          <div className="flex items-center justify-center gap-4 mb-4">
-            <h1 className="font-[var(--font-syne)] text-[56px] sm:text-[84px] font-[900] uppercase tracking-tighter text-white leading-none drop-shadow-2xl">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-6">
+            <h1 className="font-[var(--font-syne)] text-[64px] sm:text-[96px] font-[900] uppercase tracking-tighter text-white leading-none drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
               {bot.name}
             </h1>
-            <span className="bg-white/10 backdrop-blur-xl text-white text-[11px] font-bold uppercase tracking-[0.2em] px-4 py-1.5 rounded-full border border-white/20 shadow-lg">
-              {bot.status} · {bot.tier}
-            </span>
-          </div>
-          <div className="flex items-center justify-center gap-4 mb-8">
-            <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/5">
-              <div className="h-2 w-2 rounded-full bg-[#C8FF00] animate-pulse" />
-              <span className="text-white/80 text-sm font-bold uppercase tracking-widest">Live Strategy</span>
+            <div className="flex items-center gap-3 bg-white/5 backdrop-blur-xl px-5 py-2 rounded-2xl border border-white/10 shadow-2xl">
+              <span className="h-2 w-2 rounded-full bg-[#C8FF00] animate-pulse" />
+              <span className="text-white text-[11px] font-[900] uppercase tracking-[0.2em]">
+                {bot.status} · {bot.tier}
+              </span>
             </div>
-            <span className="text-white/40 font-mono text-sm uppercase tracking-widest">Institutional Protocol</span>
           </div>
-          <p className="text-white/90 text-xl font-medium italic max-w-2xl mx-auto opacity-90 px-6 leading-relaxed">
+          <div className="flex items-center justify-center gap-6 mb-10">
+            <div className="px-6 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
+              <span className="text-white/40 text-[10px] font-bold uppercase tracking-[0.3em]">Protocol Verified ID</span>
+            </div>
+          </div>
+          <p className="text-white/60 text-2xl font-medium italic max-w-3xl mx-auto px-6 leading-relaxed font-[var(--font-syne)]">
             &ldquo;{bot.tagline}&rdquo;
           </p>
         </motion.div>

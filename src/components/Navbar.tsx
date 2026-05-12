@@ -78,10 +78,8 @@ export function Navbar() {
 
   return (
     <nav
-      className={`sticky top-0 z-50 w-full transition-all duration-500 ${
-        scrolled
-          ? 'bg-[#0A0A0A]/80 backdrop-blur-2xl border-b border-white/5 py-4'
-          : 'bg-transparent py-6'
+      className={`sticky top-0 z-50 w-full transition-all duration-500 bg-[#0A0A0A]/90 backdrop-blur-3xl border-b border-white/5 ${
+        scrolled ? 'py-4' : 'py-6'
       }`}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 sm:px-10">

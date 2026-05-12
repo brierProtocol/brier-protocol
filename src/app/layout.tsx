@@ -35,7 +35,7 @@ export default function RootLayout({
       lang="en"
       className={`${syne.variable} ${dmMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#F5F3EE] text-[#0A0A0A]">
+      <body className="min-h-full flex flex-col bg-[#0A0A0A] text-white">
         <Web3Provider>
           <Navbar />
           <FloatingBubbles />
