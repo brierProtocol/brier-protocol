@@ -21,8 +21,8 @@ export async function recomputeBotScore(botId: string) {
   const pnlUsd = resolved.reduce((acc, t) => {
     const price = Number(t.entryPrice)
     return t.outcome === 'WIN'
-      ? acc + Number(t.usdAmount) * (1 / price - 1)
-      : acc - Number(t.usdAmount)
+      ? acc + Number(t.amount) * (1 / price - 1)
+      : acc - Number(t.amount)
   }, 0)
 
   // Snapshot daily PnL for charts
@@ -70,7 +70,7 @@ export async function recomputeBotScore(botId: string) {
       brierScore, 
       winRate, 
       totalTrades: total, 
-      totalVolume: resolved.reduce((acc, t) => acc + Number(t.usdAmount), 0),
+      totalVolume: resolved.reduce((acc, t) => acc + Number(t.amount), 0),
       isLatest: true 
     }
   })

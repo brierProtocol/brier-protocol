@@ -46,7 +46,6 @@ export async function POST(req: NextRequest) {
         color: data.color,
         strategyType: data.strategyType,
         description: data.description,
-        builder: data.builderAddress,
         status: 'PAPER',
         tier: 'NONE',
         walletAddress: data.polyWalletAddress || data.builderAddress,

@@ -75,13 +75,11 @@ export async function indexPolymarketWallet(botId: string) {
         source: DataSource.POLYMARKET,
         externalTradeId: trade.txHash,
         marketId: trade.marketId,
-        marketTicker: trade.marketId,
         marketTitle: '', 
         side: trade.side,
         entryPrice: trade.entryPrice,
-        usdAmount: trade.amount,
+        amount: trade.amount,
         outcome: TradeResult.PENDING,
-        rawPayload: JSON.stringify(transfer),
         executionWallet: walletAddress,
       }
     })
@@ -108,7 +106,7 @@ async function resolvePendingTrades(botId: string) {
   for (const trade of pending) {
     try {
       const res = await fetch(
-        `https://gamma-api.polymarket.com/markets/${trade.marketTicker}`
+        `https://gamma-api.polymarket.com/markets/${trade.marketId}`
       )
       const market = await res.json()
 

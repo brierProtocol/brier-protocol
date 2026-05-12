@@ -349,7 +349,7 @@ export default function VaultPage() {
             <div className="h-[400px] w-full relative group rounded-[24px] overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A]/40 to-transparent pointer-events-none z-10" />
               <Liveline 
-                data={chartData.map(p => ({ value: p.value }))}
+                data={chartData.map((p, i) => ({ value: p.value, time: i }))}
                 value={chartData[chartData.length - 1]?.value || 0}
                 color={bot.color}
                 theme="dark"
