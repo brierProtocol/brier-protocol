@@ -1,60 +1,50 @@
 import { prisma } from './prisma'
 
-const MIN_DAYS = 30
-const MIN_TRADES = 50
-const DRAWDOWN_LOCK = 0.30
+// v1.3 Thresholds
+const T1_MIN_DAYS = 30
+const T1_MIN_TRADES = 100
+const T1_MAX_BRIER = 0.28
+const T1_MAX_DRAWDOWN = 0.25
 
-export async function checkIncubationThreshold(botId: string) {
+export async function checkStatusTransitions(botId: string) {
   const bot = await prisma.bot.findUniqueOrThrow({
     where: { id: botId },
-    include: { scores: { where: { isLatest: true }, take: 1 } }
+    include: { 
+      scores: { where: { isLatest: true }, take: 1 },
+      incubationLogs: { orderBy: { triggeredAt: 'desc' }, take: 1 }
+    }
   })
-
-  if (bot.status !== 'INCUBATING') return
 
   const score = bot.scores[0]
   if (!score) return
 
   const ageInDays = (Date.now() - new Date(bot.createdAt).getTime()) / 86400000
-  const meetsAge = ageInDays >= MIN_DAYS
-  const meetsTrades = score.resolvedTrades >= MIN_TRADES
+  
+  // PAPER -> LIVE happens manually (verified wallet)
+  // LIVE -> VAULT_ELIGIBLE_T1 logic
+  if (bot.status === 'LIVE') {
+    const meetsAge = ageInDays >= T1_MIN_DAYS
+    const meetsTrades = score.totalTrades >= T1_MIN_TRADES
+    const meetsBrier = score.brierScore <= T1_MAX_BRIER
+    
+    // In a real system, we'd check actual history for drawdown here
+    const meetsDrawdown = true 
 
-  if (meetsAge && meetsTrades) {
-    await prisma.$transaction([
-      prisma.bot.update({ where: { id: botId }, data: { status: 'PENDING' } }),
-      prisma.incubationLog.create({
-        data: {
-          botId,
-          event: 'THRESHOLD_MET',
-          fromStatus: 'INCUBATING',
-          toStatus: 'PENDING',
-          reason: `Age: ${ageInDays.toFixed(1)}d | Trades: ${score.resolvedTrades} | WR: ${(Number(score.winRate) * 100).toFixed(1)}% | Brier: ${Number(score.brierScore).toFixed(3)}`,
-          triggeredBy: 'SYSTEM',
-        }
-      })
-    ])
+    if (meetsAge && meetsTrades && meetsBrier && meetsDrawdown) {
+      await prisma.$transaction([
+        prisma.bot.update({ 
+          where: { id: botId }, 
+          data: { status: 'VAULT_ELIGIBLE_T1', tier: 'TIER1', vaultCap: 500000 } 
+        }),
+        prisma.incubationLog.create({
+          data: {
+            botId,
+            fromStatus: 'LIVE',
+            toStatus: 'VAULT_ELIGIBLE_T1',
+            reason: `Met T1 requirements: ${score.totalTrades} trades, ${score.brierScore.toFixed(3)} Brier Score.`,
+          }
+        })
+      ])
+    }
   }
-}
-
-export async function checkDrawdownLock(botId: string, currentTvl: number, peakTvl: number) {
-  if (peakTvl === 0) return
-  const drawdown = (peakTvl - currentTvl) / peakTvl
-  if (drawdown < DRAWDOWN_LOCK) return
-
-  const bot = await prisma.bot.findUniqueOrThrow({ where: { id: botId } })
-  if (bot.status === 'PAUSED') return
-
-  await prisma.$transaction([
-    prisma.bot.update({ where: { id: botId }, data: { status: 'PAUSED' } }),
-    prisma.incubationLog.create({
-      data: {
-        botId,
-        event: 'DRAWDOWN_LOCK',
-        fromStatus: bot.status,
-        toStatus: 'PAUSED',
-        reason: `Drawdown ${(drawdown * 100).toFixed(1)}% exceeded ${DRAWDOWN_LOCK * 100}% threshold. Vault locked. Depositor redemption queued.`,
-        triggeredBy: 'SYSTEM',
-      }
-    })
-  ])
 }

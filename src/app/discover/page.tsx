@@ -8,12 +8,23 @@ import { useBots } from '@/hooks/useBots';
 type SortKey = 'brier' | 'wr' | 'tvl' | 'newest';
 type FilterKey = 'all' | 'hot' | 'new' | 'top';
 
+import { BotCardSkeleton } from '@/components/BotCardSkeleton';
+
 export default function DiscoverPage() {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortKey>('brier');
   const [filter, setFilter] = useState<FilterKey>('all');
 
-  const { data: allBots = [], isLoading } = useBots(sort, filter);
+  const { 
+    data, 
+    isLoading, 
+    isError, 
+    fetchNextPage, 
+    hasNextPage, 
+    isFetchingNextPage 
+  } = useBots(sort, filter);
+
+  const allBots = useMemo(() => data?.pages.flatMap(page => page.data) || [], [data]);
 
   const filteredBots = useMemo(() => {
     let result = [...allBots];
@@ -25,7 +36,7 @@ export default function DiscoverPage() {
         (b) =>
           b.name.toLowerCase().includes(q) ||
           b.builder.toLowerCase().includes(q) ||
-          b.markets.some((m) => m.toLowerCase().includes(q))
+          b.markets.some((m: string) => m.toLowerCase().includes(q))
       );
     }
 
@@ -36,13 +47,21 @@ export default function DiscoverPage() {
       result = result.filter((b) => b.brierScore < 0.2);
     }
 
-    // Note: sorting is handled by the API now, but we apply search/filter client-side
-
     return result;
   }, [allBots, search, filter]);
 
-  if (isLoading) {
-    return <div className="min-h-screen px-4 py-20 text-center font-[var(--font-dm-mono)] opacity-50 bg-[#F5F3EE]">Loading vaults...</div>;
+  if (isError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F5F3EE] p-6">
+        <div className="bg-white p-12 rounded-[40px] text-center max-w-md shadow-xl border-4 border-[#FF3D00]">
+          <div className="flex justify-center mb-6">
+            <div className="w-24 h-24 bg-[#FF3D00] rounded-full flex items-center justify-center text-4xl">😢</div>
+          </div>
+          <h2 className="font-[var(--font-syne)] text-[28px] font-[900] uppercase text-[#0A0A0A] mb-2">Feed temporalmente offline</h2>
+          <p className="font-[var(--font-dm-mono)] text-[#0A0A0A]/60">No pudimos conectar con los oráculos de datos. Reintentando automáticamente...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -134,14 +153,35 @@ export default function DiscoverPage() {
         <p className="font-[var(--font-dm-mono)] text-xs font-bold text-[#0A0A0A]/40 mb-6 uppercase tracking-wider pl-2">
           {filteredBots.length} vault{filteredBots.length !== 1 ? 's' : ''} found
         </p>
-
-        {/* Bot grid - 2 cols on mobile, 3 on desktop */}
-        {filteredBots.length > 0 ? (
+        
+        {/* Bot grid */}
+        {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {filteredBots.map((bot, i) => (
-              <BotCard key={bot.id} bot={bot} index={i} />
+            {Array.from({ length: 6 }).map((_, i) => (
+              <BotCardSkeleton key={i} />
             ))}
           </div>
+        ) : filteredBots.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {filteredBots.map((bot, i) => (
+                <BotCard key={bot.id} bot={bot} index={i} />
+              ))}
+            </div>
+            
+            {/* Load More */}
+            {hasNextPage && (
+              <div className="mt-12 text-center">
+                <button
+                  onClick={() => fetchNextPage()}
+                  disabled={isFetchingNextPage}
+                  className="rounded-full bg-white px-10 py-4 font-[var(--font-dm-mono)] text-sm font-bold uppercase tracking-wider text-[#0A0A0A] shadow-sm hover:shadow-md transition-all disabled:opacity-50"
+                >
+                  {isFetchingNextPage ? 'Loading more...' : 'Load More Bots'}
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-[24px]">
             <p className="text-4xl mb-4">🔍</p>

@@ -1,16 +1,19 @@
-'use client'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query'
 import type { Bot } from '@/data/bots'
 
-export function useBots(sort = 'brier', filter = 'all') {
-  return useQuery<Bot[]>({
+export function useBots(sort = 'brier', filter = 'all', limit = 20) {
+  return useInfiniteQuery({
     queryKey: ['bots', sort, filter],
-    queryFn: async () => {
-      const res = await fetch(`/api/bots?sort=${sort}&status=LIVE`)
+    queryFn: async ({ pageParam }) => {
+      const cursorPart = pageParam ? `&cursor=${pageParam}` : ''
+      const res = await fetch(`/api/bots?sort=${sort}&status=LIVE&limit=${limit}${cursorPart}`)
       if (!res.ok) throw new Error('Failed to fetch bots')
       return res.json()
     },
-    staleTime: 60_000,
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    staleTime: 30_000,
+    retry: 2,
   })
 }
 
@@ -22,6 +25,7 @@ export function useBot(slug: string) {
       if (!res.ok) throw new Error('Not found')
       return res.json()
     },
-    staleTime: 60_000,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 1,
   })
 }

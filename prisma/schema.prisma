@@ -7,54 +7,195 @@ datasource db {
   url      = "file:./dev.db"
 }
 
-// SQLite doesn't support Enums natively in Prisma, so we use String
-// BotStatus: INCUBATING, PENDING, LIVE, PAUSED, RETIRED
-// DataSource: KALSHI, POLYMARKET
-// TradeDirection: YES, NO
-// TradeResult: WIN, LOSS, PENDING
-
 model Bot {
-  id              String     @id @default(cuid())
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  slug            String     @unique
+  id              String        @id @default(cuid())
+  slug            String        @unique
   name            String
-  builderAddress  String
-  tagline         String
-  color           String
-  mood            String     @default("neutral")
-  status          String     @default("INCUBATING")
-  builderCarry    Int        @default(20)
-  markets         String     @default("Crypto")
-  strategyType    String     @default("hybrid")
-  description     String     @default("")
-
-  kalshiConnection    KalshiConnection?
-  polyConnection      PolyConnection?
-  scores              BotScore[]
-  trades              TradeEvent[]
-  pnlSnapshots        PnlSnapshot[]
-  incubationLog       IncubationLog[]
+  description     String?
+  tagline         String?       // Keep for UI consistency
+  color           String        @default("#0A0A0A")
+  mood            String        @default("neutral")
+  
+  // Status state machine: PAPER | LIVE | VAULT_ELIGIBLE_T1 | VAULT_ELIGIBLE_T2 | SUSPENDED
+  status          String        @default("PAPER")
+  
+  // NONE | TIER1 | TIER2
+  tier            String        @default("NONE")
+  
+  // Registered execution wallet — all trades must originate here
+  walletAddress   String        @unique
+  
+  // USDC amount bot owner has locked as collateral
+  skinInGame      Float         @default(0)
+  
+  // Hard cap on total USDC deposits
+  vaultCap        Float         @default(0)
+  
+  // Current total USDC deposited
+  currentTVL      Float         @default(0)
+  
+  // Vault open for deposits
+  vaultOpen       Boolean       @default(false)
+  
+  strategyType    String        @default("hybrid")
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relations
+  markets         BotMarket[]
+  trades          TradeEvent[]
+  scores          BotScore[]
+  deposits        VaultDeposit[]
+  incubationLogs  IncubationLog[]
+  pnlSnapshots    PnlSnapshot[]
+  polyConnection  PolyConnection?
+  kalshiConnection KalshiConnection?
 }
 
-model KalshiConnection {
-  id              String   @id @default(cuid())
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  botId           String   @unique
-  bot             Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
-  encryptedKey    String
-  keyIv           String
-  keyAuthTag      String
-  kalshiUserId    String
-  lastSyncAt      DateTime?
-  lastCursorToken String?
-  syncStatus      String   @default("idle")
+model BotMarket {
+  id        String   @id @default(cuid())
+  botId     String
+  bot       Bot      @relation(fields: [botId], references: [id])
+  
+  // Polymarket internal market ID
+  marketId  String
+  
+  // ACTIVE | WHITELISTED | BLACKLISTED
+  status    String   @default("WHITELISTED")
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([botId, marketId])
+}
+
+model TradeEvent {
+  id               String   @id @default(cuid())
+  botId            String
+  bot              Bot      @relation(fields: [botId], references: [id])
+  
+  marketId         String
+  marketTitle      String
+  
+  // YES | NO
+  side             String
+  
+  // USDC amount wagered
+  amount           Float
+  
+  // Price at entry (0.0 to 1.0)
+  entryPrice       Float
+  
+  // Price at resolution (0.0 or 1.0)
+  resolvedPrice    Float    @default(0)
+  
+  // WIN | LOSS | PENDING
+  outcome          String   @default("PENDING")
+  
+  // Contribution to running Brier Score: (resolvedPrice - entryPrice)²
+  brierContrib     Float    @default(0)
+  
+  // The wallet that signed this trade on Polymarket
+  executionWallet  String
+  
+  // true if executionWallet != Bot.walletAddress
+  fraudFlag        Boolean  @default(false)
+  
+  timestamp        DateTime @default(now())
+  resolvedAt       DateTime?
+  
+  source           String   @default("POLYMARKET") // POLYMARKET | KALSHI
+  externalTradeId  String?  // txHash
+  
+  @@unique([source, externalTradeId])
+}
+
+model BotScore {
+  id           String   @id @default(cuid())
+  botId        String
+  bot          Bot      @relation(fields: [botId], references: [id])
+  
+  // Cumulative Brier Score — lower is better
+  brierScore   Float
+  
+  // Win rate over last 100 trades (0.0 to 1.0)
+  winRate      Float
+  
+  // Sharpe ratio of returns
+  sharpe       Float    @default(0)
+  
+  // Total resolved trades
+  totalTrades  Int      @default(0)
+  
+  // Total USDC wagered
+  totalVolume  Float    @default(0)
+  
+  // Max drawdown in history (as negative %, e.g. -0.18 = -18%)
+  maxDrawdown  Float    @default(0)
+  
+  // Daily snapshot. One record per bot per day.
+  snapshotDate DateTime @default(now())
+  
+  isLatest     Boolean  @default(true)
+
+  @@unique([botId, snapshotDate])
+}
+
+model VaultDeposit {
+  id               String    @id @default(cuid())
+  botId            String
+  bot              Bot       @relation(fields: [botId], references: [id])
+  
+  depositorWallet  String
+  amountUsdc       Float
+  
+  // CONSERVATIVE | DEGEN
+  mode             String    @default("CONSERVATIVE")
+  
+  // Active deposit status
+  active           Boolean   @default(true)
+  
+  // Cumulative profit earned by this depositor
+  totalProfitEarned Float    @default(0)
+  
+  depositedAt      DateTime  @default(now())
+  exitedAt         DateTime?
+  exitReason       String?   // MANUAL | CIRCUIT_BREAKER | CONSERVATIVE_TRIGGER | VAULT_SUSPENDED
+}
+
+model IncubationLog {
+  id          String   @id @default(cuid())
+  botId       String
+  bot         Bot      @relation(fields: [botId], references: [id])
+  
+  fromStatus  String
+  toStatus    String
+  
+  reason      String
+  
+  // Snapshot of key metrics at time of transition
+  brierAtTransition   Float?
+  winRateAtTransition Float?
+  tradesAtTransition  Int?
+  
+  triggeredAt DateTime @default(now())
+  
+  // AUTOMATIC | MANUAL | CIRCUIT_BREAKER
+  triggeredBy String   @default("AUTOMATIC")
+}
+
+model CronLog {
+  id               String   @id @default(cuid())
+  job              String   // sync_polymarket | evaluate_incubation | snapshot_scores
+  status           String   // SUCCESS | FAILED | PARTIAL
+  errorMessage     String?
+  recordsProcessed Int      @default(0)
+  durationMs       Int      @default(0)
+  ranAt            DateTime @default(now())
 }
 
 model PolyConnection {
   id              String   @id @default(cuid())
-  createdAt       DateTime @default(now())
   botId           String   @unique
   bot             Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
   walletAddress   String
@@ -62,45 +203,16 @@ model PolyConnection {
   lastSyncAt      DateTime?
 }
 
-model TradeEvent {
-  id              String         @id @default(cuid())
-  createdAt       DateTime       @default(now())
-  botId           String
-  bot             Bot            @relation(fields: [botId], references: [id])
-  source          String
-  externalTradeId String
-  marketTicker    String
-  marketTitle     String
-  direction       String
-  entryOdds       Float
-  usdAmount       Float
-  result          String         @default("PENDING")
-  resolvedAt      DateTime?
-  brierContrib    Float?
-  rawPayload      String
-
-  @@unique([source, externalTradeId])
-  @@index([botId, createdAt])
-  @@index([botId, result])
-}
-
-model BotScore {
+model KalshiConnection {
   id              String   @id @default(cuid())
-  computedAt      DateTime @default(now())
-  botId           String
-  bot             Bot      @relation(fields: [botId], references: [id])
-  brierScore      Float
-  winRate         Float
-  totalTrades     Int
-  resolvedTrades  Int
-  wins            Int
-  losses          Int
-  pnlUsd          Float
-  sharpeRatio     Float?
-  isLatest        Boolean  @default(true)
-
-  @@index([botId, computedAt(sort: Desc)])
-  @@index([botId, isLatest])
+  botId           String   @unique
+  bot             Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+  encryptedKey    String
+  keyIv           String
+  keyAuthTag      String
+  kalshiUserId    String
+  lastSyncAt      DateTime?
+  syncStatus      String   @default("idle")
 }
 
 model PnlSnapshot {
@@ -113,17 +225,4 @@ model PnlSnapshot {
   tradesCount     Int
 
   @@unique([botId, date])
-  @@index([botId, date(sort: Desc)])
-}
-
-model IncubationLog {
-  id          String    @id @default(cuid())
-  createdAt   DateTime  @default(now())
-  botId       String
-  bot         Bot       @relation(fields: [botId], references: [id])
-  event       String
-  fromStatus  String
-  toStatus    String
-  reason      String
-  triggeredBy String
 }

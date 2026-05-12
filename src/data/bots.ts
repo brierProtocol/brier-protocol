@@ -1,3 +1,13 @@
+export interface Trade {
+  id: string;
+  market: string;
+  result: 'WIN' | 'LOSS' | 'PENDING';
+  direction: 'YES' | 'NO';
+  odds: number;
+  pnl: number;
+  time: string;
+}
+
 export interface Bot {
   id: string;
   name: string;
@@ -21,6 +31,7 @@ export interface Bot {
   return7d?: number;
   returnAllTime?: number;
   pnlHistory: number[];
+  recentTrades?: Trade[];
   strategyType: string;
   description: string;
   layers?: string[];

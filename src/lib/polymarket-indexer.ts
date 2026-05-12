@@ -3,6 +3,18 @@ import { prisma } from './prisma'
 import { computeBrierContribution } from './brier'
 import { recomputeBotScore } from './score-engine'
 
+// SQLite compatibility: Enums are stored as strings
+type TradeDirection = 'YES' | 'NO'
+const DataSource = {
+  POLYMARKET: 'POLYMARKET',
+  KALSHI: 'KALSHI'
+}
+const TradeResult = {
+  WIN: 'WIN',
+  LOSS: 'LOSS',
+  PENDING: 'PENDING'
+}
+
 const alchemy = new Alchemy({
   apiKey: process.env.ALCHEMY_API_KEY!,
   network: Network.MATIC_MAINNET,
@@ -14,9 +26,9 @@ const CTF_CONTRACT = '0x4D97DCd97eC945f40cF65F87097ACe5EA0476045'
 interface PolyTrade {
   txHash: string
   marketId: string
-  direction: 'YES' | 'NO'
+  side: TradeDirection
   amount: number      // USDC
-  entryOdds: number   // 0–1
+  entryPrice: number   // 0–1
   timestamp: string
 }
 
@@ -53,22 +65,24 @@ export async function indexPolymarketWallet(botId: string) {
     await prisma.tradeEvent.upsert({
       where: {
         source_externalTradeId: {
-          source: 'POLYMARKET',
+          source: DataSource.POLYMARKET,
           externalTradeId: trade.txHash,
         }
       },
       update: {},
       create: {
         botId,
-        source: 'POLYMARKET',
+        source: DataSource.POLYMARKET,
         externalTradeId: trade.txHash,
+        marketId: trade.marketId,
         marketTicker: trade.marketId,
         marketTitle: '', 
-        direction: trade.direction,
-        entryOdds: trade.entryOdds,
+        side: trade.side,
+        entryPrice: trade.entryPrice,
         usdAmount: trade.amount,
-        result: 'PENDING',
-        rawPayload: transfer as any,
+        outcome: TradeResult.PENDING,
+        rawPayload: JSON.stringify(transfer),
+        executionWallet: walletAddress,
       }
     })
   }
@@ -88,7 +102,7 @@ export async function indexPolymarketWallet(botId: string) {
 
 async function resolvePendingTrades(botId: string) {
   const pending = await prisma.tradeEvent.findMany({
-    where: { botId, source: 'POLYMARKET', result: 'PENDING' }
+    where: { botId, source: DataSource.POLYMARKET, outcome: TradeResult.PENDING }
   })
 
   for (const trade of pending) {
@@ -101,22 +115,23 @@ async function resolvePendingTrades(botId: string) {
       if (market.closed && market.winner !== undefined) {
         const resolvedYes = market.winner === 'YES'
         const won =
-          (trade.direction === 'YES' && resolvedYes) ||
-          (trade.direction === 'NO' && !resolvedYes)
+          (trade.side === 'YES' && resolvedYes) ||
+          (trade.side === 'NO' && !resolvedYes)
 
         const brierContrib = computeBrierContribution(
-          trade.direction as 'YES' | 'NO',
-          Number(trade.entryOdds),
+          trade.side as 'YES' | 'NO',
+          Number(trade.entryPrice),
           resolvedYes
         )
 
         await prisma.tradeEvent.update({
           where: { id: trade.id },
           data: {
-            result: won ? 'WIN' : 'LOSS',
+            outcome: won ? TradeResult.WIN : TradeResult.LOSS,
             brierContrib,
             resolvedAt: new Date(market.endDate),
             marketTitle: market.question,
+            resolvedPrice: resolvedYes ? 1 : 0,
           }
         })
       }
@@ -129,16 +144,16 @@ async function resolvePendingTrades(botId: string) {
 function parsePolyTransfer(transfer: any): PolyTrade | null {
   try {
     const tokenId = BigInt(transfer.tokenId || '0')
-    const direction: 'YES' | 'NO' = tokenId % 2n === 0n ? 'YES' : 'NO'
+    const side: 'YES' | 'NO' = tokenId % 2n === 0n ? 'YES' : 'NO'
     const amount = Number(transfer.value || 0)
-    const entryOdds = amount > 0 ? Math.min(Math.max(amount / 100, 0.01), 0.99) : 0.5
+    const entryPrice = amount > 0 ? Math.min(Math.max(amount / 100, 0.01), 0.99) : 0.5
 
     return {
       txHash: transfer.hash,
       marketId: transfer.rawContract?.address || '',
-      direction,
+      side,
       amount,
-      entryOdds,
+      entryPrice,
       timestamp: transfer.metadata?.blockTimestamp || new Date().toISOString(),
     }
   } catch {

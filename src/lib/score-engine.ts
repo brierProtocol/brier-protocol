@@ -4,12 +4,12 @@ import { computeMood } from './mood-engine'
 
 export async function recomputeBotScore(botId: string) {
   const resolved = await prisma.tradeEvent.findMany({
-    where: { botId, result: { in: ['WIN', 'LOSS'] } },
+    where: { botId, outcome: { in: ['WIN', 'LOSS'] } },
   })
 
   const total = await prisma.tradeEvent.count({ where: { botId } })
-  const wins = resolved.filter(t => t.result === 'WIN').length
-  const losses = resolved.filter(t => t.result === 'LOSS').length
+  const wins = resolved.filter(t => t.outcome === 'WIN').length
+  const losses = resolved.filter(t => t.outcome === 'LOSS').length
 
   const contribs = resolved
     .filter(t => t.brierContrib !== null)
@@ -19,9 +19,9 @@ export async function recomputeBotScore(botId: string) {
   const winRate = resolved.length > 0 ? wins / resolved.length : 0
 
   const pnlUsd = resolved.reduce((acc, t) => {
-    const odds = Number(t.entryOdds)
-    return t.result === 'WIN'
-      ? acc + Number(t.usdAmount) * (1 / odds - 1)
+    const price = Number(t.entryPrice)
+    return t.outcome === 'WIN'
+      ? acc + Number(t.usdAmount) * (1 / price - 1)
       : acc - Number(t.usdAmount)
   }, 0)
 
@@ -65,7 +65,14 @@ export async function recomputeBotScore(botId: string) {
   })
 
   await prisma.botScore.create({
-    data: { botId, brierScore, winRate, totalTrades: total, resolvedTrades: resolved.length, wins, losses, pnlUsd, isLatest: true }
+    data: { 
+      botId, 
+      brierScore, 
+      winRate, 
+      totalTrades: total, 
+      totalVolume: resolved.reduce((acc, t) => acc + Number(t.usdAmount), 0),
+      isLatest: true 
+    }
   })
 
   // Update bot mood in main table

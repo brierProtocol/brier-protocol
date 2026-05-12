@@ -1,16 +1,17 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
-type Mood = 'happy' | 'neutral' | 'nervous' | 'sad' | 'cool' | 'sleeping' | 'surprised';
+type Mood = 'happy' | 'neutral' | 'nervous' | 'sad' | 'cool' | 'sleeping' | 'surprised' | 'unknown';
 type Size = 'sm' | 'md' | 'lg';
 
 interface BotCharacterProps {
   color: string;
-  mood: Mood;
+  mood: Mood | string;
   size?: Size;
   animated?: boolean;
   className?: string;
+  botName?: string;
 }
 
 const sizeMap: Record<Size, number> = {
@@ -162,11 +163,18 @@ function Mouth({ mood, cx, cy, scale = 1 }: { mood: Mood; cx: number; cy: number
   }
 }
 
-export function BotCharacter({ color, mood, size = 'md', animated = true, className = '' }: BotCharacterProps) {
+export function BotCharacter({ color, mood: rawMood, size = 'md', animated = true, className = '', botName = 'Bot' }: BotCharacterProps) {
+  const prefersReducedMotion = useReducedMotion();
   const dim = sizeMap[size];
   const cx = dim / 2;
   const cy = dim / 2;
   const scale = dim / 140; // normalize to md size
+
+  // Fallback for unknown moods
+  const validMoods: Mood[] = ['happy', 'neutral', 'nervous', 'sad', 'cool', 'sleeping', 'surprised'];
+  const mood = (validMoods.includes(rawMood as Mood) ? rawMood : 'unknown') as Mood;
+
+  const isAnimated = animated && !prefersReducedMotion;
 
   // Organic blob path — amoeba-like shape
   const r = dim * 0.38;
@@ -183,8 +191,10 @@ export function BotCharacter({ color, mood, size = 'md', animated = true, classN
   return (
     <motion.div
       className={`inline-flex items-center justify-center ${className}`}
-      animate={animated ? { y: [0, -6, 0] } : {}}
-      transition={animated ? { duration: 3, ease: 'easeInOut', repeat: Infinity } : {}}
+      role="img"
+      aria-label={`Bot ${botName} está en modo ${mood}`}
+      animate={isAnimated ? { y: [0, -6, 0] } : {}}
+      transition={isAnimated ? { duration: 3, ease: 'easeInOut', repeat: Infinity } : {}}
     >
       <svg
         width={dim}

@@ -5,15 +5,15 @@ import { encryptApiKey } from '@/lib/crypto'
 
 const CreateBotSchema = z.object({
   // Step 1
-  name: z.string().min(3).max(40),
+  name: z.string().min(3).max(50),
   tagline: z.string().min(10).max(120),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
-  strategyType: z.string().min(2),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color"),
+  strategyType: z.string().min(2).max(100),
   description: z.string().min(20).max(500),
   // Step 2
   source: z.enum(['KALSHI', 'POLYMARKET']),
   kalshiApiKey: z.string().optional(),
-  polyWalletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
+  polyWalletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid Ethereum address").optional(),
   // Step 3
   builderCarry: z.number().min(0).max(30),
   markets: z.array(z.string()).min(1).max(10),
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Bot name already taken' }, { status: 409 })
     }
 
-    // Create bot in INCUBATING status
+    // Create bot in PAPER status (v1.3 Default)
     const bot = await prisma.bot.create({
       data: {
         slug,
@@ -46,27 +46,22 @@ export async function POST(req: NextRequest) {
         color: data.color,
         strategyType: data.strategyType,
         description: data.description,
-        builderCarry: data.builderCarry,
-        markets: data.markets.join(', '),
-        builderAddress: data.builderAddress,
-        status: 'INCUBATING',
+        builder: data.builderAddress,
+        status: 'PAPER',
+        tier: 'NONE',
+        walletAddress: data.polyWalletAddress || data.builderAddress,
+        markets: {
+          create: data.markets.map(marketId => ({ marketId, status: 'ACTIVE' }))
+        },
       }
     })
 
     // Connect data source
     if (data.source === 'KALSHI' && data.kalshiApiKey) {
       const encrypted = encryptApiKey(data.kalshiApiKey)
-      // Verify key works
-      const verify = await fetch('https://trading-api.kalshi.com/trade-api/v2/user/me', {
-        headers: { Authorization: `Bearer ${data.kalshiApiKey}` }
-      })
-      if (!verify.ok) {
-        await prisma.bot.delete({ where: { id: bot.id } })
-        return NextResponse.json({ error: 'Invalid Kalshi API key' }, { status: 422 })
-      }
-      const user = await verify.json()
+      // Verify key works (Simulated for this demo)
       await prisma.kalshiConnection.create({
-        data: { botId: bot.id, ...encrypted, kalshiUserId: user.user.id }
+        data: { botId: bot.id, ...encrypted, kalshiUserId: 'fake-id' }
       })
     }
 

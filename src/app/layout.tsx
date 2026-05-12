@@ -23,6 +23,8 @@ export const metadata: Metadata = {
     "Deploy capital into verified quant bots. Every trade resolved by objective reality. The Bloomberg Terminal of Prediction Markets.",
 };
 
+import { FloatingBubbles } from "@/components/FloatingBubbles";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -36,6 +38,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-[#F5F3EE] text-[#0A0A0A]">
         <Web3Provider>
           <Navbar />
+          <FloatingBubbles />
           <main className="flex-1">{children}</main>
           <Toaster
             position="bottom-center"

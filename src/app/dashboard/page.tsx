@@ -49,8 +49,9 @@ export default function DashboardPage() {
     markets: 'Crypto',
   });
 
-  const { data: bots = [] } = useBots();
-  const myBots = bots.slice(0, 2);
+  const { data } = useBots();
+  const allBots = data?.pages.flatMap(p => p.data) || [];
+  const myBots = allBots.slice(0, 2);
 
   const handleComingSoon = (action: string) => {
     toast(`Coming Soon — ${action} is not yet available.`, { icon: '🔐' });
