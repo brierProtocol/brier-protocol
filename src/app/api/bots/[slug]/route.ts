@@ -17,7 +17,7 @@ export async function GET(
         select: { date: true, cumulativePnl: true }
       },
       trades: {
-        orderBy: { createdAt: 'desc' },
+        orderBy: { timestamp: 'desc' },
         take: 20
       },
       incubationLogs: {

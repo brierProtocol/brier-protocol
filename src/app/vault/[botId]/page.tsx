@@ -10,6 +10,8 @@ import {
 import { BotCharacter } from '@/components/BotCharacter';
 import { useBot } from '@/hooks/useBots';
 import toast from 'react-hot-toast';
+import { Liveline } from 'liveline';
+import type { LivelinePoint } from 'liveline';
 
 type ChartView = 'cumulative' | 'wr' | 'daily' | 'brier';
 type TimeRange = '7d' | '30d' | '90d' | 'all';
@@ -23,16 +25,25 @@ export default function VaultPage() {
   const [mode, setMode] = useState<'CONSERVATIVE' | 'DEGEN'>('CONSERVATIVE');
 
   if (isLoading) {
-    return <div className="min-h-screen px-4 py-20 text-center font-[var(--font-dm-mono)] opacity-50 bg-[#F5F3EE]">Loading vault...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A]">
+        <div className="flex flex-col items-center gap-6">
+          <div className="w-16 h-16 border-4 border-white/5 border-t-[#C8FF00] rounded-full animate-spin" />
+          <p className="font-[var(--font-dm-mono)] text-white/40 text-[10px] font-bold uppercase tracking-[0.4em]">Calibrating Vault Stream...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!bot) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F5F3EE]">
-        <div className="text-center">
-          <p className="text-4xl mb-4">🤖</p>
-          <h1 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase text-[#0A0A0A] mb-2">Bot Not Found</h1>
-          <p className="text-[#0A0A0A]/60 font-medium">The vault you&apos;re looking for doesn&apos;t exist.</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] p-6 text-center">
+        <div className="bg-white/5 backdrop-blur-3xl p-12 rounded-[40px] border border-white/10 shadow-2xl">
+          <div className="flex justify-center mb-6">
+            <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center text-4xl shadow-2xl">🤖</div>
+          </div>
+          <h2 className="font-[var(--font-syne)] text-[28px] font-[900] uppercase text-white mb-2">Vault Not Found</h2>
+          <p className="font-[var(--font-dm-mono)] text-white/40">The quantitative entity you are seeking does not exist in our registry.</p>
         </div>
       </div>
     );
@@ -194,51 +205,116 @@ export default function VaultPage() {
             </div>
           </div>
 
-          {/* ═══ DEPOSIT CTA BAR ═══ */}
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-10 mb-12 rounded-[48px] bg-white p-10 sm:p-14 text-[#0A0A0A] shadow-[0_40px_80px_rgba(0,0,0,0.3)] relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-[#C8FF00] opacity-10 rounded-full -mr-48 -mt-48 blur-3xl" />
-            
-            <div className="flex-1 z-10">
-              <h3 className="font-[var(--font-syne)] text-[42px] font-[900] uppercase text-[#0A0A0A] mb-4 leading-none tracking-tighter">
-                Capital Deployment
-              </h3>
-              <p className="text-[#0A0A0A]/60 font-medium mb-10 max-w-lg text-lg">
-                Builder Carry: 20% · Platform: 3% · Skin-in-game Protection active.
-              </p>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div 
-                  onClick={() => setMode('CONSERVATIVE')}
-                  className={`cursor-pointer rounded-[24px] p-6 border-2 transition-all ${mode === 'CONSERVATIVE' ? 'border-[#C8FF00] bg-[#C8FF00]/5' : 'border-black/5 hover:border-black/10'}`}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="font-bold uppercase text-xs tracking-[0.2em] text-[#0A0A0A]">Conservative</span>
-                    {mode === 'CONSERVATIVE' && <div className="w-2.5 h-2.5 rounded-full bg-[#C8FF00]" />}
-                  </div>
-                  <p className="text-xs text-[#0A0A0A]/50 leading-relaxed font-medium">Auto-exit at -15% personal drawdown. Principal protected by builder collateral.</p>
-                </div>
-                <div 
-                  onClick={() => setMode('DEGEN')}
-                  className={`cursor-pointer rounded-[24px] p-6 border-2 transition-all ${mode === 'DEGEN' ? 'border-[#FF3D00] bg-[#FF3D00]/5' : 'border-black/5 hover:border-black/10'}`}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="font-bold uppercase text-xs tracking-[0.2em] text-[#FF3D00]">Degen</span>
-                    {mode === 'DEGEN' && <div className="w-2.5 h-2.5 rounded-full bg-[#FF3D00]" />}
-                  </div>
-                  <p className="text-xs text-[#0A0A0A]/50 leading-relaxed font-medium">No auto-exit. Full market exposure. Explicit acknowledgment required.</p>
-                </div>
-              </div>
+          {/* ═══ CAPITAL DEPLOYMENT SELECTOR ═══ */}
+          <div className="mb-20">
+            <div className="flex items-center gap-4 mb-10">
+              <div className="h-[1px] flex-1 bg-white/10" />
+              <h3 className="font-[var(--font-syne)] text-[14px] font-[900] uppercase tracking-[0.4em] text-white/40">Capital Deployment Matrix</h3>
+              <div className="h-[1px] flex-1 bg-white/10" />
             </div>
 
-            <div className="w-full lg:w-auto z-10">
-              <button
-                onClick={handleDeposit}
-                className={`w-full lg:w-auto rounded-full px-16 py-8 font-[var(--font-dm-mono)] text-base font-bold uppercase tracking-[0.2em] transition-all shadow-2xl hover:scale-[1.03] active:scale-[0.97] ${
-                  mode === 'CONSERVATIVE' ? 'bg-[#C8FF00] text-[#0A0A0A]' : 'bg-[#FF3D00] text-white'
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Conservative Mode Card */}
+              <div 
+                onClick={() => setMode('CONSERVATIVE')}
+                className={`relative group cursor-pointer rounded-[40px] p-8 transition-all duration-500 border-2 ${
+                  mode === 'CONSERVATIVE' 
+                    ? 'bg-white border-[#C8FF00] shadow-[0_30px_100px_rgba(200,255,0,0.15)]' 
+                    : 'bg-white/5 border-white/5 hover:border-white/20'
                 }`}
               >
-                Execute {mode}
-              </button>
+                <div className={`mb-8 flex items-center justify-between ${mode === 'CONSERVATIVE' ? 'text-[#0A0A0A]' : 'text-white'}`}>
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${mode === 'CONSERVATIVE' ? 'bg-[#C8FF00]' : 'bg-white/5'}`}>
+                    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                  </div>
+                  {mode === 'CONSERVATIVE' && <span className="bg-[#0A0A0A] text-[#C8FF00] text-[9px] font-[900] px-4 py-1.5 rounded-full uppercase tracking-widest">Selected</span>}
+                </div>
+                
+                <h4 className={`font-[var(--font-syne)] text-2xl font-[900] uppercase mb-4 ${mode === 'CONSERVATIVE' ? 'text-[#0A0A0A]' : 'text-white'}`}>Conservative</h4>
+                <p className={`text-sm font-medium mb-8 leading-relaxed ${mode === 'CONSERVATIVE' ? 'text-[#0A0A0A]/60' : 'text-white/40'}`}>
+                  Institutional-grade protection for risk-averse depositors. Priority on capital preservation.
+                </p>
+                
+                <ul className={`space-y-4 mb-10 ${mode === 'CONSERVATIVE' ? 'text-[#0A0A0A]' : 'text-white/60'}`}>
+                  {[
+                    'Principal Protected by Collateral',
+                    'Auto-Exit at -15% Drawdown',
+                    'Priority Liquidity Claims',
+                    'Skin-in-Game Coverage'
+                  ].map((feat, i) => (
+                    <li key={i} className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-widest">
+                      <div className={`h-1.5 w-1.5 rounded-full ${mode === 'CONSERVATIVE' ? 'bg-[#C8FF00]' : 'bg-white/20'}`} />
+                      {feat}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Degen Mode Card */}
+              <div 
+                onClick={() => setMode('DEGEN')}
+                className={`relative group cursor-pointer rounded-[40px] p-8 transition-all duration-500 border-2 ${
+                  mode === 'DEGEN' 
+                    ? 'bg-white border-[#FF3D00] shadow-[0_30px_100px_rgba(255,61,0,0.15)]' 
+                    : 'bg-white/5 border-white/5 hover:border-white/20'
+                }`}
+              >
+                <div className={`mb-8 flex items-center justify-between ${mode === 'DEGEN' ? 'text-[#0A0A0A]' : 'text-white'}`}>
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${mode === 'DEGEN' ? 'bg-[#FF3D00]' : 'bg-white/5'}`}>
+                    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                  </div>
+                  {mode === 'DEGEN' && <span className="bg-[#0A0A0A] text-[#FF3D00] text-[9px] font-[900] px-4 py-1.5 rounded-full uppercase tracking-widest">Selected</span>}
+                </div>
+                
+                <h4 className={`font-[var(--font-syne)] text-2xl font-[900] uppercase mb-4 ${mode === 'DEGEN' ? 'text-[#0A0A0A]' : 'text-white'}`}>High Velocity</h4>
+                <p className={`text-sm font-medium mb-8 leading-relaxed ${mode === 'DEGEN' ? 'text-[#0A0A0A]/60' : 'text-white/40'}`}>
+                  Uncapped exposure to quantitative alpha. Maximum capital efficiency for high conviction.
+                </p>
+                
+                <ul className={`space-y-4 mb-10 ${mode === 'DEGEN' ? 'text-[#0A0A0A]' : 'text-white/60'}`}>
+                  {[
+                    'Uncapped ROI Exposure',
+                    'No Automatic Exit Barriers',
+                    'Full Market Participation',
+                    'Performance Carry Optimized'
+                  ].map((feat, i) => (
+                    <li key={i} className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-widest">
+                      <div className={`h-1.5 w-1.5 rounded-full ${mode === 'DEGEN' ? 'bg-[#FF3D00]' : 'bg-white/20'}`} />
+                      {feat}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Final Deployment Card */}
+              <div className="bg-gradient-to-br from-[#C8FF00] to-[#A0FF00] rounded-[40px] p-10 flex flex-col justify-between shadow-2xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-20 rounded-full -mr-32 -mt-32 blur-3xl group-hover:opacity-40 transition-opacity" />
+                
+                <div className="relative z-10">
+                  <p className="text-[#0A0A0A]/40 text-[10px] font-[900] uppercase tracking-[0.3em] mb-4">Deployment Summary</p>
+                  <h4 className="font-[var(--font-syne)] text-4xl font-[900] uppercase text-[#0A0A0A] tracking-tighter leading-none mb-10">
+                    Ready to <br /> Execute
+                  </h4>
+                  
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-end border-b border-black/5 pb-4">
+                      <p className="text-[10px] font-bold uppercase text-[#0A0A0A]/40">Active Mode</p>
+                      <p className="font-[var(--font-dm-mono)] font-bold text-[#0A0A0A]">{mode}</p>
+                    </div>
+                    <div className="flex justify-between items-end border-b border-black/5 pb-4">
+                      <p className="text-[10px] font-bold uppercase text-[#0A0A0A]/40">Fee Structure</p>
+                      <p className="font-[var(--font-dm-mono)] font-bold text-[#0A0A0A]">20% CARRY / 3% PLT</p>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleDeposit}
+                  className="relative z-10 w-full rounded-2xl bg-[#0A0A0A] text-white py-6 font-[var(--font-dm-mono)] text-sm font-[900] uppercase tracking-[0.2em] shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all mt-10"
+                >
+                  Confirm Deployment
+                </button>
+              </div>
             </div>
           </div>
 
@@ -247,17 +323,20 @@ export default function VaultPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-12">
               <div>
                 <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tighter text-white mb-2">
-                  Alpha Generation
+                  Alpha Matrix
                 </h2>
-                <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Cumulative PnL · 90-day window</p>
+                <p className="text-white/40 text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#C8FF00] animate-pulse" />
+                  Live Quantitative Stream · 60 FPS
+                </p>
               </div>
-              <div className="flex gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
+              <div className="flex flex-wrap gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
                 {(['7d', '30d', '90d', 'all'] as const).map((r) => (
                   <button
                     key={r}
                     onClick={() => setTimeRange(r)}
-                    className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
-                      timeRange === r ? 'bg-white text-[#0A0A0A]' : 'text-white/40 hover:text-white'
+                    className={`px-6 py-2.5 rounded-xl font-[var(--font-dm-mono)] text-[10px] font-bold uppercase tracking-widest transition-all ${
+                      timeRange === r ? 'bg-white text-[#0A0A0A] shadow-xl' : 'text-white/40 hover:text-white'
                     }`}
                   >
                     {r}
@@ -266,46 +345,29 @@ export default function VaultPage() {
               </div>
             </div>
 
-            <div className="h-[400px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={generateChartData()}>
-                  <defs>
-                    <linearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#C8FF00" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#C8FF00" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis 
-                    dataKey="label" 
-                    stroke="rgba(255,255,255,0.2)" 
-                    fontSize={10}
-                    tickLine={false}
-                    axisLine={false}
-                    dy={10}
-                  />
-                  <YAxis 
-                    stroke="rgba(255,255,255,0.2)" 
-                    fontSize={10}
-                    tickLine={false}
-                    axisLine={false}
-                    dx={-10}
-                    tickFormatter={(v) => `$${v >= 1000 ? (v/1000).toFixed(0)+'K' : v}`}
-                  />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', color: '#fff' }}
-                    itemStyle={{ color: '#C8FF00', fontWeight: 'bold' }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="#C8FF00" 
-                    strokeWidth={4} 
-                    dot={false}
-                    activeDot={{ r: 6, strokeWidth: 0, fill: '#C8FF00' }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+            <div className="h-[400px] w-full relative group rounded-[24px] overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A]/40 to-transparent pointer-events-none z-10" />
+              <Liveline 
+                data={chartData.map(p => ({ value: p.value }))}
+                value={chartData[chartData.length - 1]?.value || 0}
+                color={bot.color}
+                theme="dark"
+              />
+            </div>
+
+            <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-6 pt-10 border-t border-white/5">
+              {[
+                { label: 'Volatility', value: '12.4%', sub: 'Realized 30D' },
+                { label: 'Expectancy', value: '0.14', sub: 'Per Trade' },
+                { label: 'Max Runup', value: '+$4.2K', sub: '90D Peak' },
+                { label: 'Recovery', value: '2.4 Days', sub: 'Average Time' },
+              ].map((s, i) => (
+                <div key={i}>
+                  <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mb-2">{s.label}</p>
+                  <p className="font-[var(--font-dm-mono)] text-lg font-bold text-white leading-none">{s.value}</p>
+                  <p className="text-[9px] font-medium text-white/10 uppercase mt-1">{s.sub}</p>
+                </div>
+              ))}
             </div>
           </div>
 

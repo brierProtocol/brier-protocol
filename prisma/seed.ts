@@ -20,7 +20,7 @@ async function main() {
     data: {
       slug: 'adan-pred',
       name: 'ADAN-PRED',
-      tagline: 'No es un bot. Es una entidad con algo que perder.',
+      tagline: 'Not just a bot. An entity with skin in the game.',
       color: '#FF6B35',
       mood: 'cool',
       status: 'VAULT_ELIGIBLE_T1',

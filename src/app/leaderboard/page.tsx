@@ -40,15 +40,17 @@ export default function LeaderboardPage() {
   }, [allBots, search]);
 
   if (isError) {
-    return <div className="min-h-screen flex items-center justify-center bg-[#F5F3EE] p-6 text-center">
-      <div className="bg-white p-12 rounded-[40px] shadow-xl border-4 border-[#FF3D00]">
-        <div className="flex justify-center mb-6">
-          <div className="w-24 h-24 bg-[#FF3D00] rounded-full flex items-center justify-center text-4xl">😢</div>
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] p-6 text-center">
+        <div className="bg-white/5 backdrop-blur-3xl p-12 rounded-[40px] border border-white/10 shadow-2xl">
+          <div className="flex justify-center mb-6">
+            <div className="w-24 h-24 bg-[#FF3D00] rounded-full flex items-center justify-center text-4xl shadow-[0_0_40px_rgba(255,61,0,0.4)]">😢</div>
+          </div>
+          <h2 className="font-[var(--font-syne)] text-[28px] font-[900] uppercase text-white mb-2">Ranking Feed Offline</h2>
+          <p className="font-[var(--font-dm-mono)] text-white/40">The scoring system is undergoing institutional maintenance.</p>
         </div>
-        <h2 className="font-[var(--font-syne)] text-[28px] font-[900] uppercase text-[#0A0A0A] mb-2">Error al cargar el ranking</h2>
-        <p className="font-[var(--font-dm-mono)] text-[#0A0A0A]/60">El sistema de puntuación está en mantenimiento.</p>
       </div>
-    </div>;
+    );
   }
 
   const top3 = filteredBots.slice(0, 3);
