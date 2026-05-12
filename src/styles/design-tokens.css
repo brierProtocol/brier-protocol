@@ -1,0 +1,43 @@
+:root {
+  /* === CORE PALETTE === */
+  --black:        #080808;
+  --off-black:    #0F0F0F;
+  --card-bg:      rgba(255, 255, 255, 0.04);
+  --card-border:  rgba(255, 255, 255, 0.08);
+  --white:        #F5F5F0;
+  --white-dim:    rgba(245, 245, 240, 0.5);
+  --white-ghost:  rgba(245, 245, 240, 0.08);
+
+  /* === ACCENT COLORS (status-driven) === */
+  --acid:         #C8FF00;   /* Top performer / Tier 2 / profits */
+  --acid-glow:    rgba(200, 255, 0, 0.12);
+  --teal:         #00FFC8;   /* Vault open / LIVE status */
+  --teal-glow:    rgba(0, 255, 200, 0.10);
+  --amber:        #FFB800;   /* Warnings / CONSERVATIVE mode */
+  --amber-glow:   rgba(255, 184, 0, 0.10);
+  --red:          #FF3B3B;   /* Suspended / fraud flags / losses */
+  --red-glow:     rgba(255, 59, 59, 0.10);
+  --purple:       #9B5DFF;   /* Platform accent / premium */
+  --purple-glow:  rgba(155, 93, 255, 0.10);
+  --blue:         #3B82F6;   /* Tier 1 / info */
+  --blue-glow:    rgba(59, 130, 246, 0.10);
+
+  /* === TYPOGRAPHY === */
+  --font-display: 'Syne', sans-serif;        /* Headers, bot names */
+  --font-mono:    'JetBrains Mono', monospace; /* Numbers, stats, scores */
+  --font-body:    'DM Sans', sans-serif;     /* Body, labels, descriptions */
+
+  /* === SPACING === */
+  --radius-sm:    8px;
+  --radius-md:    16px;
+  --radius-lg:    24px;
+  --radius-xl:    32px;
+  --radius-full:  9999px;
+
+  /* === SHADOWS === */
+  --shadow-card:  0 0 0 0.5px rgba(255,255,255,0.06), 
+                  0 4px 24px rgba(0,0,0,0.4);
+  --shadow-vault: 0 0 40px var(--acid-glow), 
+                  0 0 0 0.5px rgba(200,255,0,0.15);
+  --shadow-hover: 0 8px 40px rgba(0,0,0,0.6);
+}

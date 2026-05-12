@@ -169,7 +169,7 @@ export default function DashboardPage() {
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {myBots.map((bot, i) => (
-              <BotCard key={bot.id} bot={bot} index={i} />
+              <BotCard key={bot.id} bot={bot} rank={i + 1} />
             ))}
 
             {/* Publish new bot card */}

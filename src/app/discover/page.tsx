@@ -1,19 +1,17 @@
-'use client';
+'use client'
 
-import { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { BotCard } from '@/components/BotCard';
-import { useBots } from '@/hooks/useBots';
+import { useState, useMemo } from 'react'
+import { motion } from 'framer-motion'
+import { BotCard } from '@/components/BotCard'
+import { useBots } from '@/hooks/useBots'
+import { BotCardSkeleton } from '@/components/BotCardSkeleton'
 
-type SortKey = 'brier' | 'wr' | 'tvl' | 'newest';
-type FilterKey = 'all' | 'hot' | 'new' | 'top';
-
-import { BotCardSkeleton } from '@/components/BotCardSkeleton';
+type SortKey = 'brier' | 'wr' | 'tvl' | 'newest'
+type FilterKey = 'all' | 'hot' | 'new' | 'top'
 
 export default function DiscoverPage() {
-  const [search, setSearch] = useState('');
-  const [sort, setSort] = useState<SortKey>('brier');
-  const [filter, setFilter] = useState<FilterKey>('all');
+  const [sort, setSort] = useState<SortKey>('brier')
+  const [filter, setFilter] = useState<FilterKey>('all')
 
   const { 
     data, 
@@ -22,187 +20,172 @@ export default function DiscoverPage() {
     fetchNextPage, 
     hasNextPage, 
     isFetchingNextPage 
-  } = useBots(sort, filter);
+  } = useBots(sort, filter)
 
-  const allBots = useMemo(() => data?.pages.flatMap(page => page.data) || [], [data]);
-
-  const filteredBots = useMemo(() => {
-    let result = [...allBots];
-
-    // Search
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (b) =>
-          b.name.toLowerCase().includes(q) ||
-          b.builder.toLowerCase().includes(q) ||
-          b.markets.some((m: string) => m.toLowerCase().includes(q))
-      );
-    }
-
-    // Filter
-    if (filter === 'hot') {
-      result = result.filter((b) => b.mood === 'happy' || b.mood === 'cool');
-    } else if (filter === 'top') {
-      result = result.filter((b) => b.brierScore < 0.2);
-    }
-
-    return result;
-  }, [allBots, search, filter]);
+  const allBots = useMemo(() => data?.pages.flatMap(page => page.data) || [], [data])
 
   if (isError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] p-6 text-center">
-        <div className="bg-white/5 backdrop-blur-3xl p-12 rounded-[40px] border border-white/10 shadow-2xl">
-          <div className="flex justify-center mb-6">
-            <div className="w-24 h-24 bg-[#FF3D00] rounded-full flex items-center justify-center text-4xl shadow-[0_0_40px_rgba(255,61,0,0.4)]">😢</div>
-          </div>
-          <h2 className="font-[var(--font-syne)] text-[28px] font-[900] uppercase text-white mb-2">Feed Offline</h2>
-          <p className="font-[var(--font-dm-mono)] text-white/40">Oracle connection severed. Re-establishing link...</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#080808] p-6 text-center">
+        <div className="bg-white/5 backdrop-blur-3xl p-12 rounded-[40px] border border-white/10">
+          <h2 className="font-[var(--font-display)] text-3xl font-black text-white mb-2 uppercase">ORACLE OFFLINE</h2>
+          <p className="font-mono text-white/40">Feed connection severed. Re-establishing link...</p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="min-h-screen px-6 py-20 bg-[#0A0A0A] relative overflow-hidden">
-      {/* Ambient Glows */}
-      <div className="absolute top-0 left-0 w-full h-[600px] bg-gradient-to-b from-[#C8FF00]/5 to-transparent pointer-events-none" />
-      
-      <div className="mx-auto max-w-7xl relative z-10">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-20 text-center"
-        >
-          <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full bg-white/5 border border-white/10 mb-8 backdrop-blur-xl">
-            <span className="h-2 w-2 rounded-full bg-[#C8FF00] animate-pulse" />
-            <span className="text-white/40 text-[10px] font-bold uppercase tracking-[0.3em]">Institutional Feed Active</span>
-          </div>
-          <h1 className="font-[var(--font-syne)] text-[64px] sm:text-[84px] font-[900] uppercase tracking-tighter text-white mb-6 leading-none">
-            Discovery <span className="text-[#C8FF00]">Matrix</span>
-          </h1>
-          <p className="text-xl font-medium text-white/40 max-w-2xl mx-auto">
-            Scan the protocol for validated quantitative agents and deploy capital into verified vaults.
-          </p>
-        </motion.div>
+    <div className="min-h-screen pb-32" style={{ background: '#080808' }}>
+      {/* ═══ HERO SECTION ═══ */}
+      <section className="relative pt-32 pb-20 px-6 text-center overflow-hidden">
+        {/* Decorative background glows */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-gradient-to-b from-[#C8FF00]/10 to-transparent pointer-events-none" />
+        <div className="absolute top-1/4 -right-1/4 w-[600px] h-[600px] bg-[#C8FF00]/5 rounded-full blur-[120px] pointer-events-none" />
 
-        {/* Search + Filters Strip */}
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-12 flex flex-col lg:flex-row gap-6 items-center"
-        >
-          {/* Search */}
-          <div className="relative w-full lg:w-auto lg:flex-1 group">
-            <div className="absolute inset-0 bg-[#C8FF00]/20 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
-            <input
-              type="text"
-              placeholder="Search by bot ID, strategy, or builder..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="relative w-full rounded-2xl border border-white/10 bg-white/5 px-8 py-5 font-[var(--font-dm-mono)] text-sm text-white backdrop-blur-xl placeholder:text-white/20 focus:ring-2 focus:ring-white/20 outline-none transition-all"
-            />
-            <svg
-              className="absolute right-6 top-1/2 -translate-y-1/2 h-5 w-5 text-white/20"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
+        <div className="relative z-10">
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-7xl md:text-9xl font-black mb-6 leading-[0.85] tracking-tighter"
+            style={{
+              fontFamily: 'var(--font-display)',
+              color: '#F5F5F0',
+            }}
+          >
+            THE BEST<br />
+            <span style={{ color: '#C8FF00' }}>BOTS</span> WIN.
+          </motion.h1>
+          
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="text-xl max-w-xl mx-auto opacity-50"
+            style={{ 
+              fontFamily: 'var(--font-body)',
+              lineHeight: 1.6
+            }}
+          >
+            Verified on-chain performance. Ranked by Brier Score. 
+            The most precise prediction agents, quantified.
+          </motion.p>
 
-          {/* Filter pills */}
-          <div className="flex flex-wrap gap-3 w-full lg:w-auto">
-            {(
-              [
-                ['all', 'All'],
-                ['top', 'Top Alpha'],
-                ['hot', 'Trending'],
-                ['new', 'Recent'],
-              ] as [FilterKey, string][]
-            ).map(([key, label]) => (
+          {/* Live stats bar */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="flex flex-wrap justify-center gap-12 sm:gap-20 mt-12"
+          >
+            {[
+              { label: 'ACTIVE BOTS', value: '847' },
+              { label: 'TOTAL TVL',   value: '$12.4M' },
+              { label: 'AVG BRIER',   value: '0.241' },
+            ].map(({ label, value }) => (
+              <div key={label} className="text-center">
+                <div
+                  className="text-4xl font-bold font-mono"
+                  style={{ color: '#C8FF00', fontFamily: 'var(--font-mono)' }}
+                >
+                  {value}
+                </div>
+                <div
+                  className="text-[10px] font-bold tracking-[0.4em] mt-1 opacity-30 uppercase"
+                  style={{ fontFamily: 'var(--font-body)' }}
+                >
+                  {label}
+                </div>
+              </div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ═══ FILTERS & SEARCH ═══ */}
+      <section className="px-6 max-w-7xl mx-auto mb-16 relative z-10">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-4 rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl">
+          <div className="flex items-center gap-2 p-1 bg-black/40 rounded-2xl border border-white/5">
+            {[
+              { id: 'all', label: 'All Agents' },
+              { id: 'hot', label: 'Hot Moods' },
+              { id: 'top', label: 'Top Brier' },
+            ].map((f) => (
               <button
-                key={key}
-                onClick={() => setFilter(key)}
-                className={`whitespace-nowrap rounded-xl px-8 py-4 font-[var(--font-dm-mono)] text-[10px] font-bold uppercase tracking-widest transition-all ${
-                  filter === key
-                    ? 'bg-white text-[#0A0A0A] shadow-[0_0_20px_rgba(255,255,255,0.2)]'
-                    : 'bg-white/5 text-white/40 border border-white/5 hover:bg-white/10 hover:text-white'
+                key={f.id}
+                onClick={() => setFilter(f.id as FilterKey)}
+                className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-widest ${
+                  filter === f.id ? 'bg-[#C8FF00] text-[#080808]' : 'text-white/40 hover:text-white/80'
                 }`}
+                style={{ fontFamily: 'var(--font-display)' }}
               >
-                {label}
+                {f.label}
               </button>
             ))}
-
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as SortKey)}
-              className="rounded-xl bg-white/5 border border-white/5 px-8 py-4 font-[var(--font-dm-mono)] text-[10px] font-bold uppercase tracking-widest text-white outline-none cursor-pointer hover:bg-white/10 transition-all"
-            >
-              <option value="brier" className="bg-[#0A0A0A]">Rank by Brier</option>
-              <option value="wr" className="bg-[#0A0A0A]">Rank by Winrate</option>
-              <option value="tvl" className="bg-[#0A0A0A]">Rank by TVL</option>
-              <option value="newest" className="bg-[#0A0A0A]">Newest Entities</option>
-            </select>
           </div>
-        </motion.div>
 
-        {/* Results count */}
-        <p className="font-[var(--font-dm-mono)] text-[10px] font-bold text-white/20 mb-10 uppercase tracking-[0.3em] pl-2 flex items-center gap-3">
-          <span className="h-1 w-1 rounded-full bg-[#C8FF00]" />
-          {filteredBots.length} validated entit{filteredBots.length !== 1 ? 'ies' : 'y'} active
-        </p>
-        
-        {/* Bot grid */}
+          <div className="flex items-center gap-6">
+            <span className="text-[10px] font-bold opacity-30 tracking-widest uppercase">Sort By:</span>
+            <div className="flex items-center gap-4">
+              {[
+                { id: 'brier', label: 'Brier' },
+                { id: 'wr', label: 'Win Rate' },
+                { id: 'tvl', label: 'TVL' },
+              ].map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => setSort(s.id as SortKey)}
+                  className={`text-xs font-bold uppercase tracking-widest transition-colors ${
+                    sort === s.id ? 'text-[#C8FF00]' : 'text-white/30 hover:text-white/60'
+                  }`}
+                  style={{ fontFamily: 'var(--font-mono)' }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ BOT GRID ═══ */}
+      <section className="px-6 max-w-7xl mx-auto relative z-10">
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
               <BotCardSkeleton key={i} />
             ))}
           </div>
-        ) : filteredBots.length > 0 ? (
+        ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredBots.map((bot, i) => (
-                <BotCard key={bot.id} bot={bot} index={i} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {allBots.map((bot, i) => (
+                <motion.div
+                  key={bot.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                >
+                  <BotCard bot={bot} rank={i + 1} />
+                </motion.div>
               ))}
             </div>
-            
-            {/* Load More */}
+
             {hasNextPage && (
-              <div className="mt-20 text-center">
+              <div className="mt-20 flex justify-center">
                 <button
                   onClick={() => fetchNextPage()}
                   disabled={isFetchingNextPage}
-                  className="rounded-full border border-white/10 bg-white/5 backdrop-blur-xl px-12 py-5 font-[var(--font-dm-mono)] text-sm font-[900] uppercase tracking-[0.3em] text-white transition-all hover:bg-white hover:text-[#0A0A0A] disabled:opacity-50"
+                  className="px-12 py-4 rounded-2xl border border-white/10 bg-white/5 font-bold text-xs uppercase tracking-[0.3em] hover:bg-white/10 hover:border-white/20 transition-all disabled:opacity-50"
+                  style={{ fontFamily: 'var(--font-display)' }}
                 >
-                  {isFetchingNextPage ? 'Decoding...' : 'Load More Entities'}
+                  {isFetchingNextPage ? 'Loading Pipeline...' : 'Load More Agents'}
                 </button>
               </div>
             )}
           </>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-40 text-center bg-white/5 rounded-[40px] border border-dashed border-white/10">
-            <p className="text-4xl mb-6 opacity-40">🔍</p>
-            <p className="font-[var(--font-syne)] text-[24px] font-[900] uppercase text-white tracking-tighter">No Entities Found</p>
-            <p className="font-[var(--font-dm-mono)] text-white/30 text-xs uppercase tracking-widest mt-4">Adjust network scan parameters</p>
-          </div>
         )}
-      </div>
-
-      <style jsx global>{`
-        .hide-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .hide-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
+      </section>
     </div>
-  );
+  )
 }

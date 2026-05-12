@@ -19,13 +19,15 @@ function ConnectButton() {
 
   useEffect(() => {
     if (error) {
-      if ((error as any).name === 'ConnectorNotFoundError') {
-        toast.error('Wallet not found. Please install a wallet extension.');
-      } else if (error.name === 'UserRejectedRequestError') {
-        toast.error('Connection rejected. Please try again.');
-      } else {
-        toast.error('Failed to connect wallet.');
-      }
+      toast.error('Connection failed. Please try again.', {
+        style: {
+          background: '#080808',
+          color: '#F5F5F0',
+          border: '0.5px solid rgba(255,59,59,0.2)',
+          fontFamily: 'var(--font-mono)',
+          borderRadius: '16px',
+        }
+      });
     }
   }, [error]);
 
@@ -34,7 +36,8 @@ function ConnectButton() {
       return (
         <button
           onClick={() => switchChain({ chainId: 137 })}
-          className="wallet-pill bg-[#FF3D00] text-white border-none animate-pulse"
+          className="px-6 py-2.5 rounded-full bg-[#FF3B3B] text-white text-[10px] font-bold uppercase tracking-widest animate-pulse"
+          style={{ fontFamily: 'var(--font-display)' }}
         >
           Switch to Polygon
         </button>
@@ -43,7 +46,7 @@ function ConnectButton() {
     return (
       <button
         onClick={() => disconnect()}
-        className="wallet-pill connected"
+        className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-[#F5F5F0] text-[11px] font-bold font-mono hover:bg-white/10 transition-all"
       >
         {address?.slice(0, 6)}...{address?.slice(-4)}
       </button>
@@ -53,7 +56,8 @@ function ConnectButton() {
   return (
     <button
       onClick={() => connect({ connector: connectors[0] })}
-      className="wallet-pill"
+      className="px-6 py-2.5 rounded-full bg-[#C8FF00] text-[#080808] text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-[0_10px_20px_rgba(200,255,0,0.15)]"
+      style={{ fontFamily: 'var(--font-display)' }}
     >
       Connect Wallet
     </button>
@@ -62,8 +66,8 @@ function ConnectButton() {
 
 const navLinks = [
   { href: '/discover', label: 'Discover' },
-  { href: '/leaderboard', label: 'Leaderboard' },
-  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/leaderboard', label: 'Rankings' },
+  { href: '/dashboard', label: 'Portal' },
 ];
 
 export function Navbar() {
@@ -79,82 +83,86 @@ export function Navbar() {
 
   return (
     <nav
-      className={`sticky top-0 z-50 w-full transition-all duration-500 bg-[#0A0A0A]/90 backdrop-blur-3xl border-b border-white/5 ${
-        scrolled ? 'py-4' : 'py-6'
+      className={`fixed top-0 z-[100] w-full transition-all duration-500 border-b ${
+        scrolled 
+          ? 'py-4 bg-[#080808]/80 backdrop-blur-2xl border-white/5 shadow-2xl' 
+          : 'py-8 bg-transparent border-transparent'
       }`}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 sm:px-10">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="h-9 w-9 rounded-xl bg-[#C8FF00] flex items-center justify-center font-[var(--font-syne)] font-[900] text-[#0A0A0A] text-2xl group-hover:scale-110 transition-transform">
+        <Link href="/" className="flex items-center gap-4 group">
+          <motion.div 
+            whileHover={{ rotate: 10, scale: 1.1 }}
+            className="h-10 w-10 rounded-2xl bg-[#C8FF00] flex items-center justify-center font-[var(--font-display)] font-black text-[#080808] text-2xl shadow-[0_10px_20px_rgba(200,255,0,0.2)]"
+          >
             B
-          </div>
-          <span className="font-[var(--font-syne)] text-2xl font-[900] tracking-tighter uppercase text-white group-hover:text-[#C8FF00] transition-colors">
-            Brier<span className="opacity-20 italic ml-1 group-hover:opacity-100 transition-opacity">Protocol</span>
+          </motion.div>
+          <span className="font-[var(--font-display)] text-2xl font-black tracking-tighter uppercase text-[#F5F5F0] leading-none">
+            Brier<span className="opacity-20 italic ml-1 group-hover:opacity-100 group-hover:text-[#C8FF00] transition-all">Protocol</span>
           </span>
         </Link>
 
         {/* Desktop nav */}
-        <div className="hidden sm:flex items-center gap-10">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`font-[var(--font-dm-mono)] text-[10px] font-bold uppercase tracking-[0.3em] transition-all hover:text-[#C8FF00] relative ${
-                pathname === link.href ? 'text-[#C8FF00]' : 'text-white/30'
-              }`}
-            >
-              {link.label}
-              {pathname === link.href && (
-                <motion.span
-                  layoutId="nav-glow"
-                  className="absolute -bottom-4 left-0 w-full h-[2px] bg-[#C8FF00] shadow-[0_0_10px_rgba(200,255,0,0.5)]"
-                />
-              )}
-            </Link>
-          ))}
-          <div className="h-6 w-[1px] bg-white/10" />
+        <div className="hidden md:flex items-center gap-1">
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-full bg-white/[0.03] border border-white/5 backdrop-blur-xl mr-4">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] transition-all ${
+                  pathname === link.href
+                    ? 'bg-white text-[#080808] shadow-lg'
+                    : 'text-white/40 hover:text-white/80 hover:bg-white/5'
+                }`}
+                style={{ fontFamily: 'var(--font-display)' }}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
           <ConnectButton />
         </div>
 
-        {/* Mobile menu button */}
-        <div className="flex items-center sm:hidden">
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="text-white p-2"
-          >
+        {/* Mobile menu toggle */}
+        <button
+          className="md:hidden p-2 text-white/40 hover:text-white transition-colors"
+          onClick={() => setMobileOpen(!mobileOpen)}
+        >
+          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             {mobileOpen ? (
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             ) : (
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             )}
-          </button>
-        </div>
+          </svg>
+        </button>
       </div>
 
-      {/* Mobile nav overlay */}
+      {/* Mobile Nav */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="sm:hidden bg-[#0A0A0A]/95 backdrop-blur-3xl border-b border-white/5 overflow-hidden"
+            className="md:hidden bg-[#080808] border-b border-white/5 overflow-hidden"
           >
-            <div className="flex flex-col gap-6 px-6 py-10">
+            <div className="flex flex-col gap-4 p-8">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileOpen(false)}
-                  className={`font-[var(--font-syne)] text-3xl font-[900] uppercase tracking-tighter ${
-                    pathname === link.href ? 'text-[#C8FF00]' : 'text-white/40'
+                  className={`text-2xl font-black uppercase tracking-tighter ${
+                    pathname === link.href ? 'text-[#C8FF00]' : 'text-white/20'
                   }`}
+                  style={{ fontFamily: 'var(--font-display)' }}
                 >
                   {link.label}
                 </Link>
               ))}
-              <div className="pt-6 border-t border-white/10">
+              <div className="pt-6 mt-6 border-t border-white/5">
                 <ConnectButton />
               </div>
             </div>

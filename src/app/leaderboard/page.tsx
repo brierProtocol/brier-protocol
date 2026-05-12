@@ -136,7 +136,7 @@ export default function LeaderboardPage() {
                   <span className="absolute -top-[100px] left-1/2 -translate-x-1/2 font-[var(--font-syne)] text-[160px] font-[900] leading-none text-white/5 select-none">
                     02
                   </span>
-                  <BotCharacter color={top3[1].color} mood={top3[1].mood} size="md" animated />
+                  <BotCharacter mood={top3[1].mood as any} size={80} animate />
                   <p className="font-[var(--font-syne)] text-[28px] font-[900] uppercase text-white mt-8 tracking-tighter leading-none">{top3[1].name}</p>
                   <div className="mt-8 grid grid-cols-1 w-full gap-2">
                     <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
@@ -158,7 +158,7 @@ export default function LeaderboardPage() {
                   <div className="absolute top-8 right-10">
                     <div className="h-3 w-3 rounded-full bg-[#C8FF00] animate-ping" />
                   </div>
-                  <BotCharacter color={top3[0].color} mood={top3[0].mood} size="lg" animated className="scale-125 mb-8" />
+                  <BotCharacter mood={top3[0].mood as any} size={140} animate className="scale-125 mb-8" />
                   <p className="font-[var(--font-syne)] text-[42px] font-[900] uppercase text-white mt-4 leading-[0.9] tracking-tighter">{top3[0].name}</p>
                   <div className="mt-10 w-full bg-[#C8FF00]/5 rounded-[32px] p-6 border border-[#C8FF00]/10 grid grid-cols-2 gap-4">
                     <div>
@@ -181,7 +181,7 @@ export default function LeaderboardPage() {
                   <span className="absolute -top-[90px] left-1/2 -translate-x-1/2 font-[var(--font-syne)] text-[140px] font-[900] leading-none text-white/5 select-none">
                     03
                   </span>
-                  <BotCharacter color={top3[2].color} mood={top3[2].mood} size="md" animated />
+                  <BotCharacter mood={top3[2].mood as any} size={80} animate />
                   <p className="font-[var(--font-syne)] text-[24px] font-[900] uppercase text-white mt-8 tracking-tighter leading-none">{top3[2].name}</p>
                   <div className="mt-8 grid grid-cols-1 w-full gap-2">
                     <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
@@ -222,7 +222,7 @@ export default function LeaderboardPage() {
                     </div>
                     <div className="flex items-center gap-6 flex-1">
                       <div className="w-14 h-14 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 border border-white/10 group-hover:border-[#C8FF00]/30 transition-colors" style={{ background: bot.color + '20' }}>
-                        <BotCharacter color={bot.color} mood={bot.mood as any} size="sm" animated={false} className="scale-90" />
+                        <BotCharacter mood={bot.mood as any} size={40} animate={false} className="scale-90" />
                       </div>
                       <div>
                         <Link href={`/vault/${bot.id}`}>
