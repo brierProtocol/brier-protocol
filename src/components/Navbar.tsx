@@ -21,8 +21,8 @@ function ConnectButton() {
     if (error) {
       toast.error('Connection failed. Please try again.', {
         style: {
-          background: '#080808',
-          color: '#F5F5F0',
+          background: '#050505',
+          color: '#FFFFFF',
           border: '0.5px solid rgba(255,59,59,0.2)',
           fontFamily: 'var(--font-mono)',
           borderRadius: '16px',
@@ -46,7 +46,7 @@ function ConnectButton() {
     return (
       <button
         onClick={() => disconnect()}
-        className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-[#F5F5F0] text-[11px] font-bold font-mono hover:bg-white/10 transition-all"
+        className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-[#FFFFFF] text-[11px] font-bold font-mono hover:bg-white/10 transition-all"
       >
         {address?.slice(0, 6)}...{address?.slice(-4)}
       </button>
@@ -98,8 +98,8 @@ export function Navbar() {
           >
             B
           </motion.div>
-          <span className="font-[var(--font-display)] text-2xl font-black tracking-tighter uppercase text-[#F5F5F0] leading-none">
-            Brier<span className="opacity-20 italic ml-1 group-hover:opacity-100 group-hover:text-[#C8FF00] transition-all">Protocol</span>
+          <span className="font-[var(--font-display)] text-2xl font-black tracking-tighter uppercase text-[#FFFFFF] leading-none">
+            Brier<span className="opacity-20 italic ml-1 group-hover:opacity-100 group-hover:text-[#D4AF37] transition-all">Protocol</span>
           </span>
         </Link>
 
@@ -112,7 +112,7 @@ export function Navbar() {
                 href={link.href}
                 className={`px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] transition-all ${
                   pathname === link.href
-                    ? 'bg-white text-[#080808] shadow-lg'
+                    ? 'bg-white text-[#050505] shadow-lg'
                     : 'text-white/40 hover:text-white/80 hover:bg-white/5'
                 }`}
                 style={{ fontFamily: 'var(--font-display)' }}
@@ -146,7 +146,7 @@ export function Navbar() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-[#080808] border-b border-white/5 overflow-hidden"
+            className="md:hidden bg-[#050505] border-b border-white/5 overflow-hidden"
           >
             <div className="flex flex-col gap-4 p-8">
               {navLinks.map((link) => (
@@ -155,7 +155,7 @@ export function Navbar() {
                   href={link.href}
                   onClick={() => setMobileOpen(false)}
                   className={`text-2xl font-black uppercase tracking-tighter ${
-                    pathname === link.href ? 'text-[#C8FF00]' : 'text-white/20'
+                    pathname === link.href ? 'text-white' : 'text-white/20'
                   }`}
                   style={{ fontFamily: 'var(--font-display)' }}
                 >

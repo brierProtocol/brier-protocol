@@ -72,7 +72,7 @@ const bodyAnimations: Record<Mood, TargetAndTransition> = {
 }
 
 const moodColors: Record<Mood, string> = {
-  cool:      '#C8FF00',
+  cool:      '#00F0FF',
   happy:     '#00FFC8',
   excited:   '#FFB800',
   neutral:   '#888888',
@@ -114,7 +114,7 @@ export function BotCharacter({
           width="80" height="85"
           rx="35" ry="35"
           fill={primaryColor}
-          stroke="#080808"
+          stroke="#050505"
           strokeWidth="3.5"
         />
         
@@ -127,19 +127,19 @@ export function BotCharacter({
         />
 
         {/* ARMS */}
-        <path d="M20,60 Q5,65 10,80" fill={primaryColor} stroke="#080808" strokeWidth="3.5" strokeLinecap="round" />
-        <path d="M100,60 Q115,65 110,80" fill={primaryColor} stroke="#080808" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M20,60 Q5,65 10,80" fill={primaryColor} stroke="#050505" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M100,60 Q115,65 110,80" fill={primaryColor} stroke="#050505" strokeWidth="3.5" strokeLinecap="round" />
 
         {/* LEGS */}
-        <path d="M45,105 L42,112" fill={primaryColor} stroke="#080808" strokeWidth="3.5" strokeLinecap="round" />
-        <path d="M75,105 L78,112" fill={primaryColor} stroke="#080808" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M45,105 L42,112" fill={primaryColor} stroke="#050505" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M75,105 L78,112" fill={primaryColor} stroke="#050505" strokeWidth="3.5" strokeLinecap="round" />
 
         {/* FACE CIRCLE */}
         <ellipse
           cx="60" cy="58"
           rx="32" ry="30"
-          fill="#F5F5F0"
-          stroke="#080808"
+          fill="#FFFFFF"
+          stroke="#050505"
           strokeWidth="2.5"
         />
 
@@ -149,14 +149,14 @@ export function BotCharacter({
           cy={config.leftEye.y}
           rx={config.leftEye.r}
           ry={config.leftEye.ry || config.leftEye.r}
-          fill="#080808"
+          fill="#050505"
         />
         <ellipse
           cx={config.rightEye.x}
           cy={config.rightEye.y}
           rx={config.rightEye.r}
           ry={config.rightEye.ry || config.rightEye.r}
-          fill="#080808"
+          fill="#050505"
         />
 
         {/* PUPILS (SHINE) */}
@@ -166,16 +166,16 @@ export function BotCharacter({
         {/* BROWS */}
         {config.brows && (
           <>
-            <path d={config.brows.left} fill="none" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" />
-            <path d={config.brows.right} fill="none" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" />
+            <path d={config.brows.left} fill="none" stroke="#050505" strokeWidth="2.5" strokeLinecap="round" />
+            <path d={config.brows.right} fill="none" stroke="#050505" strokeWidth="2.5" strokeLinecap="round" />
           </>
         )}
 
         {/* MOUTH */}
         <path
           d={config.mouth}
-          fill={mood === 'excited' ? '#080808' : 'none'}
-          stroke={mood === 'excited' ? 'none' : '#080808'}
+          fill={mood === 'excited' ? '#050505' : 'none'}
+          stroke={mood === 'excited' ? 'none' : '#050505'}
           strokeWidth="3"
           strokeLinecap="round"
         />

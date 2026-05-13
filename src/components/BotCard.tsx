@@ -172,7 +172,7 @@ export function BotCard({ bot, rank, onClick }: BotCardProps) {
                   className="text-xl font-bold leading-tight"
                   style={{
                     fontFamily: 'var(--font-mono)',
-                    color: good ? '#C8FF00' : '#F5F5F0',
+                    color: good ? '#00F0FF' : '#FFFFFF',
                   }}
                 >
                   {value}
@@ -193,7 +193,7 @@ export function BotCard({ bot, rank, onClick }: BotCardProps) {
                 </span>
                 <span
                   className="text-xs font-mono font-bold"
-                  style={{ color: status.color === '#888' ? '#F5F5F0' : status.color }}
+                  style={{ color: status.color === '#888' ? '#FFFFFF' : status.color }}
                 >
                   ${(bot.tvl / 1000).toFixed(0)}K / ${(bot.vaultCap / 1000000).toFixed(1)}M
                 </span>
@@ -204,7 +204,7 @@ export function BotCard({ bot, rank, onClick }: BotCardProps) {
               >
                 <motion.div
                   className="h-full rounded-full"
-                  style={{ background: status.color === '#888' ? '#F5F5F0' : status.color }}
+                  style={{ background: status.color === '#888' ? '#FFFFFF' : status.color }}
                   initial={{ width: 0 }}
                   animate={{
                     width: `${Math.min((bot.tvl / bot.vaultCap) * 100, 100)}%`

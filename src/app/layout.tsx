@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
-import { Syne, DM_Sans, JetBrains_Mono } from "next/font/google";
+import { DM_Sans, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import { Navbar } from "@/components/Navbar";
 import { Web3Provider } from "@/providers/web3";
 import "./globals.css";
 import "@/styles/design-tokens.css";
 
-const syne = Syne({ 
+const displayFont = DM_Sans({ 
   subsets: ['latin'], 
   weight: ['700', '800'],
   variable: '--font-display' 
 })
-const dmSans = DM_Sans({ 
+const bodyFont = DM_Sans({ 
   subsets: ['latin'], 
   weight: ['400', '500', '600'],
   variable: '--font-body' 
 })
-const jetbrainsMono = JetBrains_Mono({ 
+const monoFont = JetBrains_Mono({ 
   subsets: ['latin'], 
   weight: ['400', '500', '700'],
   variable: '--font-mono' 
@@ -38,7 +38,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${syne.variable} ${dmSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} h-full antialiased`}
     >
       <body 
         className="min-h-screen flex flex-col"
@@ -46,6 +46,7 @@ export default function RootLayout({
           background: '#050505',
           color: '#FFFFFF',
           fontFamily: 'var(--font-body)',
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.015'/%3E%3C/svg%3E")`,
         }}
       >
         <Web3Provider>

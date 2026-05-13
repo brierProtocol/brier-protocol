@@ -34,7 +34,7 @@ export function FloatingBubbles() {
       ))}
       
       {/* Subtle radial gradients for depth */}
-      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-[#080808]/0 via-[#080808]/20 to-[#080808]/0 pointer-events-none" />
+      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-[#050505]/0 via-[#050505]/20 to-[#050505]/0 pointer-events-none" />
     </div>
   )
 }

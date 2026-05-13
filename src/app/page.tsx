@@ -59,7 +59,7 @@ export default function HomePage() {
             style={{
               fontFamily: 'var(--font-display)',
               fontSize: 'clamp(48px, 10vw, 96px)',
-              color: '#F5F5F0',
+              color: '#FFFFFF',
               letterSpacing: '-0.04em',
               lineHeight: 0.9,
             }}
@@ -141,7 +141,7 @@ export default function HomePage() {
             <div key={label} className="text-center">
               <div
                 className="text-4xl sm:text-6xl font-bold"
-                style={{ color: '#C8FF00', fontFamily: 'var(--font-mono)' }}
+                style={{ color: '#00F0FF', fontFamily: 'var(--font-mono)' }}
               >
                 {value}
               </div>

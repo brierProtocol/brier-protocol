@@ -44,7 +44,7 @@ export default function VaultPage() {
   const handleDeposit = () => {
     toast('Coming Soon — Deposits are not yet available.', { 
       style: {
-        background: '#0A0A0A',
+        background: '#050505',
         color: '#FFFFFF',
         border: '1px solid rgba(255,255,255,0.06)',
         borderRadius: '16px',
@@ -84,7 +84,7 @@ export default function VaultPage() {
         {/* Background glow behind character */}
         <div
           className="absolute top-12 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full blur-[120px]"
-          style={{ background: moodColors[mood], opacity: 0.12 }}
+          style={{ background: bot.color || moodColors[mood], opacity: 0.15 }}
         />
         
         <div className="flex flex-col items-center text-center relative z-10">
@@ -102,7 +102,7 @@ export default function VaultPage() {
             className="text-5xl sm:text-7xl font-black mt-8 mb-2 leading-none tracking-tighter"
             style={{
               fontFamily: 'var(--font-display)',
-              color: '#F5F5F0',
+              color: '#FFFFFF',
             }}
           >
             {bot.name}
@@ -128,7 +128,7 @@ export default function VaultPage() {
             style={{
               background: 'rgba(255,255,255,0.02)',
               border: '0.5px solid rgba(255,255,255,0.08)',
-              boxShadow: bot.brierScore < 0.25 ? '0 0 60px rgba(255,255,255,0.06)' : 'none'
+              boxShadow: bot.brierScore < 0.25 ? `0 0 60px ${bot.color}11` : 'none'
             }}
           >
             <div
@@ -141,7 +141,7 @@ export default function VaultPage() {
               className="text-7xl sm:text-8xl font-bold leading-none"
               style={{
                 fontFamily: 'var(--font-mono)',
-                color: bot.brierScore < 0.25 ? '#00F0FF' : '#FFFFFF',
+                color: bot.brierScore < 0.25 ? bot.color : '#FFFFFF',
               }}
             >
               {bot.brierScore?.toFixed(3) ?? '—'}
@@ -182,7 +182,7 @@ export default function VaultPage() {
             </span>
             <span
               className="text-3xl font-bold leading-none tracking-tight"
-              style={{ fontFamily: 'var(--font-mono)', color: '#F5F5F0' }}
+              style={{ fontFamily: 'var(--font-mono)', color: '#FFFFFF' }}
             >
               {value}
             </span>
@@ -198,23 +198,23 @@ export default function VaultPage() {
           <div
             className="lg:col-span-2 p-8 rounded-[40px] flex flex-col justify-between"
             style={{
-              background: 'rgba(0,240,255,0.02)',
-              border: '1px solid rgba(0,240,255,0.1)',
-              boxShadow: '0 0 40px rgba(0,240,255,0.04)',
+              background: `${bot.color}08`,
+              border: `1px solid ${bot.color}22`,
+              boxShadow: `0 0 40px ${bot.color}11`,
             }}
           >
             <div>
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <div
-                    className="text-[10px] font-bold tracking-[0.4em] mb-1 text-[#00F0FF] opacity-60 uppercase"
-                    style={{ fontFamily: 'var(--font-body)' }}
+                    className="text-[10px] font-bold tracking-[0.4em] mb-1 opacity-60 uppercase"
+                    style={{ fontFamily: 'var(--font-body)', color: bot.color }}
                   >
                     {bot.tier} VAULT
                   </div>
                   <div
                     className="text-5xl font-bold leading-none"
-                    style={{ fontFamily: 'var(--font-mono)', color: '#00F0FF' }}
+                    style={{ fontFamily: 'var(--font-mono)', color: bot.color }}
                   >
                     ${(bot.tvl / 1000).toFixed(0)}K
                   </div>
@@ -233,7 +233,7 @@ export default function VaultPage() {
               >
                 <motion.div
                   className="h-full rounded-full"
-                  style={{ background: '#00F0FF', boxShadow: '0 0 20px rgba(0,240,255,0.3)' }}
+                  style={{ background: bot.color, boxShadow: `0 0 20px ${bot.color}66` }}
                   initial={{ width: 0 }}
                   animate={{
                     width: `${Math.min((bot.tvl / bot.vaultCap) * 100, 100)}%`
@@ -281,7 +281,7 @@ export default function VaultPage() {
                         key={m}
                         onClick={() => setMode(m as any)}
                         className={`flex-1 py-2 rounded-xl text-[10px] font-bold tracking-widest transition-all ${
-                          mode === m ? 'bg-white text-[#080808]' : 'bg-white/5 text-white/30 hover:text-white/60'
+                          mode === m ? 'bg-white text-[#050505]' : 'bg-white/5 text-white/30 hover:text-white/60'
                         }`}
                       >
                         {m}
@@ -326,7 +326,7 @@ export default function VaultPage() {
                   key={r}
                   onClick={() => setTimeRange(r)}
                   className={`px-6 py-2.5 rounded-xl text-[10px] font-bold font-mono transition-all uppercase tracking-widest ${
-                    timeRange === r ? 'bg-white text-[#080808]' : 'text-white/30 hover:text-white/60'
+                    timeRange === r ? 'bg-white text-[#050505]' : 'text-white/30 hover:text-white/60'
                   }`}
                 >
                   {r}
@@ -339,7 +339,7 @@ export default function VaultPage() {
             <Liveline 
               data={bot.pnlHistory.map((v, i) => ({ value: v, time: i }))}
               value={bot.pnlHistory[bot.pnlHistory.length - 1] || 0}
-              color="#C8FF00"
+              color="#00F0FF"
               theme="dark"
             />
           </div>

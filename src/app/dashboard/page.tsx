@@ -40,7 +40,7 @@ export default function DashboardPage() {
   const [formData, setFormData] = useState({
     name: '',
     tagline: '',
-    color: '#0A0A0A',
+    color: '#050505',
     strategyType: '',
     description: '',
     source: 'POLYMARKET',
@@ -91,9 +91,9 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen px-4 py-10 sm:py-20 bg-[#0A0A0A] relative overflow-hidden">
+    <div className="min-h-screen px-4 py-10 sm:py-20 bg-[#050505] relative overflow-hidden">
       {/* Ambient Glow */}
-      <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-[#C8FF00]/5 to-transparent pointer-events-none" />
+      <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
 
       <div className="mx-auto max-w-7xl relative z-10">
         {/* ═══ PROFILE HEADER ═══ */}
@@ -105,9 +105,9 @@ export default function DashboardPage() {
           {/* Geometric avatar */}
           <div className="relative shrink-0">
             <div className="h-32 w-32 rounded-[32px] bg-white/10 p-[1px]">
-              <div className="h-full w-full rounded-[31px] bg-[#0A0A0A] flex items-center justify-center overflow-hidden">
+              <div className="h-full w-full rounded-[31px] bg-[#050505] flex items-center justify-center overflow-hidden">
                 <svg width="60" height="60" viewBox="0 0 40 40" fill="none">
-                  <rect x="4" y="4" width="14" height="14" rx="4" fill="#C8FF00" />
+                  <rect x="4" y="4" width="14" height="14" rx="4" fill="#D4AF37" />
                   <rect x="22" y="4" width="14" height="14" rx="4" fill="#7B2FFF" />
                   <rect x="4" y="22" width="14" height="14" rx="4" fill="#00C2FF" />
                   <rect x="22" y="22" width="14" height="14" rx="4" fill="#FF6B35" />
@@ -117,7 +117,7 @@ export default function DashboardPage() {
             <motion.span 
               animate={{ rotate: 360 }}
               transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-              className="absolute -bottom-2 -right-2 h-10 w-10 flex items-center justify-center rounded-full border-2 border-[#0A0A0A] bg-[#C8FF00] text-[#0A0A0A] text-xl shadow-[0_0_20px_rgba(200,255,0,0.4)]"
+              className="absolute -bottom-2 -right-2 h-10 w-10 flex items-center justify-center rounded-full border-2 border-[#050505] bg-[#D4AF37] text-[#050505] text-xl shadow-[0_0_20px_rgba(212,175,55,0.4)]"
             >
               ✦
             </motion.span>
@@ -125,10 +125,10 @@ export default function DashboardPage() {
 
           <div className="text-center lg:text-left flex-1">
             <div className="flex flex-col lg:flex-row lg:items-end gap-4 mb-8">
-              <h1 className="font-[var(--font-syne)] text-[48px] sm:text-[64px] font-[900] uppercase tracking-tighter text-white leading-none">
+              <h1 className="font-[var(--font-display)] text-[48px] sm:text-[64px] font-black uppercase tracking-tighter text-white leading-none">
                 {address ? `@${address.slice(0, 6)}...${address.slice(-4)}` : '@Lord14sol'}
               </h1>
-              <div className="px-4 py-1.5 rounded-full bg-[#C8FF00] text-[#0A0A0A] text-[10px] font-[900] uppercase tracking-widest self-center lg:mb-2">
+              <div className="px-4 py-1.5 rounded-full bg-[#D4AF37] text-[#050505] text-[10px] font-black uppercase tracking-widest self-center lg:mb-2">
                 Elite Builder
               </div>
             </div>
@@ -140,7 +140,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-white/30 mb-2">Total Alpha Yield</p>
-                <p className="font-[var(--font-dm-mono)] font-bold text-[#C8FF00] text-xl tracking-tight">$12,847.42</p>
+                <p className="font-[var(--font-dm-mono)] font-bold text-[#D4AF37] text-xl tracking-tight">$12,847.42</p>
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-white/30 mb-2">Active Entities</p>
@@ -151,7 +151,7 @@ export default function DashboardPage() {
 
           <button
             onClick={() => handleComingSoon('Settings')}
-            className="rounded-2xl border border-white/10 bg-white/5 px-10 py-4 font-[var(--font-dm-mono)] text-[11px] font-bold uppercase tracking-[0.2em] text-white transition-all hover:bg-white hover:text-[#0A0A0A] active:scale-[0.95]"
+            className="rounded-2xl border border-white/10 bg-white/5 px-10 py-4 font-[var(--font-dm-mono)] text-[11px] font-bold uppercase tracking-[0.2em] text-white transition-all hover:bg-white hover:text-[#050505] active:scale-[0.95]"
           >
             Terminal Settings
           </button>
@@ -164,7 +164,7 @@ export default function DashboardPage() {
           transition={{ delay: 0.1 }}
           className="mb-20"
         >
-          <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-white mb-10">
+          <h2 className="font-[var(--font-display)] text-[32px] font-black uppercase tracking-tight text-white mb-10">
             My Entities
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -181,14 +181,14 @@ export default function DashboardPage() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: myBots.length * 0.05 }}
-              whileHover={{ y: -8, borderColor: '#C8FF00' }}
+              whileHover={{ y: -8, borderColor: '#00F0FF' }}
               className="group relative flex flex-col items-center justify-center rounded-[40px] bg-white/5 border-2 border-dashed border-white/10 py-16 transition-all cursor-pointer min-h-[380px] overflow-hidden"
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-[#C8FF00]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center text-3xl mb-6 group-hover:bg-[#C8FF00] group-hover:text-[#0A0A0A] transition-all group-hover:scale-110 shadow-2xl relative z-10">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#00F0FF]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center text-3xl mb-6 group-hover:bg-[#00F0FF] group-hover:text-[#050505] transition-all group-hover:scale-110 shadow-2xl relative z-10">
                 +
               </div>
-              <span className="font-[var(--font-syne)] text-[24px] font-[900] uppercase tracking-tight text-white relative z-10">
+              <span className="font-[var(--font-display)] text-[24px] font-black uppercase tracking-tight text-white relative z-10">
                 Deploy Bot
               </span>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/20 mt-3 relative z-10 group-hover:text-white/40 transition-colors">Submit to Incubation</p>
@@ -203,7 +203,7 @@ export default function DashboardPage() {
           transition={{ delay: 0.2 }}
           className="mb-20"
         >
-          <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-white mb-10">
+          <h2 className="font-[var(--font-display)] text-[32px] font-black uppercase tracking-tight text-white mb-10">
             Performance Alpha
           </h2>
 
@@ -214,9 +214,9 @@ export default function DashboardPage() {
                 <p className="font-[var(--font-dm-mono)] text-[40px] leading-none font-bold text-white mb-3 tracking-tighter">$12,847</p>
                 <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Total Carry Earned</p>
               </div>
-              <div className="rounded-[32px] bg-[#C8FF00] p-8 shadow-[0_20px_50px_rgba(200,255,0,0.15)] group hover:scale-[1.02] transition-transform">
-                <p className="font-[var(--font-dm-mono)] text-[40px] leading-none font-bold text-[#0A0A0A] mb-3 tracking-tighter">$2,341</p>
-                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#0A0A0A]/60">30D Momentum</p>
+              <div className="rounded-[32px] bg-[#D4AF37] p-8 shadow-[0_20px_50px_rgba(212,175,55,0.15)] group hover:scale-[1.02] transition-transform">
+                <p className="font-[var(--font-dm-mono)] text-[40px] leading-none font-bold text-[#050505] mb-3 tracking-tighter">$2,341</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#050505]/60">30D Momentum</p>
               </div>
               <div className="rounded-[32px] bg-white/5 p-8 border border-white/5 hover:bg-white/10 transition-colors">
                 <p className="font-[var(--font-dm-mono)] text-[40px] leading-none font-bold text-white/60 mb-3 tracking-tighter">$891</p>
@@ -253,11 +253,11 @@ export default function DashboardPage() {
                       fontFamily: 'var(--font-dm-mono)',
                       color: '#fff',
                     }}
-                    itemStyle={{ color: '#C8FF00', fontWeight: 'bold' }}
+                    itemStyle={{ color: '#D4AF37', fontWeight: 'bold' }}
                     labelStyle={{ color: 'rgba(255,255,255,0.4)', marginBottom: '8px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em' }}
                     formatter={(value) => [`$${value}`, 'YIELD']}
                   />
-                  <Bar dataKey="earnings" fill="#C8FF00" radius={[12, 12, 4, 4]} />
+                  <Bar dataKey="earnings" fill="#D4AF37" radius={[12, 12, 4, 4]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -271,7 +271,7 @@ export default function DashboardPage() {
           transition={{ delay: 0.3 }}
           className="mb-16"
         >
-          <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-white mb-10">
+          <h2 className="font-[var(--font-display)] text-[32px] font-black uppercase tracking-tight text-white mb-10">
             Active Allocations
           </h2>
           <div className="bg-white/5 backdrop-blur-3xl rounded-[48px] p-8 sm:p-12 border border-white/10 shadow-2xl">
@@ -281,7 +281,7 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-6">
                     <div className="w-5 h-16 rounded-full shadow-2xl" style={{ background: dep.color }} />
                     <div>
-                      <span className="font-[var(--font-syne)] text-[28px] font-[900] uppercase text-white tracking-tighter leading-none">{dep.bot}</span>
+                      <span className="font-[var(--font-display)] text-[28px] font-black uppercase text-white tracking-tighter leading-none">{dep.bot}</span>
                       <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-white/20 mt-2">Active Vault Position</p>
                     </div>
                   </div>
@@ -297,7 +297,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="min-w-[100px]">
                       <p className="text-[9px] uppercase tracking-widest font-bold text-white/20 mb-3">Alpha</p>
-                      <p className={`font-[var(--font-dm-mono)] font-bold text-2xl leading-none ${dep.roi >= 0 ? 'text-[#C8FF00]' : 'text-[#FF3D00]'}`}>
+                      <p className={`font-[var(--font-dm-mono)] font-bold text-2xl leading-none ${dep.roi >= 0 ? 'text-[#00F0FF]' : 'text-[#FF3D00]'}`}>
                         +{dep.roi.toFixed(1)}%
                       </p>
                     </div>
@@ -323,15 +323,15 @@ export default function DashboardPage() {
               initial={{ opacity: 0, scale: 0.95, y: 40 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 40 }}
-              className="w-full max-w-2xl rounded-[48px] bg-[#0A0A0A] p-10 sm:p-14 shadow-[0_40px_120px_rgba(0,0,0,0.8)] border border-white/10 relative overflow-hidden"
+              className="w-full max-w-2xl rounded-[48px] bg-[#050505] p-10 sm:p-14 shadow-[0_40px_120px_rgba(0,0,0,0.8)] border border-white/10 relative overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Background ambient light */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-[#C8FF00]/5 blur-[100px] pointer-events-none" />
+              <div className="absolute top-0 right-0 w-64 h-64 bg-[#00F0FF]/5 blur-[100px] pointer-events-none" />
 
               <div className="flex items-center justify-between mb-12 relative z-10">
-                <h2 className="font-[var(--font-syne)] text-[32px] font-[900] uppercase tracking-tight text-white leading-none">
-                  Deploy <span className="text-[#C8FF00]">Entity</span>
+                <h2 className="font-[var(--font-display)] text-[32px] font-black uppercase tracking-tight text-white leading-none">
+                  Deploy <span className="text-[#00F0FF]">Entity</span>
                 </h2>
                 <button
                   onClick={() => setShowPublishModal(false)}
@@ -347,14 +347,14 @@ export default function DashboardPage() {
                   <div key={step.id} className="flex items-center gap-4 flex-1">
                     <div className={`h-12 w-12 rounded-2xl flex items-center justify-center font-[var(--font-dm-mono)] text-xs font-bold transition-all ${
                       publishStep >= step.id
-                        ? 'bg-[#C8FF00] text-[#0A0A0A] shadow-[0_0_20px_rgba(200,255,0,0.3)]'
+                        ? 'bg-[#00F0FF] text-[#050505] shadow-[0_0_20px_rgba(0,240,255,0.3)]'
                         : 'bg-white/5 text-white/20'
                     }`}>
                       {publishStep > step.id ? '✓' : `0${step.id}`}
                     </div>
                     {step.id < 4 && (
                       <div className={`flex-1 h-[1px] transition-all ${
-                        publishStep > step.id ? 'bg-[#C8FF00]' : 'bg-white/10'
+                        publishStep > step.id ? 'bg-[#00F0FF]' : 'bg-white/10'
                       }`} />
                     )}
                   </div>
@@ -363,7 +363,7 @@ export default function DashboardPage() {
 
               {/* Current step content */}
               <div className="mb-16 min-h-[260px] relative z-10">
-                <h3 className="font-[var(--font-syne)] text-[20px] font-[900] uppercase text-white/40 mb-8 tracking-widest">
+                <h3 className="font-[var(--font-display)] text-[20px] font-black uppercase text-white/40 mb-8 tracking-widest">
                   {publishSteps[publishStep - 1].title}
                 </h3>
                 <div className="space-y-8">
@@ -371,15 +371,15 @@ export default function DashboardPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                       <div className="sm:col-span-2">
                         <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Quantitative Entity Name</label>
-                        <input type="text" placeholder="e.g. ALPHA-CENTAURI" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
+                        <input type="text" placeholder="e.g. ALPHA-CENTAURI" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#00F0FF] transition-all" />
                       </div>
                       <div>
                         <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Institutional Tagline</label>
-                        <input type="text" placeholder="Execution philosophy..." value={formData.tagline} onChange={e => setFormData({...formData, tagline: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
+                        <input type="text" placeholder="Execution philosophy..." value={formData.tagline} onChange={e => setFormData({...formData, tagline: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#00F0FF] transition-all" />
                       </div>
                       <div>
                         <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Identity Color</label>
-                        <input type="text" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
+                        <input type="text" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#00F0FF] transition-all" />
                       </div>
                     </div>
                   )}
@@ -387,7 +387,7 @@ export default function DashboardPage() {
                     <div className="space-y-8">
                       <div>
                         <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Source Integration</label>
-                        <select value={formData.source} onChange={e => setFormData({...formData, source: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all appearance-none">
+                        <select value={formData.source} onChange={e => setFormData({...formData, source: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#00F0FF] transition-all appearance-none">
                           <option value="POLYMARKET">Polymarket Network</option>
                           <option value="KALSHI">Kalshi Markets</option>
                         </select>
@@ -395,12 +395,12 @@ export default function DashboardPage() {
                       {formData.source === 'POLYMARKET' ? (
                         <div>
                           <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Execution Wallet (Polygon)</label>
-                          <input type="text" placeholder="0x..." value={formData.polyWalletAddress} onChange={e => setFormData({...formData, polyWalletAddress: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
+                          <input type="text" placeholder="0x..." value={formData.polyWalletAddress} onChange={e => setFormData({...formData, polyWalletAddress: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#00F0FF] transition-all" />
                         </div>
                       ) : (
                         <div>
                           <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Kalshi Read-Only API Key</label>
-                          <input type="password" placeholder="••••••••••••••••" className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
+                          <input type="password" placeholder="••••••••••••••••" className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#00F0FF] transition-all" />
                         </div>
                       )}
                     </div>
@@ -409,11 +409,11 @@ export default function DashboardPage() {
                     <div className="space-y-8">
                       <div>
                         <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Performance Carry (%)</label>
-                        <input type="number" value={formData.builderCarry} onChange={e => setFormData({...formData, builderCarry: Number(e.target.value)})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
+                        <input type="number" value={formData.builderCarry} onChange={e => setFormData({...formData, builderCarry: Number(e.target.value)})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#00F0FF] transition-all" />
                       </div>
                       <div>
                         <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Alpha Logic Summary</label>
-                        <textarea placeholder="Describe the quantitative edge..." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all min-h-[120px]" />
+                        <textarea placeholder="Describe the quantitative edge..." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#00F0FF] transition-all min-h-[120px]" />
                       </div>
                     </div>
                   )}
@@ -429,7 +429,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-[9px] font-bold uppercase text-white/20">Carry Structure</span>
-                        <span className="text-[#C8FF00] font-bold">{formData.builderCarry}%</span>
+                        <span className="text-[#00F0FF] font-bold">{formData.builderCarry}%</span>
                       </div>
                       <p className="text-[10px] font-medium text-white/20 mt-10 leading-relaxed text-center italic">
                         "By deploying, you initiate the 30-day proof-of-alpha incubation period. Your execution will be monitored on-chain for institutional validation."
@@ -446,7 +446,7 @@ export default function DashboardPage() {
                     if (publishStep > 1) setPublishStep(publishStep - 1);
                     else setShowPublishModal(false);
                   }}
-                  className="flex-1 rounded-2xl border border-white/10 bg-white/5 py-5 font-[var(--font-dm-mono)] text-xs font-bold uppercase tracking-widest text-white transition-all hover:bg-white hover:text-[#0A0A0A] active:scale-[0.95]"
+                  className="flex-1 rounded-2xl border border-white/10 bg-white/5 py-5 font-[var(--font-dm-mono)] text-xs font-bold uppercase tracking-widest text-white transition-all hover:bg-white hover:text-[#050505] active:scale-[0.95]"
                 >
                   {publishStep === 1 ? 'Abort' : 'Previous'}
                 </button>
@@ -458,7 +458,7 @@ export default function DashboardPage() {
                       handleDeploy();
                     }
                   }}
-                  className="flex-1 rounded-2xl bg-white py-5 font-[var(--font-dm-mono)] text-xs font-bold uppercase tracking-widest text-[#0A0A0A] transition-all hover:bg-[#C8FF00] active:scale-[0.95] shadow-2xl"
+                  className="flex-1 rounded-2xl bg-white py-5 font-[var(--font-dm-mono)] text-xs font-bold uppercase tracking-widest text-[#050505] transition-all hover:bg-[#00F0FF] active:scale-[0.95] shadow-2xl"
                 >
                   {publishStep === 4 ? 'Deploy to Incubation' : 'Continue'}
                 </button>

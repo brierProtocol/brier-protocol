@@ -26,7 +26,7 @@ export default function DiscoverPage() {
 
   if (isError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#080808] p-6 text-center">
+      <div className="min-h-screen flex items-center justify-center bg-[#050505] p-6 text-center">
         <div className="bg-white/5 backdrop-blur-3xl p-12 rounded-[40px] border border-white/10">
           <h2 className="font-[var(--font-display)] text-3xl font-black text-white mb-2 uppercase">ORACLE OFFLINE</h2>
           <p className="font-mono text-white/40">Feed connection severed. Re-establishing link...</p>
@@ -36,12 +36,12 @@ export default function DiscoverPage() {
   }
 
   return (
-    <div className="min-h-screen pb-32" style={{ background: '#080808' }}>
+    <div className="min-h-screen pb-32" style={{ background: '#050505' }}>
       {/* ═══ HERO SECTION ═══ */}
       <section className="relative pt-32 pb-20 px-6 text-center overflow-hidden">
         {/* Decorative background glows */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-gradient-to-b from-[#C8FF00]/10 to-transparent pointer-events-none" />
-        <div className="absolute top-1/4 -right-1/4 w-[600px] h-[600px] bg-[#C8FF00]/5 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+        <div className="absolute top-1/4 -right-1/4 w-[600px] h-[600px] bg-white/5 rounded-full blur-[120px] pointer-events-none" />
 
         <div className="relative z-10">
           <motion.h1
@@ -50,11 +50,11 @@ export default function DiscoverPage() {
             className="text-7xl md:text-9xl font-black mb-6 leading-[0.85] tracking-tighter"
             style={{
               fontFamily: 'var(--font-display)',
-              color: '#F5F5F0',
+              color: '#FFFFFF',
             }}
           >
             THE BEST<br />
-            <span style={{ color: '#C8FF00' }}>BOTS</span> WIN.
+            <span style={{ color: '#D4AF37' }}>BOTS</span> WIN.
           </motion.h1>
           
           <motion.p
@@ -86,7 +86,7 @@ export default function DiscoverPage() {
               <div key={label} className="text-center">
                 <div
                   className="text-4xl font-bold font-mono"
-                  style={{ color: '#C8FF00', fontFamily: 'var(--font-mono)' }}
+                  style={{ color: '#00F0FF', fontFamily: 'var(--font-mono)' }}
                 >
                   {value}
                 </div>
@@ -115,7 +115,7 @@ export default function DiscoverPage() {
                 key={f.id}
                 onClick={() => setFilter(f.id as FilterKey)}
                 className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-widest ${
-                  filter === f.id ? 'bg-[#C8FF00] text-[#080808]' : 'text-white/40 hover:text-white/80'
+                  filter === f.id ? 'bg-[#00F0FF] text-[#050505]' : 'text-white/40 hover:text-white/80'
                 }`}
                 style={{ fontFamily: 'var(--font-display)' }}
               >
@@ -136,7 +136,7 @@ export default function DiscoverPage() {
                   key={s.id}
                   onClick={() => setSort(s.id as SortKey)}
                   className={`text-xs font-bold uppercase tracking-widest transition-colors ${
-                    sort === s.id ? 'text-[#C8FF00]' : 'text-white/30 hover:text-white/60'
+                    sort === s.id ? 'text-[#00F0FF]' : 'text-white/30 hover:text-white/60'
                   }`}
                   style={{ fontFamily: 'var(--font-mono)' }}
                 >
