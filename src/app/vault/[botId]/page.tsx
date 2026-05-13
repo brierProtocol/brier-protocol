@@ -21,9 +21,9 @@ export default function VaultPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#080808]">
+      <div className="min-h-screen flex items-center justify-center bg-[#050505]">
         <div className="flex flex-col items-center gap-6">
-          <div className="w-16 h-16 border-4 border-white/5 border-t-[#C8FF00] rounded-full animate-spin" />
+          <div className="w-16 h-16 border-4 border-white/5 border-t-[#00F0FF] rounded-full animate-spin" />
           <p className="font-mono text-white/40 text-[10px] font-bold uppercase tracking-[0.4em]">Streaming Data Matrix...</p>
         </div>
       </div>
@@ -32,7 +32,7 @@ export default function VaultPage() {
 
   if (!bot) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#080808] p-6 text-center">
+      <div className="min-h-screen flex items-center justify-center bg-[#050505] p-6 text-center">
         <div className="bg-white/5 backdrop-blur-3xl p-12 rounded-[40px] border border-white/10">
           <h2 className="font-[var(--font-display)] text-3xl font-black text-white mb-2 uppercase">VAULT NOT FOUND</h2>
           <p className="font-mono text-white/40">The quantitative entity you are seeking does not exist.</p>
@@ -44,9 +44,9 @@ export default function VaultPage() {
   const handleDeposit = () => {
     toast('Coming Soon — Deposits are not yet available.', { 
       style: {
-        background: '#080808',
-        color: '#F5F5F0',
-        border: '0.5px solid rgba(255,255,255,0.1)',
+        background: '#0A0A0A',
+        color: '#FFFFFF',
+        border: '1px solid rgba(255,255,255,0.06)',
         borderRadius: '16px',
         fontFamily: 'var(--font-mono)',
         fontSize: '12px'
@@ -67,7 +67,7 @@ export default function VaultPage() {
 
   const mood = getMoodFromStats(bot)
   const moodColors: Record<Mood, string> = {
-    cool:      '#C8FF00',
+    cool:      '#00F0FF',
     happy:     '#00FFC8',
     excited:   '#FFB800',
     neutral:   '#888888',
@@ -77,7 +77,7 @@ export default function VaultPage() {
   }
 
   return (
-    <div className="min-h-screen pb-32" style={{ background: '#080808' }}>
+    <div className="min-h-screen pb-32" style={{ background: '#050505' }}>
       
       {/* ═══ HERO — Character + Identity ═══ */}
       <div className="relative px-6 pt-24 pb-12 overflow-hidden">
@@ -126,9 +126,9 @@ export default function VaultPage() {
             transition={{ delay: 0.2 }}
             className="px-12 py-8 rounded-[32px] relative overflow-hidden"
             style={{
-              background: 'rgba(255,255,255,0.04)',
+              background: 'rgba(255,255,255,0.02)',
               border: '0.5px solid rgba(255,255,255,0.08)',
-              boxShadow: bot.brierScore < 0.25 ? '0 0 60px rgba(200,255,0,0.08)' : 'none'
+              boxShadow: bot.brierScore < 0.25 ? '0 0 60px rgba(255,255,255,0.06)' : 'none'
             }}
           >
             <div
@@ -141,7 +141,7 @@ export default function VaultPage() {
               className="text-7xl sm:text-8xl font-bold leading-none"
               style={{
                 fontFamily: 'var(--font-mono)',
-                color: bot.brierScore < 0.25 ? '#C8FF00' : '#F5F5F0',
+                color: bot.brierScore < 0.25 ? '#00F0FF' : '#FFFFFF',
               }}
             >
               {bot.brierScore?.toFixed(3) ?? '—'}
@@ -198,23 +198,23 @@ export default function VaultPage() {
           <div
             className="lg:col-span-2 p-8 rounded-[40px] flex flex-col justify-between"
             style={{
-              background: 'rgba(200,255,0,0.04)',
-              border: '0.5px solid rgba(200,255,0,0.15)',
-              boxShadow: '0 0 40px rgba(200,255,0,0.06)',
+              background: 'rgba(0,240,255,0.02)',
+              border: '1px solid rgba(0,240,255,0.1)',
+              boxShadow: '0 0 40px rgba(0,240,255,0.04)',
             }}
           >
             <div>
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <div
-                    className="text-[10px] font-bold tracking-[0.4em] mb-1 text-[#C8FF00] opacity-60 uppercase"
+                    className="text-[10px] font-bold tracking-[0.4em] mb-1 text-[#00F0FF] opacity-60 uppercase"
                     style={{ fontFamily: 'var(--font-body)' }}
                   >
                     {bot.tier} VAULT
                   </div>
                   <div
                     className="text-5xl font-bold leading-none"
-                    style={{ fontFamily: 'var(--font-mono)', color: '#C8FF00' }}
+                    style={{ fontFamily: 'var(--font-mono)', color: '#00F0FF' }}
                   >
                     ${(bot.tvl / 1000).toFixed(0)}K
                   </div>
@@ -233,7 +233,7 @@ export default function VaultPage() {
               >
                 <motion.div
                   className="h-full rounded-full"
-                  style={{ background: '#C8FF00', boxShadow: '0 0 20px rgba(200,255,0,0.4)' }}
+                  style={{ background: '#00F0FF', boxShadow: '0 0 20px rgba(0,240,255,0.3)' }}
                   initial={{ width: 0 }}
                   animate={{
                     width: `${Math.min((bot.tvl / bot.vaultCap) * 100, 100)}%`
@@ -298,10 +298,10 @@ export default function VaultPage() {
               onClick={handleDeposit}
               className="w-full py-5 rounded-2xl font-bold text-sm mt-8 transition-all"
               style={{
-                background: '#C8FF00',
-                color: '#080808',
+                background: '#FFFFFF',
+                color: '#050505',
                 fontFamily: 'var(--font-display)',
-                boxShadow: '0 20px 40px rgba(200,255,0,0.15)'
+                boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
               }}
             >
               INITIALIZE DEPOSIT
@@ -376,9 +376,9 @@ export default function VaultPage() {
                   <div 
                     className="flex items-center justify-center w-14 h-14 rounded-2xl font-black text-xl shadow-2xl"
                     style={{
-                      background: trade.result === 'WIN' ? '#C8FF00' : '#FF3B3B',
-                      color: trade.result === 'WIN' ? '#080808' : '#F5F5F0',
-                      boxShadow: trade.result === 'WIN' ? '0 0 20px rgba(200,255,0,0.2)' : 'none'
+                      background: trade.result === 'WIN' ? '#00F0FF' : '#FF3B3B',
+                      color: trade.result === 'WIN' ? '#050505' : '#FFFFFF',
+                      boxShadow: trade.result === 'WIN' ? '0 0 20px rgba(0,240,255,0.2)' : 'none'
                     }}
                   >
                     {trade.result === 'WIN' ? 'W' : 'L'}
@@ -400,7 +400,7 @@ export default function VaultPage() {
                     <p className="text-[10px] font-bold opacity-20 tracking-widest uppercase mb-1">Result</p>
                     <p 
                       className="text-lg font-bold font-mono"
-                      style={{ color: trade.result === 'WIN' ? '#C8FF00' : '#FF3B3B' }}
+                      style={{ color: trade.result === 'WIN' ? '#00F0FF' : '#FF3B3B' }}
                     >
                       {trade.result === 'WIN' ? '+' : '-'}${Math.abs(trade.pnl).toLocaleString()}
                     </p>

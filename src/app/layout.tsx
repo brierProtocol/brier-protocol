@@ -43,10 +43,9 @@ export default function RootLayout({
       <body 
         className="min-h-screen flex flex-col"
         style={{
-          background: '#080808',
-          color: '#F5F5F0',
+          background: '#050505',
+          color: '#FFFFFF',
           fontFamily: 'var(--font-body)',
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E")`,
         }}
       >
         <Web3Provider>
@@ -57,10 +56,10 @@ export default function RootLayout({
             position="bottom-center"
             toastOptions={{
               style: {
-                background: "#080808",
-                color: "#F5F5F0",
-                borderRadius: "999px",
-                border: "0.5px solid rgba(255,255,255,0.1)",
+                background: "#0A0A0A",
+                color: "#FFFFFF",
+                borderRadius: "20px",
+                border: "1px solid rgba(255,255,255,0.06)",
                 fontFamily: "var(--font-mono), monospace",
                 fontSize: "13px",
                 padding: "12px 24px",

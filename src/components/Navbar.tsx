@@ -56,7 +56,7 @@ function ConnectButton() {
   return (
     <button
       onClick={() => connect({ connector: connectors[0] })}
-      className="px-6 py-2.5 rounded-full bg-[#C8FF00] text-[#080808] text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-[0_10px_20px_rgba(200,255,0,0.15)]"
+      className="px-6 py-2.5 rounded-full bg-white text-[#050505] text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-[0_10px_20px_rgba(255,255,255,0.05)]"
       style={{ fontFamily: 'var(--font-display)' }}
     >
       Connect Wallet
@@ -85,7 +85,7 @@ export function Navbar() {
     <nav
       className={`fixed top-0 z-[100] w-full transition-all duration-500 border-b ${
         scrolled 
-          ? 'py-4 bg-[#080808]/80 backdrop-blur-2xl border-white/5 shadow-2xl' 
+          ? 'py-4 bg-[#050505]/80 backdrop-blur-2xl border-white/5 shadow-2xl' 
           : 'py-8 bg-transparent border-transparent'
       }`}
     >
@@ -94,7 +94,7 @@ export function Navbar() {
         <Link href="/" className="flex items-center gap-4 group">
           <motion.div 
             whileHover={{ rotate: 10, scale: 1.1 }}
-            className="h-10 w-10 rounded-2xl bg-[#C8FF00] flex items-center justify-center font-[var(--font-display)] font-black text-[#080808] text-2xl shadow-[0_10px_20px_rgba(200,255,0,0.2)]"
+            className="h-10 w-10 rounded-2xl bg-white flex items-center justify-center font-[var(--font-display)] font-black text-[#050505] text-2xl shadow-[0_10px_20px_rgba(255,255,255,0.08)]"
           >
             B
           </motion.div>

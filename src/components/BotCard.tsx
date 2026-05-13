@@ -26,22 +26,21 @@ function getMoodFromStats(bot: Bot): Mood {
 // Status badge config
 const statusConfig: Record<string, { label: string; color: string; dot: string }> = {
   PAPER:              { label: 'Paper Trading', color: '#888', dot: '#888' },
-  LIVE:               { label: 'Live',          color: '#00FFC8', dot: '#00FFC8' },
+  LIVE:               { label: 'Live',          color: '#00F0FF', dot: '#00F0FF' },
   VAULT_ELIGIBLE_T1:  { label: 'Vault T1',      color: '#3B82F6', dot: '#3B82F6' },
-  VAULT_ELIGIBLE_T2:  { label: 'Vault T2',      color: '#C8FF00', dot: '#C8FF00' },
+  VAULT_ELIGIBLE_T2:  { label: 'Vault T2',      color: '#D4AF37', dot: '#D4AF37' },
   SUSPENDED:          { label: 'Suspended',     color: '#FF3B3B', dot: '#FF3B3B' },
-  // Map some variations if they exist in data
-  live:               { label: 'Live',          color: '#00FFC8', dot: '#00FFC8' },
+  live:               { label: 'Live',          color: '#00F0FF', dot: '#00F0FF' },
   paused:             { label: 'Paused',        color: '#FFB800', dot: '#FFB800' },
 }
 
 // Glow per status
 const glowMap: Record<string, string> = {
-  VAULT_ELIGIBLE_T2: '0 0 40px rgba(200,255,0,0.15), 0 0 0 0.5px rgba(200,255,0,0.2)',
-  VAULT_ELIGIBLE_T1: '0 0 30px rgba(59,130,246,0.12), 0 0 0 0.5px rgba(59,130,246,0.15)',
-  LIVE:              '0 0 20px rgba(0,255,200,0.08)',
-  live:              '0 0 20px rgba(0,255,200,0.08)',
-  SUSPENDED:         '0 0 20px rgba(255,59,59,0.08)',
+  VAULT_ELIGIBLE_T2: '0 0 40px rgba(212,175,55,0.12), 0 0 0 0.5px rgba(212,175,55,0.15)',
+  VAULT_ELIGIBLE_T1: '0 0 30px rgba(59,130,246,0.10), 0 0 0 0.5px rgba(59,130,246,0.12)',
+  LIVE:              '0 0 20px rgba(0,240,255,0.06)',
+  live:              '0 0 20px rgba(0,240,255,0.06)',
+  SUSPENDED:         '0 0 20px rgba(255,59,59,0.06)',
   PAPER:             'none',
 }
 
@@ -110,7 +109,7 @@ export function BotCard({ bot, rank, onClick }: BotCardProps) {
                 className="font-bold truncate text-lg leading-tight"
                 style={{
                   fontFamily: 'var(--font-display)',
-                  color: '#F5F5F0',
+                  color: '#FFFFFF',
                   letterSpacing: '-0.02em',
                 }}
               >

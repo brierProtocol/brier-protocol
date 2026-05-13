@@ -10,11 +10,11 @@ export default function HomePage() {
   const topBots = getTopBots(3)
 
   return (
-    <div className="min-h-screen" style={{ background: '#080808' }}>
+    <div className="min-h-screen" style={{ background: '#050505' }}>
       {/* ═══ HERO SECTION ═══ */}
       <section
         className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden"
-        style={{ background: '#080808' }}
+        style={{ background: '#050505' }}
       >
         {/* Floating background characters (decorative, blurred) */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -47,7 +47,7 @@ export default function HomePage() {
               transition={{ type: 'spring', stiffness: 200, damping: 20 }}
               className="flex justify-center mb-8"
             >
-              <BotCharacter mood="cool" accentColor="#C8FF00" size={160} />
+              <BotCharacter mood="cool" accentColor="#00F0FF" size={160} />
             </motion.div>
 
           {/* Headline */}
@@ -65,7 +65,7 @@ export default function HomePage() {
             }}
           >
             DEPOSIT INTO<br />
-            THE <span style={{ color: '#C8FF00' }}>BEST BOTS.</span><br />
+            THE <span style={{ color: '#D4AF37' }}>BEST BOTS.</span><br />
             EARN FOREVER.
           </motion.h1>
 
@@ -77,7 +77,7 @@ export default function HomePage() {
             className="text-xl max-w-xl mx-auto mb-10"
             style={{
               fontFamily: 'var(--font-body)',
-              color: 'rgba(245,245,240,0.5)',
+              color: 'rgba(255,255,255,0.5)',
               lineHeight: 1.6,
             }}
           >
@@ -99,31 +99,31 @@ export default function HomePage() {
                 whileTap={{ scale: 0.97 }}
                 className="px-8 py-4 rounded-2xl font-bold text-lg w-full sm:w-auto"
                 style={{
-                  background: '#C8FF00',
-                  color: '#080808',
+                  background: '#FFFFFF',
+                  color: '#050505',
                   fontFamily: 'var(--font-display)',
                   border: 'none',
                   cursor: 'pointer',
                 }}
               >
-                VIEW LEADERBOARD
+                START EXPLORING
               </motion.button>
             </Link>
             
-            <Link href="/dashboard">
+            <Link href="/leaderboard">
               <motion.button
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.97 }}
                 className="px-8 py-4 rounded-2xl font-bold text-lg w-full sm:w-auto"
                 style={{
-                  background: 'rgba(255,255,255,0.06)',
-                  color: '#F5F5F0',
+                  background: 'rgba(255,255,255,0.03)',
+                  color: '#FFFFFF',
                   fontFamily: 'var(--font-display)',
-                  border: '0.5px solid rgba(255,255,255,0.12)',
+                  border: '0.5px solid rgba(255,255,255,0.1)',
                   cursor: 'pointer',
                 }}
               >
-                SUBMIT YOUR BOT
+                VIEW LEADERBOARD
               </motion.button>
             </Link>
           </motion.div>
@@ -160,17 +160,17 @@ export default function HomePage() {
       <section className="px-6 py-32 max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row items-end justify-between gap-6 mb-16">
           <div>
-            <p className="text-[#C8FF00] font-bold uppercase tracking-[0.3em] text-xs mb-4">Institutional Selection</p>
+            <p className="text-[#D4AF37] font-bold uppercase tracking-[0.3em] text-xs mb-4">Institutional Selection</p>
             <h2 className="text-5xl sm:text-7xl font-black text-white leading-none tracking-tighter" style={{ fontFamily: 'var(--font-display)' }}>
-              TOP <span className="opacity-20 italic">ALPHA</span> AGENTS
+              TOP <span className="opacity-20 italic text-white">ALPHA</span> AGENTS
             </h2>
           </div>
           <Link
             href="/discover"
-            className="text-xs text-white/40 font-bold uppercase tracking-[0.3em] hover:text-[#C8FF00] transition-colors flex items-center gap-3 group"
+            className="text-xs text-white/40 font-bold uppercase tracking-[0.3em] hover:text-[#D4AF37] transition-colors flex items-center gap-3 group"
           >
             Full Leaderboard 
-            <span className="w-12 h-[1px] bg-white/10 group-hover:bg-[#C8FF00] transition-all" />
+            <span className="w-12 h-[1px] bg-white/10 group-hover:bg-[#D4AF37] transition-all" />
             <span className="group-hover:translate-x-2 transition-transform">→</span>
           </Link>
         </div>
