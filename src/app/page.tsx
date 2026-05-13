@@ -47,7 +47,7 @@ export default function HomePage() {
               transition={{ type: 'spring', stiffness: 200, damping: 20 }}
               className="flex justify-center mb-8"
             >
-              <BotCharacter mood="cool" accentColor="#00F0FF" size={160} />
+              <BotCharacter mood="cool" accentColor="#C8FF00" size={160} />
             </motion.div>
 
           {/* Headline */}
@@ -65,7 +65,7 @@ export default function HomePage() {
             }}
           >
             DEPOSIT INTO<br />
-            THE <span style={{ color: '#D4AF37' }}>BEST BOTS.</span><br />
+            THE <span style={{ color: '#C8FF00' }}>BEST BOTS.</span><br />
             EARN FOREVER.
           </motion.h1>
 
@@ -141,7 +141,7 @@ export default function HomePage() {
             <div key={label} className="text-center">
               <div
                 className="text-4xl sm:text-6xl font-bold"
-                style={{ color: '#00F0FF', fontFamily: 'var(--font-mono)' }}
+                style={{ color: '#C8FF00', fontFamily: 'var(--font-mono)' }}
               >
                 {value}
               </div>
@@ -160,17 +160,17 @@ export default function HomePage() {
       <section className="px-6 py-32 max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row items-end justify-between gap-6 mb-16">
           <div>
-            <p className="text-[#D4AF37] font-bold uppercase tracking-[0.3em] text-xs mb-4">Institutional Selection</p>
+            <p className="text-[#C8FF00] font-bold uppercase tracking-[0.3em] text-xs mb-4">Institutional Selection</p>
             <h2 className="text-5xl sm:text-7xl font-black text-white leading-none tracking-tighter" style={{ fontFamily: 'var(--font-display)' }}>
               TOP <span className="opacity-20 italic text-white">ALPHA</span> AGENTS
             </h2>
           </div>
           <Link
             href="/discover"
-            className="text-xs text-white/40 font-bold uppercase tracking-[0.3em] hover:text-[#D4AF37] transition-colors flex items-center gap-3 group"
+            className="text-xs text-white/40 font-bold uppercase tracking-[0.3em] hover:text-[#C8FF00] transition-colors flex items-center gap-3 group"
           >
             Full Leaderboard 
-            <span className="w-12 h-[1px] bg-white/10 group-hover:bg-[#D4AF37] transition-all" />
+            <span className="w-12 h-[1px] bg-white/10 group-hover:bg-[#C8FF00] transition-all" />
             <span className="group-hover:translate-x-2 transition-transform">→</span>
           </Link>
         </div>

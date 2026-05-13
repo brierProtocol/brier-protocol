@@ -99,7 +99,7 @@ export function Navbar() {
             B
           </motion.div>
           <span className="font-[var(--font-display)] text-2xl font-black tracking-tighter uppercase text-[#FFFFFF] leading-none">
-            Brier<span className="opacity-20 italic ml-1 group-hover:opacity-100 group-hover:text-[#D4AF37] transition-all">Protocol</span>
+            Brier<span className="opacity-20 italic ml-1 group-hover:opacity-100 group-hover:text-[#C8FF00] transition-all">Protocol</span>
           </span>
         </Link>
 

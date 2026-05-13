@@ -72,7 +72,7 @@ const bodyAnimations: Record<Mood, TargetAndTransition> = {
 }
 
 const moodColors: Record<Mood, string> = {
-  cool:      '#00F0FF',
+  cool:      '#C8FF00',
   happy:     '#00FFC8',
   excited:   '#FFB800',
   neutral:   '#888888',

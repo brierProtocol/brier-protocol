@@ -23,7 +23,7 @@ export default function VaultPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#050505]">
         <div className="flex flex-col items-center gap-6">
-          <div className="w-16 h-16 border-4 border-white/5 border-t-[#00F0FF] rounded-full animate-spin" />
+          <div className="w-16 h-16 border-4 border-white/5 border-t-[#C8FF00] rounded-full animate-spin" />
           <p className="font-mono text-white/40 text-[10px] font-bold uppercase tracking-[0.4em]">Streaming Data Matrix...</p>
         </div>
       </div>
@@ -67,7 +67,7 @@ export default function VaultPage() {
 
   const mood = getMoodFromStats(bot)
   const moodColors: Record<Mood, string> = {
-    cool:      '#00F0FF',
+    cool:      '#C8FF00',
     happy:     '#00FFC8',
     excited:   '#FFB800',
     neutral:   '#888888',
@@ -339,7 +339,7 @@ export default function VaultPage() {
             <Liveline 
               data={bot.pnlHistory.map((v, i) => ({ value: v, time: i }))}
               value={bot.pnlHistory[bot.pnlHistory.length - 1] || 0}
-              color="#00F0FF"
+              color="#C8FF00"
               theme="dark"
             />
           </div>
@@ -376,9 +376,9 @@ export default function VaultPage() {
                   <div 
                     className="flex items-center justify-center w-14 h-14 rounded-2xl font-black text-xl shadow-2xl"
                     style={{
-                      background: trade.result === 'WIN' ? '#00F0FF' : '#FF3B3B',
+                      background: trade.result === 'WIN' ? '#C8FF00' : '#FF3B3B',
                       color: trade.result === 'WIN' ? '#050505' : '#FFFFFF',
-                      boxShadow: trade.result === 'WIN' ? '0 0 20px rgba(0,240,255,0.2)' : 'none'
+                      boxShadow: trade.result === 'WIN' ? '0 0 20px rgba(200,255,0,0.2)' : 'none'
                     }}
                   >
                     {trade.result === 'WIN' ? 'W' : 'L'}
@@ -400,7 +400,7 @@ export default function VaultPage() {
                     <p className="text-[10px] font-bold opacity-20 tracking-widest uppercase mb-1">Result</p>
                     <p 
                       className="text-lg font-bold font-mono"
-                      style={{ color: trade.result === 'WIN' ? '#00F0FF' : '#FF3B3B' }}
+                      style={{ color: trade.result === 'WIN' ? '#C8FF00' : '#FF3B3B' }}
                     >
                       {trade.result === 'WIN' ? '+' : '-'}${Math.abs(trade.pnl).toLocaleString()}
                     </p>

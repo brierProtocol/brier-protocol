@@ -14,7 +14,7 @@ interface StatCardProps {
 }
 
 export function StatCard({ label, value, positive, negative, suffix, prefix, large, className = '' }: StatCardProps) {
-  const valueColor = positive ? 'text-[#00F0FF]' : negative ? 'text-[#FF3D00]' : 'text-white';
+  const valueColor = positive ? 'text-[#C8FF00]' : negative ? 'text-[#FF3D00]' : 'text-white';
 
   return (
     <motion.div

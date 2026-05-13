@@ -12,11 +12,11 @@
   --accent:       #FFFFFF;   /* Primary accent is now clean White */
   --accent-glow:  rgba(255, 255, 255, 0.08);
   
-  --gold:         #D4AF37;   /* Top performers / Tier 2 */
-  --gold-glow:    rgba(212, 175, 55, 0.12);
+  --acid:         #C8FF00;   /* High energy accent (User preferred) */
+  --acid-glow:    rgba(200, 255, 0, 0.12);
   
-  --cyan:         #00F0FF;   /* High precision / live status */
-  --cyan-glow:    rgba(0, 240, 255, 0.10);
+  --acid-alt:         #C8FF00;   /* High precision / live status */
+  --acid-alt-glow:    rgba(200, 255, 0, 0.10);
   
   --red:          #FF3B3B;   /* Warnings / losses */
   --red-glow:     rgba(255, 59, 59, 0.10);

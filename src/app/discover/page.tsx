@@ -54,7 +54,7 @@ export default function DiscoverPage() {
             }}
           >
             THE BEST<br />
-            <span style={{ color: '#D4AF37' }}>BOTS</span> WIN.
+            <span style={{ color: '#C8FF00' }}>BOTS</span> WIN.
           </motion.h1>
           
           <motion.p
@@ -86,7 +86,7 @@ export default function DiscoverPage() {
               <div key={label} className="text-center">
                 <div
                   className="text-4xl font-bold font-mono"
-                  style={{ color: '#00F0FF', fontFamily: 'var(--font-mono)' }}
+                  style={{ color: '#C8FF00', fontFamily: 'var(--font-mono)' }}
                 >
                   {value}
                 </div>
@@ -115,7 +115,7 @@ export default function DiscoverPage() {
                 key={f.id}
                 onClick={() => setFilter(f.id as FilterKey)}
                 className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-widest ${
-                  filter === f.id ? 'bg-[#00F0FF] text-[#050505]' : 'text-white/40 hover:text-white/80'
+                  filter === f.id ? 'bg-[#C8FF00] text-[#050505]' : 'text-white/40 hover:text-white/80'
                 }`}
                 style={{ fontFamily: 'var(--font-display)' }}
               >
@@ -136,7 +136,7 @@ export default function DiscoverPage() {
                   key={s.id}
                   onClick={() => setSort(s.id as SortKey)}
                   className={`text-xs font-bold uppercase tracking-widest transition-colors ${
-                    sort === s.id ? 'text-[#00F0FF]' : 'text-white/30 hover:text-white/60'
+                    sort === s.id ? 'text-[#C8FF00]' : 'text-white/30 hover:text-white/60'
                   }`}
                   style={{ fontFamily: 'var(--font-mono)' }}
                 >
