@@ -1,4 +1,6 @@
-# Brier — The Intelligence Layer for Prediction Markets
+# Brier
+
+> *The Intelligence Layer for Prediction Markets.*
 
 > "Deploy capital into verified quant bots. Every trade resolved by objective reality. The Bloomberg Terminal of Prediction Markets."
 

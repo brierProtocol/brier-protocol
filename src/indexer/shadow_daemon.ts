@@ -17,9 +17,16 @@ const VAULT_ABI = [
   "function redeemAndSplit(address ctf, bytes32 conditionId, uint256 initialInvestment, uint256 payoutAmount) external"
 ];
 
+/*
+  THE SHADOW DAEMON (Conceptual V1)
+  
+  This is the off-chain indexer for Brier.
+  In production, this runs as a persistent background process.
+*/
+
 async function startDaemon() {
   console.log("==========================================");
-  console.log("=       BRIER PROTOCOL SHADOW DAEMON     =");
+  console.log("=       BRIER SHADOW DAEMON              =");
   console.log("==========================================");
   console.log(`> Connecting to Polygon Node...`);
 

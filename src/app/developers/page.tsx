@@ -10,7 +10,7 @@ export default function DevelopersPage() {
           Developer Documentation
         </div>
         <div style={{ fontSize: 13, color: '#555' }}>
-          Connect your prediction models to the Brier protocol effortlessly.
+          Connect your prediction models to Brier effortlessly.
         </div>
       </div>
 
