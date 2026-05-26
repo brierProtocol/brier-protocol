@@ -1,3 +1,6 @@
+'use client'
+
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import BotCharacter from '@/components/BotCharacter'
 
@@ -10,6 +13,25 @@ const ASCII_LOGO = `
 `
 
 export default function Home() {
+  const [topBots, setTopBots] = useState<any[]>([])
+
+  useEffect(() => {
+    fetch('/api/bots')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          // Sort by Brier Score and take top 5
+          const sorted = data.sort((a: any, b: any) => {
+            const brierA = a.scores?.[0]?.brierScore ?? a.brierScore ?? 1
+            const brierB = b.scores?.[0]?.brierScore ?? b.brierScore ?? 1
+            return brierA - brierB
+          })
+          setTopBots(sorted.slice(0, 5))
+        }
+      })
+      .catch(console.error)
+  }, [])
+
   return (
     <div style={{ minHeight: '100vh', background: '#050505', color: '#c5c8c6', fontFamily: 'var(--font-mono), monospace', padding: '2rem 1rem' }}>
       <div style={{ maxWidth: 1000, margin: '0 auto' }}>
@@ -29,7 +51,7 @@ export default function Home() {
           <div style={{ color: '#2563EB', fontWeight: 'bold', borderBottom: '1px solid #1a1a1a', paddingBottom: '0.5rem', marginBottom: '0.5rem' }}>
             --- MESSAGE OF THE DAY ---
           </div>
-          <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+          <div style={{ fontSize: 13, lineHeight: 1.6, fontFamily: 'var(--font-body), sans-serif' }}>
             <span style={{ color: '#7ec87e' }}>&gt;Welcome to Brier V1.</span><br/>
             Humans are terrible at probability. Machines are not.<br/>
             Brier is a decentralized index of algorithmic trading bots executing on prediction markets (Polymarket, Kalshi).<br/>
@@ -45,8 +67,8 @@ export default function Home() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '3rem' }}>
           
           <div style={{ border: '1px solid #1a1a1a', background: '#0a0a0a', padding: '1rem' }}>
-            <div style={{ color: '#2563EB', fontWeight: 'bold', marginBottom: '0.5rem' }}>[ INVESTORS ]</div>
-            <div style={{ fontSize: 12, color: '#888', marginBottom: '1rem', height: 40 }}>
+            <div style={{ color: '#2563EB', fontWeight: 'bold', marginBottom: '0.5rem', fontFamily: 'var(--font-body), sans-serif' }}>[ INVESTORS ]</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: '1rem', height: 40, fontFamily: 'var(--font-body), sans-serif' }}>
               Deploy capital into verified algorithmic prediction vaults. Zero emotion, fully transparent.
             </div>
             <Link href="/discover" style={{ display: 'inline-block', background: '#2563EB', color: '#000', textDecoration: 'none', padding: '6px 16px', fontWeight: 'bold', fontSize: 13 }}>
@@ -55,22 +77,22 @@ export default function Home() {
           </div>
 
           <div style={{ border: '1px dashed #333', background: '#0a0a0a', padding: '1rem' }}>
-            <div style={{ color: '#22c55e', fontWeight: 'bold', marginBottom: '0.5rem' }}>[ BUILDERS ]</div>
-            <div style={{ fontSize: 12, color: '#888', marginBottom: '1rem', height: 40 }}>
-              Deploy your prediction model. Prove your Brier Score on-chain. Attract capital.
+            <div style={{ color: '#22c55e', fontWeight: 'bold', marginBottom: '0.5rem', fontFamily: 'var(--font-body), sans-serif' }}>[ BUILDERS ]</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: '1rem', height: 40, fontFamily: 'var(--font-body), sans-serif' }}>
+              Submit your prediction model. Prove your Brier Score on-chain. Attract capital.
             </div>
             <Link href="/list-bot" style={{ display: 'inline-block', border: '1px solid #22c55e', color: '#22c55e', textDecoration: 'none', padding: '6px 16px', fontWeight: 'bold', fontSize: 13 }}>
-              &gt; DEPLOY BOT
+              &gt; SUBMIT ALGORITHM
             </Link>
           </div>
 
         </div>
 
-        {/* TOP THREADS PREVIEW */}
+        {/* TOP BOTS — LIVE DATA */}
         <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: '1rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <div style={{ color: '#C9A84C', fontWeight: 'bold' }}>&gt;&gt; ACTIVE_VAULTS_PREVIEW</div>
-            <div style={{ fontSize: 12, color: '#555' }}>Network: Polygon | Currency: USDC</div>
+            <div style={{ color: '#C9A84C', fontWeight: 'bold' }}>&gt;&gt; TOP ALGORITHMS</div>
+            <div style={{ fontSize: 12, color: '#555', fontFamily: 'var(--font-mono), monospace' }}>Network: Polygon | Currency: USDC</div>
           </div>
 
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left' }}>
@@ -79,41 +101,44 @@ export default function Home() {
                 <th style={{ padding: '0.5rem', fontWeight: 'normal' }}>BOT_ID</th>
                 <th style={{ padding: '0.5rem', fontWeight: 'normal' }}>BRIER_SCORE</th>
                 <th style={{ padding: '0.5rem', fontWeight: 'normal' }}>WIN_RATE</th>
-                <th style={{ padding: '0.5rem', fontWeight: 'normal' }}>MONTHLY_YIELD</th>
+                <th style={{ padding: '0.5rem', fontWeight: 'normal' }}>STATUS</th>
                 <th style={{ padding: '0.5rem', fontWeight: 'normal', textAlign: 'right' }}>TVL</th>
               </tr>
             </thead>
             <tbody>
-              <tr style={{ borderBottom: '1px solid #1a1a1a', background: 'rgba(37,99,235,0.03)' }}>
-                <td style={{ padding: '0.75rem 0.5rem' }}>
-                  <Link href="/bot/sigma-7" style={{ color: '#2563EB', textDecoration: 'none', fontWeight: 'bold' }}>[SIGMA-7]</Link>
-                  <span style={{ color: '#555', marginLeft: 8, fontSize: 10 }}>by 0x4a...92cf</span>
-                </td>
-                <td style={{ padding: '0.75rem 0.5rem', color: '#22c55e' }}>0.140</td>
-                <td style={{ padding: '0.75rem 0.5rem' }}>82.1%</td>
-                <td style={{ padding: '0.75rem 0.5rem', color: '#22c55e' }}>+12.4%</td>
-                <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>$1,400,000</td>
-              </tr>
-              <tr style={{ borderBottom: '1px solid #1a1a1a' }}>
-                <td style={{ padding: '0.75rem 0.5rem' }}>
-                  <Link href="/bot/oracle-x" style={{ color: '#2563EB', textDecoration: 'none', fontWeight: 'bold' }}>[ORACLE-X]</Link>
-                  <span style={{ color: '#555', marginLeft: 8, fontSize: 10 }}>by dev-alex.eth</span>
-                </td>
-                <td style={{ padding: '0.75rem 0.5rem', color: '#22c55e' }}>0.170</td>
-                <td style={{ padding: '0.75rem 0.5rem' }}>76.4%</td>
-                <td style={{ padding: '0.75rem 0.5rem', color: '#22c55e' }}>+8.9%</td>
-                <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>$850,000</td>
-              </tr>
-              <tr style={{ borderBottom: '1px solid #1a1a1a' }}>
-                <td style={{ padding: '0.75rem 0.5rem' }}>
-                  <Link href="/bot/adan-pred" style={{ color: '#2563EB', textDecoration: 'none', fontWeight: 'bold' }}>[ADAN-PRED]</Link>
-                  <span style={{ color: '#555', marginLeft: 8, fontSize: 10 }}>by 0x7f...1182</span>
-                </td>
-                <td style={{ padding: '0.75rem 0.5rem', color: '#FF6B1A' }}>0.245</td>
-                <td style={{ padding: '0.75rem 0.5rem' }}>62.0%</td>
-                <td style={{ padding: '0.75rem 0.5rem', color: '#22c55e' }}>+31.2%</td>
-                <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>$2,100,000</td>
-              </tr>
+              {topBots.length > 0 ? topBots.map((bot, i) => {
+                const brier = bot.scores?.[0]?.brierScore ?? bot.brierScore ?? 0
+                const wr = bot.scores?.[0]?.winRate ?? bot.winRate ?? 0
+                const tvl = bot.currentTVL ?? bot.tvl ?? 0
+                return (
+                  <tr key={bot.id} style={{ borderBottom: '1px solid #1a1a1a', background: i === 0 ? 'rgba(37,99,235,0.03)' : 'transparent' }}>
+                    <td style={{ padding: '0.75rem 0.5rem' }}>
+                      <Link href={`/bot/${bot.slug || bot.id}`} style={{ color: '#2563EB', textDecoration: 'none', fontWeight: 'bold' }}>[{bot.name}]</Link>
+                      <span style={{ color: '#555', marginLeft: 8, fontSize: 10 }}>
+                        by <Link href={`/maker/${bot.walletAddress || 'anon'}`} style={{ color: '#555', textDecoration: 'none' }}
+                          onMouseOver={e => e.currentTarget.style.color = '#117743'}
+                          onMouseOut={e => e.currentTarget.style.color = '#555'}
+                        >{(bot.walletAddress || 'anon').substring(0, 6)}...{(bot.walletAddress || 'anon').slice(-4)}</Link>
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.75rem 0.5rem', color: brier < 0.25 ? '#22c55e' : '#FF6B1A', fontFamily: 'var(--font-mono), monospace' }}>{brier.toFixed(3)}</td>
+                    <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'var(--font-mono), monospace' }}>{(wr * 100).toFixed(1)}%</td>
+                    <td style={{ padding: '0.75rem 0.5rem' }}>
+                      <span style={{ 
+                        fontSize: 10, padding: '2px 6px', 
+                        background: (bot.status || '').toLowerCase() === 'live' ? 'rgba(34,197,94,0.15)' : 'rgba(168,85,247,0.15)',
+                        color: (bot.status || '').toLowerCase() === 'live' ? '#22c55e' : '#a855f7',
+                        border: `1px solid ${(bot.status || '').toLowerCase() === 'live' ? '#22c55e33' : '#a855f733'}`
+                      }}>{(bot.status || 'PAPER').toUpperCase()}</span>
+                    </td>
+                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'var(--font-mono), monospace' }}>${tvl.toLocaleString()}</td>
+                  </tr>
+                )
+              }) : (
+                <tr>
+                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#555' }}>Loading algorithms...</td>
+                </tr>
+              )}
             </tbody>
           </table>
           <div style={{ textAlign: 'right', marginTop: '1rem' }}>
@@ -137,3 +162,4 @@ export default function Home() {
     </div>
   )
 }
+

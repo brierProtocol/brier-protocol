@@ -1,0 +1,83 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+
+/**
+ * POST /api/bots/register
+ * 
+ * Simplified bot registration endpoint.
+ * Called after the user signs a wallet message on the /list-bot page.
+ * Creates a new bot in PAPER status linked to the builder's wallet.
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const { name, description, market, walletAddress } = body
+
+    // Validation
+    if (!name || name.length < 2) {
+      return NextResponse.json({ error: 'Bot name is required (min 2 chars)' }, { status: 400 })
+    }
+    if (!walletAddress || !walletAddress.startsWith('0x')) {
+      return NextResponse.json({ error: 'Valid wallet address is required' }, { status: 400 })
+    }
+
+    // Generate slug from name
+    const slug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+
+    // Check for duplicate slug
+    const existing = await prisma.bot.findUnique({ where: { slug } })
+    if (existing) {
+      return NextResponse.json({ error: 'An algorithm with that name already exists. Try a different name.' }, { status: 409 })
+    }
+
+    // Handle wallet uniqueness — allow multiple bots per wallet by suffixing
+    let finalWallet = walletAddress.toLowerCase()
+    const existingWallet = await prisma.bot.findUnique({ where: { walletAddress: finalWallet } })
+    if (existingWallet) {
+      // Append bot count to make wallet field unique while preserving the real wallet reference
+      const botCount = await prisma.bot.count({ where: { walletAddress: { startsWith: walletAddress.toLowerCase().substring(0, 10) } } })
+      finalWallet = `${walletAddress.toLowerCase()}-${botCount + 1}`
+    }
+
+    // Assign a random mood for the bot character
+    const moods = ['happy', 'confident', 'neutral', 'thinking', 'intense']
+    const mood = moods[Math.floor(Math.random() * moods.length)]
+
+    // Create the bot
+    const bot = await prisma.bot.create({
+      data: {
+        slug,
+        name,
+        description: description || null,
+        tagline: description ? description.substring(0, 120) : `${name} prediction algorithm`,
+        color: '#2563EB',
+        mood,
+        status: 'PAPER',
+        tier: 'NONE',
+        walletAddress: finalWallet,
+        strategyType: market || 'Polymarket',
+      }
+    })
+
+    // Also ensure the user profile exists
+    await prisma.user.upsert({
+      where: { walletAddress: walletAddress.toLowerCase() },
+      create: { walletAddress: walletAddress.toLowerCase() },
+      update: {}
+    })
+
+    return NextResponse.json({ 
+      ok: true, 
+      botId: bot.id, 
+      slug: bot.slug,
+      message: `Algorithm "${bot.name}" registered successfully. Entering 30-day paper trading phase.`
+    })
+
+  } catch (err: any) {
+    console.error('Bot registration error:', err)
+    return NextResponse.json({ error: err?.message || 'Internal server error' }, { status: 500 })
+  }
+}

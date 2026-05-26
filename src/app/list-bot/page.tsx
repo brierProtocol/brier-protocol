@@ -10,20 +10,41 @@ export default function ListBotPage() {
   const [verifying, setVerifying] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
-  const { isConnected } = useAccount()
+  const { isConnected, address } = useAccount()
   const { signMessageAsync } = useSignMessage()
 
   const handleNext = async () => {
     setErrorMsg('')
     if (step === 2) {
-      if (!isConnected) {
+      if (!isConnected || !address) {
         setErrorMsg('Error: Wallet not connected. Please connect via Navbar.')
         return
       }
       setVerifying(true)
       try {
+        // Step 1: Sign message to prove wallet ownership
         const message = `I am registering the prediction bot ${formData.name || '[NAME]'} to Brier. Timestamp: ${Date.now()}`
         await signMessageAsync({ message })
+        
+        // Step 2: Actually save the bot to the database
+        const res = await fetch('/api/bots/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: formData.name,
+            description: formData.description,
+            market: formData.market,
+            walletAddress: address,
+          })
+        })
+        
+        const result = await res.json()
+        
+        if (!res.ok) {
+          setErrorMsg(result.error || 'Registration failed. Please try again.')
+          return
+        }
+        
         setStep(3)
       } catch (err: any) {
         setErrorMsg(err?.shortMessage || err?.message || 'Signature rejected.')
@@ -108,6 +129,11 @@ export default function ListBotPage() {
               {verifying && (
                 <div style={{ color: '#22c55e', fontSize: 12 }}>
                   &gt; Waiting for wallet signature... [Awaiting Provider]
+                </div>
+              )}
+              {errorMsg && (
+                <div style={{ color: '#ef4444', fontSize: 12, marginTop: '0.5rem', padding: '0.5rem', border: '1px solid #ef4444', background: 'rgba(239,68,68,0.05)' }}>
+                  {errorMsg}
                 </div>
               )}
             </div>
