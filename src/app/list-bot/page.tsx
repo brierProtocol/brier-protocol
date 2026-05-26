@@ -97,10 +97,6 @@ export default function ListBotPage() {
                   <div style={{ fontSize: 10, color: '#555', marginTop: 4 }}>This claims your unique <span style={{ color: '#2563EB' }}>@handle</span>. No duplicates allowed.</div>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, color: '#555', marginBottom: 4 }}>REPOSITORY_URL (Optional):</label>
-                  <input type="text" value={formData.repo} onChange={e => setFormData({ ...formData, repo: e.target.value })} placeholder="github.com/..." style={{ width: '100%', background: '#000', border: '1px solid #333', color: '#fff', padding: '8px', fontFamily: 'inherit', outline: 'none' }} />
-                </div>
-                <div>
                   <label style={{ display: 'block', fontSize: 11, color: '#555', marginBottom: 4 }}>TARGET_MARKET:</label>
                   <select value={formData.market} onChange={e => setFormData({ ...formData, market: e.target.value })} style={{ width: '100%', background: '#000', border: '1px solid #333', color: '#fff', padding: '8px', fontFamily: 'inherit', outline: 'none' }}>
                     <option value="Polymarket">Polymarket (Polygon)</option>
