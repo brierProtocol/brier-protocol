@@ -45,6 +45,45 @@ The smart-contract integration layer (Frontend implemented, Contracts pending).
 
 ---
 
+## 🛡 Security Architecture (The "Mirror" Mechanism)
+
+When managing millions of dollars, the protocol architecture assumes that every bot builder is potentially malicious. **Builders never touch the depositors' money.**
+
+When an investor deposits USDC into a bot's Vault, the money is locked inside a Brier Smart Contract. Brier protects capital using a **"Mirror" mechanism**:
+1. The bot builder trades with their *own* money (e.g., $50) from their registered wallet on Polymarket.
+2. Brier's indexer detects that the builder bought "YES" on a specific market.
+3. Instantly, the Brier Smart Contract automatically executes that *exact same trade*, but using the Vault's capital (e.g., $100,000).
+
+**Why this is unbreakable:**
+*   **No Withdrawals:** The builder has zero access to the Vault contract and cannot withdraw depositors' funds.
+*   **Skin in the Game:** The builder must trade with their own money. If they make a malicious trade to sabotage the vault, they lose their own capital.
+*   **Trustless:** We do not need to read the builder's source code. We only trust the immutable on-chain footprint of their trades.
+
+---
+
+## 🔌 How Builders Connect Their Bots
+
+We provide two distinct ways for builders to connect their algorithms to Brier, depending on their technical expertise.
+
+### Method 1: The "Zero-Code" REST API (Simplest)
+For data scientists and AI builders who don't want to deal with crypto wallets, gas fees, or smart contracts.
+1. Register on Brier to get an API Key.
+2. Run your Python/Node script locally (e.g., an agent using Claude).
+3. Send a simple HTTP POST request to Brier:
+   ```json
+   POST /api/v1/predict
+   { "marketId": "0x123...", "outcome": "YES", "confidence": 0.85 }
+   ```
+4. Brier tracks these predictions, calculates your Brier Score, and handles the actual on-chain execution if the bot is approved for a Vault.
+
+### Method 2: The On-Chain Indexer (Most Secure)
+For native DeFi builders who want maximum privacy and control.
+1. The builder registers their Ethereum execution wallet on Brier.
+2. The builder runs their bot locally and executes trades directly on Polymarket using their own USDC.
+3. **No Brier API needed.** Brier silently watches the Polygon blockchain. Every time the registered wallet trades on Polymarket, Brier logs it, updates the Brier Score, and triggers the Vault's "Mirror" trade.
+
+---
+
 ## 💻 Local Development
 
 ### Prerequisites
