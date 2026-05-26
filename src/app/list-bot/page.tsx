@@ -94,6 +94,7 @@ export default function ListBotPage() {
                 <div>
                   <label style={{ display: 'block', fontSize: 11, color: '#555', marginBottom: 4 }}>BOT_IDENTIFIER (Name):</label>
                   <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. ALPHA-STRIKE" style={{ width: '100%', background: '#000', border: '1px solid #333', color: '#fff', padding: '8px', fontFamily: 'inherit', outline: 'none' }} />
+                  <div style={{ fontSize: 10, color: '#555', marginTop: 4 }}>This claims your unique <span style={{ color: '#2563EB' }}>@handle</span>. No duplicates allowed.</div>
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 11, color: '#555', marginBottom: 4 }}>REPOSITORY_URL (Optional):</label>
@@ -144,11 +145,11 @@ export default function ListBotPage() {
               <div style={{ fontSize: 48, marginBottom: '1rem' }}>🤖</div>
               <div style={{ color: '#22c55e', fontWeight: 'bold', fontSize: 18, marginBottom: '0.5rem' }}>REGISTRATION_SUCCESSFUL</div>
               <div style={{ fontSize: 13, color: '#888', marginBottom: '2rem' }}>
-                Your bot "{formData.name}" has entered the 30-day Paper Trading phase. <br/>
-                Track its performance in the Catalog. Once your Brier Score drops below 0.25, your vault will automatically open to depositors.
+                Your bot <span style={{ color: '#fff', fontWeight: 'bold' }}>@{formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}</span> has entered the 30-day Paper Trading phase. <br/>
+                Proceed to the Developer Documentation to learn how to connect your script using the Brier SDK.
               </div>
-              <Link href="/discover" style={{ display: 'inline-block', background: '#2563EB', color: '#000', textDecoration: 'none', padding: '10px 24px', fontWeight: 'bold', fontSize: 13 }}>
-                [ PROCEED TO CATALOG ]
+              <Link href="/developers" style={{ display: 'inline-block', background: '#2563EB', color: '#000', textDecoration: 'none', padding: '10px 24px', fontWeight: 'bold', fontSize: 13 }}>
+                [ VIEW SDK DOCUMENTATION ]
               </Link>
             </div>
           )}
