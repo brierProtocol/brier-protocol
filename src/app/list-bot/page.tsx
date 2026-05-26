@@ -16,15 +16,37 @@ export default function ListBotPage() {
   const handleNext = async () => {
     setErrorMsg('')
     if (step === 2) {
-      if (!isConnected || !address) {
+      
+      // Fallback for address if Wagmi hydration is lagging
+      let finalAddress = address
+      if (!finalAddress && typeof window !== 'undefined' && (window as any).ethereum) {
+        try {
+          const accounts = await (window as any).ethereum.request({ method: 'eth_accounts' })
+          if (accounts && accounts.length > 0) finalAddress = accounts[0]
+        } catch (e) {}
+      }
+
+      if (!finalAddress) {
         setErrorMsg('Error: Wallet not connected. Please connect via Navbar.')
         return
       }
+
       setVerifying(true)
       try {
         // Step 1: Sign message to prove wallet ownership
         const message = `I am registering the prediction bot ${formData.name || '[NAME]'} to Brier. Timestamp: ${Date.now()}`
-        await signMessageAsync({ message })
+        
+        try {
+          if (isConnected && address) {
+            await signMessageAsync({ message })
+          } else {
+            // Raw fallback signing
+            const hexMsg = '0x' + message.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('')
+            await (window as any).ethereum.request({ method: 'personal_sign', params: [hexMsg, finalAddress] })
+          }
+        } catch (signErr: any) {
+          throw new Error(signErr?.shortMessage || signErr?.message || 'Signature rejected by user.')
+        }
         
         // Step 2: Actually save the bot to the database
         const res = await fetch('/api/bots/register', {
@@ -34,20 +56,19 @@ export default function ListBotPage() {
             name: formData.name,
             description: formData.description,
             market: formData.market,
-            walletAddress: address,
+            walletAddress: finalAddress,
           })
         })
         
         const result = await res.json()
         
         if (!res.ok) {
-          setErrorMsg(result.error || 'Registration failed. Please try again.')
-          return
+          throw new Error(result.error || 'Registration failed. Please try again.')
         }
         
         setStep(3)
       } catch (err: any) {
-        setErrorMsg(err?.shortMessage || err?.message || 'Signature rejected.')
+        setErrorMsg(err?.message || 'An error occurred.')
       } finally {
         setVerifying(false)
       }
