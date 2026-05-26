@@ -2,12 +2,13 @@
 import { WagmiProvider, createConfig, http } from 'wagmi'
 import { polygon, mainnet } from 'wagmi/chains'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { injected, walletConnect } from 'wagmi/connectors'
+import { metaMask, walletConnect } from 'wagmi/connectors'
 
 const config = createConfig({
   chains: [polygon, mainnet],
+  ssr: true, // Crucial for Next.js 14+ hydration
   connectors: [
-    injected(),
+    metaMask(),
     walletConnect({ projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID! || 'placeholder-id' }),
   ],
   transports: {

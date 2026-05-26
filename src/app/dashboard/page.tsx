@@ -1,472 +1,192 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { BotCard } from '@/components/BotCard';
-import { useBots } from '@/hooks/useBots';
-import { useAccount } from 'wagmi';
-import toast from 'react-hot-toast';
+import { useState, useRef, useEffect } from 'react'
+import Link from 'next/link'
+import BotCharacter from '@/components/BotCharacter'
 
-const mockEarnings = [
-  { month: 'Oct', earnings: 1200 },
-  { month: 'Nov', earnings: 1890 },
-  { month: 'Dec', earnings: 2100 },
-  { month: 'Jan', earnings: 2450 },
-  { month: 'Feb', earnings: 1980 },
-  { month: 'Mar', earnings: 2760 },
-  { month: 'Apr', earnings: 2341 },
-];
+const HISTORY = [
+  { id: 249012, type: 'earn', bot: 'ADAN-PRED', amount: '+$8,700', date: '05/24/25(Fri)14:22:11', hash: '0x3f1a...cc09' },
+  { id: 249011, type: 'earn', bot: 'SIGMA-7', amount: '+$3,750', date: '05/24/25(Fri)14:18:05', hash: '0x8b2c...f112' },
+  { id: 249010, type: 'earn', bot: 'KELLY-PRIME', amount: '+$1,370', date: '05/24/25(Fri)10:02:44', hash: '0x1d9e...7731' },
+  { id: 245001, type: 'deposit', bot: 'KELLY-PRIME', amount: '$35,000', date: '05/01/25(Thu)09:15:22', hash: '0x6c4d...aa20' },
+  { id: 231022, type: 'earn', bot: 'ADAN-PRED', amount: '+$8,700', date: '04/24/25(Wed)16:45:10', hash: '0x2a8f...3301' },
+  { id: 231021, type: 'earn', bot: 'SIGMA-7', amount: '+$3,750', date: '04/24/25(Wed)16:40:05', hash: '0x9c11...e821' },
+  { id: 189442, type: 'deposit', bot: 'SIGMA-7', amount: '$50,000', date: '02/28/25(Fri)11:22:33', hash: '0x5a2b...dc44' },
+  { id: 175221, type: 'deposit', bot: 'ADAN-PRED', amount: '$100,000', date: '02/12/25(Wed)08:14:15', hash: '0x7f3c...1182' },
+]
 
-const mockDeposits = [
-  { bot: 'HERMES-Q', deposited: 10000, current: 14780, roi: 47.8, color: '#7B2FFF' },
-  { bot: 'PHANTOM-X', deposited: 5000, current: 6925, roi: 38.5, color: '#FF1493' },
-  { bot: 'SIGMA-FLOW', deposited: 3000, current: 3807, roi: 26.9, color: '#00BCD4' },
-];
-
-const publishSteps = [
-  { id: 1, title: 'Bot Details', fields: ['Bot name', 'Description / tagline', 'Markets', 'Strategy type'] },
-  { id: 2, title: 'Connect API', fields: ['API key (read-only)', 'Platform verification'] },
-  { id: 3, title: 'Vault Settings', fields: ['Builder carry % (10-30%)', 'Min deposit', 'Max TVL cap', 'Lock period'] },
-  { id: 4, title: 'Review + Publish', fields: ['Confirm all settings', 'Submit for verification'] },
-];
+function PnlChartMin() {
+  const ref = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const canvas = ref.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const w = canvas.width, h = canvas.height
+    ctx.clearRect(0, 0, w, h)
+    ctx.fillStyle = '#080808'
+    ctx.fillRect(0, 0, w, h)
+    ctx.strokeStyle = '#1a1a1a'
+    ctx.lineWidth = 1
+    for (let i = 0; i < w; i += 20) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, h); ctx.stroke(); }
+    for (let i = 0; i < h; i += 20) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(w, i); ctx.stroke(); }
+    ctx.strokeStyle = '#2563EB'
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.moveTo(0, h-10)
+    ctx.lineTo(w*0.3, h-30)
+    ctx.lineTo(w*0.5, h-25)
+    ctx.lineTo(w*0.8, h-60)
+    ctx.lineTo(w, h-80)
+    ctx.stroke()
+  }, [])
+  return (
+    <div style={{ border: '1px solid #333', background: '#080808', padding: 2, display: 'inline-block', marginBottom: '0.5rem' }}>
+      <canvas ref={ref} width={300} height={100} style={{ display: 'block', maxWidth: '100%', height: 'auto' }} />
+      <div style={{ fontSize: 9, color: '#555', textAlign: 'center', marginTop: 2, fontFamily: 'var(--font-mono)' }}>chart_portfolio_all.png (31 KB, 300x100)</div>
+    </div>
+  )
+}
 
 export default function DashboardPage() {
-  const [showPublishModal, setShowPublishModal] = useState(false);
-  const [publishStep, setPublishStep] = useState(1);
-  
-  // Form State
-  const { address } = useAccount();
-  const [formData, setFormData] = useState({
-    name: '',
-    tagline: '',
-    color: '#050505',
-    strategyType: '',
-    description: '',
-    source: 'POLYMARKET',
-    polyWalletAddress: '',
-    builderCarry: 20,
-    markets: 'Crypto',
-  });
+  const [toast, setToast] = useState('')
 
-  const { data } = useBots();
-  const allBots = data?.pages.flatMap(p => p.data) || [];
-  const myBots = allBots.slice(0, 2);
-
-  const handleComingSoon = (action: string) => {
-    toast(`Coming Soon — ${action} is not yet available.`, { icon: '🔐' });
-  };
-
-  const handleDeploy = async () => {
-    if (!address) {
-      toast.error('Please connect your wallet first.');
-      return;
-    }
-
-    try {
-      const payload = {
-        ...formData,
-        builderAddress: address,
-        markets: formData.markets.split(',').map(m => m.trim()),
-        builderCarry: Number(formData.builderCarry)
-      };
-
-      const res = await fetch('/api/bots/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to submit bot');
-      }
-
-      toast.success('Bot successfully deployed for incubation!');
-      setShowPublishModal(false);
-      setPublishStep(1);
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
+  const showToast = (msg: string) => {
+    setToast(msg)
+    setTimeout(() => setToast(''), 2400)
+  }
 
   return (
-    <div className="min-h-screen px-4 py-10 sm:py-20 bg-[#050505] relative overflow-hidden">
-      {/* Ambient Glow */}
-      <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+    <div style={{ minHeight: '100vh', background: '#050505', fontFamily: 'var(--font-mono), monospace', color: '#c5c8c6', padding: '2rem 1rem' }}>
 
-      <div className="mx-auto max-w-7xl relative z-10">
-        {/* ═══ PROFILE HEADER ═══ */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-16 flex flex-col lg:flex-row gap-12 items-center lg:items-start bg-white/5 backdrop-blur-3xl p-10 sm:p-12 rounded-[48px] border border-white/10 shadow-2xl"
-        >
-          {/* Geometric avatar */}
-          <div className="relative shrink-0">
-            <div className="h-32 w-32 rounded-[32px] bg-white/10 p-[1px]">
-              <div className="h-full w-full rounded-[31px] bg-[#050505] flex items-center justify-center overflow-hidden">
-                <svg width="60" height="60" viewBox="0 0 40 40" fill="none">
-                  <rect x="4" y="4" width="14" height="14" rx="4" fill="#C8FF00" />
-                  <rect x="22" y="4" width="14" height="14" rx="4" fill="#7B2FFF" />
-                  <rect x="4" y="22" width="14" height="14" rx="4" fill="#00C2FF" />
-                  <rect x="22" y="22" width="14" height="14" rx="4" fill="#FF6B35" />
-                </svg>
-              </div>
-            </div>
-            <motion.span 
-              animate={{ rotate: 360 }}
-              transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-              className="absolute -bottom-2 -right-2 h-10 w-10 flex items-center justify-center rounded-full border-2 border-[#050505] bg-[#C8FF00] text-[#050505] text-xl shadow-[0_0_20px_rgba(200,255,0,0.4)]"
-            >
-              ✦
-            </motion.span>
+      {/* HEADER BAR */}
+      <div style={{ maxWidth: 1200, margin: '0 auto', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1a1a1a', paddingBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '1rem', fontSize: 16, fontWeight: 'bold' }}>
+          <span style={{ color: '#2563EB' }}>/usr/ - Depositor Terminal</span>
+        </div>
+        <div style={{ fontSize: 12, color: '#555' }}>
+          [<Link href="/discover" style={{ color: '#2563EB', textDecoration: 'none' }}>Catalog</Link>] 
+          [<Link href="/list-bot" style={{ color: '#2563EB', textDecoration: 'none' }}>Deploy Bot</Link>]
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        
+        {/* OP POST (The User Identity) */}
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+          {/* Thumbnail */}
+          <div style={{ flexShrink: 0, textAlign: 'center' }}>
+            <div style={{ fontSize: 10, color: '#555', marginBottom: 2 }}>File: ident_pepito.png (5 KB, 100x100)</div>
+            <div style={{ width: 100, height: 100, border: '1px solid #2563EB', background: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, color: '#2563EB', fontWeight: 'bold' }}>P</div>
           </div>
 
-          <div className="text-center lg:text-left flex-1">
-            <div className="flex flex-col lg:flex-row lg:items-end gap-4 mb-8">
-              <h1 className="font-[var(--font-display)] text-[48px] sm:text-[64px] font-black uppercase tracking-tighter text-white leading-none">
-                {address ? `@${address.slice(0, 6)}...${address.slice(-4)}` : '@Lord14sol'}
-              </h1>
-              <div className="px-4 py-1.5 rounded-full bg-[#C8FF00] text-[#050505] text-[10px] font-black uppercase tracking-widest self-center lg:mb-2">
-                Elite Builder
+          {/* User Content */}
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, marginBottom: '0.5rem' }}>
+              <span style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 14 }}>pepito.eth</span>{' '}
+              <span style={{ color: '#117743', fontWeight: 'bold' }}>Depositor</span>{' '}
+              <span style={{ color: '#117743' }}>(ID: 0x3a4f...c91b)</span>{' '}
+              <span style={{ color: '#555' }}>{new Date().toLocaleString('en-US', { hour12: false })}</span>{' '}
+              <span style={{ color: '#555' }}>No.10000001</span>
+            </div>
+
+            <div style={{ fontSize: 13, lineHeight: 1.5, color: '#c5c8c6', marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
+              <span style={{ color: '#cc0000', fontWeight: 'bold', fontSize: 15 }}>Portfolio Status Active</span>
+              <br/><br/>
+              <span style={{ color: '#7ec87e' }}>&gt;Total Deposited: $185,000</span><br/>
+              <span style={{ color: '#7ec87e' }}>&gt;Total Earned: +$42,600 (Net Return: +23.0%)</span><br/>
+              <span style={{ color: '#7ec87e' }}>&gt;Active Positions: 3</span><br/>
+            </div>
+
+            {/* Terminal Stats Box */}
+            <div style={{ background: '#0a0a0a', border: '1px solid #1a1a1a', padding: '0.5rem', display: 'inline-block', marginBottom: '1rem', minWidth: 400 }}>
+              <div style={{ color: '#2563EB', borderBottom: '1px solid #1a1a1a', paddingBottom: 4, marginBottom: 4, fontWeight: 'bold' }}>--- PORTFOLIO METRICS ---</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: 12 }}>
+                <div><span style={{ color: '#555' }}>PORTFOLIO_VALUE:</span> <span>$227,640</span></div>
+                <div><span style={{ color: '#555' }}>30D_YIELD:</span> <span style={{ color: '#22c55e' }}>+$13,820</span></div>
+                <div><span style={{ color: '#555' }}>AVG_MONTHLY:</span> <span style={{ color: '#22c55e' }}>7.4%</span></div>
+                <div><span style={{ color: '#555' }}>FEES_PAID:</span> <span>$4,264</span></div>
+                <div><span style={{ color: '#555' }}>ANNUALIZED_RETURN:</span> <span style={{ color: '#2563EB' }}>88.8%</span></div>
+                <div><span style={{ color: '#555' }}>WITHDRAWALS:</span> <span>0</span></div>
               </div>
             </div>
             
-            <div className="flex flex-wrap gap-x-12 gap-y-6 justify-center lg:justify-start">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-white/30 mb-2">Protocol Joined</p>
-                <p className="font-[var(--font-dm-mono)] font-bold text-white text-xl">JAN 2025</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-white/30 mb-2">Total Alpha Yield</p>
-                <p className="font-[var(--font-dm-mono)] font-bold text-[#C8FF00] text-xl tracking-tight">$12,847.42</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-white/30 mb-2">Active Entities</p>
-                <p className="font-[var(--font-dm-mono)] font-bold text-white text-xl">02 / 10</p>
-              </div>
-            </div>
+            <br />
+            <PnlChartMin />
           </div>
+        </div>
 
-          <button
-            onClick={() => handleComingSoon('Settings')}
-            className="rounded-2xl border border-white/10 bg-white/5 px-10 py-4 font-[var(--font-dm-mono)] text-[11px] font-bold uppercase tracking-[0.2em] text-white transition-all hover:bg-white hover:text-[#050505] active:scale-[0.95]"
-          >
-            Terminal Settings
-          </button>
-        </motion.div>
-
-        {/* ═══ MY BOTS ═══ */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-20"
-        >
-          <h2 className="font-[var(--font-display)] text-[32px] font-black uppercase tracking-tight text-white mb-10">
-            My Entities
-          </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {myBots.map((bot, i) => (
-              <BotCard key={bot.id} bot={bot} rank={i + 1} />
-            ))}
-
-            {/* Publish new bot card */}
-            <motion.button
-              onClick={() => {
-                setShowPublishModal(true);
-                setPublishStep(1);
-              }}
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: myBots.length * 0.05 }}
-              whileHover={{ y: -8, borderColor: '#C8FF00' }}
-              className="group relative flex flex-col items-center justify-center rounded-[40px] bg-white/5 border-2 border-dashed border-white/10 py-16 transition-all cursor-pointer min-h-[380px] overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-[#C8FF00]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center text-3xl mb-6 group-hover:bg-[#C8FF00] group-hover:text-[#050505] transition-all group-hover:scale-110 shadow-2xl relative z-10">
-                +
-              </div>
-              <span className="font-[var(--font-display)] text-[24px] font-black uppercase tracking-tight text-white relative z-10">
-                Deploy Bot
-              </span>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/20 mt-3 relative z-10 group-hover:text-white/40 transition-colors">Submit to Incubation</p>
-            </motion.button>
-          </div>
-        </motion.div>
-
-        {/* ═══ MY EARNINGS ═══ */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mb-20"
-        >
-          <h2 className="font-[var(--font-display)] text-[32px] font-black uppercase tracking-tight text-white mb-10">
-            Performance Alpha
-          </h2>
-
-          <div className="bg-white/5 backdrop-blur-3xl rounded-[48px] p-8 sm:p-12 border border-white/10 shadow-2xl">
-            {/* Earning stats */}
-            <div className="grid sm:grid-cols-3 gap-8 mb-16">
-              <div className="rounded-[32px] bg-white/5 p-8 border border-white/5 hover:bg-white/10 transition-colors">
-                <p className="font-[var(--font-dm-mono)] text-[40px] leading-none font-bold text-white mb-3 tracking-tighter">$12,847</p>
-                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Total Carry Earned</p>
-              </div>
-              <div className="rounded-[32px] bg-[#C8FF00] p-8 shadow-[0_20px_50px_rgba(200,255,0,0.15)] group hover:scale-[1.02] transition-transform">
-                <p className="font-[var(--font-dm-mono)] text-[40px] leading-none font-bold text-[#050505] mb-3 tracking-tighter">$2,341</p>
-                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#050505]/60">30D Momentum</p>
-              </div>
-              <div className="rounded-[32px] bg-white/5 p-8 border border-white/5 hover:bg-white/10 transition-colors">
-                <p className="font-[var(--font-dm-mono)] text-[40px] leading-none font-bold text-white/60 mb-3 tracking-tighter">$891</p>
-                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/20">Pending Settlement</p>
-              </div>
-            </div>
-
-            {/* Earnings chart */}
-            <div className="h-[350px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mockEarnings}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis 
-                    dataKey="month" 
-                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 'bold' }} 
-                    axisLine={false} 
-                    tickLine={false} 
-                    dy={10} 
-                  />
-                  <YAxis 
-                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 'bold' }} 
-                    axisLine={false} 
-                    tickLine={false} 
-                    dx={-10} 
-                  />
-                  <Tooltip
-                    cursor={{ fill: 'rgba(255,255,255,0.03)' }}
-                    contentStyle={{
-                      background: '#111111',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: '20px',
-                      padding: '16px',
-                      fontSize: '12px',
-                      fontFamily: 'var(--font-dm-mono)',
-                      color: '#fff',
-                    }}
-                    itemStyle={{ color: '#C8FF00', fontWeight: 'bold' }}
-                    labelStyle={{ color: 'rgba(255,255,255,0.4)', marginBottom: '8px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em' }}
-                    formatter={(value) => [`$${value}`, 'YIELD']}
-                  />
-                  <Bar dataKey="earnings" fill="#C8FF00" radius={[12, 12, 4, 4]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* ═══ MY DEPOSITS (Bento style) ═══ */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="mb-16"
-        >
-          <h2 className="font-[var(--font-display)] text-[32px] font-black uppercase tracking-tight text-white mb-10">
-            Active Allocations
-          </h2>
-          <div className="bg-white/5 backdrop-blur-3xl rounded-[48px] p-8 sm:p-12 border border-white/10 shadow-2xl">
-            <div className="flex flex-col gap-4">
-              {mockDeposits.map((dep) => (
-                <div key={dep.bot} className="flex flex-col lg:flex-row lg:items-center justify-between p-8 rounded-[32px] bg-white/5 border border-white/5 hover:border-white/20 transition-all gap-8">
-                  <div className="flex items-center gap-6">
-                    <div className="w-5 h-16 rounded-full shadow-2xl" style={{ background: dep.color }} />
-                    <div>
-                      <span className="font-[var(--font-display)] text-[28px] font-black uppercase text-white tracking-tighter leading-none">{dep.bot}</span>
-                      <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-white/20 mt-2">Active Vault Position</p>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-12 lg:gap-20 text-right">
-                    <div>
-                      <p className="text-[9px] uppercase tracking-widest font-bold text-white/20 mb-3">Principal</p>
-                      <p className="font-[var(--font-dm-mono)] font-bold text-lg text-white leading-none">${dep.deposited.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] uppercase tracking-widest font-bold text-white/20 mb-3">Valuation</p>
-                      <p className="font-[var(--font-dm-mono)] font-bold text-lg text-white leading-none">${dep.current.toLocaleString()}</p>
-                    </div>
-                    <div className="min-w-[100px]">
-                      <p className="text-[9px] uppercase tracking-widest font-bold text-white/20 mb-3">Alpha</p>
-                      <p className={`font-[var(--font-dm-mono)] font-bold text-2xl leading-none ${dep.roi >= 0 ? 'text-[#C8FF00]' : 'text-[#FF3D00]'}`}>
-                        +{dep.roi.toFixed(1)}%
-                      </p>
-                    </div>
-                  </div>
+        {/* ACTIVE POSITIONS */}
+        <div style={{ marginBottom: '2rem' }}>
+          <div style={{ color: '#C9A84C', fontWeight: 'bold', borderBottom: '1px solid #1a1a1a', paddingBottom: '0.5rem', marginBottom: '0.5rem' }}>&gt;&gt; ACTIVE VAULT ALLOCATIONS</div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
+            {[
+              { bot: 'ADAN-PRED', dep: 100000, prof: 31200, pct: 31.2, mode: 'DEGEN' },
+              { bot: 'SIGMA-7', dep: 50000, prof: 7440, pct: 14.9, mode: 'CONS' },
+              { bot: 'KELLY-PRIME', dep: 35000, prof: 4000, pct: 11.4, mode: 'CONS' },
+            ].map(p => (
+              <div key={p.bot} style={{ background: '#0a0a0a', border: '1px solid #1a1a1a', padding: '0.75rem', display: 'flex', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 13, marginBottom: 4 }}>{p.bot}</div>
+                  <div style={{ fontSize: 11, color: '#555' }}>Mode: <span style={{ color: p.mode === 'DEGEN' ? '#FF6B1A' : '#00C9C0' }}>{p.mode}</span></div>
+                  <div style={{ fontSize: 11, color: '#555' }}>Deposited: ${p.dep.toLocaleString()}</div>
                 </div>
-              ))}
-            </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ color: '#22c55e', fontWeight: 'bold', fontSize: 13, marginBottom: 4 }}>+${p.prof.toLocaleString()}</div>
+                  <div style={{ fontSize: 11, color: '#22c55e' }}>+{p.pct}%</div>
+                  <Link href="/vault" style={{ fontSize: 10, color: '#2563EB', textDecoration: 'none', display: 'block', marginTop: 4 }}>[Manage]</Link>
+                </div>
+              </div>
+            ))}
           </div>
-        </motion.div>
+        </div>
+
+        {/* HISTORY FEED (Order Book Style) */}
+        <div>
+          <div style={{ color: '#C9A84C', fontWeight: 'bold', borderBottom: '1px solid #1a1a1a', paddingBottom: '0.5rem', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
+            <span>&gt;&gt; VAULT_ORDER_BOOK / TRANSACTION_LOGS</span>
+            <span style={{ color: '#555', fontSize: 11 }}>LIVE SYNC...</span>
+          </div>
+          
+          <div style={{ background: '#0a0a0a', border: '1px solid #1a1a1a', padding: '0.5rem', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, fontFamily: 'var(--font-mono), monospace', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ color: '#555', borderBottom: '1px solid #1a1a1a' }}>
+                  <th style={{ padding: '4px 8px', fontWeight: 'normal' }}>TIME</th>
+                  <th style={{ padding: '4px 8px', fontWeight: 'normal' }}>TYPE</th>
+                  <th style={{ padding: '4px 8px', fontWeight: 'normal' }}>VAULT</th>
+                  <th style={{ padding: '4px 8px', fontWeight: 'normal', textAlign: 'right' }}>SIZE (USDC)</th>
+                  <th style={{ padding: '4px 8px', fontWeight: 'normal' }}>TX_HASH</th>
+                </tr>
+              </thead>
+              <tbody>
+                {HISTORY.map(log => (
+                  <tr key={log.id} style={{ borderBottom: '1px solid #111', cursor: 'pointer' }} onClick={() => showToast('Copied Hash')}>
+                    <td style={{ padding: '4px 8px', color: '#888' }}>{log.date.split(')')[1] || log.date}</td>
+                    <td style={{ padding: '4px 8px', color: log.type === 'earn' ? '#22c55e' : '#2563EB' }}>
+                      {log.type === 'earn' ? 'YIELD_DIST' : 'VAULT_DEP'}
+                    </td>
+                    <td style={{ padding: '4px 8px', color: '#c5c8c6' }}>{log.bot}</td>
+                    <td style={{ padding: '4px 8px', textAlign: 'right', color: log.type === 'earn' ? '#22c55e' : '#c5c8c6' }}>
+                      {log.amount}
+                    </td>
+                    <td style={{ padding: '4px 8px', color: '#555' }}>{log.hash}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
 
-      {/* ═══ PUBLISH BOT MODAL ═══ */}
-      <AnimatePresence>
-        {showPublishModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl"
-            onClick={() => setShowPublishModal(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 40 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 40 }}
-              className="w-full max-w-2xl rounded-[48px] bg-[#050505] p-10 sm:p-14 shadow-[0_40px_120px_rgba(0,0,0,0.8)] border border-white/10 relative overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Background ambient light */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-[#C8FF00]/5 blur-[100px] pointer-events-none" />
+      {toast && (
+        <div style={{ position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 9999, background: '#161616', border: '1px solid #2563EB', color: '#efefef', fontSize: 12, padding: '10px 18px' }}>
+          {toast}
+        </div>
+      )}
 
-              <div className="flex items-center justify-between mb-12 relative z-10">
-                <h2 className="font-[var(--font-display)] text-[32px] font-black uppercase tracking-tight text-white leading-none">
-                  Deploy <span className="text-[#C8FF00]">Entity</span>
-                </h2>
-                <button
-                  onClick={() => setShowPublishModal(false)}
-                  className="h-12 w-12 rounded-full bg-white/5 text-white flex items-center justify-center text-xl hover:bg-white/10 transition-all active:scale-90"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Step indicators */}
-              <div className="flex items-center gap-4 mb-16 relative z-10">
-                {publishSteps.map((step) => (
-                  <div key={step.id} className="flex items-center gap-4 flex-1">
-                    <div className={`h-12 w-12 rounded-2xl flex items-center justify-center font-[var(--font-dm-mono)] text-xs font-bold transition-all ${
-                      publishStep >= step.id
-                        ? 'bg-[#C8FF00] text-[#050505] shadow-[0_0_20px_rgba(200,255,0,0.3)]'
-                        : 'bg-white/5 text-white/20'
-                    }`}>
-                      {publishStep > step.id ? '✓' : `0${step.id}`}
-                    </div>
-                    {step.id < 4 && (
-                      <div className={`flex-1 h-[1px] transition-all ${
-                        publishStep > step.id ? 'bg-[#C8FF00]' : 'bg-white/10'
-                      }`} />
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Current step content */}
-              <div className="mb-16 min-h-[260px] relative z-10">
-                <h3 className="font-[var(--font-display)] text-[20px] font-black uppercase text-white/40 mb-8 tracking-widest">
-                  {publishSteps[publishStep - 1].title}
-                </h3>
-                <div className="space-y-8">
-                  {publishStep === 1 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                      <div className="sm:col-span-2">
-                        <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Quantitative Entity Name</label>
-                        <input type="text" placeholder="e.g. ALPHA-CENTAURI" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Institutional Tagline</label>
-                        <input type="text" placeholder="Execution philosophy..." value={formData.tagline} onChange={e => setFormData({...formData, tagline: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Identity Color</label>
-                        <input type="text" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
-                      </div>
-                    </div>
-                  )}
-                  {publishStep === 2 && (
-                    <div className="space-y-8">
-                      <div>
-                        <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Source Integration</label>
-                        <select value={formData.source} onChange={e => setFormData({...formData, source: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all appearance-none">
-                          <option value="POLYMARKET">Polymarket Network</option>
-                          <option value="KALSHI">Kalshi Markets</option>
-                        </select>
-                      </div>
-                      {formData.source === 'POLYMARKET' ? (
-                        <div>
-                          <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Execution Wallet (Polygon)</label>
-                          <input type="text" placeholder="0x..." value={formData.polyWalletAddress} onChange={e => setFormData({...formData, polyWalletAddress: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
-                        </div>
-                      ) : (
-                        <div>
-                          <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Kalshi Read-Only API Key</label>
-                          <input type="password" placeholder="••••••••••••••••" className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {publishStep === 3 && (
-                    <div className="space-y-8">
-                      <div>
-                        <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Performance Carry (%)</label>
-                        <input type="number" value={formData.builderCarry} onChange={e => setFormData({...formData, builderCarry: Number(e.target.value)})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all" />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 mb-3">Alpha Logic Summary</label>
-                        <textarea placeholder="Describe the quantitative edge..." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full rounded-2xl bg-white/5 border border-white/5 px-6 py-4 font-[var(--font-dm-mono)] text-sm text-white outline-none focus:ring-2 focus:ring-[#C8FF00] transition-all min-h-[120px]" />
-                      </div>
-                    </div>
-                  )}
-                  {publishStep === 4 && (
-                    <div className="bg-white/5 border border-white/10 rounded-3xl p-8 text-sm font-[var(--font-dm-mono)] text-white/60">
-                      <div className="flex justify-between items-center mb-4 pb-4 border-b border-white/5">
-                        <span className="text-[9px] font-bold uppercase text-white/20">Entity</span>
-                        <span className="text-white font-bold">{formData.name || 'UNNAMED'}</span>
-                      </div>
-                      <div className="flex justify-between items-center mb-4 pb-4 border-b border-white/5">
-                        <span className="text-[9px] font-bold uppercase text-white/20">Source</span>
-                        <span className="text-white font-bold">{formData.source}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-bold uppercase text-white/20">Carry Structure</span>
-                        <span className="text-[#C8FF00] font-bold">{formData.builderCarry}%</span>
-                      </div>
-                      <p className="text-[10px] font-medium text-white/20 mt-10 leading-relaxed text-center italic">
-                        "By deploying, you initiate the 30-day proof-of-alpha incubation period. Your execution will be monitored on-chain for institutional validation."
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-6 relative z-10">
-                <button
-                  onClick={() => {
-                    if (publishStep > 1) setPublishStep(publishStep - 1);
-                    else setShowPublishModal(false);
-                  }}
-                  className="flex-1 rounded-2xl border border-white/10 bg-white/5 py-5 font-[var(--font-dm-mono)] text-xs font-bold uppercase tracking-widest text-white transition-all hover:bg-white hover:text-[#050505] active:scale-[0.95]"
-                >
-                  {publishStep === 1 ? 'Abort' : 'Previous'}
-                </button>
-                <button
-                  onClick={() => {
-                    if (publishStep < 4) {
-                      setPublishStep(publishStep + 1);
-                    } else {
-                      handleDeploy();
-                    }
-                  }}
-                  className="flex-1 rounded-2xl bg-white py-5 font-[var(--font-dm-mono)] text-xs font-bold uppercase tracking-widest text-[#050505] transition-all hover:bg-[#C8FF00] active:scale-[0.95] shadow-2xl"
-                >
-                  {publishStep === 4 ? 'Deploy to Incubation' : 'Continue'}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
-  );
+  )
 }

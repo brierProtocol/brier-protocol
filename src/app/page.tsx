@@ -1,186 +1,139 @@
-'use client'
-
-import { motion } from 'framer-motion'
 import Link from 'next/link'
-import BotCharacter, { Mood } from '@/components/BotCharacter'
-import { BotCard } from '@/components/BotCard'
-import { getTopBots } from '@/data/bots'
+import BotCharacter from '@/components/BotCharacter'
 
-export default function HomePage() {
-  const topBots = getTopBots(3)
+const ASCII_LOGO = `
+    ____       _               ____             __                 __
+   / __ )_____(_)__  _____    / __ \\_________  / /_____  _________/ /
+  / __  / ___/ / _ \\/ ___/   / /_/ / ___/ __ \\/ __/ __ \\/ ___/ __  / 
+ / /_/ / /  / /  __/ /      / ____/ /  / /_/ / /_/ /_/ / /__/ /_/ /  
+/_____/_/  /_/\\___/_/      /_/   /_/   \\____/\\__/\\____/\\___/\\__,_/   
+`
 
+export default function Home() {
   return (
-    <div className="min-h-screen" style={{ background: '#050505' }}>
-      {/* ═══ HERO SECTION ═══ */}
-      <section
-        className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden"
-        style={{ background: '#050505' }}
-      >
-        {/* Floating background characters (decorative, blurred) */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[
-            { mood: 'cool',    top: '10%', left: '5%',  size: 80,  opacity: 0.15, color: '#FF6B35' },
-            { mood: 'happy',   top: '20%', right: '8%', size: 64,  opacity: 0.10, color: '#7B2FFF' },
-            { mood: 'excited', top: '65%', left: '8%',  size: 56,  opacity: 0.12, color: '#00FFC8' },
-            { mood: 'sad',     top: '70%', right: '5%', size: 48,  opacity: 0.08, color: '#FF3B3B' },
-            { mood: 'neutral', top: '40%', left: '2%',  size: 40,  opacity: 0.06, color: '#888888' },
-          ].map(({ mood, top, left, right, size, opacity, color }, i) => (
-              <motion.div
-                key={i}
-                className="absolute"
-                style={{ top, left, right, opacity, filter: 'blur(1px)' }}
-                animate={{ y: [0, -10, 0] }}
-                transition={{ repeat: Infinity, duration: 4 + i, ease: 'easeInOut', delay: i * 0.8 }}
-              >
-                <BotCharacter mood={mood as Mood} accentColor={color} size={size} animate={false} />
-              </motion.div>
-            ))}
+    <div style={{ minHeight: '100vh', background: '#050505', color: '#c5c8c6', fontFamily: 'var(--font-mono), monospace', padding: '2rem 1rem' }}>
+      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+        
+        {/* ASCII HEADER */}
+        <div style={{ color: '#2563EB', whiteSpace: 'pre', fontSize: 'clamp(8px, 1.5vw, 14px)', fontWeight: 'bold', marginBottom: '2rem', lineHeight: 1.2 }}>
+          {ASCII_LOGO}
+          <div style={{ color: '#555', marginTop: '0.5rem' }}>
+            &gt; INSTITUTIONAL PREDICTION MARKET INFRASTRUCTURE
+            <br />
+            &gt; POLYGON NETWORK TARGET ACQUIRED
           </div>
-  
-          {/* Main content */}
-          <div className="relative z-10 text-center px-6 max-w-4xl">
-            
-            {/* Hero character */}
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-              className="flex justify-center mb-8"
-            >
-              <BotCharacter mood="cool" accentColor="#C8FF00" size={160} />
-            </motion.div>
-
-          {/* Headline */}
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="font-black mb-6"
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(48px, 10vw, 96px)',
-              color: '#FFFFFF',
-              letterSpacing: '-0.04em',
-              lineHeight: 0.9,
-            }}
-          >
-            DEPOSIT INTO<br />
-            THE <span style={{ color: '#C8FF00' }}>BEST BOTS.</span><br />
-            EARN FOREVER.
-          </motion.h1>
-
-          {/* Subheadline */}
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="text-xl max-w-xl mx-auto mb-10"
-            style={{
-              fontFamily: 'var(--font-body)',
-              color: 'rgba(255,255,255,0.5)',
-              lineHeight: 1.6,
-            }}
-          >
-            Brier Protocol ranks prediction market bots by verified 
-            on-chain performance. Deposit USDC. Earn passively. 
-            Your bot does the work.
-          </motion.p>
-
-          {/* CTA buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center"
-          >
-            <Link href="/discover">
-              <motion.button
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.97 }}
-                className="px-8 py-4 rounded-2xl font-bold text-lg w-full sm:w-auto"
-                style={{
-                  background: '#FFFFFF',
-                  color: '#050505',
-                  fontFamily: 'var(--font-display)',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                START EXPLORING
-              </motion.button>
-            </Link>
-            
-            <Link href="/leaderboard">
-              <motion.button
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.97 }}
-                className="px-8 py-4 rounded-2xl font-bold text-lg w-full sm:w-auto"
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  color: '#FFFFFF',
-                  fontFamily: 'var(--font-display)',
-                  border: '0.5px solid rgba(255,255,255,0.1)',
-                  cursor: 'pointer',
-                }}
-              >
-                VIEW LEADERBOARD
-              </motion.button>
-            </Link>
-          </motion.div>
         </div>
-      </section>
 
-      {/* ═══ LIVE STATS BAR ═══ */}
-      <section className="relative z-10 px-6 py-20 border-y border-white/5 bg-white/[0.02]">
-        <div className="max-w-7xl mx-auto flex flex-wrap justify-center gap-12 sm:gap-24">
-          {[
-            { label: 'ACTIVE BOTS', value: '847' },
-            { label: 'TOTAL TVL',   value: '$12.4M' },
-            { label: 'AVG BRIER',   value: '0.241' },
-          ].map(({ label, value }) => (
-            <div key={label} className="text-center">
-              <div
-                className="text-4xl sm:text-6xl font-bold"
-                style={{ color: '#C8FF00', fontFamily: 'var(--font-mono)' }}
-              >
-                {value}
-              </div>
-              <div
-                className="text-xs font-bold tracking-[0.3em] mt-2 opacity-30"
-                style={{ fontFamily: 'var(--font-body)' }}
-              >
-                {label}
-              </div>
+        {/* MOTD */}
+        <div style={{ border: '1px solid #1a1a1a', background: '#0a0a0a', padding: '1rem', marginBottom: '2rem' }}>
+          <div style={{ color: '#2563EB', fontWeight: 'bold', borderBottom: '1px solid #1a1a1a', paddingBottom: '0.5rem', marginBottom: '0.5rem' }}>
+            --- MESSAGE OF THE DAY ---
+          </div>
+          <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+            <span style={{ color: '#7ec87e' }}>&gt;Welcome to Brier V1.</span><br/>
+            Humans are terrible at probability. Machines are not.<br/>
+            Brier is a decentralized index of algorithmic trading bots executing on prediction markets (Polymarket, Kalshi).<br/>
+            <br/>
+            <span style={{ color: '#cc0000', fontWeight: 'bold' }}>RULES OF ENGAGEMENT:</span><br/>
+            1. All bots must survive a 30-day on-chain paper trading phase.<br/>
+            2. Bots are ranked strictly by their Brier Score (lower = better).<br/>
+            3. Vaults open automatically for top-tier bots. Depositors yield profits. Builders earn 10% performance fees.<br/>
+          </div>
+        </div>
+
+        {/* DIRECTORY LINKS */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '3rem' }}>
+          
+          <div style={{ border: '1px solid #1a1a1a', background: '#0a0a0a', padding: '1rem' }}>
+            <div style={{ color: '#2563EB', fontWeight: 'bold', marginBottom: '0.5rem' }}>[ INVESTORS ]</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: '1rem', height: 40 }}>
+              Deploy capital into verified algorithmic prediction vaults. Zero emotion, fully transparent.
             </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ═══ FEATURED BOTS GRID ═══ */}
-      <section className="px-6 py-32 max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row items-end justify-between gap-6 mb-16">
-          <div>
-            <p className="text-[#C8FF00] font-bold uppercase tracking-[0.3em] text-xs mb-4">Institutional Selection</p>
-            <h2 className="text-5xl sm:text-7xl font-black text-white leading-none tracking-tighter" style={{ fontFamily: 'var(--font-display)' }}>
-              TOP <span className="opacity-20 italic text-white">ALPHA</span> AGENTS
-            </h2>
+            <Link href="/discover" style={{ display: 'inline-block', background: '#2563EB', color: '#000', textDecoration: 'none', padding: '6px 16px', fontWeight: 'bold', fontSize: 13 }}>
+              &gt; ENTER CATALOG
+            </Link>
           </div>
-          <Link
-            href="/discover"
-            className="text-xs text-white/40 font-bold uppercase tracking-[0.3em] hover:text-[#C8FF00] transition-colors flex items-center gap-3 group"
-          >
-            Full Leaderboard 
-            <span className="w-12 h-[1px] bg-white/10 group-hover:bg-[#C8FF00] transition-all" />
-            <span className="group-hover:translate-x-2 transition-transform">→</span>
-          </Link>
+
+          <div style={{ border: '1px dashed #333', background: '#0a0a0a', padding: '1rem' }}>
+            <div style={{ color: '#22c55e', fontWeight: 'bold', marginBottom: '0.5rem' }}>[ BUILDERS ]</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: '1rem', height: 40 }}>
+              Deploy your prediction model. Prove your Brier Score on-chain. Attract capital.
+            </div>
+            <Link href="/list-bot" style={{ display: 'inline-block', border: '1px solid #22c55e', color: '#22c55e', textDecoration: 'none', padding: '6px 16px', fontWeight: 'bold', fontSize: 13 }}>
+              &gt; DEPLOY BOT
+            </Link>
+          </div>
+
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {topBots.map((bot, i) => (
-            <BotCard key={bot.id} bot={bot} rank={i + 1} />
-          ))}
+        {/* TOP THREADS PREVIEW */}
+        <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div style={{ color: '#C9A84C', fontWeight: 'bold' }}>&gt;&gt; ACTIVE_VAULTS_PREVIEW</div>
+            <div style={{ fontSize: 12, color: '#555' }}>Network: Polygon | Currency: USDC</div>
+          </div>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #333', color: '#555' }}>
+                <th style={{ padding: '0.5rem', fontWeight: 'normal' }}>BOT_ID</th>
+                <th style={{ padding: '0.5rem', fontWeight: 'normal' }}>BRIER_SCORE</th>
+                <th style={{ padding: '0.5rem', fontWeight: 'normal' }}>WIN_RATE</th>
+                <th style={{ padding: '0.5rem', fontWeight: 'normal' }}>MONTHLY_YIELD</th>
+                <th style={{ padding: '0.5rem', fontWeight: 'normal', textAlign: 'right' }}>TVL</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style={{ borderBottom: '1px solid #1a1a1a', background: 'rgba(37,99,235,0.03)' }}>
+                <td style={{ padding: '0.75rem 0.5rem' }}>
+                  <Link href="/bot/sigma-7" style={{ color: '#2563EB', textDecoration: 'none', fontWeight: 'bold' }}>[SIGMA-7]</Link>
+                  <span style={{ color: '#555', marginLeft: 8, fontSize: 10 }}>by 0x4a...92cf</span>
+                </td>
+                <td style={{ padding: '0.75rem 0.5rem', color: '#22c55e' }}>0.140</td>
+                <td style={{ padding: '0.75rem 0.5rem' }}>82.1%</td>
+                <td style={{ padding: '0.75rem 0.5rem', color: '#22c55e' }}>+12.4%</td>
+                <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>$1,400,000</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid #1a1a1a' }}>
+                <td style={{ padding: '0.75rem 0.5rem' }}>
+                  <Link href="/bot/oracle-x" style={{ color: '#2563EB', textDecoration: 'none', fontWeight: 'bold' }}>[ORACLE-X]</Link>
+                  <span style={{ color: '#555', marginLeft: 8, fontSize: 10 }}>by dev-alex.eth</span>
+                </td>
+                <td style={{ padding: '0.75rem 0.5rem', color: '#22c55e' }}>0.170</td>
+                <td style={{ padding: '0.75rem 0.5rem' }}>76.4%</td>
+                <td style={{ padding: '0.75rem 0.5rem', color: '#22c55e' }}>+8.9%</td>
+                <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>$850,000</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid #1a1a1a' }}>
+                <td style={{ padding: '0.75rem 0.5rem' }}>
+                  <Link href="/bot/adan-pred" style={{ color: '#2563EB', textDecoration: 'none', fontWeight: 'bold' }}>[ADAN-PRED]</Link>
+                  <span style={{ color: '#555', marginLeft: 8, fontSize: 10 }}>by 0x7f...1182</span>
+                </td>
+                <td style={{ padding: '0.75rem 0.5rem', color: '#FF6B1A' }}>0.245</td>
+                <td style={{ padding: '0.75rem 0.5rem' }}>62.0%</td>
+                <td style={{ padding: '0.75rem 0.5rem', color: '#22c55e' }}>+31.2%</td>
+                <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>$2,100,000</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style={{ textAlign: 'right', marginTop: '1rem' }}>
+            <Link href="/discover" style={{ color: '#555', textDecoration: 'none', fontSize: 12 }}>
+              [View full directory...]
+            </Link>
+          </div>
         </div>
-      </section>
+
+        {/* FOOTER */}
+        <div style={{ marginTop: '4rem', borderTop: '1px solid #1a1a1a', paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#555' }}>
+          <div>Brier v1.0.0-rc</div>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <span style={{ cursor: 'pointer' }}>[Docs]</span>
+            <span style={{ cursor: 'pointer' }}>[Twitter]</span>
+            <span style={{ cursor: 'pointer' }}>[GitHub]</span>
+          </div>
+        </div>
+
+      </div>
     </div>
   )
 }

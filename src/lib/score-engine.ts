@@ -1,83 +1,67 @@
-import { prisma } from './prisma'
-import { computeMeanBrierScore } from './brier'
-import { computeMood } from './mood-engine'
+/**
+ * The Brier Score Engine calculates the accuracy of a bot's predictions over its 30-day paper/live phase.
+ * Formula: Brier Score = (1/N) * SUM( (forecast - outcome)^2 )
+ * 
+ * Score meaning:
+ * 0.0 = Perfect Accuracy
+ * 0.25 = Complete Guesswork (Random)
+ * 1.0 = Perfectly Wrong
+ */
 
-export async function recomputeBotScore(botId: string) {
-  const resolved = await prisma.tradeEvent.findMany({
-    where: { botId, outcome: { in: ['WIN', 'LOSS'] } },
-  })
+export type PredictionLog = {
+  marketId: string;
+  forecastProbability: number; // e.g., 0.65 (65%)
+  actualOutcome: 1 | 0;        // 1 if happened, 0 if didn't
+}
 
-  const total = await prisma.tradeEvent.count({ where: { botId } })
-  const wins = resolved.filter(t => t.outcome === 'WIN').length
-  const losses = resolved.filter(t => t.outcome === 'LOSS').length
+export function calculateBrierScore(predictions: PredictionLog[]): number {
+  if (predictions.length === 0) return 0.25; // Default to neutral if no data
 
-  const contribs = resolved
-    .filter(t => t.brierContrib !== null)
-    .map(t => Number(t.brierContrib))
+  let sumSquaredErrors = 0;
 
-  const brierScore = computeMeanBrierScore(contribs)
-  const winRate = resolved.length > 0 ? wins / resolved.length : 0
+  for (const pred of predictions) {
+    const error = pred.forecastProbability - pred.actualOutcome;
+    sumSquaredErrors += (error * error);
+  }
 
-  const pnlUsd = resolved.reduce((acc, t) => {
-    const price = Number(t.entryPrice)
-    return t.outcome === 'WIN'
-      ? acc + Number(t.amount) * (1 / price - 1)
-      : acc - Number(t.amount)
-  }, 0)
+  const brierScore = sumSquaredErrors / predictions.length;
+  
+  return brierScore;
+}
 
-  // Snapshot daily PnL for charts
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+/**
+ * Calculates the current 30-day ROI for a given set of trades.
+ * This is used to display the "Sim Return" during the paper phase.
+ */
+export function calculateROI(startingCapital: number, endingCapital: number): number {
+  if (startingCapital === 0) return 0;
+  return ((endingCapital - startingCapital) / startingCapital) * 100;
+}
 
-  const previous = await prisma.pnlSnapshot.findFirst({
-    where: { botId },
-    orderBy: { date: 'desc' },
-  })
+/**
+ * Validates whether a bot has successfully passed the 30-day calibration phase.
+ * Requirements:
+ * 1. Must have traded for at least 15 active days.
+ * 2. Must have a minimum of 20 resolved predictions.
+ * 3. Brier Score must be strictly < 0.20 (Proof of Edge).
+ */
+export function validateVaultEligibility(
+  daysActive: number, 
+  totalPredictions: number, 
+  brierScore: number
+): { eligible: boolean; reason: string } {
+  
+  if (daysActive < 15) {
+    return { eligible: false, reason: 'Insufficient calibration time. Minimum 15 days required.' };
+  }
+  
+  if (totalPredictions < 20) {
+    return { eligible: false, reason: 'Insufficient volume. Minimum 20 resolved predictions required.' };
+  }
 
-  await prisma.pnlSnapshot.upsert({
-    where: { botId_date: { botId, date: today } },
-    update: { pnlUsd, cumulativePnl: (Number(previous?.cumulativePnl) || 0) + pnlUsd },
-    create: {
-      botId,
-      date: today,
-      pnlUsd,
-      cumulativePnl: (Number(previous?.cumulativePnl) || 0) + pnlUsd,
-      tradesCount: resolved.length,
-    },
-  })
+  if (brierScore >= 0.20) {
+    return { eligible: false, reason: `Brier Score too high (${brierScore.toFixed(3)}). Must be under 0.20 to prove mathematical edge.` };
+  }
 
-  // Compute mood from recent PnL history
-  const recentSnapshots = await prisma.pnlSnapshot.findMany({
-    where: { botId },
-    orderBy: { date: 'desc' },
-    take: 7,
-    select: { pnlUsd: true },
-  })
-  const recentPnl = recentSnapshots.map(s => Number(s.pnlUsd)).reverse()
-
-  const currentDrawdown = pnlUsd < 0 ? Math.abs(pnlUsd) / Math.max(pnlUsd + Math.abs(pnlUsd), 1) : 0
-  const mood = computeMood(recentPnl, winRate, brierScore, currentDrawdown)
-
-  // Update bot score (append-only ledger)
-  await prisma.botScore.updateMany({
-    where: { botId, isLatest: true },
-    data: { isLatest: false },
-  })
-
-  await prisma.botScore.create({
-    data: { 
-      botId, 
-      brierScore, 
-      winRate, 
-      totalTrades: total, 
-      totalVolume: resolved.reduce((acc, t) => acc + Number(t.amount), 0),
-      isLatest: true 
-    }
-  })
-
-  // Update bot mood in main table
-  await prisma.bot.update({
-    where: { id: botId },
-    data: { mood },
-  })
+  return { eligible: true, reason: 'Vault Unlocked. Mathematical edge proven.' };
 }

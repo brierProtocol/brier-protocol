@@ -1,297 +1,127 @@
-'use client';
+'use client'
 
-import { useState, useMemo, useEffect } from 'react';
-import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { BotCharacter } from '@/components/BotCharacter';
-import { useBots } from '@/hooks/useBots';
-import toast from 'react-hot-toast';
-
-type TimeRange = 'all' | 'month' | 'week';
-
-import { LeaderboardRowSkeleton } from '@/components/LeaderboardRowSkeleton';
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
 
 export default function LeaderboardPage() {
-  const [search, setSearch] = useState('');
-  const [timeRange, setTimeRange] = useState<TimeRange>('all');
-  const { 
-    data, 
-    isLoading, 
-    isError,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage
-  } = useBots('brier', 'all');
-  
-  const allBots = useMemo(() => data?.pages.flatMap(page => page.data) || [], [data]);
+  const [filter, setFilter] = useState<'all'|'polymarket'|'kalshi'>('all')
+  const [botsData, setBotsData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const filteredBots = useMemo(() => {
-    let result = [...allBots];
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (b) =>
-          b.name.toLowerCase().includes(q) ||
-          b.builder.toLowerCase().includes(q) ||
-          b.markets.some((m: string) => m.toLowerCase().includes(q))
-      );
-    }
-    return result;
-  }, [allBots, search]);
+  useEffect(() => {
+    fetch('/api/bots')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setBotsData(data)
+        setLoading(false)
+      })
+      .catch(err => {
+        console.error(err)
+        setLoading(false)
+      })
+  }, [])
 
-  if (isError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050505] p-6 text-center">
-        <div className="bg-white/5 backdrop-blur-3xl p-12 rounded-[40px] border border-white/10 shadow-2xl">
-          <div className="flex justify-center mb-6">
-            <div className="w-24 h-24 bg-[#FF3D00] rounded-full flex items-center justify-center text-4xl shadow-[0_0_40px_rgba(255,61,0,0.4)]">😢</div>
-          </div>
-          <h2 className="font-[var(--font-display)] text-[28px] font-black uppercase text-white mb-2">Ranking Feed Offline</h2>
-          <p className="font-[var(--font-dm-mono)] text-white/40">The scoring system is undergoing institutional maintenance.</p>
-        </div>
-      </div>
-    );
-  }
-
-  const top3 = filteredBots.slice(0, 3);
-  const rest = filteredBots.slice(3);
-
-  const handleDeposit = () => {
-    toast('Coming Soon — Deposits are not yet available.', { icon: '💰' });
-  };
+  // In the MVP, all bots are conceptually 'crypto/poly' or mock. 
+  // We just filter based on name or simulate it for now.
+  const rankedBots = botsData
+    .sort((a, b) => {
+      const brierA = a.scores?.[0]?.brierScore || a.brierScore || 0
+      const brierB = b.scores?.[0]?.brierScore || b.brierScore || 0
+      return brierA - brierB
+    })
 
   return (
-    <div className="min-h-screen px-4 py-20 bg-[#050505] relative overflow-hidden">
-      {/* Ambient Glows */}
-      <div className="absolute top-0 left-0 w-full h-[600px] bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
-      <div className="absolute top-1/4 -left-1/4 w-[600px] h-[600px] bg-white/5 rounded-full blur-[120px] pointer-events-none" />
+    <div style={{ minHeight: '100vh', background: '#050505', fontFamily: 'var(--font-mono), monospace', color: '#c5c8c6', padding: '2rem 1rem' }}>
       
-      <div className="mx-auto max-w-7xl relative z-10">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-16 text-center"
-        >
-          <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full bg-white/5 border border-white/10 mb-8 backdrop-blur-xl">
-            <span className="h-2 w-2 rounded-full bg-[#C8FF00] animate-pulse" />
-            <span className="text-white/40 text-[10px] font-bold uppercase tracking-[0.3em]">Live Intelligence Ranking</span>
-          </div>
-          <h1 className="font-[var(--font-display)] text-[64px] sm:text-[96px] font-black uppercase tracking-tighter text-white mb-6 leading-none drop-shadow-2xl">
-            Protocol <span className="text-[#C8FF00]">Elite</span>
-          </h1>
-          
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mt-12">
-            <div className="inline-flex gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10 backdrop-blur-xl">
-              {([
-                ['all', 'All Time'],
-                ['month', '30D Alpha'],
-                ['week', '7D Momentum'],
-              ] as [TimeRange, string][]).map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setTimeRange(key)}
-                  className={`rounded-xl px-8 py-3 text-[10px] font-bold uppercase tracking-widest transition-all ${
-                    timeRange === key
-                      ? 'bg-white text-[#050505] shadow-2xl'
-                      : 'text-white/40 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+      {/* HEADER */}
+      <div style={{ maxWidth: 1000, margin: '0 auto', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1a1a1a', paddingBottom: '0.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '1rem', fontSize: 16, fontWeight: 'bold' }}>
+          <span style={{ color: '#C9A84C' }}>/rankings/ - Global Brier Score Leaderboard</span>
+        </div>
+        <div style={{ display: 'flex', gap: '1rem', fontSize: 12 }}>
+          <Link href="/discover" style={{ color: '#2563EB', textDecoration: 'none' }}>[Catalog]</Link>
+          <Link href="/dashboard" style={{ color: '#2563EB', textDecoration: 'none' }}>[Dashboard]</Link>
+        </div>
+      </div>
 
-            <div className="relative w-full max-w-sm group">
-              <div className="absolute inset-0 bg-[#C8FF00]/20 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
-              <input
-                type="text"
-                placeholder="Scan network for bot IDs..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="relative w-full rounded-2xl border border-white/10 bg-white/5 px-8 py-4 font-[var(--font-dm-mono)] text-sm text-white backdrop-blur-xl placeholder:text-white/20 focus:ring-2 focus:ring-white/20 outline-none transition-all"
-              />
-            </div>
-          </div>
-        </motion.div>
-
-        {/* ═══ PODIUM ═══ */}
-        {isLoading ? (
-          <div className="mb-24 grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-5xl mx-auto items-end pt-32">
-             <div className="h-56 bg-white/5 rounded-[40px] animate-pulse border border-white/5" />
-             <div className="h-72 bg-white/5 rounded-[40px] animate-pulse border border-white/10 shadow-[0_0_40px_rgba(200,255,0,0.1)]" />
-             <div className="h-48 bg-white/5 rounded-[40px] animate-pulse border border-white/5" />
-          </div>
-        ) : top3.length > 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="mb-24 grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-5xl mx-auto items-end pt-32 px-4"
-          >
-            {/* 2nd place */}
-            {top3[1] && (
-              <Link href={`/vault/${top3[1].id}`} className="block sm:order-1 transition-all hover:scale-[1.02] group">
-                <div className="relative rounded-[40px] bg-white/5 backdrop-blur-3xl border border-white/10 p-8 pt-20 flex flex-col items-center text-center shadow-2xl group-hover:bg-white/10 group-hover:border-white/20">
-                  <span className="absolute -top-[100px] left-1/2 -translate-x-1/2 font-[var(--font-display)] text-[160px] font-black leading-none text-white/5 select-none">
-                    02
-                  </span>
-                  <BotCharacter mood={top3[1].mood as any} accentColor={top3[1].color} size={80} animate />
-                  <p className="font-[var(--font-display)] text-[28px] font-black uppercase text-white mt-8 tracking-tighter leading-none">{top3[1].name}</p>
-                  <div className="mt-8 grid grid-cols-1 w-full gap-2">
-                    <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-                      <p className="font-[var(--font-dm-mono)] text-2xl font-bold text-white">{top3[1].brierScore.toFixed(3)}</p>
-                      <p className="text-[9px] text-white/20 uppercase tracking-[0.2em] font-bold mt-1">Brier Index</p>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            )}
-
-            {/* 1st place */}
-            {top3[0] && (
-              <Link href={`/vault/${top3[0].id}`} className="block sm:order-2 transition-all hover:scale-[1.02] z-10 group">
-                <div 
-                  className="relative rounded-[48px] bg-white/10 backdrop-blur-3xl border p-10 pt-24 flex flex-col items-center text-center group-hover:bg-white/15"
-                  style={{
-                    borderColor: `${top3[0].color}44`,
-                    boxShadow: `0 0 80px ${top3[0].color}15`,
-                  }}
-                >
-                  <span className="absolute -top-[120px] left-1/2 -translate-x-1/2 font-[var(--font-display)] text-[200px] font-black leading-none text-white/5 select-none">
-                    01
-                  </span>
-                  <div className="absolute top-8 right-10">
-                    <div className="h-3 w-3 rounded-full animate-ping" style={{ background: top3[0].color }} />
-                  </div>
-                  <BotCharacter mood={top3[0].mood as any} accentColor={top3[0].color} size={140} animate className="scale-125 mb-8" />
-                  <p className="font-[var(--font-display)] text-[42px] font-black uppercase text-white mt-4 leading-[0.9] tracking-tighter">{top3[0].name}</p>
-                  <div className="mt-10 w-full bg-[#C8FF00]/5 rounded-[32px] p-6 border border-[#C8FF00]/10 grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="font-[var(--font-dm-mono)] text-3xl font-bold text-white leading-none">{top3[0].brierScore.toFixed(3)}</p>
-                      <p className="text-[9px] text-white/30 uppercase tracking-[0.2em] font-bold mt-2">Brier</p>
-                    </div>
-                    <div>
-                      <p className="font-[var(--font-dm-mono)] text-3xl font-bold text-[#C8FF00] leading-none">{(top3[0].winRate * 100).toFixed(0)}%</p>
-                      <p className="text-[9px] text-white/30 uppercase tracking-[0.2em] font-bold mt-2">Win Rate</p>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            )}
-
-            {/* 3rd place */}
-            {top3[2] && (
-              <Link href={`/vault/${top3[2].id}`} className="block sm:order-3 transition-all hover:scale-[1.02] group">
-                <div className="relative rounded-[40px] bg-white/5 backdrop-blur-3xl border border-white/10 p-8 pt-16 flex flex-col items-center text-center shadow-2xl group-hover:bg-white/10 group-hover:border-white/20">
-                  <span className="absolute -top-[90px] left-1/2 -translate-x-1/2 font-[var(--font-display)] text-[140px] font-black leading-none text-white/5 select-none">
-                    03
-                  </span>
-                  <BotCharacter mood={top3[2].mood as any} accentColor={top3[2].color} size={80} animate />
-                  <p className="font-[var(--font-display)] text-[24px] font-black uppercase text-white mt-8 tracking-tighter leading-none">{top3[2].name}</p>
-                  <div className="mt-8 grid grid-cols-1 w-full gap-2">
-                    <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-                      <p className="font-[var(--font-dm-mono)] text-2xl font-bold text-white">{top3[2].brierScore.toFixed(3)}</p>
-                      <p className="text-[9px] text-white/20 uppercase tracking-[0.2em] font-bold mt-1">Brier Index</p>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            )}
-          </motion.div>
-        ) : null}
-
-        {/* ═══ TABLE AS CARDS ═══ */}
-        <div className="flex flex-col gap-4 max-w-6xl mx-auto">
-          {isLoading ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-24 bg-white/5 rounded-[24px] animate-pulse" />
-            ))
-          ) : filteredBots.length > 3 ? (
-            filteredBots.slice(3).map((bot, i) => {
-              const rank = i + 4;
-              const wrColor = bot.winRate > 0.55 ? 'text-[#C8FF00]' : bot.winRate < 0.45 ? 'text-[#FF3D00]' : 'text-white';
-
-              return (
-                <motion.div
-                  key={bot.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.05 }}
-                  className="bg-white/5 backdrop-blur-3xl rounded-[28px] p-6 flex flex-col md:flex-row items-center gap-8 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all group"
-                >
-                  {/* Rank & Identity */}
-                  <div className="flex items-center gap-8 flex-1 w-full">
-                    <div className="font-[var(--font-dm-mono)] text-[28px] font-bold text-white/10 min-w-[60px] text-center group-hover:text-[#C8FF00]/20 transition-colors">
-                      #{rank.toString().padStart(2, '0')}
-                    </div>
-                    <div className="flex items-center gap-6 flex-1">
-                      <div className="w-14 h-14 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 border border-white/10 group-hover:border-[#C8FF00]/30 transition-colors" style={{ background: bot.color + '20' }}>
-                        <BotCharacter mood={bot.mood as any} accentColor={bot.color} size={40} animate={false} className="scale-90" />
-                      </div>
-                      <div>
-                        <Link href={`/vault/${bot.id}`}>
-                          <h3 className="font-[var(--font-display)] text-[22px] font-black uppercase text-white hover:text-[#C8FF00] transition-colors tracking-tight">
-                            {bot.name}
-                          </h3>
-                        </Link>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="h-1.5 w-1.5 rounded-full bg-white/20 group-hover:bg-[#C8FF00] transition-colors" />
-                          <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Protocol Verified ID</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Desktop Stats Grid */}
-                  <div className="grid grid-cols-3 gap-12 flex-1 w-full md:w-auto mt-4 md:mt-0">
-                    <div>
-                      <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-white/20 mb-2">Brier</p>
-                      <p className="font-[var(--font-dm-mono)] text-xl font-bold text-white leading-none">{bot.brierScore.toFixed(3)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-white/20 mb-2">Win Rate</p>
-                      <p className={`font-[var(--font-dm-mono)] text-xl font-bold ${wrColor} leading-none`}>{(bot.winRate * 100).toFixed(1)}%</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-white/20 mb-2">TVL</p>
-                      <p className="font-[var(--font-dm-mono)] text-xl font-bold text-white leading-none">${(bot.tvl / 1000).toFixed(0)}K</p>
-                    </div>
-                  </div>
-
-                  {/* Vault Link */}
-                  <div className="w-full md:w-auto mt-4 md:mt-0">
-                    <Link
-                      href={`/vault/${bot.id}`}
-                      className="inline-flex items-center justify-center w-full md:w-auto rounded-full bg-white text-[#050505] px-10 py-4 font-[var(--font-dm-mono)] text-[11px] font-black uppercase tracking-widest transition-all hover:bg-[#C8FF00] hover:scale-105 active:scale-95 shadow-2xl"
-                    >
-                      Open Vault
-                    </Link>
-                  </div>
-                </motion.div>
-              );
-            })
+      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+        
+        <div style={{ background: '#0a0a0a', border: '1px solid #1a1a1a', padding: '1rem', overflowX: 'auto' }}>
+          {loading ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#555' }}>&gt; Syncing Live Blockchain Data...</div>
           ) : (
-            <div className="py-32 text-center border-2 border-dashed border-white/5 rounded-[40px]">
-              <p className="text-white/20 font-mono text-sm tracking-[0.3em] uppercase">No matching entities found in network scan.</p>
-            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #333', color: '#2563EB' }}>
+                  <th style={{ padding: '0.5rem', fontWeight: 'bold', width: 50 }}>RNK</th>
+                  <th style={{ padding: '0.5rem', fontWeight: 'bold' }}>BOT_ID / BUILDER</th>
+                  <th style={{ padding: '0.5rem', fontWeight: 'bold' }}>BRIER_SCORE</th>
+                  <th style={{ padding: '0.5rem', fontWeight: 'bold' }}>WIN_RATE</th>
+                  <th style={{ padding: '0.5rem', fontWeight: 'bold' }}>YIELD</th>
+                  <th style={{ padding: '0.5rem', fontWeight: 'bold', textAlign: 'right' }}>TVL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rankedBots.map((bot, i) => {
+                  const brier = bot.scores?.[0]?.brierScore ?? bot.brierScore ?? 0
+                  const wr = bot.scores?.[0]?.winRate ?? bot.winRate ?? 0
+                  const yld = bot.monthlyYield ?? 0
+                  const tvl = bot.currentTVL ?? bot.tvl ?? 0
+                  const builderId = bot.walletAddress || bot.builder || 'anon'
+                  const slug = bot.slug || bot.id
+
+                  return (
+                    <tr 
+                      key={bot.id} 
+                      style={{ 
+                        borderBottom: '1px solid #1a1a1a', 
+                        background: i === 0 ? 'rgba(201,168,76,0.05)' : i < 3 ? 'rgba(37,99,235,0.03)' : 'transparent',
+                        transition: 'background 0.2s'
+                      }}
+                    >
+                      <td style={{ padding: '0.75rem 0.5rem', color: i === 0 ? '#C9A84C' : i < 3 ? '#2563EB' : '#555', fontWeight: 'bold' }}>
+                        #{i + 1}
+                      </td>
+                      <td style={{ padding: '0.75rem 0.5rem' }}>
+                        <Link href={`/bot/${slug}`} style={{ color: '#efefef', textDecoration: 'none', fontWeight: 'bold', display: 'inline-block', fontFamily: 'var(--font-body), sans-serif', fontSize: 14 }}>
+                          <span style={{ cursor: 'pointer' }} onMouseOver={e => e.currentTarget.style.color = '#2563EB'} onMouseOut={e => e.currentTarget.style.color = '#efefef'}>
+                            {bot.name}
+                          </span>
+                        </Link>
+                        <div style={{ fontSize: 10, color: '#555', marginTop: 2, fontFamily: 'var(--font-mono), monospace' }}>
+                          ID: <Link href={`/maker/${builderId}`} style={{ color: 'inherit', textDecoration: 'underline', cursor: 'pointer' }} onMouseOver={e => e.currentTarget.style.color = '#117743'} onMouseOut={e => e.currentTarget.style.color = '#555'}>
+                            {builderId}
+                          </Link>
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.75rem 0.5rem', color: brier < 0.2 ? '#22c55e' : brier < 0.25 ? '#2563EB' : '#FF6B1A', fontWeight: 'bold', fontFamily: 'var(--font-mono), monospace' }}>
+                        {brier.toFixed(3)}
+                      </td>
+                      <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'var(--font-mono), monospace' }}>
+                        {(wr * 100).toFixed(1)}%
+                      </td>
+                      <td style={{ padding: '0.75rem 0.5rem', color: '#22c55e', fontFamily: 'var(--font-mono), monospace' }}>
+                        +{yld}%
+                      </td>
+                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', color: '#888', fontFamily: 'var(--font-mono), monospace' }}>
+                        ${tvl.toLocaleString()}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           )}
         </div>
+        
+        {/* EXPLANATION TERMINAL */}
+        <div style={{ marginTop: '1.5rem', padding: '1rem', border: '1px dashed #333', fontSize: 12, color: '#777', background: '#080808', fontFamily: 'var(--font-body), sans-serif', lineHeight: 1.6 }}>
+          <span style={{ fontFamily: 'var(--font-mono), monospace', color: '#555' }}>&gt; RANKING_ALGORITHM:</span> Leaderboard is strictly sorted by Brier Score (lower is better).<br/>
+          <span style={{ fontFamily: 'var(--font-mono), monospace', color: '#555' }}>&gt; PROOF_OF_WORK:</span> All scores are mathematically derived from verified on-chain Polygon transactions.<br/>
+          <span style={{ fontFamily: 'var(--font-mono), monospace', color: '#555' }}>&gt; FRAUD_PROTECTION:</span> BrierVault mathematically enforces that bots cannot alter historic resolution states.
+        </div>
 
-        {/* Load More */}
-        {hasNextPage && (
-          <div className="mt-20 text-center">
-            <button
-              onClick={() => fetchNextPage()}
-              disabled={isFetchingNextPage}
-              className="rounded-full border border-white/10 bg-white/5 backdrop-blur-xl px-12 py-5 font-[var(--font-dm-mono)] text-sm font-black uppercase tracking-[0.3em] text-white transition-all hover:bg-white hover:text-[#050505] disabled:opacity-50"
-            >
-              {isFetchingNextPage ? 'Decoding...' : 'Load More Entities'}
-            </button>
-          </div>
-        )}
       </div>
     </div>
-  );
+  )
 }

@@ -13,7 +13,8 @@ export interface Bot {
   name: string;
   tagline: string;
   color: string;
-  mood: 'happy' | 'neutral' | 'nervous' | 'sad' | 'cool' | 'sleeping' | 'surprised';
+  mood: 'happy' | 'neutral' | 'nervous' | 'sad' | 'cool' | 'sleeping' | 'surprised' | 'excited' | 'anxious';
+  builder: string;
   publishedDays?: number;
   status: string;
   tier: string;
@@ -26,6 +27,7 @@ export interface Bot {
   bestStreak?: number;
   sharpe?: number;
   maxDrawdown: number;
+  monthlyYield: number;
   tvl: number;
   vaultCap: number;
   depositors?: number;
@@ -60,6 +62,7 @@ export const bots: Bot[] = [
     tagline: 'Not just a bot. An entity with skin in the game.',
     color: '#FF6B35',
     mood: 'happy',
+    builder: 'dev_miko.eth',
     publishedDays: 47,
     status: 'live',
     tier: 'TIER1',
@@ -72,6 +75,7 @@ export const bots: Bot[] = [
     bestStreak: 11,
     sharpe: 2.41,
     maxDrawdown: -0.042,
+    monthlyYield: 8.7,
     tvl: 284500,
     vaultCap: 500000,
     depositors: 12,
@@ -89,6 +93,7 @@ export const bots: Bot[] = [
     tagline: 'Speed is truth. Latency is the enemy of alpha.',
     color: '#7B2FFF',
     mood: 'cool',
+    builder: 'quant_dao.eth',
     publishedDays: 83,
     status: 'live',
     tier: 'TIER1',
@@ -101,6 +106,7 @@ export const bots: Bot[] = [
     bestStreak: 14,
     sharpe: 2.87,
     maxDrawdown: -0.038,
+    monthlyYield: 7.4,
     tvl: 512000,
     vaultCap: 1000000,
     depositors: 28,
@@ -117,6 +123,7 @@ export const bots: Bot[] = [
     tagline: 'Mapping the topology of probability space.',
     color: '#00C2FF',
     mood: 'neutral',
+    builder: 'predmachine.eth',
     publishedDays: 61,
     status: 'live',
     tier: 'TIER1',
@@ -129,6 +136,7 @@ export const bots: Bot[] = [
     bestStreak: 8,
     sharpe: 1.94,
     maxDrawdown: -0.061,
+    monthlyYield: 6.8,
     tvl: 198000,
     vaultCap: 250000,
     depositors: 15,
@@ -145,6 +153,7 @@ export const bots: Bot[] = [
     tagline: 'The neural fabric of market intelligence.',
     color: '#FFD600',
     mood: 'happy',
+    builder: 'statgod.eth',
     publishedDays: 34,
     status: 'live',
     tier: 'NONE',
@@ -157,6 +166,7 @@ export const bots: Bot[] = [
     bestStreak: 9,
     sharpe: 2.15,
     maxDrawdown: -0.052,
+    monthlyYield: 6.1,
     tvl: 342000,
     vaultCap: 750000,
     depositors: 19,
@@ -173,6 +183,7 @@ export const bots: Bot[] = [
     tagline: 'Invisible edge. Visible returns.',
     color: '#FF1493',
     mood: 'cool',
+    builder: 'edgefindr.eth',
     publishedDays: 92,
     status: 'live',
     tier: 'NONE',
@@ -185,6 +196,7 @@ export const bots: Bot[] = [
     bestStreak: 12,
     sharpe: 2.53,
     maxDrawdown: -0.045,
+    monthlyYield: 5.9,
     tvl: 423000,
     vaultCap: 800000,
     depositors: 22,
@@ -201,6 +213,7 @@ export const bots: Bot[] = [
     tagline: 'Seven layers of foresight.',
     color: '#00FF88',
     mood: 'nervous',
+    builder: 'priormax.eth',
     publishedDays: 28,
     status: 'live',
     tier: 'NONE',
@@ -213,6 +226,7 @@ export const bots: Bot[] = [
     bestStreak: 5,
     sharpe: 0.89,
     maxDrawdown: -0.12,
+    monthlyYield: 3.3,
     tvl: 67000,
     vaultCap: 150000,
     depositors: 6,
@@ -229,6 +243,7 @@ export const bots: Bot[] = [
     tagline: 'Strike fast. Strike once. Strike right.',
     color: '#FF4444',
     mood: 'neutral',
+    builder: 'anon_pred.eth',
     publishedDays: 55,
     status: 'live',
     tier: 'NONE',
@@ -241,6 +256,7 @@ export const bots: Bot[] = [
     bestStreak: 7,
     sharpe: 1.67,
     maxDrawdown: -0.08,
+    monthlyYield: 5.2,
     tvl: 145000,
     vaultCap: 300000,
     depositors: 10,
@@ -257,6 +273,7 @@ export const bots: Bot[] = [
     tagline: 'At the summit, clarity replaces noise.',
     color: '#E040FB',
     mood: 'sad',
+    builder: 'truthnode.eth',
     publishedDays: 15,
     status: 'live',
     tier: 'NONE',
@@ -269,6 +286,7 @@ export const bots: Bot[] = [
     bestStreak: 3,
     sharpe: -0.34,
     maxDrawdown: -0.15,
+    monthlyYield: 3.0,
     tvl: 23000,
     vaultCap: 50000,
     depositors: 3,
@@ -285,6 +303,7 @@ export const bots: Bot[] = [
     tagline: 'Follow the flow. Trust the signal.',
     color: '#00BCD4',
     mood: 'happy',
+    builder: 'mktmaker.eth',
     publishedDays: 71,
     status: 'live',
     tier: 'NONE',
@@ -297,6 +316,7 @@ export const bots: Bot[] = [
     bestStreak: 10,
     sharpe: 2.22,
     maxDrawdown: -0.05,
+    monthlyYield: 5.6,
     tvl: 267000,
     vaultCap: 500000,
     depositors: 16,
@@ -313,6 +333,7 @@ export const bots: Bot[] = [
     tagline: 'Built to endure. Engineered to compound.',
     color: '#FF8F00',
     mood: 'neutral',
+    builder: 'forecaster9.eth',
     publishedDays: 104,
     status: 'live',
     tier: 'NONE',
@@ -325,6 +346,7 @@ export const bots: Bot[] = [
     bestStreak: 9,
     sharpe: 1.88,
     maxDrawdown: -0.07,
+    monthlyYield: 4.2,
     tvl: 389000,
     vaultCap: 600000,
     depositors: 24,
@@ -341,6 +363,7 @@ export const bots: Bot[] = [
     tagline: 'Every heartbeat of the market, quantified.',
     color: '#76FF03',
     mood: 'surprised',
+    builder: 'alphabot.eth',
     publishedDays: 8,
     status: 'live',
     tier: 'NONE',
@@ -353,6 +376,7 @@ export const bots: Bot[] = [
     bestStreak: 6,
     sharpe: 3.41,
     maxDrawdown: -0.02,
+    monthlyYield: 8.9,
     tvl: 45000,
     vaultCap: 100000,
     depositors: 4,
@@ -369,6 +393,7 @@ export const bots: Bot[] = [
     tagline: 'In the shadows, we find edge.',
     color: '#607D8B',
     mood: 'sleeping',
+    builder: 'manifoldtrdr.eth',
     publishedDays: 120,
     status: 'paused',
     tier: 'NONE',
@@ -381,6 +406,7 @@ export const bots: Bot[] = [
     bestStreak: 8,
     sharpe: 1.42,
     maxDrawdown: -0.10,
+    monthlyYield: 3.6,
     tvl: 89000,
     vaultCap: 200000,
     depositors: 8,

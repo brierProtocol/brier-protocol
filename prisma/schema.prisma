@@ -51,6 +51,7 @@ model Bot {
   pnlSnapshots    PnlSnapshot[]
   polyConnection  PolyConnection?
   kalshiConnection KalshiConnection?
+  comments        Comment[]
 }
 
 model BotMarket {
@@ -225,4 +226,46 @@ model PnlSnapshot {
   tradesCount     Int
 
   @@unique([botId, date])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  botId     String
+  bot       Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+  wallet    String
+  text      String
+  likes     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model User {
+  walletAddress String   @id
+  bio           String?
+  pfpUrl        String?
+  
+  followers     Follow[] @relation("Followers")
+  following     Follow[] @relation("Following")
+}
+
+model Follow {
+  id          String @id @default(cuid())
+  followerId  String
+  followingId String
+  
+  follower    User @relation("Following", fields: [followerId], references: [walletAddress])
+  following   User @relation("Followers", fields: [followingId], references: [walletAddress])
+  
+  createdAt   DateTime @default(now())
+  
+  @@unique([followerId, followingId])
+}
+
+model Heart {
+  id        String @id @default(cuid())
+  userId    String
+  makerId   String 
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, makerId])
 }

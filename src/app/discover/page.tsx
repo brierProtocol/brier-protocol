@@ -1,191 +1,134 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { motion } from 'framer-motion'
-import { BotCard } from '@/components/BotCard'
-import { useBots } from '@/hooks/useBots'
-import { BotCardSkeleton } from '@/components/BotCardSkeleton'
-
-type SortKey = 'brier' | 'wr' | 'tvl' | 'newest'
-type FilterKey = 'all' | 'hot' | 'new' | 'top'
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { bots } from '@/data/bots'
+import BotCharacter from '@/components/BotCharacter'
 
 export default function DiscoverPage() {
-  const [sort, setSort] = useState<SortKey>('brier')
-  const [filter, setFilter] = useState<FilterKey>('all')
+  const [activeSort, setActiveSort] = useState<'brier' | 'yield' | 'tvl' | 'new'>('brier')
+  const [search, setSearch] = useState('')
 
-  const { 
-    data, 
-    isLoading, 
-    isError, 
-    fetchNextPage, 
-    hasNextPage, 
-    isFetchingNextPage 
-  } = useBots(sort, filter)
+  const [botsData, setBotsData] = useState<any[]>([])
 
-  const allBots = useMemo(() => data?.pages.flatMap(page => page.data) || [], [data])
+  useEffect(() => {
+    fetch('/api/bots')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setBotsData(data)
+      })
+      .catch(console.error)
+  }, [])
 
-  if (isError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050505] p-6 text-center">
-        <div className="bg-white/5 backdrop-blur-3xl p-12 rounded-[40px] border border-white/10">
-          <h2 className="font-[var(--font-display)] text-3xl font-black text-white mb-2 uppercase">ORACLE OFFLINE</h2>
-          <p className="font-mono text-white/40">Feed connection severed. Re-establishing link...</p>
-        </div>
-      </div>
-    )
-  }
+  const getBrier = (b: any) => b.scores?.[0]?.brierScore ?? b.brierScore ?? 0
+  const getTvl = (b: any) => b.currentTVL ?? b.tvl ?? 0
+  const getYield = (b: any) => b.monthlyYield ?? 0
+  const getCreated = (b: any) => new Date(b.createdAt || 0).getTime()
+
+  const filteredBots = (botsData.length > 0 ? botsData : bots).filter(b => {
+    if (search && !b.name.toLowerCase().includes(search.toLowerCase()) && !(b.builder || b.walletAddress || '').toLowerCase().includes(search.toLowerCase())) return false
+    return true
+  }).sort((a, b) => {
+    if (activeSort === 'brier') return getBrier(a) - getBrier(b)
+    if (activeSort === 'yield') return getYield(b) - getYield(a)
+    if (activeSort === 'tvl') return getTvl(b) - getTvl(a)
+    if (activeSort === 'new') return getCreated(b) - getCreated(a)
+    return 0
+  })
 
   return (
-    <div className="min-h-screen pb-32" style={{ background: '#050505' }}>
-      {/* ═══ HERO SECTION ═══ */}
-      <section className="relative pt-32 pb-20 px-6 text-center overflow-hidden">
-        {/* Decorative background glows */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
-        <div className="absolute top-1/4 -right-1/4 w-[600px] h-[600px] bg-white/5 rounded-full blur-[120px] pointer-events-none" />
-
-        <div className="relative z-10">
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-7xl md:text-9xl font-black mb-6 leading-[0.85] tracking-tighter"
-            style={{
-              fontFamily: 'var(--font-display)',
-              color: '#FFFFFF',
-            }}
-          >
-            THE BEST<br />
-            <span style={{ color: '#C8FF00' }}>BOTS</span> WIN.
-          </motion.h1>
-          
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-xl max-w-xl mx-auto opacity-50"
-            style={{ 
-              fontFamily: 'var(--font-body)',
-              lineHeight: 1.6
-            }}
-          >
-            Verified on-chain performance. Ranked by Brier Score. 
-            The most precise prediction agents, quantified.
-          </motion.p>
-
-          {/* Live stats bar */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="flex flex-wrap justify-center gap-12 sm:gap-20 mt-12"
-          >
-            {[
-              { label: 'ACTIVE BOTS', value: '847' },
-              { label: 'TOTAL TVL',   value: '$12.4M' },
-              { label: 'AVG BRIER',   value: '0.241' },
-            ].map(({ label, value }) => (
-              <div key={label} className="text-center">
-                <div
-                  className="text-4xl font-bold font-mono"
-                  style={{ color: '#C8FF00', fontFamily: 'var(--font-mono)' }}
-                >
-                  {value}
-                </div>
-                <div
-                  className="text-[10px] font-bold tracking-[0.4em] mt-1 opacity-30 uppercase"
-                  style={{ fontFamily: 'var(--font-body)' }}
-                >
-                  {label}
-                </div>
-              </div>
-            ))}
-          </motion.div>
+    <div style={{ minHeight: '100vh', background: '#050505', fontFamily: 'var(--font-mono), monospace', color: '#c5c8c6', padding: '2rem 1rem' }}>
+      
+      {/* HEADER BAR */}
+      <div style={{ maxWidth: 1200, margin: '0 auto', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1a1a1a', paddingBottom: '0.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '1rem', fontSize: 16, fontWeight: 'bold' }}>
+          <span style={{ color: '#2563EB' }}>/catalog/ - Active Vaults & Bots</span>
         </div>
-      </section>
-
-      {/* ═══ FILTERS & SEARCH ═══ */}
-      <section className="px-6 max-w-7xl mx-auto mb-16 relative z-10">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-4 rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-xl">
-          <div className="flex items-center gap-2 p-1 bg-black/40 rounded-2xl border border-white/5">
-            {[
-              { id: 'all', label: 'All Agents' },
-              { id: 'hot', label: 'Hot Moods' },
-              { id: 'top', label: 'Top Brier' },
-            ].map((f) => (
-              <button
-                key={f.id}
-                onClick={() => setFilter(f.id as FilterKey)}
-                className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-widest ${
-                  filter === f.id ? 'bg-[#C8FF00] text-[#050505]' : 'text-white/40 hover:text-white/80'
-                }`}
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-6">
-            <span className="text-[10px] font-bold opacity-30 tracking-widest uppercase">Sort By:</span>
-            <div className="flex items-center gap-4">
-              {[
-                { id: 'brier', label: 'Brier' },
-                { id: 'wr', label: 'Win Rate' },
-                { id: 'tvl', label: 'TVL' },
-              ].map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setSort(s.id as SortKey)}
-                  className={`text-xs font-bold uppercase tracking-widest transition-colors ${
-                    sort === s.id ? 'text-[#C8FF00]' : 'text-white/30 hover:text-white/60'
-                  }`}
-                  style={{ fontFamily: 'var(--font-mono)' }}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <input 
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search catalog..." 
+            style={{ background: '#0a0a0a', border: '1px solid #333', color: '#fff', fontFamily: 'inherit', padding: '4px 8px', outline: 'none', width: 200 }} 
+          />
+          <div style={{ fontSize: 12, color: '#555' }}>
+            [<Link href="/dashboard" style={{ color: '#2563EB', textDecoration: 'none' }}>Dashboard</Link>] 
+            [<Link href="/list-bot" style={{ color: '#2563EB', textDecoration: 'none' }}>Submit Algorithm</Link>]
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* ═══ BOT GRID ═══ */}
-      <section className="px-6 max-w-7xl mx-auto relative z-10">
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <BotCardSkeleton key={i} />
-            ))}
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {allBots.map((bot, i) => (
-                <motion.div
-                  key={bot.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                >
-                  <BotCard bot={bot} rank={i + 1} />
-                </motion.div>
-              ))}
-            </div>
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        
+        {/* FILTERS / SORT */}
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', fontSize: 12 }}>
+          <span style={{ color: '#555' }}>Sort By:</span>
+          {[
+            { id: 'brier', label: 'Brier Score' },
+            { id: 'yield', label: 'Yield' },
+            { id: 'tvl', label: 'TVL' },
+            { id: 'new', label: 'Newest' },
+          ].map(s => (
+            <span 
+              key={s.id} 
+              onClick={() => setActiveSort(s.id as any)}
+              style={{ color: activeSort === s.id ? '#2563EB' : '#c5c8c6', cursor: 'pointer', fontWeight: activeSort === s.id ? 'bold' : 'normal' }}
+            >
+              [{s.label}]
+            </span>
+          ))}
+        </div>
 
-            {hasNextPage && (
-              <div className="mt-20 flex justify-center">
-                <button
-                  onClick={() => fetchNextPage()}
-                  disabled={isFetchingNextPage}
-                  className="px-12 py-4 rounded-2xl border border-white/10 bg-white/5 font-bold text-xs uppercase tracking-[0.3em] hover:bg-white/10 hover:border-white/20 transition-all disabled:opacity-50"
-                  style={{ fontFamily: 'var(--font-display)' }}
-                >
-                  {isFetchingNextPage ? 'Loading Pipeline...' : 'Load More Agents'}
-                </button>
+        {/* CATALOG GRID */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1.5rem' }}>
+          {filteredBots.map((b, i) => {
+            const brier = getBrier(b)
+            const wr = b.scores?.[0]?.winRate ?? b.winRate ?? 0
+            const tvl = getTvl(b)
+            const yld = getYield(b)
+            return (
+            <Link href={`/bot/${b.slug || b.id}`} key={b.id} style={{ textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', transition: 'transform 0.2s' }}
+              onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+              onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+            >
+              <div style={{ width: '100%', border: '1px solid #1a1a1a', background: '#0a0a0a', display: 'flex', justifyContent: 'center', padding: '1rem 0', position: 'relative' }}>
+                <BotCharacter mood={b.mood as any} size={80} />
+                <div style={{ position: 'absolute', top: 4, right: 4, fontSize: 9, color: (b.status || '').toLowerCase() === 'live' ? '#22c55e' : '#a855f7' }}>
+                  [{(b.status || 'PAPER').toUpperCase()}]
+                </div>
               </div>
-            )}
-          </>
-        )}
-      </section>
+              <div style={{ width: '100%', fontSize: 11, marginTop: '0.5rem', lineHeight: 1.4 }}>
+                <div style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'var(--font-body), sans-serif' }}>
+                  {b.name}
+                </div>
+                <Link href={`/maker/${b.builder || b.walletAddress || 'anon'}`} style={{ color: '#117743', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', textDecoration: 'none', fontSize: 11, fontFamily: 'var(--font-mono), monospace' }}
+                  onMouseOver={e => e.currentTarget.style.textDecoration = 'underline'}
+                  onMouseOut={e => e.currentTarget.style.textDecoration = 'none'}
+                >
+                  ID: {b.builder || b.walletAddress || 'anon'}
+                </Link>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#777', marginTop: 4, fontFamily: 'var(--font-mono), monospace' }}>
+                  <span>Br: <span style={{ color: brier < 0.25 ? '#22c55e' : '#FF6B1A' }}>{brier.toFixed(3)}</span></span>
+                  <span>Wr: <span style={{ color: '#22c55e' }}>{(wr*100).toFixed(0)}%</span></span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#777', fontFamily: 'var(--font-mono), monospace' }}>
+                  <span>Yld: <span style={{ color: '#22c55e' }}>+{yld}%</span></span>
+                  <span>TVL: ${tvl >= 1000 ? (tvl/1000).toFixed(0)+'K' : tvl}</span>
+                </div>
+                <div style={{ color: '#aaa', marginTop: 8, height: 45, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', fontFamily: 'var(--font-body), sans-serif', fontSize: 12, lineHeight: 1.5 }}>
+                  {b.description || b.tagline}
+                </div>
+              </div>
+            </Link>
+            )
+          })}
+          {filteredBots.length === 0 && (
+            <div style={{ gridColumn: '1 / -1', color: '#777', padding: '2rem 0', textAlign: 'center' }}>
+              &gt; No results found.
+            </div>
+          )}
+        </div>
+
+      </div>
     </div>
   )
 }
