@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation'
 import { getBotTradeHistory } from '@/lib/polymarket-indexer'
 import BotCharacter from '@/components/BotCharacter'
 import { useAccount } from 'wagmi'
+import { ethers } from 'ethers'
 
 // ── User Identicon (5x5 Blockie) ──
 function UserIdenticon({ id, size = 32 }: { id: string, size?: number }) {
@@ -80,6 +81,7 @@ function PnlChart({ data }: { data: number[] }) {
 // ── Comment Thread ──
 interface Post {
   id: string; wallet: string; text: string; createdAt: string;
+  user?: { name: string | null; pfpUrl: string | null; }
 }
 
 export default function BotProfilePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -93,7 +95,108 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const [depositAmt, setDepositAmt] = useState('')
   const [tradeHistory, setTradeHistory] = useState<any[]>([])
   
+  const [hearts, setHearts] = useState(0)
+  const [hearted, setHearted] = useState(false)
+  
   const { address, isConnected } = useAccount()
+  const [depositing, setDepositing] = useState(false)
+  const [toast, setToast] = useState('')
+
+  const showToast = (msg: string) => {
+    setToast(msg)
+    setTimeout(() => setToast(''), 3000)
+  }
+
+  const handleWeb3Deposit = async () => {
+    const amt = parseFloat(depositAmt) || 0
+    if (amt <= 0) return alert("Please enter a valid deposit amount")
+    
+    if (typeof window === 'undefined' || !(window as any).ethereum) {
+      alert("No Web3 Wallet detected! Please install MetaMask to interact with Brier vaults.")
+      return
+    }
+
+    setDepositing(true)
+    try {
+      const provider = new ethers.BrowserProvider((window as any).ethereum)
+      const signer = await provider.getSigner()
+
+      const vAddress = bot.vaultAddress || "0x75537828f2ce51be7289709686A69CbFDbB714F1" // Seeded simulation fallback
+      
+      const vaultContract = new ethers.Contract(
+        vAddress,
+        [
+          "function asset() external view returns (address)", 
+          "function deposit(uint256 assets, address receiver) external returns (uint256)"
+        ],
+        signer
+      )
+
+      showToast("Querying vault configuration...")
+      const usdcAddress = await vaultContract.asset()
+      
+      const usdcContract = new ethers.Contract(
+        usdcAddress,
+        [
+          "function approve(address spender, uint256 amount) external returns (bool)",
+          "function decimals() external view returns (uint8)"
+        ],
+        signer
+      )
+
+      const decimals = await usdcContract.decimals().catch(() => 18)
+      const txAmount = ethers.parseUnits(depositAmt, decimals)
+
+      // Step 1: Approve
+      showToast("Step 1/2: Approving USDC spending limits...")
+      const approveTx = await usdcContract.approve(vAddress, txAmount)
+      await approveTx.wait()
+
+      // Step 2: Deposit
+      showToast("Step 2/2: Confirming Vault collateral lockup...")
+      const depositTx = await vaultContract.deposit(txAmount, address)
+      await depositTx.wait()
+
+      showToast("SUCCESS: Capital locked & mirror active!")
+
+      // Post deposit details to Prisma backend
+      await fetch('/api/deposits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          botId: bot.id,
+          depositorWallet: address,
+          amountUsdc: amt,
+          mode: "CONSERVATIVE",
+          txHash: depositTx.hash
+        })
+      })
+
+      // Reload state after 1.5 seconds
+      setTimeout(() => window.location.reload(), 1500)
+
+    } catch (err: any) {
+      console.error(err)
+      alert("Web3 Transaction Failed: " + (err.reason || err.message || err))
+    } finally {
+      setDepositing(false)
+    }
+  }
+
+  const toggleHeart = async () => {
+    if (!isConnected || !address) return alert("Please connect your wallet to like this bot.")
+    
+    const res = await fetch('/api/hearts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: address, botId: bot.id })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      setHearted(data.status === 'hearted')
+      setHearts(h => data.status === 'hearted' ? h + 1 : Math.max(0, h - 1))
+    }
+  }
 
   useEffect(() => {
     // 1. Fetch real bot data
@@ -111,8 +214,17 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
       if (res.ok) {
         const dbBot = await res.json()
         
+        // If DB bot has pnlSnapshots, map them. Else fallback to a simple TVL line.
+        // If DB bot has pnlSnapshots, map them. Else fallback to a simple TVL line.
+        let dynamicPnl = [100, 105, 110, 108, 115, 120, 125, 130];
+        if (dbBot.pnlSnapshots && dbBot.pnlSnapshots.length > 0) {
+          dynamicPnl = dbBot.pnlSnapshots.map((s: any) => s.pnlUsd);
+        } else if (dbBot.currentTVL > 0) {
+          dynamicPnl = [dbBot.currentTVL * 0.95, dbBot.currentTVL * 0.98, dbBot.currentTVL * 1.01, dbBot.currentTVL * 1.05, dbBot.currentTVL];
+        }
+
         // Map Prisma DB Bot to frontend interface
-        setBot({
+        const mappedBot = {
           id: dbBot.id,
           name: dbBot.name,
           builder: dbBot.walletAddress,
@@ -126,8 +238,15 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           maxDrawdown: dbBot.scores?.[0]?.maxDrawdown || 0,
           tvl: dbBot.currentTVL || 0,
           markets: ['crypto'],
-          pnlHistory: [100, 105, 110, 108, 115, 120, 125, 130] // Mock chart for DB bots for now
-        })
+          pnlHistory: dynamicPnl,
+          vaultAddress: dbBot.vaultAddress,
+          dbTradeEvents: dbBot.trades || []
+        }
+        
+        setBot(mappedBot)
+        setHearts(dbBot._count?.hearts || 0)
+        setLoading(false)
+        return mappedBot
       }
       setLoading(false)
       return null
@@ -137,9 +256,20 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
       if (!activeBot) return;
       
       // Fetch live trade data
-      getBotTradeHistory(activeBot.builder).then(data => {
-        setTradeHistory(data)
-      })
+      if (activeBot.dbTradeEvents && activeBot.dbTradeEvents.length > 0) {
+        const mappedTrades = activeBot.dbTradeEvents.map((t: any) => ({
+          date: new Date(t.timestamp).toLocaleDateString(),
+          market: t.marketTitle,
+          predicted: t.side || "YES",
+          probability: 0.8,
+          actualOutcome: t.outcome === "PENDING" ? null : (t.outcome === "WIN" ? 1 : 0)
+        }))
+        setTradeHistory(mappedTrades)
+      } else {
+        getBotTradeHistory(activeBot.builder).then(data => {
+          setTradeHistory(data)
+        })
+      }
       
       // Fetch real comments from DB
       fetch(`/api/comments?botId=${activeBot.id}`)
@@ -213,11 +343,34 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
 
           {/* OP Content */}
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, marginBottom: '0.5rem' }}>
-              <span style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 14 }}>{bot.name}</span>{' '}
-              <span style={{ color: '#C9A84C', fontWeight: 'bold' }}>[RANK: Bot Architect]</span>{' '}
-              <span style={{ color: '#117743' }}>(ID: <Link href={`/maker/${bot.builder}`} style={{ color: 'inherit', textDecoration: 'underline' }}>{bot.builder}</Link>)</span>{' '}
-              <span style={{ color: '#555' }}>11/19/25(Sun)08:29:35</span>{' '}
+            <div style={{ fontSize: 13, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 14 }}>{bot.name}</span>
+              
+              <button 
+                onClick={toggleHeart}
+                style={{
+                  background: hearted ? 'rgba(239,68,68,0.15)' : 'transparent', 
+                  border: `1px solid ${hearted ? '#ef4444' : '#333'}`, 
+                  color: hearted ? '#ef4444' : '#888',
+                  padding: '2px 8px', 
+                  borderRadius: '12px', 
+                  fontSize: '11px', 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.2s',
+                  fontFamily: 'inherit'
+                }}
+                onMouseOver={e => { if (!hearted) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                onMouseOut={e => { if (!hearted) e.currentTarget.style.background = 'transparent' }}
+              >
+                ♥ {hearts}
+              </button>
+
+              <span style={{ color: '#C9A84C', fontWeight: 'bold' }}>[RANK: Bot Architect]</span>
+              <span style={{ color: '#117743' }}>(ID: <Link href={`/maker/${bot.builder}`} style={{ color: 'inherit', textDecoration: 'underline' }}>{bot.builder}</Link>)</span>
+              <span style={{ color: '#555' }}>11/19/25(Sun)08:29:35</span>
               <span style={{ color: '#555' }}>No.19100939</span>
             </div>
 
@@ -300,13 +453,19 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                       style={{ flex: 1, background: '#000', border: '1px solid #333', color: '#fff', fontFamily: 'inherit', padding: '4px 8px', outline: 'none' }} 
                     />
                     <button 
-                      onClick={() => {
-                        if (amt <= 0) return;
-                        alert("Blockchain transaction initiated: Approving USDC -> Depositing to Vault...");
+                      onClick={handleWeb3Deposit}
+                      disabled={depositing}
+                      style={{ 
+                        background: depositing ? '#1e3a8a' : '#2563EB', 
+                        border: 'none', 
+                        color: depositing ? '#999' : '#000', 
+                        fontWeight: 'bold', 
+                        padding: '4px 12px', 
+                        cursor: depositing ? 'not-allowed' : 'pointer', 
+                        fontFamily: 'inherit' 
                       }}
-                      style={{ background: '#2563EB', border: 'none', color: '#000', fontWeight: 'bold', padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit' }}
                     >
-                      DEPOSIT
+                      {depositing ? 'DEPOSITING...' : 'DEPOSIT'}
                     </button>
                   </div>
                   {amt > 0 && (
@@ -327,11 +486,17 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         <div style={{ marginTop: '2rem' }}>
           {posts.map(post => (
             <div key={post.id} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', background: post.wallet === bot.builder ? 'rgba(37,99,235,0.03)' : 'transparent', padding: '0.25rem' }}>
-              <UserIdenticon id={post.wallet} size={40} />
+              {post.user?.pfpUrl ? (
+                <img src={post.user.pfpUrl} width={40} height={40} style={{ objectFit: 'cover', border: '1px solid #333' }} alt="PFP" />
+              ) : (
+                <UserIdenticon id={post.wallet} size={40} />
+              )}
               <div style={{ display: 'inline-block', background: '#0d0d0d', border: '1px solid #1a1a1a', padding: '0.5rem 0.75rem', minWidth: 300, maxWidth: 800 }}>
                 <div style={{ fontSize: 13, marginBottom: '0.25rem' }}>
-                  <span style={{ color: '#2563EB', fontWeight: 'bold' }}>[RANK: Verified User]</span>{' '}
-                  <Link href={`/maker/${post.wallet}`} style={{ color: '#117743', textDecoration: 'underline', cursor: 'pointer' }}>(ID: {post.wallet.substring(0, 8)}...)</Link>{' '}
+                  <span style={{ color: '#2563EB', fontWeight: 'bold' }}>[RANK: {post.user?.name ? 'Verified Maker' : 'Anon'}]</span>{' '}
+                  <Link href={`/maker/${post.wallet}`} style={{ color: '#117743', textDecoration: 'underline', cursor: 'pointer' }}>
+                    {post.user?.name ? post.user.name : `(ID: ${post.wallet.substring(0, 8)}...)`}
+                  </Link>{' '}
                   <span style={{ color: '#555' }}>{new Date(post.createdAt).toLocaleString()}</span>{' '}
                   <span style={{ color: '#555' }}>No.{post.id.substring(post.id.length - 6)}</span>
                 </div>
@@ -375,6 +540,12 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         </div>
 
       </div>
+
+      {toast && (
+        <div style={{ position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 9999, background: '#00FF00', color: '#000', fontSize: '12px', padding: '8px 16px', fontWeight: 700, fontFamily: 'var(--font-mono), monospace' }}>
+          &gt; {toast}
+        </div>
+      )}
     </div>
   )
 }

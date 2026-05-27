@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { bots } from '@/data/bots'
 import BotCharacter from '@/components/BotCharacter'
 
 export default function DiscoverPage() {
@@ -10,14 +9,19 @@ export default function DiscoverPage() {
   const [search, setSearch] = useState('')
 
   const [botsData, setBotsData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetch('/api/bots')
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setBotsData(data)
+        setLoading(false)
       })
-      .catch(console.error)
+      .catch(err => {
+        console.error(err)
+        setLoading(false)
+      })
   }, [])
 
   const getBrier = (b: any) => b.scores?.[0]?.brierScore ?? b.brierScore ?? 0
@@ -25,7 +29,7 @@ export default function DiscoverPage() {
   const getYield = (b: any) => b.monthlyYield ?? 0
   const getCreated = (b: any) => new Date(b.createdAt || 0).getTime()
 
-  const filteredBots = (botsData.length > 0 ? botsData : bots).filter(b => {
+  const filteredBots = botsData.filter(b => {
     if (search && !b.name.toLowerCase().includes(search.toLowerCase()) && !(b.builder || b.walletAddress || '').toLowerCase().includes(search.toLowerCase())) return false
     return true
   }).sort((a, b) => {
@@ -37,89 +41,73 @@ export default function DiscoverPage() {
   })
 
   return (
-    <div style={{ minHeight: '100vh', background: '#050505', color: '#EFEFEF', padding: '3rem 1.5rem', fontFamily: 'var(--font-body), sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#000000', color: '#EFEFEF', padding: '3rem 1.5rem', fontFamily: 'var(--font-mono), monospace' }}>
       
       {/* HEADER SECTION */}
       <div style={{ maxWidth: 1200, margin: '0 auto', marginBottom: '3rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '1.5rem', flexWrap: 'wrap', gap: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px dashed #2563EB', paddingBottom: '1.5rem', flexWrap: 'wrap', gap: '2rem' }}>
           
           <div>
-            <h1 style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: '2.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em', color: '#fff' }}>
-              Algorithm Catalog
-            </h1>
-            <p style={{ color: '#888', margin: '0.5rem 0 0 0', fontSize: '0.95rem' }}>
-              Deploy capital into verified quantitative models. Objective reality execution.
+            <div style={{ color: '#2563EB', fontSize: '14px', fontWeight: 700, letterSpacing: '1px', marginBottom: '0.5rem' }}>
+              &gt; ALGORITHM_CATALOG.EXE
+            </div>
+            <p style={{ color: '#888', margin: 0, fontSize: '12px' }}>
+              &gt; SYS_MSG: Deploy capital into verified quantitative models.
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
             <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 10, top: 8, color: '#00FF00', fontSize: '12px', fontWeight: 700 }}>&gt;</span>
               <input 
                 value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search index..." 
+                placeholder="SYS_QUERY: [___]" 
                 style={{ 
-                  background: 'rgba(255,255,255,0.03)', 
-                  border: '1px solid rgba(255,255,255,0.1)', 
-                  color: '#fff', 
+                  background: '#030303', 
+                  border: '1px solid #333', 
+                  color: '#00FF00', 
                   fontFamily: 'var(--font-mono), monospace', 
-                  padding: '10px 16px', 
+                  padding: '8px 10px 8px 24px', 
                   outline: 'none', 
                   width: 260,
-                  borderRadius: '4px',
                   fontSize: '12px',
-                  transition: 'border-color 0.3s ease'
+                  transition: 'border-color 0.2s ease'
                 }} 
-                onFocus={e => e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.5)'}
-                onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'}
+                onFocus={e => { e.currentTarget.style.borderColor = '#00FF00'; e.currentTarget.style.boxShadow = '0 0 8px rgba(0,255,0,0.2)'; }}
+                onBlur={e => { e.currentTarget.style.borderColor = '#333'; e.currentTarget.style.boxShadow = 'none'; }}
               />
             </div>
             
-            <Link href="/list-bot" style={{ 
-              background: '#2563EB', 
-              color: '#fff', 
-              textDecoration: 'none', 
-              padding: '10px 20px', 
-              borderRadius: '4px',
-              fontFamily: 'var(--font-body), sans-serif',
-              fontWeight: 600,
-              fontSize: '13px',
-              transition: 'background 0.2s ease, transform 0.2s ease',
-              boxShadow: '0 4px 14px 0 rgba(37,99,235,0.39)'
-            }}
-            onMouseOver={e => { e.currentTarget.style.background = '#1d4ed8'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-            onMouseOut={e => { e.currentTarget.style.background = '#2563EB'; e.currentTarget.style.transform = 'translateY(0)'; }}
-            >
-              Submit Algorithm
+            <Link href="/list-bot" style={{ color: '#00C9C0', textDecoration: 'none', fontSize: '12px', fontWeight: 700 }} onMouseOver={e => e.currentTarget.style.textDecoration = 'underline'} onMouseOut={e => e.currentTarget.style.textDecoration = 'none'}>
+              [SUBMIT_ALGORITHM]
             </Link>
           </div>
         </div>
         
         {/* FILTERS */}
-        <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1.5rem', fontSize: '13px', fontFamily: 'var(--font-body), sans-serif', alignItems: 'center' }}>
-          <span style={{ color: '#666', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '11px', fontWeight: 600 }}>Sort By</span>
+        <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1.5rem', fontSize: '12px', alignItems: 'center' }}>
+          <span style={{ color: '#666' }}>&gt; SORT_BY:</span>
           {[
-            { id: 'brier', label: 'Brier Score' },
-            { id: 'yield', label: 'Monthly Yield' },
-            { id: 'tvl', label: 'Total Value Locked' },
-            { id: 'new', label: 'Newly Listed' },
+            { id: 'brier', label: 'BRIER_SCORE' },
+            { id: 'yield', label: 'MONTHLY_YIELD' },
+            { id: 'tvl', label: 'TOTAL_VALUE_LOCKED' },
+            { id: 'new', label: 'NEWEST' },
           ].map(s => (
             <button 
               key={s.id} 
               onClick={() => setActiveSort(s.id as any)}
               style={{ 
-                background: activeSort === s.id ? 'rgba(37, 99, 235, 0.1)' : 'transparent',
-                border: `1px solid ${activeSort === s.id ? 'rgba(37, 99, 235, 0.3)' : 'transparent'}`,
-                color: activeSort === s.id ? '#60a5fa' : '#888', 
+                background: 'transparent',
+                border: 'none',
+                color: activeSort === s.id ? '#00FF00' : '#555', 
                 cursor: 'pointer', 
-                fontWeight: activeSort === s.id ? 600 : 400,
-                padding: '6px 12px',
-                borderRadius: '20px',
-                transition: 'all 0.2s ease'
+                fontWeight: activeSort === s.id ? 700 : 400,
+                padding: 0,
+                fontFamily: 'var(--font-mono), monospace',
+                fontSize: '12px'
               }}
-              onMouseOver={e => { if (activeSort !== s.id) e.currentTarget.style.color = '#ccc' }}
-              onMouseOut={e => { if (activeSort !== s.id) e.currentTarget.style.color = '#888' }}
             >
-              {s.label}
+              [{s.label}]
             </button>
           ))}
         </div>
@@ -128,8 +116,17 @@ export default function DiscoverPage() {
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         
         {/* CATALOG GRID */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}>
-          {filteredBots.map((b, i) => {
+        {loading ? (
+          <div style={{ color: '#00FF00', fontSize: '14px', textAlign: 'center', padding: '4rem' }}>
+            &gt; Syncing indexer database...
+          </div>
+        ) : filteredBots.length === 0 ? (
+          <div style={{ color: '#555', fontSize: '14px', textAlign: 'center', padding: '4rem' }}>
+            &gt; NO_ALGORITHMS_FOUND
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+            {filteredBots.map((b, i) => {
             const brier = getBrier(b)
             const wr = b.scores?.[0]?.winRate ?? b.winRate ?? 0
             const tvl = getTvl(b)
@@ -142,178 +139,64 @@ export default function DiscoverPage() {
               color: 'inherit', 
               display: 'flex', 
               flexDirection: 'column', 
-              background: '#0A0A0A',
-              border: '1px solid rgba(255,255,255,0.06)',
-              borderRadius: '8px',
-              overflow: 'hidden',
-              transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-              position: 'relative'
+              background: '#030303',
+              border: '1px solid #333',
+              transition: 'all 0.2s ease',
             }}
               onMouseOver={e => {
-                e.currentTarget.style.transform = 'translateY(-6px)'
-                e.currentTarget.style.boxShadow = '0 12px 40px -10px rgba(37,99,235,0.15)'
-                e.currentTarget.style.borderColor = 'rgba(37,99,235,0.3)'
+                e.currentTarget.style.borderColor = '#00FF00'
+                e.currentTarget.style.background = '#050505'
               }}
               onMouseOut={e => {
-                e.currentTarget.style.transform = 'translateY(0)'
-                e.currentTarget.style.boxShadow = 'none'
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'
+                e.currentTarget.style.borderColor = '#333'
+                e.currentTarget.style.background = '#030303'
               }}
             >
-              {/* Card Header: Character & Status */}
-              <div style={{ 
-                width: '100%', 
-                background: 'linear-gradient(180deg, rgba(20,20,20,1) 0%, rgba(10,10,10,1) 100%)', 
-                display: 'flex', 
-                justifyContent: 'center', 
-                padding: '2rem 0', 
-                position: 'relative',
-                borderBottom: '1px solid rgba(255,255,255,0.03)'
-              }}>
-                <BotCharacter mood={b.mood as any} size={80} />
-                
-                {/* Status Badge */}
-                <div style={{ 
-                  position: 'absolute', 
-                  top: 12, 
-                  right: 12, 
-                  fontSize: '10px', 
-                  fontWeight: 600,
-                  letterSpacing: '0.5px',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  background: isLive ? 'rgba(34,197,94,0.1)' : 'rgba(168,85,247,0.1)',
-                  color: isLive ? '#4ade80' : '#c084fc',
-                  border: `1px solid ${isLive ? 'rgba(34,197,94,0.2)' : 'rgba(168,85,247,0.2)'}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: isLive ? '#4ade80' : '#c084fc', boxShadow: `0 0 8px ${isLive ? '#4ade80' : '#c084fc'}` }}></div>
-                  {(b.status || 'PAPER').toUpperCase()}
-                </div>
+              <div style={{ color: '#2563EB', padding: '0.75rem 1rem', borderBottom: '1px dashed #333', fontSize: '12px', fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}>
+                <span>+-- [ {b.name.toUpperCase()} ] --+</span>
+                <span style={{ color: isLive ? '#00FF00' : '#00C9C0' }}>[{isLive ? 'LIVE' : 'PAPER'}]</span>
               </div>
 
-              {/* Card Body: Info & Data */}
-              <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                
-                {/* Identity */}
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <h2 style={{ 
-                    fontFamily: 'var(--font-display), sans-serif', 
-                    fontSize: '1.25rem', 
-                    fontWeight: 700, 
-                    margin: '0 0 4px 0', 
-                    color: '#fff',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
-                  }}>
-                    {b.name}
-                  </h2>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '11px', color: '#555' }}>Built by</span>
-                    <Link href={`/maker/${b.builder || b.walletAddress || 'anon'}`} style={{ 
-                      color: '#C9A84C', 
-                      textDecoration: 'none', 
-                      fontSize: '12px', 
-                      fontFamily: 'var(--font-mono), monospace',
-                      background: 'rgba(201, 168, 76, 0.1)',
-                      padding: '2px 6px',
-                      borderRadius: '4px'
-                    }}
-                      onMouseOver={e => e.currentTarget.style.background = 'rgba(201, 168, 76, 0.2)'}
-                      onMouseOut={e => e.currentTarget.style.background = 'rgba(201, 168, 76, 0.1)'}
-                    >
-                      {(b.builder || b.walletAddress || 'anon').substring(0, 8)}...
-                    </Link>
-                  </div>
+              {/* Bot Image Frame */}
+              <div style={{ 
+                width: '100%', 
+                background: '#000', 
+                display: 'flex', 
+                justifyContent: 'center', 
+                padding: '1.5rem 0', 
+                borderBottom: '1px dashed #333'
+              }}>
+                <BotCharacter mood={b.mood as any} size={70} />
+              </div>
+
+              {/* Data Rows */}
+              <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#666' }}>&gt; MAKER:</span>
+                  <span style={{ color: '#C9A84C' }}>{(b.builder || b.walletAddress || 'anon').substring(0, 8)}...</span>
                 </div>
-
-                {/* Metrics Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                  
-                  {/* Brier Score */}
-                  <div>
-                    <div style={{ fontSize: '10px', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Brier Score</div>
-                    <div style={{ 
-                      fontFamily: 'var(--font-mono), monospace', 
-                      fontSize: '18px', 
-                      color: brier <= 0.25 ? '#4ade80' : '#f87171',
-                      fontWeight: 500
-                    }}>
-                      {brier.toFixed(3)}
-                    </div>
-                  </div>
-
-                  {/* Win Rate */}
-                  <div>
-                    <div style={{ fontSize: '10px', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Win Rate</div>
-                    <div style={{ 
-                      fontFamily: 'var(--font-mono), monospace', 
-                      fontSize: '18px', 
-                      color: '#fff',
-                      fontWeight: 500
-                    }}>
-                      {(wr*100).toFixed(1)}%
-                    </div>
-                  </div>
-
-                  {/* TVL */}
-                  <div>
-                    <div style={{ fontSize: '10px', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Vault TVL</div>
-                    <div style={{ 
-                      fontFamily: 'var(--font-mono), monospace', 
-                      fontSize: '15px', 
-                      color: '#EFEFEF'
-                    }}>
-                      ${tvl.toLocaleString()}
-                    </div>
-                  </div>
-
-                  {/* Yield */}
-                  <div>
-                    <div style={{ fontSize: '10px', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>30d Yield</div>
-                    <div style={{ 
-                      fontFamily: 'var(--font-mono), monospace', 
-                      fontSize: '15px', 
-                      color: yld > 0 ? '#4ade80' : '#888'
-                    }}>
-                      {yld > 0 ? '+' : ''}{yld}%
-                    </div>
-                  </div>
-
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#666' }}>&gt; BRIER_SCORE:</span>
+                  <span style={{ color: brier <= 0.25 ? '#00FF00' : '#ef4444', fontWeight: 700 }}>{brier.toFixed(3)}</span>
                 </div>
-
-                {/* Description */}
-                <div style={{ 
-                  color: '#888', 
-                  fontSize: '12px', 
-                  lineHeight: 1.6, 
-                  marginTop: 'auto',
-                  borderTop: '1px solid rgba(255,255,255,0.04)',
-                  paddingTop: '1rem',
-                  display: '-webkit-box', 
-                  WebkitLineClamp: 2, 
-                  WebkitBoxOrient: 'vertical', 
-                  overflow: 'hidden'
-                }}>
-                  {b.description || b.tagline}
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#666' }}>&gt; WIN_RATE:</span>
+                  <span style={{ color: '#EFEFEF' }}>{(wr * 100).toFixed(1)}%</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#666' }}>&gt; MTH_YIELD:</span>
+                  <span style={{ color: yld > 0 ? '#00FF00' : '#888' }}>{yld > 0 ? '+' : ''}{yld}%</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #333', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
+                  <span style={{ color: '#666' }}>&gt; VAULT_TVL:</span>
+                  <span style={{ color: '#fff', fontWeight: 700 }}>${tvl.toLocaleString()}</span>
                 </div>
               </div>
             </Link>
             )
           })}
-          
-          {filteredBots.length === 0 && (
-            <div style={{ gridColumn: '1 / -1', padding: '4rem 0', textAlign: 'center', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '8px' }}>
-              <div style={{ color: '#888', fontSize: '14px', fontFamily: 'var(--font-mono), monospace' }}>
-                &gt; No matching algorithms found in the index.
-              </div>
-            </div>
-          )}
-        </div>
-
+          </div>
+        )}
       </div>
     </div>
   )

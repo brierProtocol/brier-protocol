@@ -5,11 +5,11 @@ import Link from 'next/link'
 import BotCharacter from '@/components/BotCharacter'
 
 const ASCII_LOGO = `
-    ____       _               ____             __                 __
-   / __ )_____(_)__  _____    / __ \\_________  / /_____  _________/ /
-  / __  / ___/ / _ \\/ ___/   / /_/ / ___/ __ \\/ __/ __ \\/ ___/ __  / 
- / /_/ / /  / /  __/ /      / ____/ /  / /_/ / /_/ /_/ / /__/ /_/ /  
-/_____/_/  /_/\\___/_/      /_/   /_/   \\____/\\__/\\____/\\___/\\__,_/   
+    ____       _           
+   / __ )_____(_)__  _____ 
+  / __  / ___/ / _ \\/ ___/ 
+ / /_/ / /  / /  __/ /     
+/_____/_/  /_/\\___/_/      
 `
 
 export default function Home() {
@@ -33,76 +33,145 @@ export default function Home() {
   }, [])
 
   return (
-    <div style={{ minHeight: '100vh', background: '#050505', color: '#c5c8c6', fontFamily: 'var(--font-mono), monospace', padding: '2rem 1rem' }}>
+    <div style={{ minHeight: '100vh', background: '#050505', color: '#EFEFEF', fontFamily: 'var(--font-body), sans-serif', padding: '3rem 1.5rem' }}>
       <div style={{ maxWidth: 1000, margin: '0 auto' }}>
         
         {/* ASCII HEADER */}
-        <div style={{ color: '#2563EB', whiteSpace: 'pre', fontSize: 'clamp(8px, 1.5vw, 14px)', fontWeight: 'bold', marginBottom: '2rem', lineHeight: 1.2 }}>
-          {ASCII_LOGO}
-          <div style={{ color: '#555', marginTop: '0.5rem' }}>
-            &gt; INSTITUTIONAL PREDICTION MARKET INFRASTRUCTURE
-            <br />
-            &gt; POLYGON NETWORK TARGET ACQUIRED
+        <div style={{ marginBottom: '3rem' }}>
+          <div style={{ color: '#2563EB', whiteSpace: 'pre', fontSize: 'clamp(8px, 1.5vw, 14px)', fontWeight: 700, lineHeight: 1.2, fontFamily: 'var(--font-mono), monospace', textShadow: '0 0 20px rgba(37, 99, 235, 0.6), 0 0 40px rgba(37, 99, 235, 0.3)', animation: 'float 4s ease-in-out infinite', display: 'inline-block' }}>
+            {ASCII_LOGO}
+          </div>
+          <div style={{ color: '#666', marginTop: '0.5rem', fontWeight: 500, letterSpacing: '0.5px', fontFamily: 'var(--font-mono), monospace', fontSize: 'clamp(8px, 1.5vw, 14px)' }}>
+            &gt; CODEMAXXING FOR DEVS. YIELDMAXXING FOR INVESTORS.
           </div>
         </div>
 
         {/* MOTD */}
-        <div style={{ border: '1px solid #1a1a1a', background: '#0a0a0a', padding: '1rem', marginBottom: '2rem' }}>
-          <div style={{ color: '#2563EB', fontWeight: 'bold', borderBottom: '1px solid #1a1a1a', paddingBottom: '0.5rem', marginBottom: '0.5rem' }}>
+        <div style={{ 
+          background: '#0A0A0A', 
+          border: '1px solid rgba(255,255,255,0.06)', 
+          padding: '1.5rem', 
+          marginBottom: '4rem',
+          borderRadius: '8px',
+          boxShadow: '0 4px 20px -10px rgba(0,0,0,0.5)'
+        }}>
+          <div style={{ color: '#2563EB', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.75rem', marginBottom: '0.75rem', fontFamily: 'var(--font-mono), monospace', fontSize: '12px', letterSpacing: '0.5px' }}>
             --- MESSAGE OF THE DAY ---
           </div>
-          <div style={{ fontSize: 13, lineHeight: 1.6, fontFamily: 'var(--font-body), sans-serif' }}>
-            <span style={{ color: '#7ec87e' }}>&gt;Welcome to Brier V1.</span><br/>
+          <div style={{ fontSize: '13px', lineHeight: 1.7, color: '#aaa', fontFamily: 'var(--font-mono), monospace' }}>
+            <span style={{ color: '#4ade80' }}>&gt; Welcome to Brier.</span><br/>
             Humans are terrible at probability. Machines are not.<br/>
-            Brier is a decentralized index of algorithmic trading bots executing on prediction markets (Polymarket, Kalshi).<br/>
+            Brier is an index of algorithmic trading bots executing on prediction markets.<br/>
             <br/>
-            <span style={{ color: '#cc0000', fontWeight: 'bold' }}>RULES OF ENGAGEMENT:</span><br/>
-            1. All bots must survive a 30-day on-chain paper trading phase.<br/>
-            2. Bots are ranked strictly by their Brier Score (lower = better).<br/>
+            <span style={{ color: '#EFEFEF', fontWeight: 600 }}>RULES OF ENGAGEMENT:</span><br/>
+            1. All algorithms must survive a 30-day on-chain paper trading phase.<br/>
+            2. Algorithms are ranked strictly by their Brier Score (lower = better).<br/>
             3. Vaults open automatically for top-tier bots. Depositors yield profits. Builders earn 10% performance fees.<br/>
           </div>
         </div>
 
         {/* DIRECTORY LINKS */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '3rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '4rem' }}>
           
-          <div style={{ border: '1px solid #1a1a1a', background: '#0a0a0a', padding: '1rem' }}>
-            <div style={{ color: '#2563EB', fontWeight: 'bold', marginBottom: '0.5rem', fontFamily: 'var(--font-body), sans-serif' }}>[ INVESTORS ]</div>
-            <div style={{ fontSize: 12, color: '#888', marginBottom: '1rem', height: 40, fontFamily: 'var(--font-body), sans-serif' }}>
-              Deploy capital into verified algorithmic prediction vaults. Zero emotion, fully transparent.
+          {/* Investor Box */}
+          <div style={{ 
+            background: '#030303', 
+            border: '1px solid #333', 
+            padding: '2rem',
+            transition: 'all 0.2s ease',
+            position: 'relative'
+          }}
+          onMouseOver={e => { e.currentTarget.style.background = '#050505'; e.currentTarget.style.borderColor = '#00C9C0'; }}
+          onMouseOut={e => { e.currentTarget.style.background = '#030303'; e.currentTarget.style.borderColor = '#333'; }}
+          >
+            <div style={{ color: '#00C9C0', fontWeight: 700, marginBottom: '1rem', fontFamily: 'var(--font-mono), monospace', fontSize: '14px', letterSpacing: '1px' }}>&gt; YIELD_MAX_VAULTS.EXE</div>
+            <div style={{ fontSize: '12px', color: '#888', marginBottom: '2rem', lineHeight: 1.6, height: 40, fontFamily: 'var(--font-mono), monospace' }}>
+              Deploy capital into verified algorithmic prediction vaults. Zero emotion, strictly mathematics.
             </div>
-            <Link href="/discover" style={{ display: 'inline-block', background: '#2563EB', color: '#000', textDecoration: 'none', padding: '6px 16px', fontWeight: 'bold', fontSize: 13 }}>
-              &gt; ENTER CATALOG
+            <Link href="/discover" style={{ 
+              display: 'inline-block', 
+              background: '#000', 
+              border: '1px solid #00C9C0',
+              color: '#00C9C0', 
+              textDecoration: 'none', 
+              padding: '8px 24px', 
+              fontWeight: 700, 
+              fontSize: '12px',
+              fontFamily: 'var(--font-mono), monospace',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseOver={e => { e.currentTarget.style.background = '#00C9C0'; e.currentTarget.style.color = '#000'; }}
+            onMouseOut={e => { e.currentTarget.style.background = '#000'; e.currentTarget.style.color = '#00C9C0'; }}
+            >
+              [ENTER_CATALOG]
             </Link>
           </div>
 
-          <div style={{ border: '1px dashed #333', background: '#0a0a0a', padding: '1rem' }}>
-            <div style={{ color: '#22c55e', fontWeight: 'bold', marginBottom: '0.5rem', fontFamily: 'var(--font-body), sans-serif' }}>[ BUILDERS ]</div>
-            <div style={{ fontSize: 12, color: '#888', marginBottom: '1rem', height: 40, fontFamily: 'var(--font-body), sans-serif' }}>
+          {/* Builder Box */}
+          <div style={{ 
+            background: '#030303', 
+            border: '1px dashed #333', 
+            padding: '2rem',
+            transition: 'all 0.2s ease',
+          }}
+          onMouseOver={e => { e.currentTarget.style.background = '#050505'; e.currentTarget.style.borderColor = '#00FF00'; }}
+          onMouseOut={e => { e.currentTarget.style.background = '#030303'; e.currentTarget.style.borderColor = '#333'; }}
+          >
+            <div style={{ color: '#00FF00', fontWeight: 700, marginBottom: '1rem', fontFamily: 'var(--font-mono), monospace', fontSize: '14px', letterSpacing: '1px' }}>&gt; ALGO_MAKER_NODE.EXE</div>
+            <div style={{ fontSize: '12px', color: '#888', marginBottom: '2rem', lineHeight: 1.6, height: 40, fontFamily: 'var(--font-mono), monospace' }}>
               Submit your prediction model. Prove your Brier Score on-chain. Attract capital.
             </div>
-            <Link href="/list-bot" style={{ display: 'inline-block', border: '1px solid #22c55e', color: '#22c55e', textDecoration: 'none', padding: '6px 16px', fontWeight: 'bold', fontSize: 13 }}>
-              &gt; SUBMIT ALGORITHM
+            <Link href="/list-bot" style={{ 
+              display: 'inline-block', 
+              background: '#000',
+              border: '1px solid #00FF00', 
+              color: '#00FF00', 
+              textDecoration: 'none', 
+              padding: '8px 24px', 
+              fontWeight: 700, 
+              fontSize: '12px',
+              fontFamily: 'var(--font-mono), monospace',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseOver={e => { e.currentTarget.style.background = '#00FF00'; e.currentTarget.style.color = '#000'; }}
+            onMouseOut={e => { e.currentTarget.style.background = '#000'; e.currentTarget.style.color = '#00FF00'; }}
+            >
+              [SUBMIT_ALGORITHM]
             </Link>
           </div>
 
         </div>
 
-        {/* TOP BOTS — LIVE DATA */}
-        <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <div style={{ color: '#C9A84C', fontWeight: 'bold' }}>&gt;&gt; TOP ALGORITHMS</div>
-            <div style={{ fontSize: 12, color: '#555', fontFamily: 'var(--font-mono), monospace' }}>Network: Polygon | Currency: USDC</div>
+        {/* TOP BOTS — RETRO TERMINAL QUANT TABLE */}
+        <div style={{ 
+          background: '#030303', 
+          border: '1px solid #2563EB', 
+          borderRadius: '4px', 
+          padding: '2rem',
+          boxShadow: '0 0 25px rgba(37,99,235,0.15)',
+          position: 'relative',
+          fontFamily: 'var(--font-mono), monospace'
+        }}>
+          {/* Terminal corner accents */}
+          <div style={{ position: 'absolute', top: -1, left: -1, width: 8, height: 8, borderTop: '2px solid #00C9C0', borderLeft: '2px solid #00C9C0' }}></div>
+          <div style={{ position: 'absolute', top: -1, right: -1, width: 8, height: 8, borderTop: '2px solid #00C9C0', borderRight: '2px solid #00C9C0' }}></div>
+          <div style={{ position: 'absolute', bottom: -1, left: -1, width: 8, height: 8, borderBottom: '2px solid #00C9C0', borderLeft: '2px solid #00C9C0' }}></div>
+          <div style={{ position: 'absolute', bottom: -1, right: -1, width: 8, height: 8, borderBottom: '2px solid #00C9C0', borderRight: '2px solid #00C9C0' }}></div>
+
+          <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid rgba(37,99,235,0.3)', paddingBottom: '0.8rem' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#2563EB', letterSpacing: '1px' }}>
+              &gt; TOP_ALGORITHMS.EXE
+            </div>
           </div>
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #333', color: '#555' }}>
-                <th style={{ padding: '0.5rem', fontWeight: 'normal' }}>BOT_ID</th>
-                <th style={{ padding: '0.5rem', fontWeight: 'normal' }}>BRIER_SCORE</th>
-                <th style={{ padding: '0.5rem', fontWeight: 'normal' }}>WIN_RATE</th>
-                <th style={{ padding: '0.5rem', fontWeight: 'normal' }}>STATUS</th>
-                <th style={{ padding: '0.5rem', fontWeight: 'normal', textAlign: 'right' }}>TVL</th>
+              <tr style={{ color: '#666', borderBottom: '1px solid rgba(37,99,235,0.2)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                <th style={{ padding: '0.5rem 1rem 1rem 1rem', fontWeight: 600 }}>[ RANK / ALGORITHM ]</th>
+                <th style={{ padding: '0.5rem 1rem 1rem 1rem', fontWeight: 600 }}>[ BRIER ]</th>
+                <th style={{ padding: '0.5rem 1rem 1rem 1rem', fontWeight: 600 }}>[ WIN_RATE ]</th>
+                <th style={{ padding: '0.5rem 1rem 1rem 1rem', fontWeight: 600 }}>[ STATUS ]</th>
+                <th style={{ padding: '0.5rem 1rem 1rem 1rem', fontWeight: 600, textAlign: 'right' }}>[ VAULT_TVL ]</th>
               </tr>
             </thead>
             <tbody>
@@ -110,51 +179,115 @@ export default function Home() {
                 const brier = bot.scores?.[0]?.brierScore ?? bot.brierScore ?? 0
                 const wr = bot.scores?.[0]?.winRate ?? bot.winRate ?? 0
                 const tvl = bot.currentTVL ?? bot.tvl ?? 0
+                const isLive = (bot.status || '').toLowerCase() === 'live'
                 return (
-                  <tr key={bot.id} style={{ borderBottom: '1px solid #1a1a1a', background: i === 0 ? 'rgba(37,99,235,0.03)' : 'transparent' }}>
-                    <td style={{ padding: '0.75rem 0.5rem' }}>
-                      <Link href={`/bot/${bot.slug || bot.id}`} style={{ color: '#2563EB', textDecoration: 'none', fontWeight: 'bold' }}>[{bot.name}]</Link>
-                      <span style={{ color: '#555', marginLeft: 8, fontSize: 10 }}>
-                        by <Link href={`/maker/${bot.walletAddress || 'anon'}`} style={{ color: '#555', textDecoration: 'none' }}
-                          onMouseOver={e => e.currentTarget.style.color = '#117743'}
-                          onMouseOut={e => e.currentTarget.style.color = '#555'}
-                        >{(bot.walletAddress || 'anon').substring(0, 6)}...{(bot.walletAddress || 'anon').slice(-4)}</Link>
-                      </span>
+                  <tr key={bot.id} style={{ 
+                    borderBottom: '1px dashed rgba(37,99,235,0.1)', 
+                    background: i === 0 ? 'rgba(37,99,235,0.04)' : 'transparent',
+                    transition: 'all 0.2s ease',
+                    cursor: 'pointer'
+                  }}
+                  onMouseOver={e => {
+                    e.currentTarget.style.background = 'rgba(0,201,192,0.05)';
+                  }}
+                  onMouseOut={e => {
+                    e.currentTarget.style.background = i === 0 ? 'rgba(37,99,235,0.04)' : 'transparent';
+                  }}
+                  >
+                    <td style={{ padding: '1.2rem 1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
+                        <div style={{ color: i === 0 ? '#00C9C0' : '#555', fontWeight: 700 }}>
+                          [{String(i + 1).padStart(2, '0')}]
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <Link href={`/bot/${bot.slug || bot.id}`} style={{ color: '#fff', textDecoration: 'none', fontWeight: 700, fontSize: '14px', letterSpacing: '0.5px' }}
+                            onMouseOver={e => e.currentTarget.style.color = '#00C9C0'}
+                            onMouseOut={e => e.currentTarget.style.color = '#fff'}
+                          >
+                            {bot.name}
+                          </Link>
+                          <span style={{ color: '#555', fontSize: '11px' }}>
+                            by <Link href={`/maker/${bot.walletAddress || 'anon'}`} style={{ color: '#2563EB', textDecoration: 'none' }}
+                              onMouseOver={e => e.currentTarget.style.textDecoration = 'underline'}
+                              onMouseOut={e => e.currentTarget.style.textDecoration = 'none'}
+                            >{(bot.walletAddress || 'anon').substring(0, 8)}...</Link>
+                          </span>
+                        </div>
+                      </div>
                     </td>
-                    <td style={{ padding: '0.75rem 0.5rem', color: brier < 0.25 ? '#22c55e' : '#FF6B1A', fontFamily: 'var(--font-mono), monospace' }}>{brier.toFixed(3)}</td>
-                    <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'var(--font-mono), monospace' }}>{(wr * 100).toFixed(1)}%</td>
-                    <td style={{ padding: '0.75rem 0.5rem' }}>
-                      <span style={{ 
-                        fontSize: 10, padding: '2px 6px', 
-                        background: (bot.status || '').toLowerCase() === 'live' ? 'rgba(34,197,94,0.15)' : 'rgba(168,85,247,0.15)',
-                        color: (bot.status || '').toLowerCase() === 'live' ? '#22c55e' : '#a855f7',
-                        border: `1px solid ${(bot.status || '').toLowerCase() === 'live' ? '#22c55e33' : '#a855f733'}`
-                      }}>{(bot.status || 'PAPER').toUpperCase()}</span>
+                    <td style={{ padding: '1.2rem 1rem', color: brier <= 0.25 ? '#00FF00' : '#ef4444', fontWeight: 700, fontSize: '14px', textShadow: brier <= 0.25 ? '0 0 10px rgba(0,255,0,0.3)' : 'none' }}>
+                      [{brier.toFixed(3)}]
                     </td>
-                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'var(--font-mono), monospace' }}>${tvl.toLocaleString()}</td>
+                    <td style={{ padding: '1.2rem 1rem', color: '#00C9C0', fontWeight: 600 }}>
+                      {(wr * 100).toFixed(1)}%
+                    </td>
+                    <td style={{ padding: '1.2rem 1rem' }}>
+                      <div style={{ 
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        fontSize: '10px', 
+                        fontWeight: 700,
+                        padding: '2px 8px', 
+                        borderRadius: '2px',
+                        background: isLive ? 'rgba(0,201,192,0.1)' : 'rgba(37,99,235,0.1)',
+                        color: isLive ? '#00C9C0' : '#2563EB',
+                        border: `1px solid ${isLive ? 'rgba(0,201,192,0.2)' : 'rgba(37,99,235,0.2)'}`
+                      }}>
+                        {isLive ? '█ LIVE' : '░ PAPER'}
+                      </div>
+                    </td>
+                    <td style={{ padding: '1.2rem 1rem', textAlign: 'right', color: '#C9A84C', fontWeight: 700 }}>
+                      ${tvl.toLocaleString()}
+                    </td>
                   </tr>
                 )
               }) : (
                 <tr>
-                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#555' }}>Loading algorithms...</td>
+                  <td colSpan={5} style={{ padding: '4rem', textAlign: 'center', color: '#555', fontSize: '11px' }}>
+                    <div style={{ animation: 'pulse-badge 2s infinite' }}>&gt; SYNCHRONIZING WITH BLOCKCHAIN INDEXER...</div>
+                  </td>
                 </tr>
               )}
             </tbody>
           </table>
-          <div style={{ textAlign: 'right', marginTop: '1rem' }}>
-            <Link href="/discover" style={{ color: '#555', textDecoration: 'none', fontSize: 12 }}>
-              [View full directory...]
+          
+          <div style={{ textAlign: 'center', marginTop: '2.5rem' }}>
+            <Link href="/discover" style={{ 
+              display: 'inline-block',
+              padding: '10px 30px',
+              border: '1px solid #2563EB',
+              background: 'transparent',
+              color: '#2563EB',
+              textDecoration: 'none', 
+              fontSize: '12px', 
+              fontWeight: 700,
+              borderRadius: '2px',
+              transition: 'all 0.2s ease',
+              letterSpacing: '1px'
+            }}
+              onMouseOver={e => { 
+                e.currentTarget.style.background = '#2563EB'; 
+                e.currentTarget.style.color = '#000';
+                e.currentTarget.style.boxShadow = '0 0 15px rgba(37,99,235,0.4)';
+              }}
+              onMouseOut={e => { 
+                e.currentTarget.style.background = 'transparent'; 
+                e.currentTarget.style.color = '#2563EB';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              &gt; EXECUTE DIRECTORY DISCOVERY
             </Link>
           </div>
         </div>
 
         {/* FOOTER */}
-        <div style={{ marginTop: '4rem', borderTop: '1px solid #1a1a1a', paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#555' }}>
+        <div style={{ marginTop: '5rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '2rem', display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666', fontFamily: 'var(--font-mono), monospace' }}>
           <div>Brier v1.0.0-rc</div>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <span style={{ cursor: 'pointer' }}>[Docs]</span>
-            <span style={{ cursor: 'pointer' }}>[Twitter]</span>
-            <span style={{ cursor: 'pointer' }}>[GitHub]</span>
+          <div style={{ display: 'flex', gap: '1.5rem' }}>
+            <Link href="/developers" style={{ color: '#666', textDecoration: 'none' }} onMouseOver={e => e.currentTarget.style.color = '#EFEFEF'} onMouseOut={e => e.currentTarget.style.color = '#666'}>[Docs]</Link>
+            <span style={{ cursor: 'pointer', transition: 'color 0.2s ease' }} onMouseOver={e => e.currentTarget.style.color = '#EFEFEF'} onMouseOut={e => e.currentTarget.style.color = '#666'}>[Twitter]</span>
+            <span style={{ cursor: 'pointer', transition: 'color 0.2s ease' }} onMouseOver={e => e.currentTarget.style.color = '#EFEFEF'} onMouseOut={e => e.currentTarget.style.color = '#666'}>[GitHub]</span>
           </div>
         </div>
 

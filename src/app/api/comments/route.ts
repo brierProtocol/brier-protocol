@@ -15,6 +15,7 @@ export async function GET(request: Request) {
     const comments = await prisma.comment.findMany({
       where: { botId },
       orderBy: { createdAt: 'asc' },
+      include: { user: true }
     });
 
     return NextResponse.json(comments);
@@ -33,12 +34,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    await prisma.user.upsert({
+      where: { walletAddress: wallet },
+      update: {},
+      create: { walletAddress: wallet }
+    });
+
     const comment = await prisma.comment.create({
       data: {
         botId,
         wallet,
         text,
       },
+      include: { user: true }
     });
 
     return NextResponse.json(comment, { status: 201 });

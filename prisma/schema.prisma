@@ -25,6 +25,9 @@ model Bot {
   // Registered execution wallet — all trades must originate here
   walletAddress   String        @unique
   
+  // Deployed BrierVault smart contract address
+  vaultAddress    String?
+  
   // USDC amount bot owner has locked as collateral
   skinInGame      Float         @default(0)
   
@@ -52,6 +55,7 @@ model Bot {
   polyConnection  PolyConnection?
   kalshiConnection KalshiConnection?
   comments        Comment[]
+  hearts          Heart[]
 }
 
 model BotMarket {
@@ -233,6 +237,7 @@ model Comment {
   botId     String
   bot       Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
   wallet    String
+  user      User?    @relation(fields: [wallet], references: [walletAddress])
   text      String
   likes     Int      @default(0)
   createdAt DateTime @default(now())
@@ -240,11 +245,13 @@ model Comment {
 
 model User {
   walletAddress String   @id
+  name          String?
   bio           String?
   pfpUrl        String?
   
   followers     Follow[] @relation("Followers")
   following     Follow[] @relation("Following")
+  comments      Comment[]
 }
 
 model Follow {
@@ -263,9 +270,11 @@ model Follow {
 model Heart {
   id        String @id @default(cuid())
   userId    String
-  makerId   String 
+  botId     String 
+  
+  bot       Bot    @relation(fields: [botId], references: [id], onDelete: Cascade)
   
   createdAt DateTime @default(now())
   
-  @@unique([userId, makerId])
+  @@unique([userId, botId])
 }

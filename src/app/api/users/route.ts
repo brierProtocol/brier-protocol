@@ -18,13 +18,8 @@ export async function GET(request: Request) {
       }
     });
 
-    const heartsCount = await prisma.heart.count({
-      where: { makerId: address }
-    });
-
     return NextResponse.json({
-      user: user || { walletAddress: address, bio: null, pfpUrl: null },
-      hearts: heartsCount,
+      user: user || { walletAddress: address, name: null, bio: null, pfpUrl: null },
       followersCount: user?.followers.length || 0,
       followingCount: user?.following.length || 0
     });
@@ -36,14 +31,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { walletAddress, bio, pfpUrl } = await request.json();
+    const { walletAddress, name, bio, pfpUrl } = await request.json();
 
     if (!walletAddress) return NextResponse.json({ error: 'Missing walletAddress' }, { status: 400 });
 
     const user = await prisma.user.upsert({
       where: { walletAddress },
-      update: { bio, pfpUrl },
-      create: { walletAddress, bio, pfpUrl }
+      update: { name, bio, pfpUrl },
+      create: { walletAddress, name, bio, pfpUrl }
     });
 
     return NextResponse.json(user, { status: 200 });

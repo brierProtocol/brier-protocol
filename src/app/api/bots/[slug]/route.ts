@@ -18,6 +18,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
         scores: {
           where: { isLatest: true },
           take: 1
+        },
+        trades: {
+          orderBy: { timestamp: 'desc' },
+          take: 50
+        },
+        pnlSnapshots: {
+          orderBy: { date: 'asc' },
+          take: 30
+        },
+        _count: {
+          select: { hearts: true }
         }
       }
     });

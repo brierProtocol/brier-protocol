@@ -55,7 +55,9 @@ contract BrierFactory is Ownable {
             vaultSymbol,
             brierDaemon,
             builderWallet,
-            polymarketCTF
+            polymarketCTF,
+            owner(),
+            1000 // Default 10% performance fee in bps
         );
 
         address vaultAddress = address(newVault);

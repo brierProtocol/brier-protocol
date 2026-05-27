@@ -5,22 +5,29 @@ const prisma = new PrismaClient();
 
 export async function POST(request: Request) {
   try {
-    const { userId, makerId } = await request.json();
+    const { userId, botId } = await request.json();
 
-    if (!userId || !makerId) return NextResponse.json({ error: 'Missing ids' }, { status: 400 });
+    if (!userId || !botId) return NextResponse.json({ error: 'Missing ids' }, { status: 400 });
+
+    // Upsert the user to ensure foreign key constraint doesn't fail
+    await prisma.user.upsert({
+      where: { walletAddress: userId },
+      update: {},
+      create: { walletAddress: userId }
+    });
 
     const existing = await prisma.heart.findUnique({
-      where: { userId_makerId: { userId, makerId } }
+      where: { userId_botId: { userId, botId } }
     });
 
     if (existing) {
       await prisma.heart.delete({
-        where: { userId_makerId: { userId, makerId } }
+        where: { userId_botId: { userId, botId } }
       });
       return NextResponse.json({ status: 'unhearted' });
     } else {
       await prisma.heart.create({
-        data: { userId, makerId }
+        data: { userId, botId }
       });
       return NextResponse.json({ status: 'hearted' });
     }
