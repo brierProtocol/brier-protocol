@@ -15,7 +15,8 @@ type TimeRange = '7d' | '30d' | '90d' | 'all'
 export default function VaultPage() {
   const params = useParams()
   const botId = params.botId as string
-  const { data: bot, isLoading } = useBot(botId)
+  const { data: botData, isLoading } = useBot(botId)
+  const bot: any = botData
   const [timeRange, setTimeRange] = useState<TimeRange>('30d')
   const [mode, setMode] = useState<'CONSERVATIVE' | 'DEGEN'>('CONSERVATIVE')
 
@@ -71,9 +72,10 @@ export default function VaultPage() {
     happy:     '#00FFC8',
     excited:   '#FFB800',
     neutral:   '#888888',
-    anxious:   '#FF9500',
-    sad:       '#6B7FFF',
-    suspicious:'#FF3B3B',
+    anxious:   '#FF4400',
+    sad:       '#FF0044',
+    suspicious:'#8800FF',
+    sleeping:  '#4B5563',
   }
 
   return (
@@ -337,8 +339,8 @@ export default function VaultPage() {
 
           <div className="h-[400px] w-full relative group rounded-[32px] overflow-hidden bg-black/20">
             <Liveline 
-              data={bot.pnlHistory.map((v, i) => ({ value: v, time: i }))}
-              value={bot.pnlHistory[bot.pnlHistory.length - 1] || 0}
+              data={bot.pnlSnapshots?.map((v: any, i: number) => ({ value: v.value, time: i })) || []}
+              value={bot.pnlSnapshots?.[bot.pnlSnapshots?.length - 1]?.value || 0}
               color="#C8FF00"
               theme="dark"
             />
@@ -367,7 +369,7 @@ export default function VaultPage() {
           <h2 className="font-[var(--font-display)] text-3xl font-black mb-10 uppercase tracking-tighter">RECENT EXECUTION</h2>
           
           <div className="space-y-4">
-            {bot.recentTrades?.map((trade) => (
+            {bot.recentTrades?.map((trade: any) => (
               <div 
                 key={trade.id} 
                 className="flex flex-col sm:flex-row sm:items-center justify-between p-6 rounded-[28px] bg-black/40 border border-white/5 hover:border-white/10 transition-all gap-6"
@@ -376,17 +378,17 @@ export default function VaultPage() {
                   <div 
                     className="flex items-center justify-center w-14 h-14 rounded-2xl font-black text-xl shadow-2xl"
                     style={{
-                      background: trade.result === 'WIN' ? '#C8FF00' : '#FF3B3B',
-                      color: trade.result === 'WIN' ? '#050505' : '#FFFFFF',
-                      boxShadow: trade.result === 'WIN' ? '0 0 20px rgba(200,255,0,0.2)' : 'none'
+                      background: trade.outcome === 'WIN' ? '#C8FF00' : (trade.outcome === 'PENDING' ? '#555555' : '#FF3B3B'),
+                      color: trade.outcome === 'WIN' ? '#050505' : '#FFFFFF',
+                      boxShadow: trade.outcome === 'WIN' ? '0 0 20px rgba(200,255,0,0.2)' : 'none'
                     }}
                   >
-                    {trade.result === 'WIN' ? 'W' : 'L'}
+                    {trade.outcome === 'WIN' ? 'W' : (trade.outcome === 'PENDING' ? '-' : 'L')}
                   </div>
                   <div>
-                    <p className="text-xl font-bold text-white leading-tight mb-1">{trade.market}</p>
+                    <p className="text-xl font-bold text-white leading-tight mb-1">{trade.marketTitle || trade.marketId}</p>
                     <p className="text-[10px] font-bold opacity-30 tracking-[0.2em] uppercase">
-                      {trade.direction} · {trade.odds.toFixed(2)} ODDS · {new Date(trade.time).toLocaleDateString()}
+                      {trade.side} · {(trade.entryPrice * 100).toFixed(1)}% · {new Date(trade.timestamp).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -400,9 +402,9 @@ export default function VaultPage() {
                     <p className="text-[10px] font-bold opacity-20 tracking-widest uppercase mb-1">Result</p>
                     <p 
                       className="text-lg font-bold font-mono"
-                      style={{ color: trade.result === 'WIN' ? '#C8FF00' : '#FF3B3B' }}
+                      style={{ color: trade.outcome === 'WIN' ? '#C8FF00' : (trade.outcome === 'PENDING' ? '#888888' : '#FF3B3B') }}
                     >
-                      {trade.result === 'WIN' ? '+' : '-'}${Math.abs(trade.pnl).toLocaleString()}
+                      {trade.outcome === 'WIN' ? '+' : ''}{trade.amount.toLocaleString()} USDC
                     </p>
                   </div>
                 </div>

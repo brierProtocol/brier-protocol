@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { ethers } from 'ethers';
+import { notifyDeposit } from '@/lib/notifications';
 
-const prisma = new PrismaClient();
 const RPC_URL = process.env.NEXT_PUBLIC_POLYGON_RPC_URL || "http://127.0.0.1:8545";
 
 export async function POST(request: NextRequest) {
@@ -54,6 +54,11 @@ export async function POST(request: NextRequest) {
         }
       }
     });
+
+    // Dispatch notification to the builder
+    if (bot.walletAddress) {
+      await notifyDeposit(bot.walletAddress, depositorWallet, bot.name, parseFloat(amountUsdc));
+    }
 
     return NextResponse.json({ success: true, deposit });
   } catch (error: any) {

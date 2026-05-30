@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import BotCharacter from '@/components/BotCharacter'
+import { motion } from 'framer-motion'
 
 const ASCII_LOGO = `
     ____       _           
@@ -32,22 +33,78 @@ export default function Home() {
       .catch(console.error)
   }, [])
 
+  const containerVariants: any = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.15 }
+    }
+  }
+
+  const itemVariants: any = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { ease: 'easeOut', duration: 0.5 } }
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#050505', color: '#EFEFEF', fontFamily: 'var(--font-body), sans-serif', padding: '3rem 1.5rem' }}>
-      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        style={{ maxWidth: 1000, margin: '0 auto' }}
+      >
         
         {/* ASCII HEADER */}
-        <div style={{ marginBottom: '3rem' }}>
-          <div style={{ color: '#2563EB', whiteSpace: 'pre', fontSize: 'clamp(8px, 1.5vw, 14px)', fontWeight: 700, lineHeight: 1.2, fontFamily: 'var(--font-mono), monospace', textShadow: '0 0 20px rgba(37, 99, 235, 0.6), 0 0 40px rgba(37, 99, 235, 0.3)', animation: 'float 4s ease-in-out infinite', display: 'inline-block' }}>
+        <motion.div variants={itemVariants} style={{ marginBottom: '3rem', position: 'relative' }}>
+          
+          {/* Backlight glowing layer for the huge logo */}
+          <div style={{
+            position: 'absolute',
+            top: '30%',
+            left: '10%',
+            transform: 'translate(-50%, -50%)',
+            width: '300px',
+            height: '100px',
+            background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.1) 0%, rgba(37,99,235,0.05) 40%, rgba(0,0,0,0) 70%)',
+            filter: 'blur(20px)',
+            pointerEvents: 'none',
+            zIndex: 0,
+          }} />
+
+          <div 
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#fff'
+              e.currentTarget.style.textShadow = '0 0 20px rgba(255, 255, 255, 0.8), 0 0 40px rgba(255, 255, 255, 0.4)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = '#2563EB'
+              e.currentTarget.style.textShadow = '0 0 20px rgba(37, 99, 235, 0.6), 0 0 40px rgba(37, 99, 235, 0.3)'
+            }}
+            style={{ 
+              color: '#2563EB', 
+              whiteSpace: 'pre', 
+              fontSize: 'clamp(8px, 1.5vw, 14px)', 
+              fontWeight: 700, 
+              lineHeight: 1.2, 
+              fontFamily: 'var(--font-mono), monospace', 
+              textShadow: '0 0 20px rgba(37, 99, 235, 0.6), 0 0 40px rgba(37, 99, 235, 0.3)', 
+              animation: 'float 4s ease-in-out infinite', 
+              display: 'inline-block',
+              transition: 'all 0.3s ease',
+              position: 'relative',
+              zIndex: 1,
+            }}
+          >
             {ASCII_LOGO}
           </div>
           <div style={{ color: '#666', marginTop: '0.5rem', fontWeight: 500, letterSpacing: '0.5px', fontFamily: 'var(--font-mono), monospace', fontSize: 'clamp(8px, 1.5vw, 14px)' }}>
-            &gt; CODEMAXXING FOR DEVS. YIELDMAXXING FOR INVESTORS.
+            &gt; CAPITALMAXXING FOR DEVS. VAULTMAXXING FOR INVESTORS.
           </div>
-        </div>
+        </motion.div>
 
         {/* MOTD */}
-        <div style={{ 
+        <motion.div variants={itemVariants} style={{ 
           background: '#0A0A0A', 
           border: '1px solid rgba(255,255,255,0.06)', 
           padding: '1.5rem', 
@@ -68,10 +125,10 @@ export default function Home() {
             2. Algorithms are ranked strictly by their Brier Score (lower = better).<br/>
             3. Vaults open automatically for top-tier bots. Depositors yield profits. Builders earn 10% performance fees.<br/>
           </div>
-        </div>
+        </motion.div>
 
         {/* DIRECTORY LINKS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '4rem' }}>
+        <motion.div variants={itemVariants} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '4rem' }}>
           
           {/* Investor Box */}
           <div style={{ 
@@ -140,10 +197,10 @@ export default function Home() {
             </Link>
           </div>
 
-        </div>
+        </motion.div>
 
         {/* TOP BOTS — RETRO TERMINAL QUANT TABLE */}
-        <div style={{ 
+        <motion.div variants={itemVariants} style={{ 
           background: '#030303', 
           border: '1px solid #2563EB', 
           borderRadius: '4px', 
@@ -279,20 +336,19 @@ export default function Home() {
               &gt; EXECUTE DIRECTORY DISCOVERY
             </Link>
           </div>
-        </div>
+        </motion.div>
 
         {/* FOOTER */}
-        <div style={{ marginTop: '5rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '2rem', display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666', fontFamily: 'var(--font-mono), monospace' }}>
+        <motion.div variants={itemVariants} style={{ marginTop: '5rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '2rem', display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666', fontFamily: 'var(--font-mono), monospace' }}>
           <div>Brier v1.0.0-rc</div>
           <div style={{ display: 'flex', gap: '1.5rem' }}>
             <Link href="/developers" style={{ color: '#666', textDecoration: 'none' }} onMouseOver={e => e.currentTarget.style.color = '#EFEFEF'} onMouseOut={e => e.currentTarget.style.color = '#666'}>[Docs]</Link>
             <span style={{ cursor: 'pointer', transition: 'color 0.2s ease' }} onMouseOver={e => e.currentTarget.style.color = '#EFEFEF'} onMouseOut={e => e.currentTarget.style.color = '#666'}>[Twitter]</span>
             <span style={{ cursor: 'pointer', transition: 'color 0.2s ease' }} onMouseOver={e => e.currentTarget.style.color = '#EFEFEF'} onMouseOut={e => e.currentTarget.style.color = '#666'}>[GitHub]</span>
           </div>
-        </div>
+        </motion.div>
 
-      </div>
+      </motion.div>
     </div>
   )
 }
-

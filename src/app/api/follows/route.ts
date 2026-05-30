@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
+import { notifyFollow } from '@/lib/notifications';
 
 export async function POST(request: Request) {
   try {
@@ -36,6 +35,10 @@ export async function POST(request: Request) {
       await prisma.follow.create({
         data: { followerId, followingId }
       });
+      
+      // Dispatch notification to the person being followed
+      await notifyFollow(followingId, followerId);
+
       return NextResponse.json({ status: 'followed' });
     }
   } catch (error) {

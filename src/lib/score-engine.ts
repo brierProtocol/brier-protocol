@@ -39,24 +39,18 @@ export function calculateROI(startingCapital: number, endingCapital: number): nu
 }
 
 /**
- * Validates whether a bot has successfully passed the 30-day calibration phase.
+ * Validates whether a bot has successfully passed the calibration phase.
  * Requirements:
- * 1. Must have traded for at least 15 active days.
- * 2. Must have a minimum of 20 resolved predictions.
- * 3. Brier Score must be strictly < 0.20 (Proof of Edge).
+ * 1. Must have a minimum of 50 resolved predictions.
+ * 2. Brier Score must be strictly < 0.20 (Proof of Edge).
  */
 export function validateVaultEligibility(
-  daysActive: number, 
   totalPredictions: number, 
   brierScore: number
 ): { eligible: boolean; reason: string } {
   
-  if (daysActive < 15) {
-    return { eligible: false, reason: 'Insufficient calibration time. Minimum 15 days required.' };
-  }
-  
-  if (totalPredictions < 20) {
-    return { eligible: false, reason: 'Insufficient volume. Minimum 20 resolved predictions required.' };
+  if (totalPredictions < 50) {
+    return { eligible: false, reason: 'Insufficient volume. Minimum 50 resolved predictions required.' };
   }
 
   if (brierScore >= 0.20) {
@@ -64,4 +58,40 @@ export function validateVaultEligibility(
   }
 
   return { eligible: true, reason: 'Vault Unlocked. Mathematical edge proven.' };
+}
+
+/**
+ * Recalculates a bot's Brier score using ONLY fully resolved markets.
+ * Never includes pending predictions.
+ */
+export async function recalculateBotScore(botId: string, prismaClient: any) {
+  const resolvedTrades = await prismaClient.tradeEvent.findMany({
+    where: { 
+      botId: botId,
+      outcome: { in: ['WIN', 'LOSS'] } // strictly resolved
+    }
+  });
+
+  if (resolvedTrades.length === 0) return 0.25;
+
+  const predictions: PredictionLog[] = resolvedTrades.map((t: any) => ({
+    marketId: t.marketId,
+    forecastProbability: t.entryPrice || 0.5,
+    actualOutcome: t.outcome === 'WIN' ? 1 : 0
+  }));
+
+  const newScore = calculateBrierScore(predictions);
+  
+  const statusCheck = validateVaultEligibility(resolvedTrades.length, newScore);
+  const newStatus = statusCheck.eligible ? 'VAULT_ELIGIBLE_T1' : 'PAPER';
+
+  await prismaClient.bot.update({
+    where: { id: botId },
+    data: { 
+      status: newStatus 
+      // Update score in related table if necessary
+    }
+  });
+
+  return newScore;
 }

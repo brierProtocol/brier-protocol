@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -52,6 +50,7 @@ export async function GET(request: NextRequest) {
       return {
         bot: dep.bot.name,
         slug: dep.bot.slug,
+        vaultAddress: dep.bot.vaultAddress,
         dep: dep.amountUsdc,
         prof: dep.totalProfitEarned,
         pct: dep.amountUsdc > 0 ? parseFloat(((dep.totalProfitEarned / dep.amountUsdc) * 100).toFixed(1)) : 0,
@@ -100,7 +99,7 @@ export async function GET(request: NextRequest) {
       totalDeposited,
       yield30d,
       totalEarned,
-      annualizedReturn: annualizedReturn || 74.2,
+      annualizedReturn: annualizedReturn || 0,
       activePositions: deposits.length,
       allocations,
       history

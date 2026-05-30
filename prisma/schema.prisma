@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Bot {
@@ -23,7 +24,7 @@ model Bot {
   tier            String        @default("NONE")
   
   // Registered execution wallet — all trades must originate here
-  walletAddress   String        @unique
+  walletAddress   String
   
   // Deployed BrierVault smart contract address
   vaultAddress    String?
@@ -56,6 +57,8 @@ model Bot {
   kalshiConnection KalshiConnection?
   comments        Comment[]
   hearts          Heart[]
+
+  @@index([walletAddress])
 }
 
 model BotMarket {
@@ -113,6 +116,9 @@ model TradeEvent {
   externalTradeId  String?  // txHash
   
   @@unique([source, externalTradeId])
+  @@index([botId, outcome])
+  @@index([botId, timestamp])
+  @@index([executionWallet])
 }
 
 model BotScore {
@@ -277,4 +283,23 @@ model Heart {
   createdAt DateTime @default(now())
   
   @@unique([userId, botId])
+}
+
+model Notification {
+  id            String   @id @default(cuid())
+  walletAddress String
+  type          String
+  title         String
+  message       String
+  metadata      String?
+  read          Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  
+  @@index([walletAddress, read])
+}
+
+model Waitlist {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
 }

@@ -34,13 +34,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Handle wallet uniqueness — allow multiple bots per wallet by suffixing
-    let finalWallet = walletAddress.toLowerCase()
-    const existingWallet = await prisma.bot.findUnique({ where: { walletAddress: finalWallet } })
-    if (existingWallet) {
-      // Append bot count to make wallet field unique while preserving the real wallet reference
-      const botCount = await prisma.bot.count({ where: { walletAddress: { startsWith: walletAddress.toLowerCase().substring(0, 10) } } })
-      finalWallet = `${walletAddress.toLowerCase()}-${botCount + 1}`
-    }
+    const finalWallet = walletAddress.toLowerCase()
 
     // Assign a random mood for the bot character
     const moods = ['happy', 'confident', 'neutral', 'thinking', 'intense']
@@ -73,7 +67,7 @@ export async function POST(req: NextRequest) {
       ok: true, 
       botId: bot.id, 
       slug: bot.slug,
-      message: `Algorithm "${bot.name}" registered successfully. Entering 30-day paper trading phase.`
+      message: `Algorithm "${bot.name}" registered successfully. Entering calibration phase (50 resolved trades).`
     })
 
   } catch (err: any) {

@@ -42,22 +42,42 @@ export default function DevelopersPage() {
           </div>
 
           <div style={{ background: '#050505', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px', marginBottom: '1rem' }}>
-            <div style={{ color: '#666', fontSize: '11px', marginBottom: '0.75rem', fontFamily: 'var(--font-mono), monospace' }}>// 1. Install the SDK</div>
-            <div style={{ color: '#EFEFEF', fontSize: '13px', fontFamily: 'var(--font-mono), monospace' }}>pip install brier-sdk</div>
+            <div style={{ color: '#666', fontSize: '11px', marginBottom: '0.75rem', fontFamily: 'var(--font-mono), monospace' }}>// Opción A: Python SDK (Recomendado para Data Science)</div>
+            <pre style={{ margin: 0, fontSize: '13px', color: '#c5c8c6', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-mono), monospace', lineHeight: 1.5 }}>
+<span style={{ color: '#c084fc' }}>from</span> brier_sdk <span style={{ color: '#c084fc' }}>import</span> BrierExecutorClient<br/><br/>
+<span style={{ color: '#666' }}># Inicializa con tu Secret Key generada en el Dashboard</span><br/>
+client = BrierExecutorClient(base_url=<span style={{ color: '#4ade80' }}>"https://api.brier.com"</span>, secret_key=<span style={{ color: '#4ade80' }}>"BUILDER_SECRET"</span>)<br/><br/>
+<span style={{ color: '#666' }}># Brier ejecuta tu trade On-Chain automáticamente</span><br/>
+client.send_trade_signal(<br/>
+{'    '}trade_id=<span style={{ color: '#4ade80' }}>"uuid-123"</span>,<br/>
+{'    '}bot_id=<span style={{ color: '#4ade80' }}>"cuid-bot-id"</span>,<br/>
+{'    '}vault_address=<span style={{ color: '#4ade80' }}>"0xVault..."</span>,<br/>
+{'    '}direction=<span style={{ color: '#4ade80' }}>"LONG"</span>,<br/>
+{'    '}entry_price=<span style={{ color: '#60a5fa' }}>0.55</span>,<br/>
+{'    '}size=<span style={{ color: '#60a5fa' }}>100.0</span>,<br/>
+{'    '}confidence=<span style={{ color: '#60a5fa' }}>0.95</span>,<br/>
+{'    '}market_id=<span style={{ color: '#4ade80' }}>"0xMarket"</span>,<br/>
+{'    '}outcome_index=<span style={{ color: '#60a5fa' }}>0</span><br/>
+)
+            </pre>
           </div>
 
           <div style={{ background: '#050505', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px' }}>
-            <div style={{ color: '#666', fontSize: '11px', marginBottom: '0.75rem', fontFamily: 'var(--font-mono), monospace' }}>// 2. Three lines of code to deploy capital</div>
+            <div style={{ color: '#666', fontSize: '11px', marginBottom: '0.75rem', fontFamily: 'var(--font-mono), monospace' }}>// Opción B: Node.js / TypeScript SDK (Recomendado para Ejecución Rápida)</div>
             <pre style={{ margin: 0, fontSize: '13px', color: '#c5c8c6', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-mono), monospace', lineHeight: 1.5 }}>
-<span style={{ color: '#c084fc' }}>import</span> brier_sdk<br/><br/>
-<span style={{ color: '#666' }}># Initialize with the private key of the wallet you registered</span><br/>
-client = brier_sdk.Client(private_key=<span style={{ color: '#4ade80' }}>"0xYOUR_SECRET_KEY"</span>)<br/><br/>
-<span style={{ color: '#666' }}># Send your prediction. Brier executes the on-chain trade automatically.</span><br/>
-client.predict(<br/>
-{'    '}market_id=<span style={{ color: '#4ade80' }}>"polymarket-btc-100k"</span>,<br/>
-{'    '}outcome=<span style={{ color: '#4ade80' }}>"YES"</span>,<br/>
-{'    '}confidence=<span style={{ color: '#60a5fa' }}>0.95</span><br/>
-)
+<span style={{ color: '#c084fc' }}>import</span> {'{ BrierExecutorClient }'} <span style={{ color: '#c084fc' }}>from</span> <span style={{ color: '#4ade80' }}>'brier-sdk'</span>;<br/><br/>
+<span style={{ color: '#c084fc' }}>const</span> brier = <span style={{ color: '#c084fc' }}>new</span> BrierExecutorClient(process.env.BRIER_URL, process.env.BUILDER_SECRET);<br/><br/>
+<span style={{ color: '#c084fc' }}>await</span> brier.sendTradeSignal({"{"}<br/>
+{'    '}tradeId: <span style={{ color: '#4ade80' }}>"uuid-123"</span>,<br/>
+{'    '}botId: process.env.BOT_ID,<br/>
+{'    '}vaultAddress: process.env.VAULT_ADDRESS,<br/>
+{'    '}direction: <span style={{ color: '#4ade80' }}>"LONG"</span>,<br/>
+{'    '}entryPrice: <span style={{ color: '#60a5fa' }}>0.55</span>,<br/>
+{'    '}size: <span style={{ color: '#60a5fa' }}>100.0</span>,<br/>
+{'    '}confidence: <span style={{ color: '#60a5fa' }}>0.95</span>,<br/>
+{'    '}marketId: <span style={{ color: '#4ade80' }}>"0xMarket"</span>,<br/>
+{'    '}outcomeIndex: <span style={{ color: '#60a5fa' }}>0</span><br/>
+{"}"});
             </pre>
           </div>
         </div>

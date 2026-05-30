@@ -1,9 +1,8 @@
 import { prisma } from './prisma'
 
-// v1.3 Thresholds
-const T1_MIN_DAYS = 30
-const T1_MIN_TRADES = 100
-const T1_MAX_BRIER = 0.28
+// v1.4 Thresholds
+const T1_MIN_TRADES = 50
+const T1_MAX_BRIER = 0.20
 const T1_MAX_DRAWDOWN = 0.25
 
 export async function checkStatusTransitions(botId: string) {
@@ -18,19 +17,16 @@ export async function checkStatusTransitions(botId: string) {
   const score = bot.scores[0]
   if (!score) return
 
-  const ageInDays = (Date.now() - new Date(bot.createdAt).getTime()) / 86400000
-  
   // PAPER -> LIVE happens manually (verified wallet)
   // LIVE -> VAULT_ELIGIBLE_T1 logic
   if (bot.status === 'LIVE') {
-    const meetsAge = ageInDays >= T1_MIN_DAYS
     const meetsTrades = score.totalTrades >= T1_MIN_TRADES
     const meetsBrier = score.brierScore <= T1_MAX_BRIER
     
     // In a real system, we'd check actual history for drawdown here
     const meetsDrawdown = true 
 
-    if (meetsAge && meetsTrades && meetsBrier && meetsDrawdown) {
+    if (meetsTrades && meetsBrier && meetsDrawdown) {
       await prisma.$transaction([
         prisma.bot.update({ 
           where: { id: botId }, 

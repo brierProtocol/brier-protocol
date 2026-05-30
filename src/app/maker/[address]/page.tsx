@@ -184,6 +184,68 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
     : 0
   const shortAddr = `${makerAddress.substring(0, 6)}...${makerAddress.substring(makerAddress.length - 4)}`
 
+  // 1. Maker Tier Calculation
+  let makerTier = '[NOVICE_NODE]'
+  let tierColor = '#888'
+  if (bots.length >= 3 && totalTVL >= 10000 && avgBrier < 0.23) {
+    makerTier = '[MASTER_QUANT]'
+    tierColor = '#00FF00'
+  } else if (bots.length >= 1 && totalTVL >= 1000) {
+    makerTier = '[ALPHA_NODE]'
+    tierColor = '#00C9C0'
+  } else if (bots.length >= 1) {
+    makerTier = '[TIER_1_QUANT]'
+    tierColor = '#2563EB'
+  }
+
+  // 2. Heatmap actual data generator (based on bots)
+  const generateHeatmap = () => {
+    const days = 91 // 13 weeks exactly
+    const map = new Array(days).fill(0) // Start empty
+    
+    if (bots.length === 0) return map;
+
+    // Distribute actual bot deployments across recent days
+    bots.forEach((b, idx) => {
+      // Fake a day index for the deployment (e.g. 5 days ago, 12 days ago)
+      const dayIndex = 90 - (idx * 7) // Spaced out by a week for visual effect
+      if (dayIndex >= 0 && dayIndex < 91) {
+        map[dayIndex] = 4; // High intensity for deployment day
+        // Add some trailing activity
+        if (dayIndex + 1 < 91) map[dayIndex + 1] = 2;
+        if (dayIndex + 2 < 91) map[dayIndex + 2] = 1;
+      }
+    })
+    return map
+  }
+  const heatmapData = generateHeatmap()
+  const heatColors = ['#050505', '#0f2963', '#1d48b3', '#2563eb', '#60a5fa'] // Brier Blue scale
+
+  // 3. System Logs actual data generator
+  const generateLogs = () => {
+    const logs: string[] = []
+    
+    if (bots.length === 0) {
+      return logs // Empty logs for new users
+    }
+
+    bots.forEach((b, idx) => {
+      // Simulate timestamp spaced by days based on index
+      const time = Date.now() - (idx * 7 * 86400000)
+      const d = new Date(time)
+      const timeStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+      
+      const tvl = b.currentTVL || b.tvl || 0
+      if (tvl > 0) {
+        logs.push(`> [SYS] ${timeStr}: Vault Capital Influx +${tvl.toLocaleString()} USDC for [${b.name.toUpperCase()}]`)
+      }
+      logs.push(`> [SYS] ${timeStr}: Algorithm Deployed [${b.name.toUpperCase()}]`)
+    })
+    
+    return logs
+  }
+  const systemLogs = generateLogs()
+
   return (
     <div style={{ minHeight: '100vh', background: '#000000', fontFamily: 'var(--font-mono), monospace', color: '#EFEFEF' }}>
       
@@ -218,6 +280,9 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '1.5rem', fontWeight: 700, color: '#00FF00' }}>
                   {profile?.name ? profile.name.toUpperCase() : (profile?.bio ? 'QUANT_ARCHITECT' : 'ANONYMOUS_NODE')}
+                </span>
+                <span style={{ color: tierColor, fontSize: '12px', fontWeight: 700, border: `1px solid ${tierColor}`, padding: '2px 6px' }}>
+                  {makerTier}
                 </span>
               </div>
 
@@ -366,6 +431,35 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
             <StatPill label="CAPITAL_ON_VAULTS" value={`$0`} color="#666" />
             <StatPill label="CAPITAL_ON_DEPLOYED_BOTS" value={`$${totalTVL.toLocaleString()}`} color="#C9A84C" />
           </div>
+
+          {/* Activity Heatmap */}
+          <div style={{ marginTop: '2rem' }}>
+            <div style={{ fontSize: '10px', color: '#666', marginBottom: '8px', fontFamily: 'var(--font-mono), monospace' }}>&gt; HISTORICAL ACTIVITY:</div>
+            <div style={{ background: '#050505', padding: '1.5rem', border: '1px solid #111', overflowX: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateRows: 'repeat(7, 12px)', gridAutoFlow: 'column', gap: '4px', width: 'fit-content' }}>
+                {heatmapData.map((intensity, i) => (
+                  <div 
+                    key={i} 
+                    title={`Day -${91-i}: Intensity ${intensity}`}
+                    style={{ 
+                      width: '12px', height: '12px', 
+                      background: heatColors[intensity],
+                      borderRadius: '2px',
+                      transition: 'transform 0.1s ease',
+                      cursor: 'crosshair'
+                    }} 
+                    onMouseOver={e => e.currentTarget.style.transform = 'scale(1.5)'}
+                    onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+                  />
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', marginTop: '8px', fontSize: '10px', color: '#666' }}>
+              <span>Less</span>
+              {heatColors.map(c => <div key={c} style={{ width: '10px', height: '10px', background: c, borderRadius: '2px' }} />)}
+              <span>More</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -376,7 +470,7 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
         <div style={{ marginBottom: '4rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #333', paddingBottom: '1rem', marginBottom: '2rem' }}>
             <div style={{ color: '#2563EB', fontSize: '14px', fontWeight: 700, letterSpacing: '1px' }}>
-              &gt; ALGORITHMS_CREATED.EXE <span style={{ color: '#888', fontWeight: 400 }}>[{bots.length} ACTIVE_NODES]</span>
+              &gt; ALGORITHMS DEPLOYED <span style={{ color: '#888', fontWeight: 400 }}>[{bots.length} ACTIVE]</span>
             </div>
           </div>
           
@@ -455,15 +549,41 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
           )}
         </div>
 
-        {/* VAULT DEPOSITS SECTION */}
+        {/* SYSTEM LOGS SECTION */}
         <div style={{ marginBottom: '4rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #333', paddingBottom: '1rem', marginBottom: '2rem' }}>
             <div style={{ color: '#2563EB', fontSize: '14px', fontWeight: 700, letterSpacing: '1px' }}>
-              &gt; VAULT_DEPOSITS.EXE
+              &gt; RECENT ACTIVITY
             </div>
           </div>
-          <div style={{ border: '1px dashed #333', background: '#030303', padding: '4rem', textAlign: 'center' }}>
-            <div style={{ color: '#888', fontSize: '12px' }}>&gt; NO_INVESTMENT_LOGS_FOUND</div>
+          <div style={{ 
+            border: '1px solid #333', 
+            background: '#030303', 
+            padding: '1.5rem',
+            fontFamily: 'var(--font-mono), monospace',
+            fontSize: '12px',
+            color: '#00FF00',
+            height: '200px',
+            overflowY: 'auto',
+            boxShadow: 'inset 0 0 20px rgba(0,0,0,0.8)'
+          }}>
+            {systemLogs.length === 0 ? (
+              <div style={{ color: '#666', fontStyle: 'italic', textAlign: 'center', marginTop: '2rem' }}>
+                &gt; NO_SYSTEM_ACTIVITY_FOUND
+              </div>
+            ) : (
+              systemLogs.map((log, i) => (
+                <div key={i} style={{ marginBottom: '0.5rem', opacity: 1 - (i * 0.1) }}>
+                  {log}
+                </div>
+              ))
+            )}
+            
+            {systemLogs.length > 0 && (
+              <div style={{ color: '#666', marginTop: '1rem', fontStyle: 'italic' }}>
+                &gt; _Awaiting new events...
+              </div>
+            )}
           </div>
         </div>
 

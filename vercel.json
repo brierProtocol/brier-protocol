@@ -1,8 +1,23 @@
 {
-  "crons": [
+  "buildCommand": "prisma generate && prisma migrate deploy && next build",
+  "framework": "nextjs",
+  "regions": ["gru1", "iad1"],
+  "env": {
+    "DATABASE_URL": "@brier-database-url",
+    "DIRECT_URL": "@brier-direct-url",
+    "BUILDER_SECRET_KEY": "@brier-builder-secret",
+    "EXECUTOR_URL": "@brier-executor-url",
+    "NEXTAUTH_SECRET": "@brier-nextauth-secret",
+    "NEXTAUTH_URL": "@brier-nextauth-url"
+  },
+  "headers": [
     {
-      "path": "/api/cron/sync",
-      "schedule": "*/15 * * * *"
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
     }
   ]
 }

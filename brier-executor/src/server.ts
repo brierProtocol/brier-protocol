@@ -1,0 +1,238 @@
+import Fastify from 'fastify';
+import { Queue } from 'bullmq';
+import { createRequire } from 'module';
+import crypto from 'node:crypto';
+const require = createRequire(import.meta.url);
+const Redis = require('ioredis');
+
+const fastify = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
+
+const redisConfig = {
+  host: process.env.REDIS_HOST || '127.0.0.1',
+  port: Number(process.env.REDIS_PORT) || 6379,
+  password: process.env.REDIS_PASSWORD || undefined,
+};
+
+const redis = new Redis(redisConfig);
+const signalQueue = new Queue('trade-signals', { connection: redisConfig });
+const settlementQueue = new Queue('trade-settlements', { connection: redisConfig });
+
+// Mock configuration (In production, these would be fetched dynamically from a DB or contract)
+const VAULT_TOTAL_POOL = 1_000_000; // 1M USDC
+const MAX_CAPACITY = 200_000; // Max allowed total lock
+
+const SECRET = process.env.BUILDER_SECRET_KEY || 'your-64-char-hex-secret';
+const ALLOWED_IPS: string[] | null = process.env.EXECUTOR_ALLOWED_IPS
+  ? process.env.EXECUTOR_ALLOWED_IPS.split(',').map(s => s.trim()).filter(Boolean)
+  : null;
+
+function verifyHmac(timestamp: string, rawBody: string, signature: string): boolean {
+  const payload = `${timestamp}.${rawBody}`;
+  const expected = crypto.createHmac('sha256', SECRET).update(payload).digest('hex');
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(signature, 'hex'));
+  } catch {
+    return false;
+  }
+}
+
+async function checkRateLimit(key: string): Promise<boolean> {
+  const bucket = `rl:${key}:${Math.floor(Date.now() / 60_000)}`;
+  const count = await redis.incr(bucket);
+  if (count === 1) await redis.expire(bucket, 60);
+  return count <= 30;
+}
+
+// IP allowlist — corre antes de cualquier handler
+fastify.addHook('onRequest', async (req, reply) => {
+  if (!ALLOWED_IPS) return;
+
+  const forwarded = req.headers['x-forwarded-for'] as string | undefined;
+  const clientIp = (forwarded ? forwarded.split(',')[0] : req.ip).trim();
+
+  if (!ALLOWED_IPS.includes(clientIp)) {
+    fastify.log.warn({ clientIp }, 'Blocked request from unlisted IP');
+    return reply.code(403).send({ error: 'Forbidden' });
+  }
+});
+
+fastify.get('/health', async () => ({
+  status: 'ok',
+  uptime: Math.floor(process.uptime()),
+  timestamp: Date.now(),
+  redis: await redis.ping().then(() => 'ok').catch(() => 'error'),
+}));
+
+interface SignalBody {
+  tradeId: string;
+  botId: string;
+  vaultAddress: string;
+  direction: 'LONG' | 'SHORT';
+  entryPrice: number;
+  size: number;
+  confidence: number;
+  marketId: string;
+  outcomeIndex: number;
+}
+
+fastify.post<{ Body: SignalBody }>('/api/v1/signals', async (request, reply) => {
+  const timestamp = request.headers['x-timestamp'] as string | undefined;
+  const signature = request.headers['x-signature'] as string | undefined;
+
+  if (!timestamp || !signature) {
+    return reply.code(400).send({ error: 'Missing x-timestamp or x-signature headers' });
+  }
+
+  // Replay protection (5 min window)
+  const ts = parseInt(timestamp, 10);
+  if (isNaN(ts) || Math.abs(Date.now() - ts) > 300_000) {
+    return reply.code(401).send({ error: 'Request expired or invalid timestamp' });
+  }
+
+  // HMAC verification
+  const rawBody = JSON.stringify(request.body);
+  if (!verifyHmac(timestamp, rawBody, signature)) {
+    fastify.log.warn('HMAC verification failed');
+    return reply.code(401).send({ error: 'Invalid signature' });
+  }
+
+  // Rate limiting (usa los primeros 16 chars de la firma como fingerprint del caller)
+  const rlKey = signature.slice(0, 16);
+  if (!(await checkRateLimit(rlKey))) {
+    return reply.code(429).send({ error: 'Rate limit exceeded (30 req/min)' });
+  }
+
+  const { tradeId, botId, vaultAddress, direction, entryPrice, size, confidence, marketId, outcomeIndex } = request.body;
+
+  if (size > VAULT_TOTAL_POOL * 0.20) {
+    return reply.status(400).send({ error: 'Risk Validation Failed: Size exceeds 20% of total pool' });
+  }
+
+  const botStateKey = `bot:${botId}:state`;
+  const tradeKey = `trade:${tradeId}`;
+
+  // WATCH / MULTI / EXEC pattern for concurrency
+  await redis.watch(botStateKey);
+
+  const currentLockedRaw = await redis.hget(botStateKey, 'activeLockedCapital');
+  const currentLocked = currentLockedRaw ? parseFloat(currentLockedRaw) : 0;
+
+  if (currentLocked + size > MAX_CAPACITY) {
+    await redis.unwatch();
+    return reply.status(400).send({ error: 'Risk Validation Failed: Size exceeds vault max capacity' });
+  }
+
+  const multi = redis.multi();
+
+  // Increment locked capital
+  multi.hset(botStateKey, 'activeLockedCapital', currentLocked + size);
+  
+  // Store trade state
+  multi.hset(tradeKey, {
+    tradeId,
+    botId,
+    vaultAddress,
+    direction,
+    entryPrice,
+    size,
+    confidence,
+    status: 'pending',
+    lockedCapital: size,
+    timestamp: Date.now()
+  });
+
+  const execResult = await multi.exec();
+
+  if (!execResult) {
+    return reply.status(409).send({ error: 'Concurrency Error: State modified during evaluation. Please retry.' });
+  }
+
+  // Push to BullMQ for Executor Daemon
+  await signalQueue.add('execute-trade', {
+    tradeId,
+    botId,
+    vaultAddress,
+    marketId,
+    outcomeIndex,
+    size
+  });
+
+  return reply.status(202).send({ message: 'Signal accepted and queued for execution', tradeId });
+});
+
+// =========================================================
+// Settlement Endpoint
+// =========================================================
+
+interface SettleBody {
+  tradeId: string;
+  botId: string;
+  vaultAddress: string;
+  ctfAddress: string;
+  conditionId: string;
+  collateralToken: string;
+  indexSets: number[];
+  payout: number;
+}
+
+fastify.post<{ Body: SettleBody }>('/api/v1/settle', async (request, reply) => {
+  const timestamp = request.headers['x-timestamp'] as string | undefined;
+  const signature = request.headers['x-signature'] as string | undefined;
+
+  if (!timestamp || !signature) {
+    return reply.code(400).send({ error: 'Missing x-timestamp or x-signature headers' });
+  }
+
+  // Replay protection (5 min window)
+  const ts = parseInt(timestamp, 10);
+  if (isNaN(ts) || Math.abs(Date.now() - ts) > 300_000) {
+    return reply.code(401).send({ error: 'Request expired or invalid timestamp' });
+  }
+
+  // HMAC verification
+  const rawBody = JSON.stringify(request.body);
+  if (!verifyHmac(timestamp, rawBody, signature)) {
+    fastify.log.warn('HMAC verification failed');
+    return reply.code(401).send({ error: 'Invalid signature' });
+  }
+
+  const { tradeId, botId, vaultAddress, ctfAddress, conditionId, collateralToken, indexSets, payout } = request.body;
+
+  // Verify trade exists and is active
+  const tradeStatus = await redis.hget(`trade:${tradeId}`, 'status');
+  if (tradeStatus !== 'active') {
+    return reply.status(400).send({ error: `Trade ${tradeId} is not active (status: ${tradeStatus || 'not found'})` });
+  }
+
+  await settlementQueue.add('settle-trade', {
+    tradeId,
+    botId,
+    vaultAddress,
+    ctfAddress,
+    conditionId,
+    collateralToken,
+    indexSets,
+    payout
+  });
+
+  return reply.status(202).send({ message: 'Settlement queued', tradeId });
+});
+
+import { ResolutionWatcher } from './watcher';
+
+const watcher = new ResolutionWatcher();
+
+const start = async () => {
+  try {
+    await fastify.listen({ port: 3001 });
+    console.log('Executor Fastify server running on port 3001');
+    
+    // Start background Oracle polling service
+    watcher.start();
+  } catch (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
+};
+
+start();

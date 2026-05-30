@@ -46,7 +46,8 @@ contract BrierFactory is Ownable {
         address builderWallet,
         string calldata botId,
         string calldata vaultName,
-        string calldata vaultSymbol
+        string calldata vaultSymbol,
+        uint256 maxCapacity
     ) external onlyOwner returns (address) {
         
         BrierVault newVault = new BrierVault(
@@ -56,8 +57,9 @@ contract BrierFactory is Ownable {
             brierDaemon,
             builderWallet,
             polymarketCTF,
-            owner(),
-            1000 // Default 10% performance fee in bps
+            owner(), // Gnosis Safe Admin
+            owner(),  // feeRecipient (Platform Wallet)
+            maxCapacity
         );
 
         address vaultAddress = address(newVault);

@@ -87,3 +87,96 @@ button:active, a:active { transform: scale(0.97); }
 .page-transition {
   animation: pageEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+/* CRT Scanline overlay — adds depth to terminal aesthetic */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Glitch animation for status badges */
+@keyframes glitch {
+  0%, 100% { transform: translate(0); clip-path: inset(0 0 100% 0); }
+  10% { transform: translate(-2px, 1px); clip-path: inset(20% 0 60% 0); }
+  20% { transform: translate(2px, -1px); clip-path: inset(50% 0 30% 0); }
+  30% { transform: translate(0); clip-path: inset(0 0 100% 0); }
+}
+
+@keyframes terminal-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.cursor-blink::after {
+  content: '_';
+  animation: terminal-blink 1s step-end infinite;
+  color: #00FF00;
+}
+
+/* Neon glow utility classes */
+.glow-blue { text-shadow: 0 0 10px rgba(37,99,235,0.8), 0 0 20px rgba(37,99,235,0.4); }
+.glow-green { text-shadow: 0 0 10px rgba(0,255,0,0.8), 0 0 20px rgba(0,255,0,0.4); }
+.glow-cyan { text-shadow: 0 0 10px rgba(0,201,192,0.8), 0 0 20px rgba(0,201,192,0.4); }
+
+/* Card hover with border glow transition */
+.card-hover {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  box-shadow: 0 0 20px rgba(37,99,235,0.15), 0 0 40px rgba(37,99,235,0.05);
+}
+
+/* Smooth page transitions */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); filter: blur(2px); }
+  to   { opacity: 1; transform: translateY(0);    filter: blur(0);   }
+}
+
+/* --- Slime Vault Animation --- */
+@keyframes slimeWave {
+  0% { background-position-x: 0px; }
+  100% { background-position-x: 1000px; }
+}
+
+@keyframes slimeBubbles {
+  0% { transform: translateY(0) scale(1); opacity: 0; }
+  50% { transform: translateY(-10px) scale(1.2); opacity: 0.8; }
+  100% { transform: translateY(-20px) scale(0.8); opacity: 0; }
+}
+
+.slime-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+  background-color: #111;
+  border: 1px solid #333;
+}
+
+.slime-liquid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #4ade80, #22c55e);
+  background-size: 200% 100%;
+  animation: slimeWave 3s linear infinite;
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.4);
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slime-bubble {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  animation: slimeBubbles linear infinite;
+}
+.animate-fade-up { animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }

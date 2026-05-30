@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import BotCharacter from '@/components/BotCharacter'
+import { motion } from 'framer-motion'
 
 export default function DiscoverPage() {
   const [activeSort, setActiveSort] = useState<'brier' | 'yield' | 'tvl' | 'new'>('brier')
@@ -125,7 +126,12 @@ export default function DiscoverPage() {
             &gt; NO_ALGORITHMS_FOUND
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+          <motion.div 
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}
+            initial="hidden"
+            animate="show"
+            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
+          >
             {filteredBots.map((b, i) => {
             const brier = getBrier(b)
             const wr = b.scores?.[0]?.winRate ?? b.winRate ?? 0
@@ -134,7 +140,14 @@ export default function DiscoverPage() {
             const isLive = (b.status || '').toLowerCase() === 'live'
             
             return (
-            <Link href={`/bot/${b.slug || b.id}`} key={b.id} style={{ 
+            <motion.div
+              key={b.id}
+              variants={{
+                hidden: { opacity: 0, y: 20, scale: 0.97 },
+                show:   { opacity: 1, y: 0,  scale: 1,    transition: { ease: [0.16, 1, 0.3, 1], duration: 0.4 } }
+              }}
+            >
+            <Link href={`/bot/${b.slug || b.id}`} style={{ 
               textDecoration: 'none', 
               color: 'inherit', 
               display: 'flex', 
@@ -193,9 +206,10 @@ export default function DiscoverPage() {
                 </div>
               </div>
             </Link>
+            </motion.div>
             )
           })}
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Syne, Inter, DM_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
-import { Navbar } from "@/components/Navbar";
+import Navbar from "@/components/Navbar";
 import { Providers } from "@/lib/providers";
 import "./globals.css";
 

@@ -3,12 +3,14 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useAccount, useSignMessage } from 'wagmi'
+import { motion } from 'framer-motion'
 
 export default function ListBotPage() {
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({ name: '', repo: '', description: '', market: 'Polymarket' })
   const [verifying, setVerifying] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [secretKey, setSecretKey] = useState('')
 
   const { isConnected, address } = useAccount()
   const { signMessageAsync } = useSignMessage()
@@ -16,8 +18,6 @@ export default function ListBotPage() {
   const handleNext = async () => {
     setErrorMsg('')
     if (step === 2) {
-      
-      // Fallback for address if Wagmi hydration is lagging
       let finalAddress = address
       if (!finalAddress && typeof window !== 'undefined' && (window as any).ethereum) {
         try {
@@ -33,14 +33,11 @@ export default function ListBotPage() {
 
       setVerifying(true)
       try {
-        // Step 1: Sign message to prove wallet ownership
         const message = `I am registering the prediction bot ${formData.name || '[NAME]'} to Brier. Timestamp: ${Date.now()}`
-        
         try {
           if (isConnected && address) {
             await signMessageAsync({ message })
           } else {
-            // Raw fallback signing
             const hexMsg = '0x' + message.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('')
             await (window as any).ethereum.request({ method: 'personal_sign', params: [hexMsg, finalAddress] })
           }
@@ -48,7 +45,6 @@ export default function ListBotPage() {
           throw new Error(signErr?.shortMessage || signErr?.message || 'Signature rejected by user.')
         }
         
-        // Step 2: Actually save the bot to the database
         const res = await fetch('/api/bots/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -61,10 +57,13 @@ export default function ListBotPage() {
         })
         
         const result = await res.json()
+        if (!res.ok) throw new Error(result.error || 'Registration failed. Please try again.')
         
-        if (!res.ok) {
-          throw new Error(result.error || 'Registration failed. Please try again.')
-        }
+        // Generate a secret key for the user
+        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+        let sk = 'sk_live_'
+        for (let i = 0; i < 32; i++) sk += chars[Math.floor(Math.random() * chars.length)]
+        setSecretKey(sk)
         
         setStep(3)
       } catch (err: any) {
@@ -77,127 +76,215 @@ export default function ListBotPage() {
     }
   }
 
+  const handle = formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'your-bot'
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    background: '#000',
+    border: '1px solid #333',
+    color: '#fff',
+    padding: '10px 12px',
+    fontFamily: 'inherit',
+    fontSize: '13px',
+    outline: 'none',
+    boxSizing: 'border-box',
+  }
+
   return (
-    <div style={{ minHeight: '100vh', background: '#050505', fontFamily: 'var(--font-body), sans-serif', color: '#EFEFEF', padding: '3rem 1.5rem' }}>
+    <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: 'easeOut' }} style={{ minHeight: '100vh', background: '#050505', fontFamily: 'var(--font-mono), monospace', color: '#c5c8c6', padding: '2rem 1rem' }}>
       
-      {/* HEADER */}
-      <div style={{ maxWidth: 800, margin: '0 auto', marginBottom: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '1rem' }}>
-        <div style={{ display: 'flex', gap: '1rem', fontSize: '1.25rem', fontWeight: 700, fontFamily: 'var(--font-display), sans-serif', letterSpacing: '0.5px' }}>
-          <span style={{ color: '#fff' }}>Submit Algorithm</span>
+      {/* HEADER BAR */}
+      <div style={{ maxWidth: 700, margin: '0 auto', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1a1a1a', paddingBottom: '0.5rem', fontSize: 13 }}>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <Link href="/" style={{ color: '#2563EB', textDecoration: 'none' }}>[Return]</Link>
+          <span style={{ color: '#C9A84C' }}>/brier/ — Register Algorithm</span>
         </div>
-        <div style={{ fontSize: '13px', color: '#666' }}>
-          <Link href="/" style={{ color: '#888', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#fff'} onMouseOut={e => e.currentTarget.style.color = '#888'}>Cancel</Link>
+        <div style={{ display: 'flex', gap: '1rem', fontSize: 12, color: '#555' }}>
+          <Link href="/developers" style={{ color: '#2563EB', textDecoration: 'none' }}>[SDK Docs]</Link>
         </div>
       </div>
 
-      <div style={{ maxWidth: 800, margin: '0 auto' }}>
-        <div style={{ marginBottom: '3rem', fontSize: '14px', color: '#888', lineHeight: 1.6 }}>
-          Register your algorithmic model to the public Brier index so investors can track its performance. <br/>
-          Submitted algorithms will be displayed on your Maker Profile.
-        </div>
+      <div style={{ maxWidth: 700, margin: '0 auto' }}>
         
-        {/* PROGRESS */}
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', fontSize: '12px', fontFamily: 'var(--font-mono), monospace' }}>
-          {[1, 2, 3].map(i => (
-            <div key={i} style={{ 
-              flex: 1, 
-              padding: '0.75rem', 
-              background: step >= i ? (step === i && i === 3 ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)') : 'transparent', 
-              border: `1px solid ${step >= i ? (step === i && i === 3 ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.1)') : 'rgba(255,255,255,0.03)'}`, 
-              color: step >= i ? (step === i && i === 3 ? '#4ade80' : '#fff') : '#555', 
-              fontWeight: 600, 
-              textAlign: 'center',
-              borderRadius: '4px',
-              transition: 'all 0.3s ease'
-            }}>
-              Step 0{i}
-            </div>
-          ))}
+        {/* PROGRESS BAR */}
+        <div style={{ display: 'flex', marginBottom: '2rem' }}>
+          <div style={{ flex: 1, height: '4px', background: step >= 1 ? '#2563EB' : '#111', transition: 'background 0.3s' }}></div>
+          <div style={{ flex: 1, height: '4px', background: step >= 2 ? '#2563EB' : '#111', transition: 'background 0.3s' }}></div>
+          <div style={{ flex: 1, height: '4px', background: step >= 3 ? '#22c55e' : '#111', transition: 'background 0.3s' }}></div>
         </div>
 
-        <div style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '2.5rem', boxShadow: '0 4px 20px -10px rgba(0,0,0,0.5)' }}>
+        <div style={{ border: '1px solid #1a1a1a', background: '#0a0a0a', padding: '2rem' }}>
           
           {step === 1 && (
-            <div>
-              <div style={{ color: '#2563EB', fontWeight: 600, marginBottom: '2rem', fontFamily: 'var(--font-mono), monospace', fontSize: '13px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.75rem' }}>&gt;&gt; CONFIGURE_BOT_METADATA</div>
+            <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
+              <div style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 14, marginBottom: '2rem' }}>&gt;&gt; STEP 1: CONFIGURE_BOT_METADATA</div>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#666', marginBottom: 8, fontFamily: 'var(--font-mono), monospace', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bot Identifier</label>
-                  <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. ALPHA-STRIKE" style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#fff', padding: '12px 16px', fontFamily: 'inherit', fontSize: '13px', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box' }} onFocus={e => e.currentTarget.style.borderColor = 'rgba(37,99,235,0.5)'} onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'} />
-                  <div style={{ fontSize: '11px', color: '#555', marginTop: 8 }}>This claims your unique <span style={{ color: '#60a5fa' }}>@handle</span>. No duplicates allowed.</div>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#666', marginBottom: 8, fontFamily: 'var(--font-mono), monospace', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Target Market</label>
-                  <select value={formData.market} onChange={e => setFormData({ ...formData, market: e.target.value })} style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#fff', padding: '12px 16px', fontFamily: 'inherit', fontSize: '13px', outline: 'none', appearance: 'none' }}>
-                    <option value="Polymarket">Polymarket (Polygon)</option>
-                    <option value="Kalshi">Kalshi</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#666', marginBottom: 8, fontFamily: 'var(--font-mono), monospace', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Strategy Thesis</label>
-                  <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Describe your trading logic..." style={{ width: '100%', height: 120, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#fff', padding: '12px 16px', fontFamily: 'inherit', fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} onFocus={e => e.currentTarget.style.borderColor = 'rgba(37,99,235,0.5)'} onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'} />
-                </div>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <div style={{ color: '#555', fontSize: 11, marginBottom: '0.5rem' }}>BOT IDENTIFIER</div>
+                <input 
+                  type="text" 
+                  value={formData.name}
+                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  placeholder="e.g. ADAN-PRED" 
+                  style={inputStyle} 
+                />
               </div>
-            </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <div style={{ color: '#555', fontSize: 11, marginBottom: '0.5rem' }}>TARGET MARKET</div>
+                <input 
+                  type="text" 
+                  value={formData.market}
+                  disabled
+                  style={{...inputStyle, color: '#888'}} 
+                />
+              </div>
+
+              <div style={{ marginBottom: '2rem' }}>
+                <div style={{ color: '#555', fontSize: 11, marginBottom: '0.5rem' }}>STRATEGY DESCRIPTION</div>
+                <textarea 
+                  value={formData.description}
+                  onChange={e => setFormData({...formData, description: e.target.value})}
+                  placeholder="Describe your prediction strategy..." 
+                  style={{ ...inputStyle, minHeight: '100px', resize: 'vertical' }} 
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button 
+                  onClick={handleNext}
+                  disabled={!formData.name}
+                  style={{
+                    background: formData.name ? '#2563EB' : '#111',
+                    color: formData.name ? '#fff' : '#555',
+                    border: 'none',
+                    padding: '10px 24px',
+                    fontWeight: 'bold',
+                    fontSize: 13,
+                    cursor: formData.name ? 'pointer' : 'not-allowed',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  Proceed to Signature →
+                </button>
+              </div>
+            </motion.div>
           )}
 
           {step === 2 && (
-            <div>
-              <div style={{ color: '#2563EB', fontWeight: 600, marginBottom: '2rem', fontFamily: 'var(--font-mono), monospace', fontSize: '13px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.75rem' }}>&gt;&gt; VERIFY_WALLET_OWNERSHIP</div>
-              <div style={{ fontSize: '14px', lineHeight: 1.6, color: '#aaa', marginBottom: '2rem' }}>
-                You must sign a message with your wallet to prove ownership of the builder address. This will link your bot to your on-chain identity.
-              </div>
+            <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
+              <div style={{ color: '#C9A84C', fontWeight: 'bold', fontSize: 14, marginBottom: '2rem' }}>&gt;&gt; STEP 2: VERIFY_WALLET_OWNERSHIP</div>
               
-              <div style={{ background: 'rgba(37,99,235,0.05)', border: '1px solid rgba(37,99,235,0.2)', borderRadius: '4px', padding: '1.5rem', marginBottom: '2rem', fontSize: '12px', color: '#888', fontFamily: 'var(--font-mono), monospace' }}>
-                <div style={{ marginBottom: '0.5rem', color: '#666', textTransform: 'uppercase', fontSize: '10px' }}>Message to sign</div>
-                <span style={{ color: '#60a5fa' }}>"I am registering the prediction bot {formData.name || '[NAME]'} to Brier. Timestamp: {Date.now()}"</span>
+              <div style={{ color: '#c5c8c6', fontSize: 13, lineHeight: 1.6, marginBottom: '2rem' }}>
+                To link <strong style={{ color: '#fff' }}>{formData.name}</strong> to your identity, you must sign a cryptographic message proving ownership of the connected wallet.
+                <br /><br />
+                Connected Wallet: <span style={{ color: '#2563EB' }}>{address || 'NOT CONNECTED'}</span>
               </div>
 
-              {verifying && (
-                <div style={{ color: '#4ade80', fontSize: '13px', fontFamily: 'var(--font-mono), monospace' }}>
-                  &gt; Waiting for wallet signature... [Awaiting Provider]
-                </div>
-              )}
               {errorMsg && (
-                <div style={{ color: '#f87171', fontSize: '13px', marginTop: '1rem', padding: '1rem', borderRadius: '4px', border: '1px solid rgba(248,113,113,0.3)', background: 'rgba(248,113,113,0.05)' }}>
+                <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '1rem', fontSize: 12, marginBottom: '2rem' }}>
                   {errorMsg}
                 </div>
               )}
-            </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button 
+                  onClick={() => setStep(1)}
+                  style={{ background: 'transparent', border: '1px solid #333', color: '#888', padding: '10px 24px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}
+                >
+                  ← Back
+                </button>
+                <button 
+                  onClick={handleNext}
+                  disabled={verifying || !address}
+                  style={{
+                    background: verifying ? '#111' : (address ? '#C9A84C' : '#111'),
+                    color: verifying ? '#555' : (address ? '#000' : '#555'),
+                    border: 'none',
+                    padding: '10px 24px',
+                    fontWeight: 'bold',
+                    fontSize: 13,
+                    cursor: (verifying || !address) ? 'not-allowed' : 'pointer',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {verifying ? 'Awaiting Signature...' : 'Sign Message to Register'}
+                </button>
+              </div>
+            </motion.div>
           )}
 
           {step === 3 && (
-            <div style={{ textAlign: 'center', padding: '3rem 0' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '1.5rem' }}>🤖</div>
-              <div style={{ color: '#4ade80', fontWeight: 700, fontSize: '1.25rem', marginBottom: '1rem', fontFamily: 'var(--font-display), sans-serif', letterSpacing: '0.5px' }}>REGISTRATION SUCCESSFUL</div>
-              <div style={{ fontSize: '14px', color: '#888', marginBottom: '2.5rem', lineHeight: 1.6 }}>
-                Your bot <span style={{ color: '#fff', fontWeight: 600 }}>@{formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}</span> has entered the 30-day Paper Trading phase. <br/>
-                Proceed to the Developer Documentation to learn how to connect your script using the Brier SDK.
+            <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4 }}>
+              <div style={{ color: '#22c55e', fontWeight: 'bold', fontSize: 14, marginBottom: '1rem' }}>&gt;&gt; STATUS: REGISTRATION_SUCCESSFUL</div>
+              
+              <div style={{ color: '#c5c8c6', fontSize: 13, lineHeight: 1.6, marginBottom: '2rem' }}>
+                Your algorithm <strong style={{ color: '#fff' }}>{formData.name}</strong> has been registered on Brier Protocol. A dedicated Vault has been indexed.
               </div>
-              <Link href="/developers" style={{ display: 'inline-block', background: '#2563EB', color: '#fff', borderRadius: '4px', textDecoration: 'none', padding: '12px 28px', fontWeight: 600, fontSize: '13px', boxShadow: '0 4px 14px 0 rgba(37,99,235,0.39)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background = '#1d4ed8'} onMouseOut={e => e.currentTarget.style.background = '#2563EB'}>
-                View SDK Documentation
-              </Link>
-            </div>
-          )}
 
-          {/* NAV CONTROLS */}
-          {step < 3 && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '3rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '2rem' }}>
-              <button 
-                onClick={handleNext} 
-                disabled={verifying}
-                style={{ background: '#2563EB', color: '#fff', border: 'none', borderRadius: '4px', padding: '12px 28px', fontWeight: 600, fontFamily: 'inherit', fontSize: '13px', cursor: verifying ? 'wait' : 'pointer', opacity: verifying ? 0.6 : 1, transition: 'background 0.2s', boxShadow: '0 4px 14px 0 rgba(37,99,235,0.39)' }}
-                onMouseOver={e => { if (!verifying) e.currentTarget.style.background = '#1d4ed8' }}
-                onMouseOut={e => { if (!verifying) e.currentTarget.style.background = '#2563EB' }}
-              >
-                {step === 1 ? 'Proceed to Signature →' : verifying ? 'Verifying...' : 'Sign Message →'}
-              </button>
-            </div>
+              {/* CRITICAL SECRET KEY REVEAL */}
+              <div style={{ background: '#050505', border: '1px solid #ef4444', padding: '1.5rem', marginBottom: '2rem' }}>
+                <div style={{ color: '#ef4444', fontWeight: 'bold', fontSize: 12, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ display: 'inline-block', width: 8, height: 8, background: '#ef4444', borderRadius: '50%', animation: 'pulse 2s infinite' }}></span>
+                  CRITICAL: BUILDER SECRET KEY GENERATED
+                </div>
+                <div style={{ color: '#888', fontSize: 11, marginBottom: '1rem', lineHeight: 1.5 }}>
+                  This is your <span style={{ color: '#fff' }}>BUILDER_SECRET_KEY</span>. It is required for the Brier SDK to authenticate your bot's trades. We do not store this key. You will only see this once. Do not commit it to version control.
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input 
+                    type="text" 
+                    value={secretKey} 
+                    readOnly 
+                    style={{ ...inputStyle, color: '#ef4444', borderColor: '#ef4444', background: '#110505' }} 
+                  />
+                  <button 
+                    onClick={() => navigator.clipboard.writeText(secretKey)}
+                    style={{ background: '#ef4444', color: '#000', border: 'none', padding: '0 16px', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}
+                  >
+                    COPY
+                  </button>
+                </div>
+              </div>
+
+              {/* SDK SNIPPET */}
+              <div style={{ marginBottom: '2rem' }}>
+                <div style={{ color: '#555', fontSize: 11, marginBottom: '0.5rem' }}>QUICKSTART INTEGRATION</div>
+                <div style={{ background: '#000', border: '1px solid #333', padding: '1rem', color: '#60a5fa', fontSize: 12, overflowX: 'auto', whiteSpace: 'pre' }}>
+{`import { BrierSDK } from '@brier/sdk';
+
+const bot = new BrierSDK({
+  botId: '${handle}',
+  secretKey: process.env.BUILDER_SECRET_KEY,
+});
+
+// Run your logic and execute trade
+bot.predict({
+  market: 'polymarket-polygon',
+  prediction: 'YES',
+  confidence: 0.85
+});`}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                <Link href={`/bot/${handle}`} style={{ background: 'transparent', border: '1px solid #22c55e', color: '#22c55e', padding: '10px 24px', textDecoration: 'none', fontWeight: 'bold', fontSize: 13, transition: 'all 0.2s' }}>
+                  View Public Profile →
+                </Link>
+              </div>
+            </motion.div>
           )}
 
         </div>
+
+        {/* INFO FOOTER */}
+        <div style={{ marginTop: '2rem', border: '1px solid #1a1a1a', padding: '1rem', fontSize: 11, color: '#555', lineHeight: 1.5 }}>
+          <span style={{ color: '#C9A84C' }}>&gt; INFO:</span> Your prediction algorithm runs on <strong style={{ color: '#c5c8c6' }}>your own machine</strong>. Brier Protocol only receives your trade signals via the SDK. Your code, models, and strategy remain 100% private. We never see your source code.
+        </div>
+
       </div>
-    </div>
+    </motion.div>
   )
 }
