@@ -15,11 +15,17 @@ The Bloomberg Terminal for the prediction economy.
 Brier is engineered on a modern, high-performance web stack designed for real-time data indexing, cryptographic security, and a premium user experience.
 
 ### Technical Foundation
-*   **Application Layer:** Next.js 16 (App Router)
+*   **Application Layer:** Next.js 15 (App Router) with React 19
 *   **Language:** TypeScript (Strict Mode)
 *   **Database:** PostgreSQL via Prisma ORM (High-throughput relational state)
 *   **Web3 Integration:** Wagmi, Viem, and Ethers.js for cryptographic transaction verification.
+*   **Animation & UI:** Framer Motion and custom HTML5 Canvas for real-time telemetry rendering.
 *   **Design System:** Custom "Dark Luxury" brutalism. Fonts: *Syne* (Display), *Inter* (Body) & *DM Mono* (Monospace for data).
+
+### Execution Environment (HFT Engine)
+*   **Machine Learning Brain:** Python (XGBoost) modeling with Markovian Gate architectures.
+*   **Node.js Executor:** BullMQ and Fastify for deterministic event-loop management and trade orchestration.
+*   **Native SDK (`brier-sdk.ts`):** Cryptographically signed payload transmission via HMAC-SHA256 with built-in exponential backoff.
 
 ### Core Primitives
 
@@ -33,11 +39,11 @@ A fully-featured social network for Quant Architects.
 *   **Maker Profiles:** Wallet-bound identities where builders publish their trading theses and display their deployed fleet of predictive algorithms.
 *   **Social Consensus:** Investors can follow and signal support for architectures before deploying capital.
 
-#### 3. The Execution Vaults (`/vault/[botId]`)
-The smart-contract integration layer.
-*   Algorithms that achieve a Brier Score below `0.25` are automatically granted an ERC4626 Vault.
-*   Investors deposit USDC directly into the algorithm's trading pool.
-*   Capital is programmatically locked; the algorithm creator never has custody of investor funds.
+#### 3. The Execution Vaults (`/bot/[slug]`)
+The smart-contract integration layer featuring a Dual-Mode Interface:
+*   **[ DEPLOYER ] Mode (The Maker Terminal):** A secure console exclusively for the bot creator. Features real-time latency heatmaps, RPC ping diagnostics, and a Nuclear Kill Switch for emergency pauses.
+*   **[ INVESTOR ] Mode:** A clean, optimized interface allowing users to deploy capital into ERC-4626 Vaults mapped to specific bots. Capital is locked programmatically; the creator never custodies funds.
+*   **Mood Engine:** An algorithmic system that dynamically shifts a bot's avatar and UI color palette based on its real-time quantitative health (drawdown, win rate, momentum).
 
 ---
 
@@ -62,6 +68,7 @@ Brier protects capital using a proprietary **Off-Chain Mirror Mechanism**:
 ### Prerequisites
 *   Node.js (v18+)
 *   npm or pnpm
+*   Redis (for BullMQ executor queues)
 
 ### Initialization
 
@@ -71,7 +78,7 @@ Brier protects capital using a proprietary **Off-Chain Mirror Mechanism**:
    ```
 
 2. **Database Provisioning:**
-   Brier uses Prisma with a local SQLite database (`dev.db`) for rapid iteration.
+   Ensure you have a local PostgreSQL instance running.
    ```bash
    npx prisma generate
    npx prisma db push
@@ -81,18 +88,7 @@ Brier protects capital using a proprietary **Off-Chain Mirror Mechanism**:
    ```bash
    npm run dev
    ```
-   Access the terminal at [http://localhost:3000](http://localhost:3000).
-
----
-
-## 🚀 On-Chain E2E Trade-Mirroring Simulation
-
-We have built a fully automated E2E system simulator that compiles Brier smart contracts, seeds the database, executes whale deposits, triggers Polymarket CTF transactions, and uses the off-chain **Shadow Daemon** to index, mirror, and log the results back to the database.
-
-Run the complete verification loop:
-```bash
-npx hardhat run src/indexer/simulate_shadow_run.js
-```
+   Access the application at [http://localhost:3000](http://localhost:3000).
 
 ---
 
@@ -101,23 +97,13 @@ npx hardhat run src/indexer/simulate_shadow_run.js
 To take Brier Protocol to Mainnet, follow this institutional deployment pipeline.
 
 ### 1. PostgreSQL Migration
-Migrate from local SQLite to a production-grade PostgreSQL cluster (e.g. Supabase, Vercel Postgres).
-
-1. Open `prisma/schema.prisma` and modify the datasource block:
-   ```prisma
-   datasource db {
-     provider = "postgresql"
-     url      = env("DATABASE_URL")
-   }
-   ```
-2. Define the connection string in your `.env` file:
-   ```env
-   DATABASE_URL="postgresql://username:password@hostname:5432/brier_db?sslmode=require"
-   ```
-3. Push the schema to the live cluster:
-   ```bash
-   npx prisma db push
-   ```
+Migrate to a production-grade PostgreSQL cluster (e.g. Supabase, Vercel Postgres).
+```env
+DATABASE_URL="postgresql://username:password@hostname:5432/brier_db?sslmode=require"
+```
+```bash
+npx prisma db push
+```
 
 ### 2. Next.js Cloud Hosting (Vercel)
 1. Link your repository to Vercel.
@@ -127,14 +113,14 @@ Migrate from local SQLite to a production-grade PostgreSQL cluster (e.g. Supabas
    - `POLYMARKET_CTF_ADDRESS`: `0x4D97DCd97eC945f40CF65F87097ACe5EA0476045`.
 3. Deploy. Vercel automatically compiles, optimizes, and serves the application over global CDNs.
 
-### 3. Background Daemon Operations (24/7 Execution)
-The off-chain copying engine (`shadow_daemon.js`) requires a persistent container to monitor live trades and trigger market settlements continuously.
-1. Deploy the indexer code to a highly-available VPS or container runner (e.g., AWS EC2, Railway).
+### 3. Background Executor Operations (24/7 Node)
+The execution engine (`brier-executor/src/worker.ts`) manages trade queuing and settlement via BullMQ.
+1. Deploy the executor to a highly-available environment (e.g., AWS EC2, Railway).
 2. Start the daemon as a background service:
    ```bash
-   node src/indexer/shadow_daemon.js
+   npm run start:executor
    ```
-3. Ensure the daemon container has environment access to the production database (`DATABASE_URL`), the indexer's funded private key (`DAEMON_PRIVATE_KEY`), and network RPCs.
+3. Ensure the container has access to the production database (`DATABASE_URL`), Redis (`REDIS_URL`), and the `EXECUTOR_PRIVATE_KEY`.
 
 ---
 
@@ -143,7 +129,7 @@ The off-chain copying engine (`shadow_daemon.js`) requires a persistent containe
 Before launching Brier Protocol with real capital, the following sequence is mandatory to ensure absolute security and institutional credibility:
 
 1. **Polygon Mumbai Testnet:** Deploy all contracts and indexer on the Mumbai testnet. Provide the bot builders with testnet USDC to execute trades, and verify the `mirror()` function scales correctly.
-2. **48-Hour Live Simulation:** Run the `shadow_daemon.js` uninterrupted for 48 hours without manual intervention. Verify zero crashes and perfect database/on-chain sync.
+2. **48-Hour Live Simulation:** Run the executor workers uninterrupted for 48 hours without manual intervention. Verify zero crashes and perfect database/on-chain sync.
 3. **Smart Contract Audit:** Submit `BrierVault.sol` and `BrierFactory.sol` to **Code4rena**, Sherlock, or hire a dedicated smart contract auditor. Never deploy real capital without an external security stamp.
 4. **Gnosis Safe Ownership:** Ensure the Factory and all deployed Vaults belong to a 2/3 Gnosis Safe Multisig. No single EOA (Externally Owned Account) should possess the ability to call `pause()` or `setDaemon()`.
 5. **Vault TVL Caps:** Launch with a hard cap of **$10,000 USDC** per vault for the first 30 days to mitigate risk during the early discovery phase.
