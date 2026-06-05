@@ -13,34 +13,29 @@ model Bot {
   slug            String        @unique
   name            String
   description     String?
-  tagline         String?       // Keep for UI consistency
+  tagline         String?       
   color           String        @default("#0A0A0A")
   mood            String        @default("neutral")
   
-  // Status state machine: PAPER | LIVE | VAULT_ELIGIBLE_T1 | VAULT_ELIGIBLE_T2 | SUSPENDED
+  // Status state machine
   status          String        @default("PAPER")
-  
-  // NONE | TIER1 | TIER2
   tier            String        @default("NONE")
+  pfpUrl          String?
+  avatarId        String        @default("void-eye")
   
-  // Registered execution wallet — all trades must originate here
+  // --- NUEVA TAXONOMÍA INSTITUCIONAL (PERPS) ---
+  marketType      String        @default("SPOT")      // SPOT | PERP
+  resolution      String        @default("EPOCH")     // HFT | SCALP | SWING | EPOCH
+  mandate         String        @default("DIRECTIONAL") // DIRECTIONAL | DELTA-NEUTRAL
+  maxLeverage     Float         @default(1.0)
+  // ---------------------------------------------
+
   walletAddress   String
-  
-  // Deployed BrierVault smart contract address
   vaultAddress    String?
-  
-  // USDC amount bot owner has locked as collateral
   skinInGame      Float         @default(0)
-  
-  // Hard cap on total USDC deposits
   vaultCap        Float         @default(0)
-  
-  // Current total USDC deposited
   currentTVL      Float         @default(0)
-  
-  // Vault open for deposits
   vaultOpen       Boolean       @default(false)
-  
   strategyType    String        @default("hybrid")
   
   createdAt       DateTime      @default(now())
@@ -59,6 +54,8 @@ model Bot {
   hearts          Heart[]
 
   @@index([walletAddress])
+  @@index([status])       // FIX-5: leaderboard filters by status constantly
+  @@index([tier])         // FIX-5: tier filtering
 }
 
 model BotMarket {
@@ -85,40 +82,38 @@ model TradeEvent {
   marketId         String
   marketTitle      String
   
-  // YES | NO
+  // YES | NO | LONG | SHORT
   side             String
   
-  // USDC amount wagered
+  // --- NUEVOS PARÁMETROS DE EJECUCIÓN PERP ---
+  actionType       String   @default("OPEN") // OPEN | CLOSE
+  leverage         Float    @default(1.0)
+  stopLossPrice    Float?
+  takeProfitPrice  Float?
+  // -------------------------------------------
+
   amount           Float
-  
-  // Price at entry (0.0 to 1.0)
   entryPrice       Float
-  
-  // Price at resolution (0.0 or 1.0)
   resolvedPrice    Float    @default(0)
   
-  // WIN | LOSS | PENDING
+  // WIN | LOSS | PENDING | LIQUIDATED
   outcome          String   @default("PENDING")
-  
-  // Contribution to running Brier Score: (resolvedPrice - entryPrice)²
   brierContrib     Float    @default(0)
   
-  // The wallet that signed this trade on Polymarket
   executionWallet  String
-  
-  // true if executionWallet != Bot.walletAddress
   fraudFlag        Boolean  @default(false)
   
   timestamp        DateTime @default(now())
   resolvedAt       DateTime?
   
-  source           String   @default("POLYMARKET") // POLYMARKET | KALSHI
-  externalTradeId  String?  // txHash
+  source           String   @default("POLYMARKET") 
+  externalTradeId  String?  
   
   @@unique([source, externalTradeId])
   @@index([botId, outcome])
   @@index([botId, timestamp])
   @@index([executionWallet])
+  @@index([botId, resolvedAt]) // FIX-5: settlement worker queries by resolved date
 }
 
 model BotScore {
@@ -251,6 +246,7 @@ model Comment {
 
 model User {
   walletAddress String   @id
+  handle        String?  @unique
   name          String?
   bio           String?
   pfpUrl        String?

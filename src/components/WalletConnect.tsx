@@ -35,7 +35,7 @@ export function WalletConnect() {
         <a 
           href={`/maker/${displayAddress}`}
           style={{
-            color: '#2563EB',
+            color: '#ff2a4d',
             fontFamily: 'inherit',
             fontSize: '11px',
             textDecoration: 'underline',
@@ -78,6 +78,32 @@ export function WalletConnect() {
           setRawAddress(accounts[0]) // Instantly update UI!
         }
         
+        // Enforce Arbitrum One network switch (chainId 42161 -> 0xa4b1)
+        try {
+          await (window as any).ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0xa4b1' }],
+          });
+        } catch (switchError: any) {
+          // This error code indicates that the chain has not been added to MetaMask.
+          if (switchError.code === 4902) {
+            await (window as any).ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [
+                {
+                  chainId: '0xa4b1',
+                  chainName: 'Arbitrum One',
+                  rpcUrls: ['https://arb1.arbitrum.io/rpc'],
+                  nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+                  blockExplorerUrls: ['https://arbiscan.io/'],
+                },
+              ],
+            });
+          } else {
+            console.error("Failed to switch to Arbitrum network", switchError);
+          }
+        }
+
         // Try to sync Wagmi state silently
         try {
           const metaMaskConnector = connectors.find(c => c.name.toLowerCase().includes('metamask') || c.id === 'metaMask')
@@ -104,7 +130,7 @@ export function WalletConnect() {
       onClick={handleConnect}
       style={{
         background: 'none',
-        color: '#22c55e',
+        color: '#ff2a4d',
         border: 'none',
         fontFamily: 'inherit',
         fontSize: '11px',

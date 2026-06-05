@@ -1,138 +1,129 @@
-# Brier Protocol 
+# 🌿 Brier Protocol
 
-> *The Quantitative Intelligence Layer for Prediction Markets.*
-
-Brier Protocol is an institutional-grade, zero-trust capital deployment engine for predictive artificial intelligence. We bridge the gap between world-class machine learning models and decentralized liquidity.
-
-By strictly indexing on-chain resolution data, Brier mathematically enforces performance metrics (Brier Scores, Win Rates, Max Drawdowns) to ensure the quantitative landscape is fully transparent, meritocratic, and instantly investable.
-
-The Bloomberg Terminal for the prediction economy.
+Brier Protocol es una plataforma descentralizada (un "shadow indexer" y arquitectura de bóvedas ERC4626) que permite a los creadores ("Makers") desplegar algoritmos de trading predictivo en mercados como **Polymarket**, y a los inversores ("LPs") delegar liquidez en ellos a través de un esquema seguro y automatizado.
 
 ---
 
-## 🏛 The Architecture
+## 🚀 Características Principales
 
-Brier is engineered on a modern, high-performance web stack designed for real-time data indexing, cryptographic security, and a premium user experience.
+### Para Creadores (Makers)
+- **Registro de Algoritmos:** Permite registrar bots predictivos, establecer estrategias, y conectarlos a fuentes de datos como Polymarket y Kalshi.
+- **Fase de Incubación (Paper Trading):** Todos los bots nuevos inician en fase de prueba (Paper) sin fondos reales hasta probar su rentabilidad (Win Rate, Sharpe Ratio, Brier Score).
+- **Gestión de Perfil:** Dashboard de creador para monitorear el desempeño del bot, modificar metadatos y revisar el historial de transacciones.
+- **Circuit Breaker & Skin in the Game:** Los creadores depositan una garantía que puede ser reducida (slashed) si el bot sufre un Drawdown mayor al 15%, alineando incentivos.
 
-### Technical Foundation
-*   **Application Layer:** Next.js 15 (App Router) with React 19
-*   **Language:** TypeScript (Strict Mode)
-*   **Database:** PostgreSQL via Prisma ORM (High-throughput relational state)
-*   **Web3 Integration:** Wagmi, Viem, and Ethers.js for cryptographic transaction verification.
-*   **Animation & UI:** Framer Motion and custom HTML5 Canvas for real-time telemetry rendering.
-*   **Design System:** Custom "Dark Luxury" brutalism. Fonts: *Syne* (Display), *Inter* (Body) & *DM Mono* (Monospace for data).
+### Para Inversores (LPs)
+- **Bóvedas ERC4626 (Smart Contracts):** Cada algoritmo aprobado obtiene un Vault (bóveda inteligente) que gestiona los depósitos en USDC.
+- **Transparencia Total:** Las métricas de desempeño, APY histórico, PnL y retiros están completamente indexadas y visibles en tiempo real.
+- **Verificación On-Chain:** Los depósitos se verifican mediante la escucha de eventos `Transfer` directo de un RPC público de Arbitrum One, protegiendo contra ataques de repetición (Replay Attacks) y validando el remitente (depositorWallet).
+- **Retiros Instantáneos:** El capital ocioso ("idle capital") no comprometido en operaciones activas puede ser retirado al instante, sin bloqueos de 48 horas.
 
-### Execution Environment (HFT Engine)
-*   **Machine Learning Brain:** Python (XGBoost) modeling with Markovian Gate architectures.
-*   **Node.js Executor:** BullMQ and Fastify for deterministic event-loop management and trade orchestration.
-*   **Native SDK (`brier-sdk.ts`):** Cryptographically signed payload transmission via HMAC-SHA256 with built-in exponential backoff.
-
-### Core Primitives
-
-#### 1. The Global Index (`/discover`)
-The central nervous system of Brier. Algorithms are ranked by pure mathematical proficiency, not popularity.
-*   **The Brier Score:** The global standard for predictive accuracy. The leaderboard strictly sorts by this metric.
-*   **Proof of Work:** All scores are cryptographically derived from verified on-chain transactions. Zero simulated data.
-
-#### 2. The Identity Layer (`/maker/[address]`)
-A fully-featured social network for Quant Architects.
-*   **Maker Profiles:** Wallet-bound identities where builders publish their trading theses and display their deployed fleet of predictive algorithms.
-*   **Social Consensus:** Investors can follow and signal support for architectures before deploying capital.
-
-#### 3. The Execution Vaults (`/bot/[slug]`)
-The smart-contract integration layer featuring a Dual-Mode Interface:
-*   **[ DEPLOYER ] Mode (The Maker Terminal):** A secure console exclusively for the bot creator. Features real-time latency heatmaps, RPC ping diagnostics, and a Nuclear Kill Switch for emergency pauses.
-*   **[ INVESTOR ] Mode:** A clean, optimized interface allowing users to deploy capital into ERC-4626 Vaults mapped to specific bots. Capital is locked programmatically; the creator never custodies funds.
-*   **Mood Engine:** An algorithmic system that dynamically shifts a bot's avatar and UI color palette based on its real-time quantitative health (drawdown, win rate, momentum).
+### Funciones de la Plataforma
+- **Ranking y Descubrimiento:** Tablas de clasificación (Leaderboards) basadas en el Brier Score y rendimiento general.
+- **Módulos Sociales:** Sistema de seguidores, "corazones" (likes) y comentarios para construir comunidad alrededor de las estrategias.
+- **Arquitectura de UI Dual:** Diseño estético retro-terminal (Bloomberg-style) con elementos de glassmorphism premium.
 
 ---
 
-## 🛡 Security Architecture: The "Mirror" Engine
+## 🛠 Arquitectura Tecnológica (Stack)
 
-When managing millions of dollars in Total Value Locked (TVL), the protocol architecture assumes every bot builder is potentially malicious. **Builders never touch depositors' money.**
+### Frontend (Web3 App)
+- **Framework:** Next.js 16.2.6 (App Router) con Turbopack
+- **Estilos:** Tailwind CSS v4 + Framer Motion (animaciones de micro-interacciones)
+- **Web3:** `wagmi` + `viem` + `@rainbow-me/rainbowkit` (conexión de wallets)
+- **Gráficos:** Recharts + Liveline para gráficos financieros y PnL interactivo
 
-Brier protects capital using a proprietary **Off-Chain Mirror Mechanism**:
-1. The AI builder executes a trade using their *own* money (e.g., $50) from their registered wallet on Polymarket.
-2. Brier's off-chain Indexer (Shadow Daemon) detects the transaction on the Polygon RPC.
-3. Instantly, the Brier Smart Contract automatically executes that *exact same trade*, scaled logarithmically using the Vault's capital (e.g., $100,000).
+### Backend y Base de Datos
+- **API:** Next.js Route Handlers (`/api/deposits`, `/api/bots`, `/api/cron`, etc.)
+- **Base de Datos:** PostgreSQL alojado en Supabase
+- **ORM:** Prisma v5.22.0
+- **Seguridad:** Middlewares y protecciones activas contra falsificación de transacciones (Spoofing) e inyección de datos. Rate limiting en despliegues.
 
-**Why this is unbreakable:**
-*   **Zero Custody:** The builder has no access to the Vault contract and cannot withdraw depositors' funds.
-*   **Skin in the Game:** The builder must trade with their own money. Malicious trades immediately burn the builder's own capital.
-*   **Cryptographic Verification:** Our `POST /api/deposits` endpoint queries the Polygon RPC directly to cryptographically verify deposit transaction receipts before crediting the database. You cannot spoof TVL.
-
----
-
-## 💻 Local Development
-
-### Prerequisites
-*   Node.js (v18+)
-*   npm or pnpm
-*   Redis (for BullMQ executor queues)
-
-### Initialization
-
-1. **Install Dependencies:**
-   ```bash
-   npm install
-   ```
-
-2. **Database Provisioning:**
-   Ensure you have a local PostgreSQL instance running.
-   ```bash
-   npx prisma generate
-   npx prisma db push
-   ```
-
-3. **Boot Development Server:**
-   ```bash
-   npm run dev
-   ```
-   Access the application at [http://localhost:3000](http://localhost:3000).
+### Smart Contracts (Blockchain)
+- **Lenguaje:** Solidity `^0.8.20`
+- **Librerías:** OpenZeppelin Contracts Upgradeable v5.6.1 (`ERC4626`, `Initializable`, `Pausable`, `ReentrancyGuard`)
+- **Factory:** `BrierVaultFactory.sol` (Usa EIP-1167 Minimal Proxy Clones para despliegues ultra-baratos)
+- **Vault:** `BrierVault.sol` (Gestión central de fondos, cortes de emergencia, y reparto de fees: 60% LP, 30% Maker, 10% Plataforma)
+- **Testing y Deploy:** Hardhat + Ignition
 
 ---
 
-## ⚡ Production Deployment (Mainnet)
+## 📁 Estructura del Proyecto
 
-To take Brier Protocol to Mainnet, follow this institutional deployment pipeline.
+```text
+brier-protocol/
+├── contracts/
+│   ├── BrierVault.sol              # Lógica principal de Bóveda Upgradeable
+│   ├── BrierVaultFactory.sol       # Proxy factory para creación de vaults
+│   └── BrierFactory.sol            # (Obsoleto) Factory inicial 
+├── prisma/
+│   ├── schema.prisma               # Modelos de BD (Bot, VaultDeposit, User...)
+│   └── seed.ts                     # Script de inicialización de datos falsos
+├── src/
+│   ├── app/
+│   │   ├── api/                    # Endpoints (Bots, Depósitos verificados, Cron)
+│   │   ├── bot/[slug]/             # UI pública del bot (Métricas, Depósitos, Foros)
+│   │   ├── dashboard/              # Panel de control de inversores
+│   │   ├── discover/               # Listado y filtros de bots
+│   │   ├── leaderboard/            # Ranking global
+│   │   ├── list-bot/               # Flujo para registrar nuevos bots
+│   │   ├── maker/[address]/        # Perfil público y gestión del creador
+│   │   └── vault/[botId]/          # Vista detallada de la bóveda ERC4626
+│   ├── components/                 # Componentes reutilizables (BotCard, MiniChart, Nav)
+│   └── lib/                        # Prisma client, Wagmi config, helpers
+└── middleware.ts                   # Next.js rate-limiting
+```
 
-### 1. PostgreSQL Migration
-Migrate to a production-grade PostgreSQL cluster (e.g. Supabase, Vercel Postgres).
+---
+
+## 🔒 Auditoría de Seguridad & Estado Actual
+
+Recientemente se completó una auditoría exhaustiva de seguridad y arquitectura, resolviendo los siguientes vectores críticos para un entorno de producción que maneja dinero real:
+1. **Sanitización de Credenciales:** La BD está completamente aislada usando variables de entorno `.env` en lugar de strings de conexión duros.
+2. **Deposit Replay Attack Prevention:** El endpoint de depósitos previene la inyección duplicada de `txHash` y valida el `msg.sender` original desde los eventos del contrato en Arbitrum.
+3. **Hardcoded Fallbacks:** Se removieron los fallbacks peligrosos a direcciones de vault arbitrarias; los depósitos se bloquean si un bot no tiene vault asignado.
+4. **Protección de API y Cron Jobs:** Los jobs de sincronización (Cron) ahora están protegidos tras tokens de autorización (`CRON_SECRET`), previniendo ejecución no autorizada y fuga de logs.
+
+---
+
+## 💻 Desarrollo Local
+
+### 1. Requisitos Previos
+- Node.js (v20+)
+- Postgres Database (URL)
+- Claves de API de Alchemy o un RPC público de Arbitrum
+
+### 2. Variables de Entorno
+Crea un archivo `.env.local` en la raíz (no lo subas a Github):
 ```env
-DATABASE_URL="postgresql://username:password@hostname:5432/brier_db?sslmode=require"
+DATABASE_URL="postgresql://user:password@host:port/postgres"
+DIRECT_URL="postgresql://user:password@host:port/postgres"
+NEXT_PUBLIC_ARBITRUM_RPC_URL="https://arb1.arbitrum.io/rpc"
+CRON_SECRET="your-secure-secret"
 ```
+
+### 3. Instalación y Ejecución
 ```bash
+# 1. Instalar dependencias
+npm install
+
+# 2. Sincronizar la base de datos de Prisma
 npx prisma db push
+
+# 3. (Opcional) Popular con datos semilla
+npm run db:seed
+
+# 4. Iniciar el servidor local de Next.js
+npm run dev
 ```
 
-### 2. Next.js Cloud Hosting (Vercel)
-1. Link your repository to Vercel.
-2. Inject the following environment variables:
-   - `DATABASE_URL`: Your production PostgreSQL string.
-   - `NEXT_PUBLIC_POLYGON_RPC_URL`: Dedicated RPC node (Alchemy, Infura).
-   - `POLYMARKET_CTF_ADDRESS`: `0x4D97DCd97eC945f40CF65F87097ACe5EA0476045`.
-3. Deploy. Vercel automatically compiles, optimizes, and serves the application over global CDNs.
+El proyecto estará disponible en `http://localhost:3000`.
 
-### 3. Background Executor Operations (24/7 Node)
-The execution engine (`brier-executor/src/worker.ts`) manages trade queuing and settlement via BullMQ.
-1. Deploy the executor to a highly-available environment (e.g., AWS EC2, Railway).
-2. Start the daemon as a background service:
-   ```bash
-   npm run start:executor
-   ```
-3. Ensure the container has access to the production database (`DATABASE_URL`), Redis (`REDIS_URL`), and the `EXECUTOR_PRIVATE_KEY`.
+### 4. Smart Contracts
+```bash
+# Compilar contratos
+npm run compile:contracts
 
----
-
-## 🚨 Pre-Mainnet Deployment Checklist
-
-Before launching Brier Protocol with real capital, the following sequence is mandatory to ensure absolute security and institutional credibility:
-
-1. **Polygon Mumbai Testnet:** Deploy all contracts and indexer on the Mumbai testnet. Provide the bot builders with testnet USDC to execute trades, and verify the `mirror()` function scales correctly.
-2. **48-Hour Live Simulation:** Run the executor workers uninterrupted for 48 hours without manual intervention. Verify zero crashes and perfect database/on-chain sync.
-3. **Smart Contract Audit:** Submit `BrierVault.sol` and `BrierFactory.sol` to **Code4rena**, Sherlock, or hire a dedicated smart contract auditor. Never deploy real capital without an external security stamp.
-4. **Gnosis Safe Ownership:** Ensure the Factory and all deployed Vaults belong to a 2/3 Gnosis Safe Multisig. No single EOA (Externally Owned Account) should possess the ability to call `pause()` or `setDaemon()`.
-5. **Vault TVL Caps:** Launch with a hard cap of **$10,000 USDC** per vault for the first 30 days to mitigate risk during the early discovery phase.
-
----
-*Brier — Truth is the only edge.*
+# Ejecutar test unitarios
+npm run test:contracts
+```

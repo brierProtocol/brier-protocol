@@ -1,36 +1,65 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
 export async function POST(request: Request) {
   try {
-    const { userId, botId } = await request.json();
+    const { userId, botId } = await request.json()
 
-    if (!userId || !botId) return NextResponse.json({ error: 'Missing ids' }, { status: 400 });
+    if (!userId || !botId) {
+      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 })
+    }
 
-    // Upsert the user to ensure foreign key constraint doesn't fail
+    // Ensure user exists
     await prisma.user.upsert({
       where: { walletAddress: userId },
       update: {},
-      create: { walletAddress: userId }
-    });
+      create: { walletAddress: userId, name: `User_${userId.substring(0, 6)}` }
+    })
 
-    const existing = await prisma.heart.findUnique({
-      where: { userId_botId: { userId, botId } }
-    });
+    const existingHeart = await prisma.heart.findUnique({
+      where: {
+        userId_botId: {
+          userId,
+          botId
+        }
+      }
+    })
 
-    if (existing) {
+    if (existingHeart) {
+      // Unlike
       await prisma.heart.delete({
-        where: { userId_botId: { userId, botId } }
-      });
-      return NextResponse.json({ status: 'unhearted' });
+        where: { id: existingHeart.id }
+      })
+      return NextResponse.json({ status: 'unhearted' })
     } else {
+      // Like
       await prisma.heart.create({
-        data: { userId, botId }
-      });
-      return NextResponse.json({ status: 'hearted' });
+        data: {
+          userId,
+          botId
+        }
+      })
+
+      // Send Notification to bot owner
+      const bot = await prisma.bot.findUnique({ where: { id: botId } })
+      if (bot && bot.walletAddress) {
+        // Don't notify if liking own bot
+        if (bot.walletAddress !== userId) {
+          await prisma.notification.create({
+            data: {
+              walletAddress: bot.walletAddress,
+              type: 'LIKE',
+              title: 'ALGORITHM LIKED',
+              message: `Wallet ${userId.substring(0,6)}... liked your bot [${bot.name}].`
+            }
+          })
+        }
+      }
+
+      return NextResponse.json({ status: 'hearted' })
     }
   } catch (error) {
-    console.error('Error toggling heart:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Heart error:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }

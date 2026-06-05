@@ -8,7 +8,7 @@ interface MiniChartProps {
   height?: number;
 }
 
-export function MiniChart({ data, color = '#0A0A0A', height = 48 }: MiniChartProps) {
+export function MiniChart({ data, color = '#ff2a4d', height = 48 }: MiniChartProps) {
   const chartData = data.map((v, i) => ({ i, v }));
 
   return (

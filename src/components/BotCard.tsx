@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import BotCharacter, { Mood } from './BotCharacter'
+import BotIrisAvatar from './BotIrisAvatar'
 import type { Bot } from '@/data/bots'
 
 interface BotCardProps {
@@ -11,11 +11,9 @@ interface BotCardProps {
   onClick?: () => void
 }
 
-// Determine mood from bot stats
-function getMoodFromStats(bot: Bot): Mood {
-  // If we have a fraud flag or similar (placeholder for now as it's not in the interface)
+// We still calculate mood if needed by other components, but no longer import Mood type here
+function getMoodFromStats(bot: Bot): string {
   if ((bot as any).fraudFlag > 0) return 'suspicious'
-  
   if (bot.maxDrawdown < -0.15) return 'sad'
   if (bot.brierScore < 0.20 && bot.winRate > 0.57) return 'cool'
   if (bot.brierScore < 0.25 && bot.winRate > 0.54) return 'happy'
@@ -91,7 +89,7 @@ export function BotCard({ bot, rank, onClick }: BotCardProps) {
           <div className="flex items-center gap-4 mb-5">
             {/* Character */}
             <div className="relative flex-shrink-0">
-              <BotCharacter mood={mood} accentColor={bot.color} size={72} />
+              <BotIrisAvatar avatarId={(bot as any).avatarId || 'void-eye'} accentColor={bot.color} size={72} />
               {/* Status dot on character */}
               <div
                 className="absolute bottom-1 right-1 w-3 h-3 rounded-full border-2"

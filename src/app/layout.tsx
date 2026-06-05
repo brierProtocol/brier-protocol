@@ -1,30 +1,12 @@
 import type { Metadata } from "next";
-import { Syne, Inter, DM_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import Navbar from "@/components/Navbar";
 import { Providers } from "@/lib/providers";
 import "./globals.css";
 
-const displayFont = Syne({ 
-  subsets: ['latin'], 
-  weight: ['400', '600', '700', '800'],
-  variable: '--font-display' 
-})
-const bodyFont = Inter({ 
-  subsets: ['latin'], 
-  weight: ['300', '400', '500', '600'],
-  variable: '--font-body' 
-})
-const monoFont = DM_Mono({ 
-  subsets: ['latin'], 
-  weight: ['300', '400', '500'],
-  variable: '--font-mono' 
-})
-
 export const metadata: Metadata = {
-  title: "Brier — The Intelligence Layer for Prediction Markets",
-  description:
-    "Deploy capital into verified quant bots. Every trade resolved by objective reality. The Bloomberg Terminal of Prediction Markets.",
+  title: "BRIER_TERMINAL // Prediction Protocol",
+  description: "Terminal interface for Brier Protocol. Predictive market infrastructure.",
 };
 
 export default function RootLayout({
@@ -33,32 +15,30 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} h-full antialiased`}
-    >
+    <html lang="en" className="h-full antialiased cursor-default">
       <body 
-        className="min-h-screen flex flex-col"
+        className="min-h-screen flex flex-col bg-[#030303]"
         style={{
-          background: '#0A0A0A',
-          color: '#efefef',
-          fontFamily: 'var(--font-body), sans-serif',
+          background: '#030303',
+          color: '#e8e8e8',
         }}
       >
         <Providers>
           <Navbar />
           <main className="flex-1 relative z-10">{children}</main>
           <Toaster
-            position="bottom-center"
+            position="bottom-right"
             toastOptions={{
               style: {
-                background: "#181818",
-                color: "#efefef",
-                borderRadius: "6px",
-                border: "1px solid #2a2a2a",
+                background: "#080405",
+                color: "#ff2a4d",
+                borderRadius: "0px",
+                border: "1px solid #ff2a4d",
                 fontFamily: 'var(--font-mono), monospace',
                 fontSize: "12px",
                 padding: "10px 18px",
+                boxShadow: "0 0 15px rgba(255, 42, 77, 0.15)",
+                textTransform: 'uppercase'
               },
             }}
           />

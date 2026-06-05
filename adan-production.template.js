@@ -1,67 +1,75 @@
-/**
- * ADAN-PRED v8.5 - BRIER PROTOCOL INJECTION
- * 
- * INSTRUCTIONS:
- * 1. npm install brier-sdk
- * 2. Copy this file into your ADAN Quant environment.
- * 3. Replace the placeholder credentials with your LIVE keys from the Brier Dashboard.
- */
-
-import { BrierExecutorClient } from 'brier-sdk';
+import { BrierExecutorClient } from './scripts/brier-sdk.ts';
 import * as dotenv from 'dotenv';
 import * as crypto from 'crypto';
 
 dotenv.config();
 
-// 1. Initialize Institutional Connection
 const executorUrl = process.env.BRIER_EXECUTOR_URL || "https://executor.brierprotocol.com";
 const builderSecret = process.env.BUILDER_SECRET_KEY || "your_64_char_secret_from_dashboard";
-
 const brier = new BrierExecutorClient(executorUrl, builderSecret);
 
 /**
- * Replace your old "paperTrading()" function with this real Mainnet execution.
+ * Función Maestra de Ejecución (Soporta Perps y Spot)
  */
-async function executeQuantSignal(prediction, marketId, confidenceScore, kellySizeUsdc) {
+async function executeQuantSignal(prediction, marketId, confidenceScore, kellySizeUsdc, isPerp = false, leverage = 1, currentPrice = 0) {
     console.log(`[ADAN-PRED] Generating On-Chain Trade Signal... Confidence: ${confidenceScore}`);
-
+    
     try {
         const tradeId = `adan-trade-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
         
-        // This hits the Fastify Daemon and goes to BullMQ
+        // Cálculo sintético de Stop-Loss (Corta pérdida al 5% del movimiento en contra)
+        const stopLossMargin = currentPrice * 0.05;
+        const stopLoss = prediction === "YES" || prediction === "LONG" 
+            ? currentPrice - stopLossMargin 
+            : currentPrice + stopLossMargin;
+
         const response = await brier.sendTradeSignal({
             tradeId: tradeId,
             botId: process.env.BRIER_BOT_ID || "cuid-brier-adan-pred-v8",
             vaultAddress: process.env.BRIER_VAULT_ADDRESS || "0xYourVaultAddress",
+            marketType: isPerp ? 'PERP' : 'SPOT',
+            actionType: 'OPEN',
             direction: prediction === "YES" ? "LONG" : "SHORT",
-            entryPrice: 0.50, // Optional: The price you are willing to fill at
+            leverage: isPerp ? leverage : 1,
+            stopLossPrice: isPerp ? stopLoss : undefined,
+            entryPrice: currentPrice || 0.50,
             size: kellySizeUsdc,
             confidence: confidenceScore,
             marketId: marketId,
-            outcomeIndex: prediction === "YES" ? 0 : 1
+            outcomeIndex: prediction === "YES" || prediction === "LONG" ? 0 : 1
         });
 
-        console.log(`[BRIER] Signal Accepted! Transaction sent to Polygon Mainnet. Trade ID: ${tradeId}`);
-        return response;
-
+        console.log(`[BRIER] Signal Accepted! Trade ID: ${tradeId}`);
+        return tradeId;
     } catch (error) {
         console.error(`[FATAL ERROR] Brier Execution Failed:`, error.message);
-        // Implement exponential backoff or local retry queue here
     }
 }
 
-// ---------------------------------------------------------
-// Example Usage in ADAN's Loop
-// ---------------------------------------------------------
-/*
-async function adanTick() {
-    const market = await fetchKalshiMarketData("BTC-100K-DEC31");
-    const features = await extractFeatures(market);
-    const prediction = xgboostModel.predict(features);
-    
-    if (prediction.confidence > 0.85) {
-        const size = calculateKellyFraction(prediction.confidence, 0.5);
-        await executeQuantSignal(prediction.side, market.id, prediction.confidence, size);
+/**
+ * Nueva Función: Cerrar Posición Perp Manualmente (Take Profit)
+ */
+async function closeQuantPosition(tradeId, marketId) {
+    console.log(`[ADAN-PRED] Taking Profit / Closing Position: ${tradeId}`);
+    try {
+        await brier.sendTradeSignal({
+            tradeId: tradeId, // Mismo ID para referenciar la posición abierta
+            botId: process.env.BRIER_BOT_ID,
+            vaultAddress: process.env.BRIER_VAULT_ADDRESS,
+            marketType: 'PERP',
+            actionType: 'CLOSE',
+            direction: 'LONG', // Ignorado en el cierre
+            entryPrice: 0,
+            size: 0, // Ignorado, cierra el 100%
+            confidence: 1,
+            marketId: marketId,
+            outcomeIndex: 0
+        });
+        console.log(`[BRIER] Close Signal Accepted!`);
+    } catch (error) {
+        console.error(`[FATAL ERROR] Failed to close position:`, error.message);
     }
 }
-*/
+
+// Test execution
+executeQuantSignal('YES', '0x123', 0.95, 100, true, 5, 0.50).then(() => console.log('Bot finished.'));

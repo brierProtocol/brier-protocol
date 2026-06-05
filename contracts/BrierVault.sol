@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * @title BrierVault
@@ -17,8 +18,10 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
  *   [FIX-1] settleMarket verifica balance real antes de distribuir fees.
  *   [FIX-2] Per-trade capital tracking via tradeLockedCapital[tradeId].
  *   [FIX-3] Retiros instantáneos de idle capital. Sin timelock de 48h.
+ *   [FIX-4] Upgradeable Minimal Proxy support (Initializable).
+ *   [FIX-5] Skin-in-the-game tracking & Circuit Breaker slashing mechanism.
  */
-contract BrierVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
+contract BrierVault is Initializable, ERC4626Upgradeable, OwnableUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
     address public brierDaemon;
@@ -30,11 +33,14 @@ contract BrierVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
     uint256 public totalProfit;
     address public feeRecipient;
 
+    // Skin in the game (Maker's stake, e.g. 5,000 USDC)
+    uint256 public skinInGame;
+
     uint256 public constant DEPOSITOR_SHARE_BPS = 6000;
     uint256 public constant BUILDER_SHARE_BPS   = 3000;
     uint256 public constant PLATFORM_SHARE_BPS  = 1000;
 
-    // [FIX-2] Capital locked por trade individual
+    // Capital locked por trade individual
     mapping(bytes32 => uint256) public tradeLockedCapital;
 
     event TradeExecuted(bytes32 indexed tradeId, bytes32 indexed marketId, uint256 amount);
@@ -43,8 +49,14 @@ contract BrierVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
     event TradeStale(bytes32 indexed tradeId);
     event DaemonUpdated(address indexed oldDaemon, address indexed newDaemon);
     event MaxCapacityUpdated(uint256 newCapacity);
+    event CircuitBreakerTriggered(uint256 slashedAmount);
 
-    constructor(
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(
         IERC20 asset_,
         string memory vaultName_,
         string memory vaultSymbol_,
@@ -53,18 +65,26 @@ contract BrierVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
         address _polymarketCTF,
         address _gnosisSafeAdmin,
         address _feeRecipient,
-        uint256 _maxCapacity
-    ) ERC4626(asset_) ERC20(vaultName_, vaultSymbol_) Ownable(_gnosisSafeAdmin) {
+        uint256 _maxCapacity,
+        uint256 _skinInGame
+    ) initializer public {
         require(_brierDaemon   != address(0), "BrierVault: zero daemon address");
         require(_builderWallet != address(0), "BrierVault: zero builder address");
         require(_feeRecipient  != address(0), "BrierVault: zero fee recipient");
         require(_maxCapacity    > 0,          "BrierVault: zero max capacity");
+
+        __ERC4626_init(asset_);
+        __ERC20_init(vaultName_, vaultSymbol_);
+        __Ownable_init(_gnosisSafeAdmin);
+        __Pausable_init();
+        __ReentrancyGuard_init();
 
         brierDaemon   = _brierDaemon;
         builderWallet = _builderWallet;
         polymarketCTF = _polymarketCTF;
         feeRecipient  = _feeRecipient;
         maxCapacity   = _maxCapacity;
+        skinInGame    = _skinInGame;
     }
 
     modifier onlyExecutor() {
@@ -116,31 +136,19 @@ contract BrierVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
         emit TradeExecuted(tradeId, marketId, usdcAmount);
     }
 
-    /**
-     * @notice Liquida un trade resuelto y distribuye PnL.
-     * @dev El daemon debe redimir los tokens de Polymarket CTF ANTES de llamar
-     *      esta función. El [FIX-1] verifica que el payout llegó físicamente.
-     *
-     * Ganancia: 60% queda en pool (valoriza shares), 30% → builderWallet, 10% → feeRecipient.
-     * Pérdida:  idleCapital aumenta solo por el payout recibido (pérdida absorbida por el pool).
-     */
     function settleMarket(
         bytes32 tradeId,
         uint256 payout
     ) external onlyExecutor nonReentrant {
-        // [FIX-2] Obtener el capital exacto del trade — no se acepta como parámetro externo
         uint256 initialInvestment = tradeLockedCapital[tradeId];
         require(initialInvestment > 0, "BrierVault: trade not found or already settled");
 
-        // [FIX-1] Verificar que los tokens del payout están físicamente en el contrato.
-        // Después de redimir en Polymarket: balance real = idleCapital + payout
         uint256 contractBalance = IERC20(asset()).balanceOf(address(this));
         require(
             contractBalance >= idleCapital + payout,
             "BrierVault: payout not received - redeem from CTF first"
         );
 
-        // CEI: limpiar estado antes de transferencias
         tradeLockedCapital[tradeId]  = 0;
         activeLockedCapital         -= initialInvestment;
 
@@ -160,7 +168,6 @@ contract BrierVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
             emit FeesDistributed(builderFee, platformFee, depositorProfit);
             emit TradeSettled(tradeId, payout, true);
         } else {
-            // Pérdida o break-even: solo recupera el payout
             idleCapital += payout;
             emit TradeSettled(tradeId, payout, false);
         }
@@ -172,16 +179,34 @@ contract BrierVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
     }
 
     // =========================================================
-    // ERC4626 Overrides
+    // Safety & Slashing Mechanism
     // =========================================================
 
     /**
-     * @notice Total AUM = idle + locked.
-     * @dev El precio de share no cambia mientras un trade está activo,
-     *      solo cuando se liquida (el PnL materializa).
+     * @notice Triggers the Circuit Breaker, slashing the Maker's Skin-in-the-Game.
+     * @dev Called exclusively by the off-chain Risk Engine (brierDaemon) when Max Drawdown > 15%.
      */
+    function triggerCircuitBreaker() external onlyExecutor nonReentrant {
+        require(skinInGame > 0, "BrierVault: No skin in game left to slash");
+        
+        uint256 slashedAmount = skinInGame;
+        skinInGame = 0;
+        
+        // Add slashed stake to idleCapital to absorb LP losses
+        idleCapital += slashedAmount;
+        
+        _pause(); // Suspend further trading and deposits
+        
+        emit CircuitBreakerTriggered(slashedAmount);
+    }
+
+    // =========================================================
+    // ERC4626 Overrides
+    // =========================================================
+
     function totalAssets() public view virtual override returns (uint256) {
-        return idleCapital + activeLockedCapital;
+        // Includes idle capital, active locked capital, and the maker's skin in game stake
+        return idleCapital + activeLockedCapital + skinInGame;
     }
 
     function _deposit(
@@ -195,9 +220,6 @@ contract BrierVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
         idleCapital += assets;
     }
 
-    /**
-     * @dev [FIX-3] Solo idle capital es retirable. CEI: decrementar antes del transfer.
-     */
     function _withdraw(
         address caller,
         address receiver,
@@ -222,14 +244,12 @@ contract BrierVault is ERC4626, Ownable, Pausable, ReentrancyGuard {
         return super.mint(shares, receiver);
     }
 
-    // [FIX-3] Sin timelock — retiro instantáneo contra idle capital
     function withdraw(uint256 assets, address receiver, address owner)
         public virtual override whenNotPaused nonReentrant returns (uint256)
     {
         return super.withdraw(assets, receiver, owner);
     }
 
-    // [FIX-3] Sin timelock — redención instantánea contra idle capital
     function redeem(uint256 shares, address receiver, address owner)
         public virtual override whenNotPaused nonReentrant returns (uint256)
     {

@@ -1,134 +1,100 @@
-import { PrismaClient } from '@prisma/client'
+const { PrismaClient } = require('@prisma/client')
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('Cleaning database (v2.0)...')
+  console.log('🌱 Iniciando Brier Protocol Data Seeding (Fase 2)...')
+
+  // Limpieza Idempotente (Borramos data existente para evitar conflictos)
+  console.log('🧹 Limpiando base de datos (VaultDeposit, BotScore, TradeEvent, Bot)...')
   await prisma.vaultDeposit.deleteMany()
-  await prisma.incubationLog.deleteMany()
-  await prisma.tradeEvent.deleteMany()
   await prisma.botScore.deleteMany()
-  await prisma.pnlSnapshot.deleteMany()
-  await prisma.botMarket.deleteMany()
-  await prisma.polyConnection.deleteMany()
-  await prisma.kalshiConnection.deleteMany()
+  await prisma.tradeEvent.deleteMany()
   await prisma.bot.deleteMany()
 
-  console.log('Seeding Institutional Fleet (v2.0 English)...')
-
-  const botsToSeed = [
-    {
-      slug: 'adan-pred',
-      name: 'ADAN-PRED',
-      tagline: 'Not just a bot. An entity with skin in the game.',
-      color: '#FF6B35',
-      mood: 'cool',
-      status: 'VAULT_ELIGIBLE_T1',
-      tier: 'TIER1',
-      description: 'ADAN-PRED v8.5: The benchmark intelligence layer. 24 integrated quant concepts, 4-voter ensemble, and Platt-calibrated Brier scores.',
-      walletAddress: '0x1234567890123456789012345678901234567890',
-      skinInGame: 15000, 
-      vaultCap: 500000,
-      currentTVL: 284000,
-      vaultOpen: true,
-      brier: 0.164,
-      wr: 0.624,
-      sharpe: 2.41,
-      trades: 1647,
-      vol: 284000,
-      dd: -0.042
-    },
-    {
-      slug: 'hermes-q',
-      name: 'HERMES-Q',
-      tagline: 'Speed is truth. Latency is the enemy of alpha.',
-      color: '#7B2FFF',
-      mood: 'cool',
-      status: 'VAULT_ELIGIBLE_T1',
-      tier: 'TIER1',
-      description: 'Exploits market microstructure inefficiencies. Order flow analysis and liquidity shift detection.',
-      walletAddress: '0x8888888888888888888888888888888888888888',
-      skinInGame: 25000,
-      vaultCap: 1000000,
-      currentTVL: 512000,
-      vaultOpen: true,
-      brier: 0.152,
-      wr: 0.671,
-      sharpe: 2.87,
-      trades: 2741,
-      vol: 512000,
-      dd: -0.038
-    },
-    {
-      slug: 'atlas-core',
-      name: 'ATLAS-CORE',
-      tagline: 'Mapping the topology of probability space.',
-      color: '#00C2FF',
-      mood: 'neutral',
-      status: 'LIVE',
-      tier: 'NONE',
-      description: 'Statistical arbitrage across correlated event markets. Multi-dimensional probability mapping.',
-      walletAddress: '0x7777777777777777777777777777777777777777',
-      skinInGame: 10000,
-      vaultCap: 250000,
-      currentTVL: 198000,
-      vaultOpen: false,
-      brier: 0.198,
-      wr: 0.583,
-      sharpe: 1.94,
-      trades: 1922,
-      vol: 198000,
-      dd: -0.061
+  // 1. Crear Bot PAPER (Stats en null, sin TVL)
+  const botPaper = await prisma.bot.create({
+    data: {
+      id: 'paper-quant-v1',
+      slug: 'alpha-quant-v1',
+      name: 'Alpha Quant V1',
+      tagline: 'Model Testing Phase',
+      description: 'Backtesting new momentum strategies on mid-cap tokens.',
+      walletAddress: '0x0000000000000000000000000000000000001234',
+      status: 'PAPER',
+      marketType: 'SPOT',
+      currentTVL: 0,
+      vaultAddress: null
     }
-  ]
+  })
+  console.log(`✅ Creado Bot PAPER: ${botPaper.name}`)
 
-  for (const b of botsToSeed) {
-    const bot = await prisma.bot.create({
-      data: {
-        slug: b.slug,
-        name: b.name,
-        tagline: b.tagline,
-        color: b.color,
-        mood: b.mood,
-        status: b.status,
-        tier: b.tier,
-        description: b.description,
-        walletAddress: b.walletAddress,
-        skinInGame: b.skinInGame,
-        vaultCap: b.vaultCap,
-        currentTVL: b.currentTVL,
-        vaultOpen: b.vaultOpen,
-        scores: {
-          create: {
-            brierScore: b.brier,
-            winRate: b.wr,
-            sharpe: b.sharpe,
-            totalTrades: b.trades,
-            totalVolume: b.vol,
-            maxDrawdown: b.dd,
-            isLatest: true
-          }
+  // 2. Crear Bot LIVE (Tier T2, SPOT)
+  const botLive = await prisma.bot.create({
+    data: {
+      id: 'beta-sports-arb',
+      slug: 'beta-sports-arb',
+      name: 'Beta Sports Arb',
+      tagline: 'Live Sports Arbitrage',
+      description: 'Arbitrage between Polymarket sports lines and offshore books.',
+      walletAddress: '0x1111111111111111111111111111111111115678',
+      status: 'LIVE',
+      marketType: 'SPORTS',
+      currentTVL: 14500.50,
+      vaultAddress: '0x1234567890123456789012345678901234567890',
+      scores: {
+        create: {
+          brierScore: 0.185,
+          winRate: 0.61,
+          sharpe: 1.8,
+          maxDrawdown: 0.08,
+          isLatest: true
         }
       }
-    })
-
-    // Create 30 days of PnL snapshots
-    const history = Array.from({ length: 30 }, (_, i) => (b.vol / 2) + Math.random() * (b.vol / 2))
-    for (let i = 0; i < 30; i++) {
-      const date = new Date()
-      date.setDate(date.getDate() - (30 - i))
-      await prisma.pnlSnapshot.create({
-        data: {
-          botId: bot.id,
-          date,
-          pnlUsd: Math.random() * 1000,
-          cumulativePnl: history[i],
-          tradesCount: Math.floor(b.trades / 30) * i
-        }
-      })
     }
-  }
+  })
+  console.log(`✅ Creado Bot LIVE (SPOT): ${botLive.name}`)
 
-  console.log('v2.0 Institutional Seeding complete!')
+  // 3. Crear Bot ADAN-PRED (Tier T1, PERP, 125k TVL Benchmark)
+  const botAdan = await prisma.bot.create({
+    data: {
+      id: 'adan-pred',
+      slug: 'adan-pred',
+      name: 'ADAN-PRED',
+      tagline: 'Perp-based Predictive Engine',
+      description: 'HFT predictive market engine leveraging Tier-1 infrastructure. Aggressive latency and Fill-And-Kill execution.',
+      walletAddress: '0xADAN00000000000000000000000000000000PRED',
+      status: 'VAULT_ELIGIBLE_T1',
+      marketType: 'POLITICS', // Can be CRYPTO or POLITICS, politics fee = 0.04%
+      currentTVL: 125000.00,
+      vaultAddress: '0x75537828f2ce51be7289709686A69CbFDbB714F1',
+      scores: {
+        create: {
+          brierScore: 0.082, // Extremely low/good score
+          winRate: 0.74,
+          sharpe: 3.1,
+          maxDrawdown: 0.04,
+          isLatest: true
+        }
+      }
+    }
+  })
+  console.log(`✅ Creado Bot ADAN-PRED (PERP): ${botAdan.name}`)
+
+  // Generar 10 VaultDeposits para ADAN-PRED
+  console.log('💰 Generando 10 VaultDeposits para ADAN-PRED...')
+  for (let i = 0; i < 10; i++) {
+    await prisma.vaultDeposit.create({
+      data: {
+        botId: botAdan.id,
+        depositorWallet: `0xWhale${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+        amountUsdc: Math.floor(Math.random() * 20000) + 1000, // Deposits between 1k and 21k
+        mode: i % 2 === 0 ? 'CONSERVATIVE' : 'DEGEN'
+      }
+    })
+  }
+  console.log('✅ 10 VaultDeposits creados exitosamente.')
+
+  console.log('🚀 SEEDING COMPLETADO CON ÉXITO.')
 }
 
 main()
@@ -139,3 +105,5 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
+
+export {}

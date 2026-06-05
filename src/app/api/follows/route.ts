@@ -1,48 +1,69 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { notifyFollow } from '@/lib/notifications';
+import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
 export async function POST(request: Request) {
   try {
-    const { followerId, followingId } = await request.json();
+    const { followerId, followingId } = await request.json()
 
-    if (!followerId || !followingId) return NextResponse.json({ error: 'Missing ids' }, { status: 400 });
-    if (followerId === followingId) return NextResponse.json({ error: 'Cannot follow self' }, { status: 400 });
+    if (!followerId || !followingId) {
+      return NextResponse.json({ error: 'Missing addresses' }, { status: 400 })
+    }
 
-    // Make sure both users exist in the User table first!
+    if (followerId === followingId) {
+      return NextResponse.json({ error: 'Cannot follow yourself' }, { status: 400 })
+    }
+
+    // Ensure users exist
     await prisma.user.upsert({
       where: { walletAddress: followerId },
       update: {},
-      create: { walletAddress: followerId }
-    });
-    
+      create: { walletAddress: followerId, name: `User_${followerId.substring(0, 6)}` }
+    })
+
     await prisma.user.upsert({
       where: { walletAddress: followingId },
       update: {},
-      create: { walletAddress: followingId }
-    });
+      create: { walletAddress: followingId, name: `User_${followingId.substring(0, 6)}` }
+    })
 
-    const existing = await prisma.follow.findUnique({
-      where: { followerId_followingId: { followerId, followingId } }
-    });
+    const existingFollow = await prisma.follow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId,
+          followingId
+        }
+      }
+    })
 
-    if (existing) {
+    if (existingFollow) {
+      // Unfollow
       await prisma.follow.delete({
-        where: { followerId_followingId: { followerId, followingId } }
-      });
-      return NextResponse.json({ status: 'unfollowed' });
+        where: { id: existingFollow.id }
+      })
+      return NextResponse.json({ status: 'unfollowed' })
     } else {
+      // Follow
       await prisma.follow.create({
-        data: { followerId, followingId }
-      });
-      
-      // Dispatch notification to the person being followed
-      await notifyFollow(followingId, followerId);
+        data: {
+          followerId,
+          followingId
+        }
+      })
 
-      return NextResponse.json({ status: 'followed' });
+      // Send Notification to followingId
+      await prisma.notification.create({
+        data: {
+          walletAddress: followingId,
+          type: 'FOLLOW',
+          title: 'NEW FOLLOWER',
+          message: `Wallet ${followerId.substring(0,6)}...${followerId.substring(followerId.length-4)} started following you.`
+        }
+      })
+
+      return NextResponse.json({ status: 'followed' })
     }
   } catch (error) {
-    console.error('Error toggling follow:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Follow error:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }

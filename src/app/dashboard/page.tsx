@@ -2,44 +2,16 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
-import { formatUnits, parseUnits } from 'viem'
-import { motion, useSpring, useTransform } from 'framer-motion'
-
-// Fallback to placeholder if env not set
-const vaultAddress = (process.env.NEXT_PUBLIC_VAULT_ADDRESS_MUMBAI || process.env.NEXT_PUBLIC_VAULT_ADDRESS || '0x0000000000000000000000000000000000000000') as `0x${string}`
+import { useAccount, useReadContract, useWriteContract } from 'wagmi'
+import { parseUnits } from 'viem'
+import { motion, useSpring, useTransform, AnimatePresence } from 'framer-motion'
 
 const brierVaultABI = [
   {
-    "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
-    "name": "balanceOf",
-    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [{"internalType": "uint256", "name": "shares", "type": "uint256"}],
-    "name": "previewRedeem",
-    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {"internalType": "uint256", "name": "shares", "type": "uint256"},
-      {"internalType": "address", "name": "receiver", "type": "address"},
-      {"internalType": "address", "name": "owner", "type": "address"}
-    ],
+    "inputs": [{"internalType": "uint256", "name": "shares", "type": "uint256"}, {"internalType": "address", "name": "receiver", "type": "address"}, {"internalType": "address", "name": "owner", "type": "address"}],
     "name": "redeem",
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "idleCapital",
-    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-    "stateMutability": "view",
     "type": "function"
   }
 ]
@@ -55,21 +27,21 @@ function PortfolioChart({ data }: { data: number[] }) {
     const w = canvas.width, h = canvas.height
     ctx.clearRect(0, 0, w, h)
     
-    // Grid background
-    ctx.fillStyle = '#050505'
+    ctx.fillStyle = 'rgba(5, 5, 5, 0.4)'
     ctx.fillRect(0, 0, w, h)
-    ctx.strokeStyle = '#111'
+    ctx.strokeStyle = 'rgba(255, 42, 77, 0.05)'
     ctx.lineWidth = 1
     for (let i = 0; i < w; i += 40) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, h); ctx.stroke(); }
     for (let i = 0; i < h; i += 40) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(w, i); ctx.stroke(); }
 
+    if (data.length === 0) return
+
     const min = Math.min(...data), max = Math.max(...data)
     const range = (max - min) || 1
     
-    // Gradient Fill
     const gradient = ctx.createLinearGradient(0, 0, 0, h)
-    gradient.addColorStop(0, 'rgba(34, 197, 94, 0.2)')
-    gradient.addColorStop(1, 'rgba(34, 197, 94, 0)')
+    gradient.addColorStop(0, 'rgba(255, 42, 77, 0.3)')
+    gradient.addColorStop(1, 'rgba(255, 42, 77, 0)')
 
     ctx.beginPath()
     ctx.moveTo(0, h)
@@ -82,8 +54,7 @@ function PortfolioChart({ data }: { data: number[] }) {
     ctx.fillStyle = gradient
     ctx.fill()
 
-    // Line
-    ctx.strokeStyle = '#22c55e'
+    ctx.strokeStyle = '#ff2a4d'
     ctx.lineWidth = 2
     ctx.beginPath()
     data.forEach((v, i) => {
@@ -94,308 +65,305 @@ function PortfolioChart({ data }: { data: number[] }) {
     ctx.stroke()
   }, [data])
   return (
-    <div style={{ position: 'relative', width: '100%', height: 200, border: '1px solid #1a1a1a', background: '#050505', overflow: 'hidden' }}>
-      <canvas ref={ref} width={800} height={200} style={{ width: '100%', height: '100%', display: 'block' }} />
-      <div style={{ position: 'absolute', top: 10, left: 10, color: '#555', fontSize: 10, fontFamily: 'var(--font-mono)' }}>[30D_EQUITY_CURVE]</div>
-      <div style={{ position: 'absolute', bottom: 10, right: 10, color: '#22c55e', fontSize: 10, fontFamily: 'var(--font-mono)' }}>+14.2% ALL-TIME</div>
+    <div className="relative w-full h-[200px] border border-primary/20 bg-black/40 backdrop-blur-md overflow-hidden rounded-sm shadow-[inset_0_0_20px_rgba(255,42,77,0.05)]">
+      <canvas ref={ref} width={800} height={200} className="w-full h-full block" />
+      <div className="absolute top-3 left-3 text-primary/70 text-[10px] font-mono tracking-widest">[30D_EQUITY_CURVE]</div>
     </div>
   )
 }
 
 function AnimatedCounter({ value, prefix = '', decimals = 2 }: { value: number, prefix?: string, decimals?: number }) {
-  const spring = useSpring(0, { bounce: 0, duration: 1200 })
+  const spring = useSpring(0, { bounce: 0, duration: 1500 })
   const display = useTransform(spring, current => `${prefix}${current.toFixed(decimals)}`)
   useEffect(() => { spring.set(value) }, [value, spring])
   return <motion.span>{display}</motion.span>
 }
 
+interface DashboardData {
+  portfolioValue: number;
+  totalDeposited: number;
+  yield30d: number;
+  totalEarned: number;
+  annualizedReturn: number;
+  activePositions: number;
+  allocations: any[];
+  history: any[];
+}
+
 export default function DashboardPage() {
   const { address, isConnected } = useAccount()
-  const [withdrawInput, setWithdrawInput] = useState('')
+  const [withdrawInputs, setWithdrawInputs] = useState<Record<string, string>>({})
   const [activeTab, setActiveTab] = useState<'overview' | 'history'>('overview')
+  const [dashData, setDashData] = useState<DashboardData | null>(null)
+  const [apiLoading, setApiLoading] = useState(true)
 
-  // Wagmi Reads
-  const { data: balanceData, isLoading: loadingBalance } = useReadContract({
-    address: vaultAddress, abi: brierVaultABI, functionName: 'balanceOf', args: address ? [address] : undefined, query: { enabled: !!address }
-  })
-  const shares = (balanceData as bigint) || 0n
-  const { data: valueData, isLoading: loadingValue, refetch: refetchValue } = useReadContract({
-    address: vaultAddress, abi: brierVaultABI, functionName: 'previewRedeem', args: [shares], query: { enabled: shares > 0n }
-  })
-  const usdcValue = (valueData as bigint) || 0n
-  const { data: idleCapitalData } = useReadContract({
-    address: vaultAddress, abi: brierVaultABI, functionName: 'idleCapital', query: { enabled: !!address }
-  })
-  const idleCapital = (idleCapitalData as bigint) || 0n
-  
-  const formattedShares = Number(formatUnits(shares, 6))
-  const formattedValue = Number(formatUnits(usdcValue, 6))
-  const formattedIdleCapital = Number(formatUnits(idleCapital, 6))
-
-  // Wagmi Writes
   const { writeContract: redeemShares, isPending: isRedeeming } = useWriteContract()
 
-  const handleRedeem = () => {
-    if (!withdrawInput || isNaN(Number(withdrawInput)) || !address) return
-    const sharesToRedeem = parseUnits(withdrawInput, 6)
+  useEffect(() => {
+    if (!address) return
+    fetch(`/api/dashboard?address=${address}`)
+      .then(r => r.json())
+      .then(data => { setDashData(data); setApiLoading(false); })
+      .catch(e => { console.error(e); setApiLoading(false); })
+  }, [address])
+
+  const handleRedeem = (vaultAddress: string) => {
+    const inputAmt = withdrawInputs[vaultAddress]
+    if (!inputAmt || isNaN(Number(inputAmt)) || !address) return
+    const sharesToRedeem = parseUnits(inputAmt, 6)
     redeemShares({
-      address: vaultAddress, abi: brierVaultABI, functionName: 'redeem', args: [sharesToRedeem, address, address]
+      address: vaultAddress as `0x${string}`, abi: brierVaultABI, functionName: 'redeem', args: [sharesToRedeem, address, address]
     }, {
       onSuccess: () => {
-        setWithdrawInput('')
-        setTimeout(() => refetchValue(), 3000)
+        setWithdrawInputs(prev => ({ ...prev, [vaultAddress]: '' }))
+        // Idealy refetch API here after block confirms
       }
     })
   }
 
-  // Mock Portfolio Data for WOW Factor
-  const mockPnlData = [10000, 10200, 10150, 10400, 10800, 10750, 11100, 11420]
-  const mockActivity = [
-    { id: 1, type: 'settlement', bot: 'ADAN-PRED', market: 'Will ETH hit $4k in May?', pnl: '+420.50 USDC', date: '2 mins ago', hash: '0x3f...9a12' },
-    { id: 2, type: 'deposit', bot: 'ADAN-PRED', market: '-', pnl: '+5,000.00 USDC', date: '5 hrs ago', hash: '0x1a...b44c' },
-    { id: 3, type: 'settlement', bot: 'SCORE-TEST', market: 'Fed Rate Cut in June?', pnl: '-150.00 USDC', date: '1 day ago', hash: '0x99...2f11' }
-  ]
+  // Generate a mock curve scaled to portfolio value
+  const baseCurve = [1, 1.02, 1.015, 1.04, 1.08, 1.075, 1.11, 1.142]
+  const pnlData = dashData?.portfolioValue ? baseCurve.map(v => v * dashData.totalDeposited) : [0,0,0,0,0]
 
   if (!isConnected) {
     return (
-      <div style={{ minHeight: '100vh', background: '#050505', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)' }}>
-        <div style={{ color: '#C9A84C', fontSize: '24px', marginBottom: '1rem', letterSpacing: '2px' }}>[ ACCESS_DENIED ]</div>
-        <div style={{ color: '#555', fontSize: '12px', border: '1px dashed #333', padding: '1rem' }}>
-          &gt; Authentication required. Connect Ethereum wallet to decrypt portfolio data.
+      <div className="min-h-screen bg-[#030303] flex flex-col items-center justify-center font-mono">
+        <div className="text-primary text-2xl mb-4 tracking-widest font-bold shadow-primary drop-shadow-[0_0_15px_rgba(255,42,77,0.8)]">[ ACCESS_DENIED ]</div>
+        <div className="text-primary/70 text-xs border border-primary/30 bg-[#080405] p-4 uppercase tracking-widest backdrop-blur-md">
+          &gt; Auth required. Connect terminal to decrypt portfolio.
         </div>
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#050505', fontFamily: 'var(--font-mono)', color: '#c5c8c6', padding: '2rem 1rem' }}>
+    <div className="min-h-screen bg-[#030303] font-mono text-[#e0e0e0] p-4 sm:p-8 overflow-x-hidden">
       
       {/* HEADER BAR */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1a1a1a', paddingBottom: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <Link href="/" style={{ color: '#555', textDecoration: 'none', transition: 'color 0.2s' }} className="hover-white">[← Back]</Link>
-          <div style={{ fontSize: 18, color: '#fff', fontWeight: 'bold', letterSpacing: '1px' }}>
-            <span style={{ color: '#2563EB' }}>//</span> INVESTOR_TERMINAL
+      <div className="max-w-[1200px] mx-auto mb-8 flex flex-col sm:flex-row sm:justify-between items-start sm:items-center border-b border-primary/20 pb-4 gap-4">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="text-primary/70 no-underline transition-colors hover:text-primary hover:drop-shadow-[0_0_5px_rgba(255,42,77,0.5)]">[&lt; RETURN]</Link>
+          <div className="text-lg text-white font-bold tracking-widest drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
+            <span className="text-primary mr-2">//</span> DASHBOARD
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '1.5rem', fontSize: 12, alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 10px #22c55e' }}></div>
-            <span style={{ color: '#22c55e' }}>POLYGON CONNECTED</span>
+        <div className="flex gap-4 sm:gap-6 text-[10px] sm:text-xs items-center">
+          <div className="flex items-center gap-2 bg-primary/10 px-3 py-1 border border-primary/30 rounded-full">
+            <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_10px_rgba(255,42,77,1)] animate-pulse"></div>
+            <span className="text-primary font-bold tracking-widest">CONNECTED</span>
           </div>
-          <span style={{ color: '#555', background: '#0a0a0a', padding: '4px 8px', border: '1px solid #1a1a1a' }}>
+          <span className="text-primary/70 bg-black/50 px-3 py-1 border border-primary/20 font-bold tracking-widest backdrop-blur-sm">
             {address?.substring(0,6)}...{address?.substring(address.length-4)}
           </span>
         </div>
       </div>
 
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <div className="max-w-[1200px] mx-auto">
 
         {/* METRICS ROW */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} style={{ background: 'linear-gradient(180deg, #0d0d0d 0%, #050505 100%)', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '1.5rem', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: 2, background: '#22c55e', boxShadow: '0 0 15px #22c55e' }}></div>
-            <div style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '1px' }}>Total Net Worth</div>
-            <div style={{ color: '#fff', fontSize: '2rem', fontWeight: 'bold', textShadow: '0 0 20px rgba(34, 197, 94, 0.4)' }}>
-              {loadingValue ? <span style={{ color: '#333', fontSize: '1.2rem' }}>[ SYNC... ]</span> : <AnimatedCounter value={formattedValue} prefix="$" />}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} 
+            className="group relative overflow-hidden bg-gradient-to-b from-[#110508] to-black border border-primary/40 p-6 shadow-[0_0_20px_rgba(255,42,77,0.05)] hover:shadow-[0_0_30px_rgba(255,42,77,0.2)] transition-all duration-300">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-primary shadow-[0_0_15px_rgba(255,42,77,1)]" />
+            <div className="text-primary/70 text-[10px] uppercase mb-2 tracking-widest font-bold">TOTAL BALANCE</div>
+            <div className="text-white text-[2rem] sm:text-[2.5rem] font-bold drop-shadow-[0_0_10px_rgba(255,42,77,0.4)]">
+              {apiLoading ? <span className="text-primary/40 text-xl animate-pulse">[ SYNC... ]</span> : <AnimatedCounter value={dashData?.portfolioValue || 0} prefix="$" />}
             </div>
-            <div style={{ color: '#22c55e', fontSize: 11, marginTop: '0.5rem' }}>▲ 24H PNL: +$142.50</div>
+            <div className="text-primary text-[11px] mt-2 font-bold tracking-widest flex items-center gap-2">
+              <span className="w-1 h-1 bg-primary rounded-full shadow-primary"></span>
+              ALL-TIME PNL: {dashData?.totalEarned ? (dashData.totalEarned >= 0 ? '+' : '') : ''}${dashData?.totalEarned?.toFixed(2) || '0.00'}
+            </div>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} style={{ background: '#0d0d0d', border: '1px solid #1a1a1a', padding: '1.5rem' }}>
-            <div style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '1px' }}>Active Exposure</div>
-            <div style={{ color: '#60a5fa', fontSize: '2rem', fontWeight: 'bold' }}>
-              {loadingValue ? <span style={{ color: '#333', fontSize: '1.2rem' }}>[ SYNC... ]</span> : <AnimatedCounter value={Math.max(0, formattedValue - formattedIdleCapital)} prefix="$" />}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} 
+            className="bg-black/60 backdrop-blur-md border border-primary/20 hover:border-primary/50 p-6 transition-all duration-300 hover:bg-[#0a0204]">
+            <div className="text-primary/70 text-[10px] uppercase mb-2 tracking-widest font-bold">INVESTED CAPITAL</div>
+            <div className="text-white text-[1.8rem] font-bold">
+              {apiLoading ? <span className="text-primary/40 text-xl">[ SYNC... ]</span> : <AnimatedCounter value={dashData?.totalDeposited || 0} prefix="$" />}
             </div>
-            <div style={{ color: '#555', fontSize: 11, marginTop: '0.5rem' }}>Capital locked in trades</div>
+            <div className="text-primary/50 text-[11px] mt-2 tracking-widest">Capital locked in execution</div>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} style={{ background: '#0d0d0d', border: '1px solid #1a1a1a', padding: '1.5rem' }}>
-            <div style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '1px' }}>Idle Capital</div>
-            <div style={{ color: '#C9A84C', fontSize: '2rem', fontWeight: 'bold' }}>
-              {loadingValue ? <span style={{ color: '#333', fontSize: '1.2rem' }}>[ SYNC... ]</span> : <AnimatedCounter value={formattedIdleCapital} prefix="$" />}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} 
+            className="bg-black/60 backdrop-blur-md border border-primary/20 hover:border-primary/50 p-6 transition-all duration-300 hover:bg-[#0a0204]">
+            <div className="text-primary/70 text-[10px] uppercase mb-2 tracking-widest font-bold">ACTIVE BOTS</div>
+            <div className="text-white text-[1.8rem] font-bold">
+              {apiLoading ? <span className="text-primary/40 text-xl">[ SYNC... ]</span> : <AnimatedCounter value={dashData?.activePositions || 0} decimals={0} />}
             </div>
-            <div style={{ color: '#555', fontSize: 11, marginTop: '0.5rem' }}>Available to withdraw</div>
+            <div className="text-primary/50 text-[11px] mt-2 tracking-widest">Vaults operating parallel</div>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} style={{ background: '#0d0d0d', border: '1px solid #1a1a1a', padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <div style={{ color: '#555', fontSize: 10, textTransform: 'uppercase', marginBottom: '1rem', letterSpacing: '1px' }}>Global Est. APY</div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-              <div style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>84.2</div>
-              <div style={{ color: '#2563EB', fontSize: '1.2rem', fontWeight: 'bold' }}>%</div>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} 
+            className="bg-black/60 backdrop-blur-md border border-primary/20 hover:border-primary/50 p-6 flex flex-col justify-center transition-all duration-300">
+            <div className="text-primary/70 text-[10px] uppercase mb-4 tracking-widest font-bold">EST. APY</div>
+            <div className="flex items-baseline gap-2">
+              <div className="text-white text-[2.5rem] font-bold leading-none drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+                {apiLoading ? '--' : dashData?.annualizedReturn?.toFixed(1) || '0.0'}
+              </div>
+              <div className="text-primary text-xl font-bold">%</div>
             </div>
           </motion.div>
 
         </div>
 
         {/* MAIN SPLIT */}
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
+        <div className="grid grid-cols-1 gap-8">
           
-          {/* LEFT COL: CHART & POSITIONS */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          {/* CHART & POSITIONS */}
+          <div className="flex flex-col gap-6">
             
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
-              <PortfolioChart data={mockPnlData} />
+            <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.5, type: 'spring' }}>
+              <PortfolioChart data={pnlData} />
             </motion.div>
 
             {/* TABBED INTERFACE */}
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
-              <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid #1a1a1a', marginBottom: '1.5rem' }}>
-                <button onClick={() => setActiveTab('overview')} style={{ background: 'none', border: 'none', color: activeTab === 'overview' ? '#fff' : '#555', padding: '0 0 0.5rem 0', fontSize: 12, fontWeight: 'bold', letterSpacing: '1px', borderBottom: activeTab === 'overview' ? '2px solid #2563EB' : '2px solid transparent', cursor: 'pointer', fontFamily: 'inherit' }}>ACTIVE_POSITIONS</button>
-                <button onClick={() => setActiveTab('history')} style={{ background: 'none', border: 'none', color: activeTab === 'history' ? '#fff' : '#555', padding: '0 0 0.5rem 0', fontSize: 12, fontWeight: 'bold', letterSpacing: '1px', borderBottom: activeTab === 'history' ? '2px solid #2563EB' : '2px solid transparent', cursor: 'pointer', fontFamily: 'inherit' }}>TRANSACTION_LOG</button>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="bg-black/40 backdrop-blur-md border border-primary/20 p-1">
+              <div className="flex gap-2 border-b border-primary/20 p-2">
+                <button onClick={() => setActiveTab('overview')} className={`flex-1 py-3 text-[10px] sm:text-xs font-bold tracking-widest cursor-pointer font-mono transition-all rounded-sm ${activeTab === 'overview' ? 'bg-primary/10 text-primary border border-primary/30 shadow-[inset_0_0_10px_rgba(255,42,77,0.2)]' : 'bg-transparent text-primary/50 border border-transparent hover:text-primary/80 hover:bg-black/50'}`}>[ ACTIVE_POSITIONS ]</button>
+                <button onClick={() => setActiveTab('history')} className={`flex-1 py-3 text-[10px] sm:text-xs font-bold tracking-widest cursor-pointer font-mono transition-all rounded-sm ${activeTab === 'history' ? 'bg-primary/10 text-primary border border-primary/30 shadow-[inset_0_0_10px_rgba(255,42,77,0.2)]' : 'bg-transparent text-primary/50 border border-transparent hover:text-primary/80 hover:bg-black/50'}`}>[ TRANSACTION_LOG ]</button>
               </div>
 
-              {activeTab === 'overview' ? (
-                <div style={{ border: '1px solid #1a1a1a', background: '#0a0a0a', overflow: 'hidden' }}>
-                  {formattedShares > 0 ? (
-                    <>
-                      <div style={{ display: 'flex', padding: '1rem 1.5rem', background: '#050505', borderBottom: '1px solid #1a1a1a', fontSize: 10, color: '#555', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                        <div style={{ flex: 2 }}>Algorithm Vault</div>
-                        <div style={{ flex: 1, textAlign: 'right' }}>Shares</div>
-                        <div style={{ flex: 1, textAlign: 'right' }}>Total Value</div>
-                        <div style={{ flex: 1, textAlign: 'right' }}>Yield</div>
+              <div className="p-4">
+                <AnimatePresence mode="wait">
+                  {activeTab === 'overview' && (
+                    <motion.div key="overview" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col gap-4">
+                      {apiLoading ? (
+                         <div className="py-12 text-center text-primary/50 animate-pulse tracking-widest text-xs font-bold">[ SCANNING_BLOCKCHAIN... ]</div>
+                      ) : dashData?.allocations && dashData.allocations.length > 0 ? (
+                        dashData.allocations.map((alloc, i) => (
+                          <div key={i} className="bg-[#050203] border border-primary/20 hover:border-primary/50 transition-all shadow-[0_0_10px_rgba(255,42,77,0.05)] hover:shadow-[0_0_20px_rgba(255,42,77,0.15)] flex flex-col md:flex-row">
+                            
+                            {/* Card Info */}
+                            <div className="p-4 md:p-6 flex-1 flex flex-col justify-center border-b md:border-b-0 md:border-r border-primary/10 relative overflow-hidden group">
+                              <div className="absolute top-0 right-0 w-8 h-8 bg-primary/5 border-l border-b border-primary/20 flex items-center justify-center font-bold text-primary/30 group-hover:text-primary transition-colors text-[10px]">
+                                {i+1}
+                              </div>
+                              <Link href={`/bot/${alloc.slug}`} className="text-white no-underline font-bold text-lg mb-1 hover:text-primary transition-colors flex items-center gap-2">
+                                {alloc.bot}
+                                <span className="text-[9px] bg-primary/20 text-primary px-2 py-[2px] rounded-sm tracking-widest border border-primary/30">{alloc.mode}</span>
+                              </Link>
+                              <div className="text-primary/50 text-[10px] tracking-widest font-mono">VAULT: {alloc.vaultAddress?.substring(0, 10)}...</div>
+                              
+                              <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-primary/10">
+                                <div>
+                                  <div className="text-primary/40 text-[9px] uppercase tracking-widest">Deposited</div>
+                                  <div className="text-white font-bold text-sm">${alloc.dep.toFixed(2)}</div>
+                                </div>
+                                <div>
+                                  <div className="text-primary/40 text-[9px] uppercase tracking-widest">Earned</div>
+                                  <div className="text-primary font-bold text-sm">${alloc.prof.toFixed(2)}</div>
+                                </div>
+                                <div>
+                                  <div className="text-primary/40 text-[9px] uppercase tracking-widest">Yield</div>
+                                  <div className="text-white font-bold text-sm">{alloc.pct > 0 ? '+' : ''}{alloc.pct}%</div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Extract Action */}
+                            <div className="p-4 md:p-6 md:w-64 bg-black/40 flex flex-col justify-center">
+                              <div className="text-primary/70 text-[10px] font-bold tracking-widest mb-3 flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 bg-primary shadow-primary rounded-full animate-pulse"></span>
+                                [ EXTRACT_CAPITAL ]
+                              </div>
+                              <div className="flex bg-black border border-primary/30 focus-within:border-primary focus-within:shadow-[0_0_10px_rgba(255,42,77,0.2)] transition-all mb-3 rounded-sm">
+                                <input 
+                                  type="number" 
+                                  placeholder="USDC" 
+                                  value={withdrawInputs[alloc.vaultAddress] || ''}
+                                  onChange={e => setWithdrawInputs(prev => ({ ...prev, [alloc.vaultAddress]: e.target.value }))}
+                                  className="w-full bg-transparent border-none text-white p-2 font-mono text-sm outline-none placeholder-primary/20"
+                                  disabled={isRedeeming}
+                                />
+                                <button onClick={() => setWithdrawInputs(prev => ({ ...prev, [alloc.vaultAddress]: alloc.dep.toString() }))} className="bg-transparent border-none border-l border-primary/30 text-primary px-3 cursor-pointer font-mono font-bold text-[10px] hover:bg-primary/10 transition-colors">MAX</button>
+                              </div>
+                              <button 
+                                onClick={() => handleRedeem(alloc.vaultAddress)}
+                                disabled={isRedeeming || !withdrawInputs[alloc.vaultAddress]}
+                                className={`w-full py-2 font-bold text-[11px] tracking-widest font-mono rounded-sm transition-all ${
+                                  isRedeeming ? 'bg-black text-primary/40 border border-primary/20 cursor-not-allowed' :
+                                  withdrawInputs[alloc.vaultAddress] ? 'bg-primary text-black border-none shadow-[0_0_15px_rgba(255,42,77,0.5)] hover:shadow-[0_0_25px_rgba(255,42,77,0.8)] cursor-pointer scale-[1.02]' :
+                                  'bg-[#0a0204] text-primary/50 border border-primary/20 cursor-not-allowed'
+                                }`}
+                              >
+                                {isRedeeming ? 'EXECUTING...' : 'CONFIRM_EXTRACT'}
+                              </button>
+                            </div>
+
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-12 text-center border border-primary/10 bg-black/30">
+                          <div className="text-primary/50 text-xs mb-4 tracking-widest font-bold">[ NO_CAPITAL_DEPLOYED ]</div>
+                          <Link href="/discover" className="inline-block bg-transparent border border-primary/50 text-primary px-6 py-3 no-underline text-[11px] font-bold tracking-widest transition-all hover:bg-primary hover:text-black hover:shadow-[0_0_20px_rgba(255,42,77,0.5)] rounded-sm">
+                            INITIALIZE DEPLOYMENT &gt;
+                          </Link>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+
+                  {activeTab === 'history' && (
+                    <motion.div key="history" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                      <div className="hidden sm:block border border-primary/20 bg-black/40 overflow-hidden rounded-sm">
+                        <table className="w-full border-collapse text-[11px] text-left">
+                          <thead>
+                            <tr className="text-primary/60 border-b border-primary/20 bg-[#050203]">
+                              <th className="p-3 font-normal tracking-widest font-bold">TYPE</th>
+                              <th className="p-3 font-normal tracking-widest font-bold">VAULT</th>
+                              <th className="p-3 font-normal tracking-widest font-bold">DATE</th>
+                              <th className="p-3 font-normal tracking-widest font-bold text-right">AMT_USDC</th>
+                              <th className="p-3 font-normal tracking-widest font-bold text-right">TX_HASH</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {dashData?.history?.map(act => (
+                              <tr key={act.id} className="border-b border-primary/10 hover:bg-primary/5 transition-colors">
+                                <td className={`p-3 font-bold ${act.type === 'deposit' ? 'text-white' : act.type === 'earn' ? 'text-primary' : 'text-[#888]'}`}>[{act.type.toUpperCase()}]</td>
+                                <td className="p-3 text-white font-bold">{act.bot}</td>
+                                <td className="p-3 text-primary/50">{act.date}</td>
+                                <td className={`p-3 text-right font-bold ${act.amount.includes('+') ? 'text-primary drop-shadow-[0_0_5px_rgba(255,42,77,0.6)]' : 'text-[#c5c8c6]'}`}>{act.amount}</td>
+                                <td className="p-3 text-right text-primary/40 font-mono">{act.hash}</td>
+                              </tr>
+                            ))}
+                            {(!dashData?.history || dashData.history.length === 0) && (
+                              <tr><td colSpan={5} className="p-8 text-center text-primary/40 text-[10px] tracking-widest font-bold">&gt; NO_TRANSACTIONS_FOUND</td></tr>
+                            )}
+                          </tbody>
+                        </table>
                       </div>
                       
-                      {/* BOT ROW WITH PREMIUM HOVER */}
-                      <div className="portfolio-row" style={{ display: 'flex', alignItems: 'center', padding: '1.5rem', borderBottom: '1px solid #111', transition: 'background 0.2s', cursor: 'pointer' }}>
-                        <div style={{ flex: 2, display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                          <div style={{ width: 40, height: 40, background: 'rgba(96, 165, 250, 0.05)', border: '1px solid rgba(96, 165, 250, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa', fontSize: 14, boxShadow: 'inset 0 0 10px rgba(96,165,250,0.1)' }}>
-                            A
+                      {/* Mobile Cards for History */}
+                      <div className="flex flex-col gap-3 sm:hidden">
+                        {dashData?.history?.map(act => (
+                          <div key={act.id} className="bg-[#050203] border border-primary/20 p-4 rounded-sm flex flex-col gap-2 relative overflow-hidden">
+                            <div className="absolute left-0 top-0 h-full w-[2px] bg-primary/40" />
+                            <div className="flex justify-between items-start">
+                              <span className={`text-[10px] font-bold tracking-widest px-2 py-0.5 rounded-sm border ${act.type === 'earn' ? 'border-primary text-primary bg-primary/10' : 'border-primary/30 text-white bg-white/5'}`}>
+                                {act.type.toUpperCase()}
+                              </span>
+                              <span className="text-primary/50 text-[9px] font-mono">{act.date}</span>
+                            </div>
+                            <div className="flex justify-between items-end mt-2">
+                              <div className="text-white font-bold text-sm">{act.bot}</div>
+                              <div className={`font-bold text-sm ${act.amount.includes('+') ? 'text-primary drop-shadow-[0_0_5px_rgba(255,42,77,0.6)]' : 'text-[#c5c8c6]'}`}>
+                                {act.amount}
+                              </div>
+                            </div>
+                            <div className="text-[9px] text-primary/30 font-mono mt-1 text-right">TX: {act.hash}</div>
                           </div>
-                          <div>
-                            <Link href="/bot/adan-pred" style={{ color: '#fff', textDecoration: 'none', fontWeight: 'bold', fontSize: 15, display: 'block', marginBottom: 4 }}>ADAN-PRED</Link>
-                            <div style={{ color: '#555', fontSize: 10 }}>Contract: {vaultAddress.substring(0, 8)}...</div>
-                          </div>
-                        </div>
-                        <div style={{ flex: 1, textAlign: 'right', color: '#c5c8c6', fontFamily: 'inherit' }}>{loadingBalance ? '--' : formattedShares.toFixed(2)}</div>
-                        <div style={{ flex: 1, textAlign: 'right', color: '#22c55e', fontWeight: 'bold', fontFamily: 'inherit' }}>${loadingValue ? '--' : formattedValue.toFixed(2)}</div>
-                        <div style={{ flex: 1, textAlign: 'right', color: '#22c55e', fontSize: 12 }}>+18.4%</div>
+                        ))}
                       </div>
-
-                      {/* WITHDRAW SECTION FOR THIS ROW */}
-                      <div style={{ padding: '1.5rem', background: 'rgba(201, 168, 76, 0.03)', borderTop: '1px dashed #222' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1rem' }}>
-                          <div style={{ color: '#C9A84C', fontSize: 12, fontWeight: 'bold', letterSpacing: '1px' }}>[ REDEEM_CAPITAL ]</div>
-                          <div style={{ color: '#888', fontSize: 10 }}>Withdrawable: {formattedIdleCapital.toFixed(2)} USDC</div>
-                        </div>
-                        
-                        <div style={{ display: 'flex', gap: '1rem' }}>
-                          <div style={{ display: 'flex', flex: 1, background: '#000', border: withdrawInput ? '1px solid #C9A84C' : '1px solid #333', transition: 'border-color 0.3s' }}>
-                            <div style={{ padding: '12px 16px', color: '#555', borderRight: '1px solid #333' }}>SHARES</div>
-                            <input 
-                              type="number" 
-                              placeholder="0.00" 
-                              value={withdrawInput}
-                              onChange={e => setWithdrawInput(e.target.value)}
-                              style={{ flex: 1, background: 'transparent', border: 'none', color: '#fff', padding: '12px 16px', fontFamily: 'inherit', fontSize: 14, outline: 'none' }}
-                              disabled={isRedeeming}
-                            />
-                            <button 
-                              onClick={() => setWithdrawInput(formattedShares.toString())}
-                              style={{ background: 'transparent', border: 'none', borderLeft: '1px solid #333', color: '#60a5fa', padding: '0 16px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold', fontSize: 11 }}
-                            >
-                              MAX
-                            </button>
-                          </div>
-
-                          <button 
-                            onClick={handleRedeem}
-                            disabled={isRedeeming || !withdrawInput}
-                            style={{
-                              background: isRedeeming ? '#050505' : (withdrawInput ? '#C9A84C' : '#111'),
-                              color: isRedeeming ? '#555' : (withdrawInput ? '#000' : '#555'),
-                              border: isRedeeming ? '1px solid #333' : (withdrawInput ? 'none' : '1px solid #333'),
-                              padding: '0 32px',
-                              fontWeight: 'bold',
-                              fontSize: 13,
-                              letterSpacing: '1px',
-                              cursor: isRedeeming ? 'not-allowed' : 'pointer',
-                              fontFamily: 'inherit',
-                              transition: 'all 0.3s',
-                              textShadow: withdrawInput ? '0 0 10px rgba(0,0,0,0.5)' : 'none'
-                            }}
-                          >
-                            {isRedeeming ? 'EXECUTING...' : 'WITHDRAW'}
-                          </button>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
-                      <div style={{ color: '#555', fontSize: 14, marginBottom: '1.5rem' }}>[ NO_CAPITAL_DEPLOYED ]</div>
-                      <Link href="/discover" style={{ display: 'inline-block', background: 'transparent', border: '1px solid #2563EB', color: '#60a5fa', padding: '12px 24px', textDecoration: 'none', fontSize: 12, fontWeight: 'bold', letterSpacing: '1px', transition: 'all 0.2s' }}>
-                        INITIALIZE DEPLOYMENT →
-                      </Link>
-                    </div>
+                    </motion.div>
                   )}
-                </div>
-              ) : (
-                <div style={{ border: '1px solid #1a1a1a', background: '#0a0a0a', padding: '1rem' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, textAlign: 'left' }}>
-                    <thead>
-                      <tr style={{ color: '#555', borderBottom: '1px solid #1a1a1a' }}>
-                        <th style={{ padding: '12px', fontWeight: 'normal' }}>TYPE</th>
-                        <th style={{ padding: '12px', fontWeight: 'normal' }}>VAULT</th>
-                        <th style={{ padding: '12px', fontWeight: 'normal' }}>MARKET</th>
-                        <th style={{ padding: '12px', fontWeight: 'normal', textAlign: 'right' }}>AMOUNT (USDC)</th>
-                        <th style={{ padding: '12px', fontWeight: 'normal', textAlign: 'right' }}>TX HASH</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {mockActivity.map(act => (
-                        <tr key={act.id} style={{ borderBottom: '1px solid #111' }}>
-                          <td style={{ padding: '12px', color: act.type === 'deposit' ? '#2563EB' : '#C9A84C' }}>[{act.type.toUpperCase()}]</td>
-                          <td style={{ padding: '12px', color: '#fff' }}>{act.bot}</td>
-                          <td style={{ padding: '12px', color: '#888' }}>{act.market}</td>
-                          <td style={{ padding: '12px', textAlign: 'right', color: act.pnl.includes('+') ? '#22c55e' : '#ef4444', fontWeight: 'bold' }}>{act.pnl}</td>
-                          <td style={{ padding: '12px', textAlign: 'right', color: '#555' }}>{act.hash}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                </AnimatePresence>
+              </div>
             </motion.div>
           </div>
 
-          {/* RIGHT COL: SYSTEM STATUS */}
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.7 }} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            
-            <div style={{ border: '1px solid #1a1a1a', background: '#0a0a0a', padding: '1.5rem' }}>
-              <div style={{ color: '#555', fontSize: 10, letterSpacing: '1px', marginBottom: '1.5rem' }}>[ SYSTEM_STATUS ]</div>
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <div style={{ color: '#888', fontSize: 12 }}>Oracles</div>
-                <div style={{ color: '#22c55e', fontSize: 12 }}>ONLINE</div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <div style={{ color: '#888', fontSize: 12 }}>Executor Node</div>
-                <div style={{ color: '#22c55e', fontSize: 12 }}>SYNCED</div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <div style={{ color: '#888', fontSize: 12 }}>Risk Engine</div>
-                <div style={{ color: '#2563EB', fontSize: 12 }}>ACTIVE</div>
-              </div>
-              
-              <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px dashed #222' }}>
-                <div style={{ color: '#C9A84C', fontSize: 10, letterSpacing: '1px', marginBottom: '1rem' }}>SECURITY & SETTLEMENT</div>
-                <p style={{ color: '#555', fontSize: 11, lineHeight: 1.6, margin: 0 }}>
-                  All funds are held in ERC-4626 audited vaults on Polygon. Settlements are cryptographically verified by UMA Optimistic Oracle before capital distribution.
-                </p>
-              </div>
-            </div>
-
-          </motion.div>
-
         </div>
       </div>
-      
-      {/* GLOBAL STYLES FOR HOVERS */}
-      <style dangerouslySetInnerHTML={{__html: `
-        .hover-white:hover { color: #fff !important; }
-        .portfolio-row:hover { background: #0d0d0d !important; }
-      `}} />
     </div>
   )
 }

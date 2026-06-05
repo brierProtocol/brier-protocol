@@ -3,9 +3,13 @@
 import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import BotCharacter, { Mood } from '@/components/BotCharacter'
+import BotIrisAvatar from '@/components/BotIrisAvatar'
+
+type Mood = 'cool' | 'happy' | 'excited' | 'neutral' | 'anxious' | 'sad' | 'suspicious' | 'sleeping'
 import { useBot } from '@/hooks/useBots'
 import toast from 'react-hot-toast'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { parseUnits, erc20Abi, parseAbi } from 'viem'
 import dynamic from 'next/dynamic'
 const Liveline = dynamic(() => import('liveline').then(mod => mod.Liveline), { ssr: false })
 
@@ -19,6 +23,27 @@ export default function VaultPage() {
   const bot: any = botData
   const [timeRange, setTimeRange] = useState<TimeRange>('30d')
   const [mode, setMode] = useState<'CONSERVATIVE' | 'DEGEN'>('CONSERVATIVE')
+
+  // Web3 state
+  const { address } = useAccount()
+  const [depositAmount, setDepositAmount] = useState('')
+  const [txState, setTxState] = useState<'idle' | 'approving' | 'awaiting_approve' | 'depositing' | 'awaiting_deposit' | 'success' | 'error'>('idle')
+
+  const USDC_ADDRESS = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'
+  const VAULT_ABI = parseAbi(['function deposit(uint256 assets, address receiver) external returns (uint256)'])
+
+  const { data: approveHash, writeContract: writeApprove, error: approveError } = useWriteContract()
+  const { data: depositHash, writeContract: writeDeposit, error: depositError } = useWriteContract()
+
+  // Wait for approve
+  const { isSuccess: isApproveSuccess, isLoading: isApproveWaiting } = useWaitForTransactionReceipt({ 
+    hash: approveHash 
+  })
+
+  // Wait for deposit
+  const { isSuccess: isDepositSuccess, isLoading: isDepositWaiting } = useWaitForTransactionReceipt({ 
+    hash: depositHash 
+  })
 
   if (isLoading) {
     return (
@@ -42,17 +67,79 @@ export default function VaultPage() {
     )
   }
 
+  // Side effects for transaction states
+  if (isApproveWaiting && txState === 'approving') setTxState('awaiting_approve')
+  if (isApproveSuccess && txState === 'awaiting_approve') {
+    setTxState('depositing')
+    // Trigger deposit
+    try {
+      const parsedAmount = parseUnits(depositAmount, 6) // USDC has 6 decimals
+      writeDeposit({
+        address: bot.vaultAddress as `0x${string}`,
+        abi: VAULT_ABI,
+        functionName: 'deposit',
+        args: [parsedAmount, address as `0x${string}`],
+      })
+    } catch (e) {
+      setTxState('error')
+      toast.error('Deposit signature failed')
+    }
+  }
+  
+  if (isDepositWaiting && txState === 'depositing') setTxState('awaiting_deposit')
+  if (isDepositSuccess && txState === 'awaiting_deposit') {
+    setTxState('success')
+    toast.success('Deposit Successful! Vault balance updated.')
+    setDepositAmount('')
+    setTimeout(() => setTxState('idle'), 3000)
+  }
+
+  if ((approveError || depositError) && txState !== 'error' && txState !== 'idle') {
+    setTxState('error')
+    toast.error('Transaction Failed or Rejected')
+    setTimeout(() => setTxState('idle'), 3000)
+  }
+
   const handleDeposit = () => {
-    toast('Coming Soon — Deposits are not yet available.', { 
-      style: {
-        background: '#050505',
-        color: '#FFFFFF',
-        border: '1px solid rgba(255,255,255,0.06)',
-        borderRadius: '16px',
-        fontFamily: 'var(--font-mono)',
-        fontSize: '12px'
-      }
-    })
+    if (!address) {
+      toast.error('Please connect your wallet first')
+      return
+    }
+    if (!bot.vaultAddress) {
+      toast.error('Vault contract not deployed yet')
+      return
+    }
+    if (!depositAmount || isNaN(Number(depositAmount)) || Number(depositAmount) <= 0) {
+      toast.error('Enter a valid USDC amount')
+      return
+    }
+
+    setTxState('approving')
+    try {
+      const parsedAmount = parseUnits(depositAmount, 6) // USDC has 6 decimals
+      writeApprove({
+        address: USDC_ADDRESS,
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: [bot.vaultAddress as `0x${string}`, parsedAmount],
+      })
+    } catch (e) {
+      setTxState('error')
+      toast.error('Approval signature failed')
+      setTimeout(() => setTxState('idle'), 3000)
+    }
+  }
+
+  const getButtonText = () => {
+    switch (txState) {
+      case 'approving': return 'SIGNING APPROVAL...'
+      case 'awaiting_approve': return 'CONFIRMING APPROVAL...'
+      case 'depositing': return 'SIGNING DEPOSIT...'
+      case 'awaiting_deposit': return 'CONFIRMING DEPOSIT...'
+      case 'success': return 'SUCCESS!'
+      case 'error': return 'TRANSACTION FAILED'
+      default: return 'INITIALIZE DEPOSIT'
+    }
   }
 
   // Determine mood from bot stats
@@ -96,7 +183,7 @@ export default function VaultPage() {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 200, damping: 20 }}
           >
-            <BotCharacter mood={mood} accentColor={bot.color} size={160} />
+            <BotIrisAvatar avatarId={(bot as any).avatarId || 'void-eye'} accentColor={bot.color} size={160} />
           </motion.div>
           
           {/* Bot name */}
@@ -276,6 +363,21 @@ export default function VaultPage() {
                 </div>
 
                 <div className="p-4 rounded-2xl bg-black/40 border border-white/5">
+                  <div className="text-[10px] font-bold opacity-30 tracking-widest uppercase mb-2">Amount (USDC)</div>
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="number"
+                      placeholder="0.00"
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(e.target.value)}
+                      disabled={txState !== 'idle' && txState !== 'error'}
+                      className="bg-transparent border-none text-2xl font-mono text-white font-bold w-full outline-none placeholder:text-white/20"
+                    />
+                    <span className="font-mono text-sm font-bold text-white/50">USDC</span>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-black/40 border border-white/5">
                   <div className="text-[10px] font-bold opacity-30 tracking-widest uppercase mb-2">Vault Mode</div>
                   <div className="flex gap-2">
                     {['CONSERVATIVE', 'DEGEN'].map((m) => (
@@ -295,18 +397,20 @@ export default function VaultPage() {
             </div>
 
             <motion.button
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.97 }}
+              whileHover={txState === 'idle' ? { scale: 1.04 } : {}}
+              whileTap={txState === 'idle' ? { scale: 0.97 } : {}}
               onClick={handleDeposit}
+              disabled={txState !== 'idle' && txState !== 'error'}
               className="w-full py-5 rounded-2xl font-bold text-sm mt-8 transition-all"
               style={{
-                background: '#FFFFFF',
+                background: txState === 'error' ? '#FF3B3B' : txState === 'success' ? '#C8FF00' : '#FFFFFF',
                 color: '#050505',
                 fontFamily: 'var(--font-display)',
-                boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
+                boxShadow: txState === 'success' ? '0 20px 40px rgba(200,255,0,0.4)' : '0 20px 40px rgba(0,0,0,0.4)',
+                opacity: (txState !== 'idle' && txState !== 'error' && txState !== 'success') ? 0.7 : 1
               }}
             >
-              INITIALIZE DEPOSIT
+              {getButtonText()}
             </motion.button>
           </div>
 

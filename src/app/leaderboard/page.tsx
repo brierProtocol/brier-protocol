@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import BotIrisAvatar from '@/components/BotIrisAvatar'
 
 export default function LeaderboardPage() {
   const [botsData, setBotsData] = useState<any[]>([])
@@ -28,70 +29,65 @@ export default function LeaderboardPage() {
   })
 
   return (
-    <div style={{ minHeight: '100vh', background: '#050505', fontFamily: 'var(--font-mono), monospace', color: '#c5c8c6', padding: '2rem 1rem' }}>
+    <div className="min-h-screen bg-[#030303] text-[#e8e8e8] p-8">
 
       {/* HEADER BAR */}
-      <div style={{ maxWidth: 1100, margin: '0 auto', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1a1a1a', paddingBottom: '0.5rem', fontSize: 13 }}>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <Link href="/" style={{ color: '#2563EB', textDecoration: 'none' }}>[Return]</Link>
-          <span style={{ color: '#C9A84C' }}>/brier/ — Global Rankings</span>
+      <div className="max-w-[1100px] mx-auto mb-6 flex justify-between items-center border-b border-[#1a1a1a] pb-4 text-[13px]">
+        <div className="flex gap-3 items-center">
+          <Link href="/" className="text-[#666] hover:text-white transition-colors no-underline font-sans text-sm">← Back</Link>
+          <h1 className="font-sans font-extrabold text-white tracking-tight text-2xl m-0">Global Rankings</h1>
         </div>
-        <div style={{ display: 'flex', gap: '1rem', fontSize: 12, color: '#555' }}>
-          <Link href="/discover" style={{ color: '#2563EB', textDecoration: 'none' }}>[Catalog]</Link>
-          <Link href="/dashboard" style={{ color: '#2563EB', textDecoration: 'none' }}>[Dashboard]</Link>
-          <Link href="/list-bot" style={{ color: '#2563EB', textDecoration: 'none' }}>[Submit]</Link>
+        <div className="flex gap-4 text-xs text-[#888] font-sans font-medium">
+          <Link href="/discover" className="hover:text-white transition-colors no-underline">Catalog</Link>
+          <Link href="/dashboard" className="hover:text-white transition-colors no-underline">Dashboard</Link>
+          <Link href="/list-bot" className="hover:text-white transition-colors no-underline">Submit</Link>
         </div>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+      <div className="max-w-[1100px] mx-auto">
 
         {/* DESCRIPTION */}
-        <div style={{ marginBottom: '1.5rem', fontSize: 12, color: '#555', lineHeight: 1.6 }}>
-          <span style={{ color: '#C9A84C' }}>&gt; INFO:</span> Leaderboard is strictly sorted by <span style={{ color: '#22c55e' }}>Brier Score</span> (lower = more accurate). All metrics are mathematically derived from verified on-chain Polygon transactions. Scores cannot be forged.
+        <div className="mb-6 text-xs text-[#e8e8e8] leading-relaxed p-4 border border-[#1a1a1a] bg-[#0a0a0a] font-sans">
+          <span className="text-[#888] font-medium">INFO:</span> Leaderboard is strictly sorted by <span className="text-white font-semibold">Brier Score</span> (lower = more accurate). All metrics are mathematically derived from verified on-chain Polygon transactions. Scores cannot be forged.
         </div>
 
         {/* TOP 3 PODIUM */}
         {!loading && rankedBots.length >= 3 && (
-          <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1 } } }} style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '1.5rem' }}>
+          <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1 } } }} className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             {rankedBots.slice(0, 3).map((bot, i) => {
               const brier = bot.scores?.[0]?.brierScore ?? bot.brierScore ?? 0
               const wr = bot.scores?.[0]?.winRate ?? bot.winRate ?? 0
               const tvl = bot.currentTVL ?? bot.tvl ?? 0
               const slug = bot.slug || bot.id
-              const medals = ['🥇', '🥈', '🥉']
-              const accents = ['#C9A84C', '#94A3B8', '#B45309']
-              const accent = accents[i]
 
               return (
                 <motion.div key={bot.id} variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 100, damping: 15 } } }}>
-                <Link href={`/bot/${slug}`} style={{
-                  textDecoration: 'none',
-                  color: 'inherit',
-                  background: '#0d0d0d',
-                  border: `1px solid ${accent}30`,
-                  padding: '1rem',
-                  transition: 'all 0.2s',
-                  display: 'block',
-                  height: '100%'
-                }}
-                  onMouseOver={e => { e.currentTarget.style.borderColor = `${accent}60`; e.currentTarget.style.background = '#111' }}
-                  onMouseOut={e => { e.currentTarget.style.borderColor = `${accent}30`; e.currentTarget.style.background = '#0d0d0d' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                    <span style={{ fontSize: 20 }}>{medals[i]}</span>
+                <Link href={`/bot/${slug}`} className="block h-full bg-[#0a0a0a] border border-[#1a1a1a] p-5 transition-all hover:bg-[#111] hover:border-[#333] no-underline relative group">
+                  <div className="absolute top-0 right-0 w-8 h-8 bg-[#111] border-l border-b border-[#1a1a1a] flex items-center justify-center font-bold text-primary font-mono text-sm">
+                    {i+1}
+                  </div>
+                  
+                  <div className="flex items-center gap-3 mb-4 pr-10">
+                    {bot.pfpUrl ? (
+                      <img src={bot.pfpUrl} alt={bot.name} className="w-10 h-10 rounded-full border border-[#222] object-cover" />
+                    ) : (
+                      <div className="w-10 h-10 border border-[#222] bg-[#030303] flex items-center justify-center rounded-full overflow-hidden">
+                        <BotIrisAvatar avatarId={bot.avatarId || 'void-eye'} accentColor={bot.color || '#ff2a4d'} size={32} />
+                      </div>
+                    )}
                     <div>
-                      <div style={{ color: '#fff', fontWeight: 'bold', fontSize: 14 }}>{bot.name}</div>
-                      <div style={{ fontSize: 10, color: '#555' }}>#{i + 1} · Brier {brier.toFixed(3)}</div>
+                      <div className="text-white font-semibold text-sm font-sans">{bot.name}</div>
+                      <div className="text-[10px] text-[#888] mt-1 font-mono">Brier: {brier.toFixed(3)}</div>
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: 11 }}>
-                    <div>
-                      <div style={{ color: '#555', fontSize: 9, textTransform: 'uppercase' }}>Win Rate</div>
-                      <div style={{ color: '#22c55e', fontWeight: 'bold' }}>{(wr * 100).toFixed(1)}%</div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="border-l-2 border-[#222] pl-2 group-hover:border-[#444]">
+                      <div className="text-[#666] text-[9px] uppercase font-sans">Win Rate</div>
+                      <div className="text-white font-bold font-mono">{(wr * 100).toFixed(1)}%</div>
                     </div>
-                    <div>
-                      <div style={{ color: '#555', fontSize: 9, textTransform: 'uppercase' }}>Vault TVL</div>
-                      <div style={{ color: '#fff', fontWeight: 'bold' }}>${tvl.toLocaleString()}</div>
+                    <div className="border-l-2 border-[#222] pl-2 group-hover:border-[#444]">
+                      <div className="text-[#666] text-[9px] uppercase font-sans">Vault TVL</div>
+                      <div className="text-white font-bold font-mono">${tvl.toLocaleString()}</div>
                     </div>
                   </div>
                 </Link>
@@ -102,22 +98,22 @@ export default function LeaderboardPage() {
         )}
 
         {/* DATA TABLE */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.5 }} style={{ border: '1px solid #1a1a1a', background: '#0a0a0a', overflow: 'hidden', marginBottom: '1.5rem' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, textAlign: 'left' }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.5 }} className="border border-[#1a1a1a] bg-[#0a0a0a] overflow-hidden mb-6">
+          <table className="w-full border-collapse text-[11px] text-left">
             <thead>
-              <tr style={{ color: '#555', borderBottom: '1px solid #1a1a1a', background: '#050505', letterSpacing: '1px' }}>
-                <th style={{ padding: '12px 16px', fontWeight: 'normal' }}>#</th>
-                <th style={{ padding: '12px 16px', fontWeight: 'normal' }}>ALGORITHM</th>
-                <th style={{ padding: '12px 16px', fontWeight: 'normal' }}>BRIER</th>
-                <th style={{ padding: '12px 16px', fontWeight: 'normal' }}>WIN RATE</th>
-                <th style={{ padding: '12px 16px', fontWeight: 'normal' }}>SHARPE</th>
-                <th style={{ padding: '12px 16px', fontWeight: 'normal', textAlign: 'right' }}>TVL</th>
+              <tr className="text-[#666] font-sans font-medium border-b border-[#1a1a1a] bg-[#080808]">
+                <th className="p-4 font-normal">#</th>
+                <th className="p-4 font-normal">ALGORITHM</th>
+                <th className="p-4 font-normal">BRIER</th>
+                <th className="p-4 font-normal">WIN_RATE</th>
+                <th className="p-4 font-normal">SHARPE</th>
+                <th className="p-4 font-normal text-right">TVL</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#2563EB' }}>&gt; SYNCHRONIZING_ONCHAIN_DATA...</td>
+                  <td colSpan={6} className="p-8 text-center text-primary animate-pulse tracking-widest">&gt; SYNCHRONIZING_ONCHAIN_DATA...</td>
                 </tr>
               ) : (
                 rankedBots.map((bot, i) => {
@@ -128,55 +124,44 @@ export default function LeaderboardPage() {
                   const sharpe = bot.scores?.[0]?.sharpeRatio ?? 0
                   const builderId = bot.walletAddress || bot.builder || 'anon'
                   const isTop3 = i < 3
-                  const medals = ['🥇', '🥈', '🥉']
 
                   return (
                     <tr
                       key={bot.id}
-                      style={{
-                        borderBottom: '1px solid #111',
-                        background: isTop3 ? 'rgba(201,168,76,0.02)' : 'transparent',
-                        transition: 'background 0.15s',
-                        cursor: 'pointer',
-                      }}
-                      onMouseOver={e => e.currentTarget.style.background = '#111'}
-                      onMouseOut={e => e.currentTarget.style.background = isTop3 ? 'rgba(201,168,76,0.02)' : 'transparent'}
+                      className={`border-b border-[#1a1a1a] transition-colors cursor-pointer hover:bg-[#111] ${isTop3 ? 'bg-[#0a0a0a]' : 'bg-transparent'}`}
                       onClick={() => window.location.href=`/bot/${slug}`}
                     >
-                      <td style={{ padding: '0.75rem 1rem', color: isTop3 ? '#C9A84C' : '#555', fontWeight: 700 }}>
-                        {isTop3 ? medals[i] : `${i + 1}`}
+                      <td className={`p-3 px-4 font-bold font-mono ${isTop3 ? 'text-primary' : 'text-[#666]'}`}>
+                        {String(i + 1).padStart(2, '0')}
                       </td>
-                      <td style={{ padding: '0.75rem 1rem' }}>
+                      <td className="p-3 px-4">
                         <div>
-                          <Link href={`/bot/${slug}`} style={{ color: '#fff', textDecoration: 'none', fontWeight: 700 }}>
+                          <Link href={`/bot/${slug}`} className="text-white no-underline font-semibold font-sans hover:text-primary transition-colors">
                             {bot.name}
                           </Link>
-                          <div style={{ fontSize: 10, color: '#444', marginTop: 2 }}>
+                          <div className="text-[10px] text-[#444] mt-[2px]">
                             by{' '}
-                            <Link href={`/maker/${builderId}`} style={{ color: '#555', textDecoration: 'none' }}
-                              onMouseOver={e => e.currentTarget.style.color = '#C9A84C'}
-                              onMouseOut={e => e.currentTarget.style.color = '#555'}
-                            >
+                            <Link href={`/maker/${builderId}`} className="text-[#666] no-underline hover:text-white transition-colors font-mono">
                               {builderId.substring(0, 6)}...{builderId.substring(builderId.length - 4)}
                             </Link>
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: '0.75rem 1rem' }}>
-                        <span style={{ color: brier <= 0.15 ? '#22c55e' : brier <= 0.25 ? '#4ade80' : brier <= 0.4 ? '#eab308' : '#ef4444', fontWeight: 700 }}>
+                      <td className="p-3 px-4">
+                        <span className="font-bold text-white font-mono">
                           {brier.toFixed(3)}
                         </span>
-                        <div style={{ fontSize: 9, color: brier <= 0.15 ? '#22c55e' : brier <= 0.25 ? '#4ade80' : '#888', opacity: 0.7 }}>
+                        <div className={`text-[9px] mt-1 font-sans font-medium ${brier <= 0.15 ? 'text-[#00d4aa]' : 'text-[#666]'}`}>
                           {brier <= 0.15 ? 'ELITE' : brier <= 0.25 ? 'STRONG' : brier <= 0.4 ? 'MODERATE' : 'WEAK'}
                         </div>
                       </td>
-                      <td style={{ padding: '0.75rem 1rem', color: wr >= 0.6 ? '#22c55e' : wr >= 0.5 ? '#eab308' : '#888', fontWeight: 600 }}>
+                      <td className="p-3 px-4 text-white font-bold font-mono">
                         {(wr * 100).toFixed(1)}%
                       </td>
-                      <td style={{ padding: '0.75rem 1rem', color: sharpe >= 1.5 ? '#22c55e' : sharpe >= 0.5 ? '#eab308' : '#888', fontWeight: 600 }}>
+                      <td className="p-3 px-4 text-white font-bold font-mono">
                         {sharpe.toFixed(2)}
                       </td>
-                      <td style={{ padding: '0.75rem 1rem', textAlign: 'right', color: '#fff', fontWeight: 700 }}>
+                      <td className="p-3 px-4 text-right text-white font-bold font-mono">
                         ${tvl.toLocaleString()}
                       </td>
                     </tr>
@@ -188,16 +173,17 @@ export default function LeaderboardPage() {
         </motion.div>
 
         {/* TRUST FOOTER */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '1.5rem' }}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-6">
           {[
-            { icon: '🔒', title: 'Mathematical Enforcement', desc: 'Rankings derived from Brier Score — the gold standard in probabilistic forecasting.' },
-            { icon: '⛓️', title: 'On-Chain Settlement', desc: 'Every trade verified and settled through Polygon smart contracts. No manipulation.' },
-            { icon: '🛡️', title: 'Zero-Trust Architecture', desc: 'HMAC-SHA256 signed signals. Historic resolution states are immutable.' },
+            { icon: '/>', title: 'MATH_ENFORCEMENT', desc: 'Rankings strictly derived from Brier Score. The gold standard in forecasting.' },
+            { icon: '{}', title: 'ONCHAIN_SETTLEMENT', desc: 'Every trade is verified via Polygon contracts. Immutable and tamper-proof.' },
+            { icon: '[]', title: 'ZERO_TRUST', desc: 'HMAC-SHA256 signed signals. Resolution state cannot be altered.' },
           ].map((item, i) => (
-            <div key={i} style={{ background: '#0d0d0d', border: '1px solid #1a1a1a', padding: '1rem' }}>
-              <div style={{ fontSize: 16, marginBottom: '0.5rem' }}>{item.icon}</div>
-              <div style={{ fontWeight: 700, fontSize: 12, color: '#fff', marginBottom: '0.25rem' }}>{item.title}</div>
-              <div style={{ fontSize: 11, color: '#555', lineHeight: 1.5 }}>{item.desc}</div>
+            <div key={i} className="bg-[#0a0a0a] border border-[#1a1a1a] p-4 relative group hover:border-[#333] transition-colors">
+              <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-[#1a1a1a] group-hover:border-[#333]" />
+              <div className="text-primary font-bold text-lg mb-2">{item.icon}</div>
+              <div className="font-semibold text-[11px] text-white font-sans tracking-wide mb-1">{item.title}</div>
+              <div className="text-[10px] text-[#888] leading-relaxed font-sans">{item.desc}</div>
             </div>
           ))}
         </div>

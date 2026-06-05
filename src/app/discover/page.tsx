@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import BotCharacter from '@/components/BotCharacter'
+import BotIrisAvatar from '@/components/BotIrisAvatar'
 import { motion } from 'framer-motion'
 
 export default function DiscoverPage() {
@@ -42,92 +42,71 @@ export default function DiscoverPage() {
   })
 
   return (
-    <div style={{ minHeight: '100vh', background: '#000000', color: '#EFEFEF', padding: '3rem 1.5rem', fontFamily: 'var(--font-mono), monospace' }}>
+    <div className="min-h-screen bg-[#030303] text-white p-12">
       
       {/* HEADER SECTION */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', marginBottom: '3rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px dashed #2563EB', paddingBottom: '1.5rem', flexWrap: 'wrap', gap: '2rem' }}>
+      <div className="max-w-[1200px] mx-auto mb-12">
+        <div className="flex justify-between items-end border-b border-[#1a1a1a] pb-6 flex-wrap gap-8">
           
           <div>
-            <div style={{ color: '#2563EB', fontSize: '14px', fontWeight: 700, letterSpacing: '1px', marginBottom: '0.5rem' }}>
-              &gt; ALGORITHM_CATALOG.EXE
-            </div>
-            <p style={{ color: '#888', margin: 0, fontSize: '12px' }}>
-              &gt; SYS_MSG: Deploy capital into verified quantitative models.
+            <h1 className="font-sans font-bold text-white text-2xl tracking-tight mb-1">
+              Discover Algorithms
+            </h1>
+            <p className="text-[#888] m-0 text-sm font-sans">
+              Deploy capital into verified quantitative models.
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-            <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: 10, top: 8, color: '#00FF00', fontSize: '12px', fontWeight: 700 }}>&gt;</span>
+          <div className="flex gap-6 items-center">
+            <div className="relative">
+              <span className="absolute left-3 top-2.5 text-[#666] text-xs font-bold">⌕</span>
               <input 
                 value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="SYS_QUERY: [___]" 
-                style={{ 
-                  background: '#030303', 
-                  border: '1px solid #333', 
-                  color: '#00FF00', 
-                  fontFamily: 'var(--font-mono), monospace', 
-                  padding: '8px 10px 8px 24px', 
-                  outline: 'none', 
-                  width: 260,
-                  fontSize: '12px',
-                  transition: 'border-color 0.2s ease'
-                }} 
-                onFocus={e => { e.currentTarget.style.borderColor = '#00FF00'; e.currentTarget.style.boxShadow = '0 0 8px rgba(0,255,0,0.2)'; }}
-                onBlur={e => { e.currentTarget.style.borderColor = '#333'; e.currentTarget.style.boxShadow = 'none'; }}
+                placeholder="Search bots..." 
+                className="bg-[#0a0a0a] border border-[#1a1a1a] text-white font-sans py-2 pr-3 pl-8 outline-none w-[260px] text-xs rounded transition-colors focus:border-[#333] focus:shadow-[0_0_8px_rgba(255,255,255,0.05)] placeholder-[#444]"
               />
             </div>
             
-            <Link href="/list-bot" style={{ color: '#00C9C0', textDecoration: 'none', fontSize: '12px', fontWeight: 700 }} onMouseOver={e => e.currentTarget.style.textDecoration = 'underline'} onMouseOut={e => e.currentTarget.style.textDecoration = 'none'}>
-              [SUBMIT_ALGORITHM]
+            <Link href="/list-bot" className="text-primary text-xs font-sans font-semibold tracking-wide hover:underline hover:drop-shadow-[0_0_8px_rgba(255,42,77,0.5)] transition-all">
+              Submit Algorithm
             </Link>
           </div>
         </div>
         
         {/* FILTERS */}
-        <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1.5rem', fontSize: '12px', alignItems: 'center' }}>
-          <span style={{ color: '#666' }}>&gt; SORT_BY:</span>
+        <div className="flex gap-4 mt-6 text-xs items-center">
+          <span className="text-[#666] font-sans text-xs">Sort by:</span>
           {[
-            { id: 'brier', label: 'BRIER_SCORE' },
-            { id: 'yield', label: 'MONTHLY_YIELD' },
-            { id: 'tvl', label: 'TOTAL_VALUE_LOCKED' },
-            { id: 'new', label: 'NEWEST' },
+            { id: 'brier', label: 'Brier Score' },
+            { id: 'yield', label: 'Monthly Yield' },
+            { id: 'tvl', label: 'TVL' },
+            { id: 'new', label: 'Newest' },
           ].map(s => (
             <button 
               key={s.id} 
               onClick={() => setActiveSort(s.id as any)}
-              style={{ 
-                background: 'transparent',
-                border: 'none',
-                color: activeSort === s.id ? '#00FF00' : '#555', 
-                cursor: 'pointer', 
-                fontWeight: activeSort === s.id ? 700 : 400,
-                padding: 0,
-                fontFamily: 'var(--font-mono), monospace',
-                fontSize: '12px'
-              }}
+              className={`bg-transparent border-none cursor-pointer tracking-wide transition-colors font-sans text-xs px-2 py-1 rounded ${activeSort === s.id ? 'text-primary font-semibold bg-primary/10' : 'text-[#888] hover:text-white'}`}
             >
-              [{s.label}]
+              {s.label}
             </button>
           ))}
         </div>
       </div>
 
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <div className="max-w-[1200px] mx-auto">
         
         {/* CATALOG GRID */}
         {loading ? (
-          <div style={{ color: '#00FF00', fontSize: '14px', textAlign: 'center', padding: '4rem' }}>
-            &gt; Syncing indexer database...
+          <div className="text-[#888] text-sm text-center p-16 animate-pulse font-sans">
+            Loading algorithms...
           </div>
         ) : filteredBots.length === 0 ? (
-          <div style={{ color: '#555', fontSize: '14px', textAlign: 'center', padding: '4rem' }}>
-            &gt; NO_ALGORITHMS_FOUND
+          <div className="text-[#666] text-sm text-center p-16 font-sans">
+            No algorithms found
           </div>
         ) : (
           <motion.div 
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
             initial="hidden"
             animate="show"
             variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
@@ -137,7 +116,7 @@ export default function DiscoverPage() {
             const wr = b.scores?.[0]?.winRate ?? b.winRate ?? 0
             const tvl = getTvl(b)
             const yld = getYield(b)
-            const isLive = (b.status || '').toLowerCase() === 'live'
+            const isLive = (b.status || '').toLowerCase() === 'live' || (b.status || '').toLowerCase().includes('eligible')
             
             return (
             <motion.div
@@ -147,62 +126,45 @@ export default function DiscoverPage() {
                 show:   { opacity: 1, y: 0,  scale: 1,    transition: { ease: [0.16, 1, 0.3, 1], duration: 0.4 } }
               }}
             >
-            <Link href={`/bot/${b.slug || b.id}`} style={{ 
-              textDecoration: 'none', 
-              color: 'inherit', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              background: '#030303',
-              border: '1px solid #333',
-              transition: 'all 0.2s ease',
-            }}
-              onMouseOver={e => {
-                e.currentTarget.style.borderColor = '#00FF00'
-                e.currentTarget.style.background = '#050505'
-              }}
-              onMouseOut={e => {
-                e.currentTarget.style.borderColor = '#333'
-                e.currentTarget.style.background = '#030303'
-              }}
-            >
-              <div style={{ color: '#2563EB', padding: '0.75rem 1rem', borderBottom: '1px dashed #333', fontSize: '12px', fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}>
-                <span>+-- [ {b.name.toUpperCase()} ] --+</span>
-                <span style={{ color: isLive ? '#00FF00' : '#00C9C0' }}>[{isLive ? 'LIVE' : 'PAPER'}]</span>
+            <Link href={`/bot/${b.slug || b.id}`} className="flex flex-col bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg transition-all hover:bg-[#0e0e0e] hover:border-[#333] hover:shadow-[0_0_20px_rgba(255,42,77,0.08)] no-underline group relative">
+              <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-[#1a1a1a] group-hover:border-[#333] transition-colors rounded-tl-lg" />
+              <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-[#1a1a1a] group-hover:border-[#333] transition-colors rounded-br-lg" />
+
+              <div className="text-white p-3 border-b border-[#1a1a1a] text-xs font-sans font-semibold flex justify-between items-center group-hover:text-primary transition-colors">
+                <span>{b.name}</span>
+                <span className={`text-[10px] font-mono tracking-wide ${isLive ? 'text-primary' : 'text-[#666]'}`}>{isLive ? 'LIVE' : 'PAPER'}</span>
               </div>
 
               {/* Bot Image Frame */}
-              <div style={{ 
-                width: '100%', 
-                background: '#000', 
-                display: 'flex', 
-                justifyContent: 'center', 
-                padding: '1.5rem 0', 
-                borderBottom: '1px dashed #333'
-              }}>
-                <BotCharacter mood={b.mood as any} size={70} />
+              <div className="w-full bg-[#060606] flex justify-center py-6 border-b border-[#1a1a1a]">
+                {b.pfpUrl ? (
+                  <img src={b.pfpUrl} alt={b.name} className="w-[70px] h-[70px] rounded-full object-cover border-2 border-[#1a1a1a] group-hover:border-primary transition-colors" />
+                ) : (
+                  <BotIrisAvatar avatarId={b.avatarId || 'void-eye'} accentColor={b.color || '#ff2a4d'} size={70} />
+                )}
               </div>
 
               {/* Data Rows */}
-              <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#666' }}>&gt; MAKER:</span>
-                  <span style={{ color: '#C9A84C' }}>{(b.builder || b.walletAddress || 'anon').substring(0, 8)}...</span>
+              <div className="p-4 flex flex-col gap-2 text-xs font-sans">
+                <div className="flex justify-between">
+                  <span className="text-[#666]">Maker</span>
+                  <span className="text-white font-mono">{(b.builder || b.walletAddress || 'anon').substring(0, 8)}...</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#666' }}>&gt; BRIER_SCORE:</span>
-                  <span style={{ color: brier <= 0.25 ? '#00FF00' : '#ef4444', fontWeight: 700 }}>{brier.toFixed(3)}</span>
+                <div className="flex justify-between">
+                  <span className="text-[#666]">Brier Score</span>
+                  <span className={`font-mono font-bold ${brier <= 0.25 ? 'text-primary drop-shadow-[0_0_5px_rgba(255,42,77,0.5)]' : 'text-white'}`}>{brier.toFixed(3)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#666' }}>&gt; WIN_RATE:</span>
-                  <span style={{ color: '#EFEFEF' }}>{(wr * 100).toFixed(1)}%</span>
+                <div className="flex justify-between">
+                  <span className="text-[#666]">Win Rate</span>
+                  <span className="text-white font-mono">{(wr * 100).toFixed(1)}%</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#666' }}>&gt; MTH_YIELD:</span>
-                  <span style={{ color: yld > 0 ? '#00FF00' : '#888' }}>{yld > 0 ? '+' : ''}{yld}%</span>
+                <div className="flex justify-between">
+                  <span className="text-[#666]">Mth Yield</span>
+                  <span className={`font-mono ${yld > 0 ? 'text-[#00d4aa]' : 'text-[#666]'}`}>{yld > 0 ? '+' : ''}{yld}%</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #333', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
-                  <span style={{ color: '#666' }}>&gt; VAULT_TVL:</span>
-                  <span style={{ color: '#fff', fontWeight: 700 }}>${tvl.toLocaleString()}</span>
+                <div className="flex justify-between border-t border-[#1a1a1a] pt-2 mt-2">
+                  <span className="text-[#666]">Vault TVL</span>
+                  <span className="text-white font-mono font-bold">${tvl.toLocaleString()}</span>
                 </div>
               </div>
             </Link>

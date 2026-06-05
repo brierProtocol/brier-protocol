@@ -1,16 +1,11 @@
 'use client'
-// src/components/Navbar.tsx
-
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAccount } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { motion, AnimatePresence } from 'framer-motion'
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+import BotIrisAvatar from './BotIrisAvatar'
 
 interface Notification {
   id: string
@@ -20,10 +15,6 @@ interface Notification {
   createdAt: string
   read: boolean
 }
-
-// ---------------------------------------------------------------------------
-// NotificationBell
-// ---------------------------------------------------------------------------
 
 function NotificationBell({ address }: { address: string }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -37,18 +28,15 @@ function NotificationBell({ address }: { address: string }) {
       const data = await res.json()
       setNotifications(data.notifications ?? [])
     } catch {
-      // silent fail — notifications are non-critical
     }
   }, [address])
 
-  // Initial fetch + 30-second polling
   useEffect(() => {
     fetchNotifications()
     const interval = setInterval(fetchNotifications, 30_000)
     return () => clearInterval(interval)
   }, [fetchNotifications])
 
-  // Close on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -63,75 +51,33 @@ function NotificationBell({ address }: { address: string }) {
     setOpen((prev) => !prev)
     if (!open && notifications.some(n => !n.read)) {
       try {
-        // API expects { address, markAll: true } — not { ids: [...] }
         await fetch('/api/notifications', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ address, markAll: true }),
         })
         setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-      } catch { /* silent */ }
+      } catch { }
     }
   }
 
   const unreadCount = notifications.filter((n) => !n.read).length
 
-  const typeIcon: Record<string, string> = {
-    VAULT_UNLOCKED:    '🟢',
-    TRADE_EXECUTED:    '⚡',
-    TRADE_SETTLED:     '✅',
-    DEPOSIT_RECEIVED:  '💰',
-    WITHDRAWAL_READY:  '💸',
-    CIRCUIT_BREAKER:   '⚠️',
-  }
-
   return (
-    <div ref={dropdownRef} style={{ position: 'relative', display: 'inline-block' }}>
-      {/* Bell button */}
+    <div ref={dropdownRef} className="relative inline-block">
       <button
         onClick={handleOpen}
-        style={{
-          background: 'none',
-          border: '1px solid #333',
-          borderRadius: '4px',
-          color: '#ccc',
-          cursor: 'pointer',
-          fontFamily: 'monospace',
-          fontSize: '14px',
-          padding: '6px 10px',
-          position: 'relative',
-          transition: 'border-color 0.15s',
-        }}
-        onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.borderColor = '#2563EB')}
-        onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.borderColor = '#333')}
+        className="bg-transparent border border-[#222] rounded-none text-[#888] font-sans text-[11px] font-medium px-3 py-1 cursor-pointer transition-colors hover:border-[#444] hover:text-white tracking-wide"
         aria-label="Notifications"
       >
-        🔔
+        [ ALERTS ]
         {unreadCount > 0 && (
-          <span
-            style={{
-              position: 'absolute',
-              top: '-6px',
-              right: '-6px',
-              background: '#2563EB',
-              color: '#fff',
-              borderRadius: '9999px',
-              fontSize: '10px',
-              fontWeight: 700,
-              height: '16px',
-              minWidth: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '0 3px',
-            }}
-          >
+          <span className="absolute -top-2 -right-2 bg-primary text-[#030303] text-[10px] font-bold h-4 min-w-[16px] flex items-center justify-center px-1 shadow-[0_0_10px_rgba(255,42,77,0.5)]">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
-      {/* Dropdown */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -139,98 +85,30 @@ function NotificationBell({ address }: { address: string }) {
             animate={{ opacity: 1, scaleY: 1 }}
             exit={{ opacity: 0, scaleY: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            style={{
-              position: 'absolute',
-              right: 0,
-              top: 'calc(100% + 8px)',
-              width: '340px',
-              background: '#0a0a0a',
-              border: '1px solid #222',
-              borderRadius: '6px',
-              zIndex: 100,
-              boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
-              overflow: 'hidden',
-              transformOrigin: 'top',
-            }}
+            className="absolute right-0 top-[calc(100%+8px)] w-[340px] bg-[#0a0a0a] border border-[#1a1a1a] z-[100] shadow-[0_4px_24px_rgba(0,0,0,0.5)] overflow-hidden origin-top"
           >
-          {/* Header */}
-          <div
-            style={{
-              padding: '10px 14px',
-              borderBottom: '1px solid #1a1a1a',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#666', letterSpacing: '0.08em' }}>
-              NOTIFICATIONS
-            </span>
+          <div className="p-3 border-b border-[#1a1a1a] flex justify-between items-center">
+            <span className="font-sans text-[11px] text-white tracking-wide uppercase font-semibold">Alerts</span>
             {notifications.length > 0 && (
-              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#444' }}>
-                {notifications.length} ITEM{notifications.length !== 1 ? 'S' : ''}
+              <span className="font-mono text-[10px] text-primary font-bold">
+                {notifications.length} EVT
               </span>
             )}
           </div>
-
-          {/* Items */}
           {notifications.length === 0 ? (
-            <div
-              style={{
-                padding: '24px 14px',
-                textAlign: 'center',
-                fontFamily: 'monospace',
-                fontSize: '12px',
-                color: '#444',
-              }}
-            >
-              NO NEW NOTIFICATIONS
-            </div>
+            <div className="p-6 text-center font-mono text-xs text-[#555]">NO NEW EVENTS</div>
           ) : (
-            <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
+            <div className="max-h-[320px] overflow-y-auto scrollbar-thin">
               {notifications.slice(0, 8).map((n) => (
-                <div
-                  key={n.id}
-                  style={{
-                    padding: '12px 14px',
-                    borderBottom: '1px solid #111',
-                    background: n.read ? 'transparent' : 'rgba(37,99,235,0.05)',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontFamily: 'monospace',
-                      fontSize: '12px',
-                      color: '#e0e0e0',
-                      marginBottom: '4px',
-                      display: 'flex',
-                      gap: '6px',
-                      alignItems: 'flex-start',
-                    }}
-                  >
-                    <span>{typeIcon[n.type] ?? '📌'}</span>
-                    <span style={{ fontWeight: 600 }}>{n.title}</span>
+                <div key={n.id} className={`p-3 border-b border-[#1a1a1a] ${n.read ? 'bg-transparent' : 'bg-[#111]'}`}>
+                  <div className="font-mono text-xs text-primary mb-1 flex gap-2 items-start font-bold">
+                    <span>&gt;</span>
+                    <span>{n.title}</span>
                   </div>
-                  <div
-                    style={{
-                      fontFamily: 'monospace',
-                      fontSize: '11px',
-                      color: '#666',
-                      lineHeight: 1.5,
-                      paddingLeft: '22px',
-                    }}
-                  >
+                  <div className="font-mono text-[11px] text-[#FFFFFF] leading-relaxed pl-4">
                     {n.message}
                   </div>
-                  <div
-                    style={{
-                      fontFamily: 'monospace',
-                      fontSize: '10px',
-                      color: '#333',
-                      marginTop: '6px',
-                      paddingLeft: '22px',
-                    }}
-                  >
+                  <div className="font-mono text-[10px] text-[#555] mt-1 pl-4">
                     {new Date(n.createdAt).toLocaleString()}
                   </div>
                 </div>
@@ -244,9 +122,117 @@ function NotificationBell({ address }: { address: string }) {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Navbar
-// ---------------------------------------------------------------------------
+export function GlobalSearch({ isLarge = false }: { isLarge?: boolean } = {}) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<{bots: any[], users: any[]}>({bots: [], users: []})
+  const [open, setOpen] = useState(false)
+  const router = useRouter()
+  const searchRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  useEffect(() => {
+    if (query.length < 2) {
+      setResults({bots: [], users: []})
+      return
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`)
+        if (res.ok) setResults(await res.json())
+      } catch (e) {}
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  return (
+    <div className={`relative ${isLarge ? 'w-full max-w-2xl mx-auto mb-16' : 'mr-4'}`} ref={searchRef}>
+      <input 
+        type="text"
+        placeholder="Search bots..."
+        value={query}
+        onChange={e => { setQuery(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        className={`bg-[#0a0a0a] border border-[#222] text-white font-sans outline-none transition-all placeholder:text-[#555] focus:border-[#444] focus:shadow-none hover:border-[#444] ${isLarge ? 'w-full text-sm px-4 py-3' : 'w-48 text-[11px] px-3 py-[6px]'}`}
+      />
+      
+      <AnimatePresence>
+        {open && query.length >= 2 && (
+          <motion.div
+            initial={{ opacity: 0, y: -5, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -5, scale: 0.98 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className={`absolute top-full mt-2 left-0 bg-[rgba(3,3,3,0.95)] backdrop-blur-md border border-[#1a1a1a] z-[100] shadow-[0_4px_24px_rgba(0,0,0,0.5)] overflow-hidden ${isLarge ? 'w-full' : 'w-64'}`}
+          >
+            <div className="p-2 border-b border-[#1a1a1a] bg-[#0a0a0a]">
+              <span className="font-sans text-[9px] text-[#888] tracking-wide font-medium uppercase">Results</span>
+            </div>
+            {results.bots.length === 0 && results.users.length === 0 ? (
+              <div className="p-4 text-center text-[10px] text-[#555] font-sans">No matches found</div>
+            ) : (
+              <div className="max-h-64 overflow-y-auto scrollbar-thin">
+                {results.bots.length > 0 && (
+                  <div className="p-2">
+                    <div className="text-[10px] text-[#888] font-sans font-medium mb-2 tracking-wide uppercase">Algorithms</div>
+                    {results.bots.map(b => (
+                      <div 
+                        key={b.id} 
+                        className="p-2 border border-transparent hover:bg-[#111] hover:border-[#222] cursor-pointer transition-all mb-1 flex items-center gap-2 group"
+                        onClick={() => { setOpen(false); setQuery(''); router.push(`/bot/${b.slug}`) }}
+                      >
+                        <div className="w-6 h-6 flex items-center justify-center rounded-full overflow-hidden border border-[#222] group-hover:border-[#444] transition-colors">
+                          <BotIrisAvatar avatarId={b.avatarId || 'void-eye'} accentColor={b.color || '#ff2a4d'} size={24} />
+                        </div>
+                        <div>
+                          <div className="text-[11px] text-white font-semibold font-sans group-hover:text-primary transition-colors">{b.name}</div>
+                          <div className="text-[10px] text-[#666] font-sans">{b.status}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {results.users.length > 0 && (
+                  <div className="p-2 border-t border-[#1a1a1a] bg-[rgba(0,0,0,0.2)]">
+                    <div className="text-[10px] text-[#888] font-sans font-medium mb-2 tracking-wide uppercase">Operators</div>
+                    {results.users.map(u => (
+                      <div 
+                        key={u.walletAddress} 
+                        className="p-2 border border-transparent hover:bg-[#111] hover:border-[#222] cursor-pointer transition-all mb-1 flex items-center gap-2 group"
+                        onClick={() => { setOpen(false); setQuery(''); router.push(`/maker/${u.walletAddress}`) }}
+                      >
+                        {u.pfpUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={u.pfpUrl} alt="pfp" className="w-6 h-6 rounded-none border border-[#222] group-hover:border-[#444] transition-colors" />
+                        ) : (
+                          <div className="w-6 h-6 bg-[#0a0a0a] border border-[#222] flex items-center justify-center text-[8px] text-[#555] group-hover:border-[#444] group-hover:text-white transition-colors">
+                            usr
+                          </div>
+                        )}
+                        <div>
+                          <div className="text-[11px] text-white font-semibold font-sans group-hover:text-primary transition-colors">{u.name || 'Anonymous'}</div>
+                          <div className="text-[10px] text-[#555] font-mono">{u.walletAddress.substring(0,8)}...</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
 
 export default function Navbar() {
   const { address, isConnected } = useAccount()
@@ -255,197 +241,76 @@ export default function Navbar() {
   const navLinks = [
     { href: '/leaderboard', label: 'LEADERBOARD' },
     { href: '/discover',    label: 'DISCOVER'    },
-    { href: '/list-bot',    label: 'LIST BOT'    },
+    { href: '/list-bot',    label: 'DEPLOY_BOT'  },
     { href: '/dashboard',   label: 'DASHBOARD'   },
   ]
 
   return (
-    <nav
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        background: 'rgba(0,0,0,0.92)',
-        backdropFilter: 'blur(12px)',
-        borderBottom: '1px solid #1a1a1a',
-        height: '56px',
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 24px',
-        gap: '0',
-      }}
-    >
-      {/* Logo */}
-      <Link
-        href="/"
-        onMouseEnter={(e) => {
-          const target = e.currentTarget.querySelector('.ascii-logo') as HTMLDivElement
-          if (target) {
-            target.style.color = '#fff'
-            target.style.textShadow = '0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.4)'
-          }
-        }}
-        onMouseLeave={(e) => {
-          const target = e.currentTarget.querySelector('.ascii-logo') as HTMLDivElement
-          if (target) {
-            target.style.color = '#2563EB'
-            target.style.textShadow = '0 0 10px rgba(37, 99, 235, 0.4)'
-          }
-        }}
-        style={{
-          fontFamily: 'monospace',
-          fontSize: '14px',
-          fontWeight: 700,
-          color: '#2563EB', // Strictly original brand blue
-          textDecoration: 'none',
-          marginRight: '32px',
-          display: 'flex',
-          alignItems: 'center',
-          position: 'relative', // To contain the absolute glowing background
-        }}
-      >
-        {/* Backlight glowing layer (blanco al centro difuminándose) */}
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '140px',
-          height: '60px',
-          background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.2) 0%, rgba(37,99,235,0.1) 40%, rgba(0,0,0,0) 70%)',
-          filter: 'blur(10px)',
-          pointerEvents: 'none',
-          zIndex: -1,
-        }} />
-
-        <div 
-          className="ascii-logo"
-          style={{
-            whiteSpace: 'pre',
-            fontSize: '5px',
-            lineHeight: '6px',
-            fontWeight: 700,
-            textShadow: '0 0 10px rgba(37, 99, 235, 0.4)', // Original subtle shadow
-            transition: 'all 0.3s ease', // Smooth transition for hover effect
-          }}
-        >
+    <nav className="sticky top-0 z-50 bg-[rgba(3,3,3,0.95)] backdrop-blur-md border-b border-[#1a1a1a] h-14 flex items-center px-6">
+      <Link href="/" className="font-mono text-sm font-bold text-primary no-underline mr-8 flex items-center relative group">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[60px] bg-[radial-gradient(ellipse_at_center,rgba(255,42,77,0.15)_0%,transparent_70%)] blur-md pointer-events-none -z-10 transition-opacity opacity-50 group-hover:opacity-100" />
+        <pre className="whitespace-pre text-[5px] leading-[6px] font-bold drop-shadow-[0_0_5px_rgba(255,42,77,0.4)] transition-all group-hover:drop-shadow-[0_0_15px_rgba(255,42,77,0.8)] m-0">
 {`    ____       _           
    / __ )_____(_)__  _____ 
   / __  / ___/ / _ \\/ ___/ 
  / /_/ / /  / /  __/ /     
 /_____/_/  /_/\\___/_/      `}
-        </div>
+        </pre>
       </Link>
 
-      {/* Nav links */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }}>
+      <div className="flex items-center gap-1 flex-1">
         {navLinks.map((link) => (
           <Link
             key={link.href}
             href={link.href}
-            style={{
-              fontFamily: 'monospace',
-              fontSize: '11px',
-              color: pathname === link.href ? '#fff' : '#666',
-              textDecoration: 'none',
-              padding: '6px 10px',
-              borderRadius: '4px',
-              letterSpacing: '0.06em',
-              background: pathname === link.href ? '#111' : 'transparent',
-              borderBottom: pathname === link.href ? '1px solid #2563EB' : '1px solid transparent',
-              transition: 'color 0.15s, background 0.15s',
-            }}
-            onMouseEnter={(e) => {
-              if (pathname !== link.href) {
-                ;(e.currentTarget as HTMLAnchorElement).style.color = '#fff'
-                ;(e.currentTarget as HTMLAnchorElement).style.background = '#111'
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (pathname !== link.href) {
-                ;(e.currentTarget as HTMLAnchorElement).style.color = '#666'
-                ;(e.currentTarget as HTMLAnchorElement).style.background = 'transparent'
-              }
-            }}
+            className={`font-sans text-[11px] no-underline px-3 py-[6px] tracking-wide transition-colors font-medium ${
+              pathname === link.href 
+                ? 'text-white border-b-2 border-primary bg-transparent' 
+                : 'text-[#888] bg-transparent border-b-2 border-transparent hover:text-white'
+            }`}
           >
             {link.label}
           </Link>
         ))}
       </div>
 
-      {/* Right side: Bell + Connect */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        {isConnected && address && (
-          <NotificationBell address={address} />
-        )}
+      <div className="flex items-center gap-3">
+        <GlobalSearch />
+        
         <ConnectButton.Custom>
-          {({
-            account,
-            chain,
-            openAccountModal,
-            openChainModal,
-            openConnectModal,
-            authenticationStatus,
-            mounted,
-          }) => {
+          {({ account, chain, openAccountModal, openChainModal, openConnectModal, authenticationStatus, mounted }) => {
             const ready = mounted && authenticationStatus !== 'loading'
-            const connected =
-              ready &&
-              account &&
-              chain &&
-              (!authenticationStatus ||
-                authenticationStatus === 'authenticated')
+            const connected = ready && account && chain && (!authenticationStatus || authenticationStatus === 'authenticated')
 
-            const btnStyle: React.CSSProperties = {
-              background: '#2563EB',
-              color: '#000',
-              border: 'none',
-              fontFamily: 'monospace',
-              fontSize: '11px',
-              fontWeight: 'bold',
-              padding: '4px 10px',
-              cursor: 'pointer',
-            }
+            const btnBase = "border-none font-mono text-[11px] font-bold px-3 py-1 cursor-pointer tracking-widest"
 
             return (
-              <div
-                {...(!ready && {
-                  'aria-hidden': true,
-                  style: { opacity: 0, pointerEvents: 'none', userSelect: 'none' },
-                })}
-              >
+              <div {...(!ready && { 'aria-hidden': true, style: { opacity: 0, pointerEvents: 'none' } })}>
                 {(() => {
                   if (!connected) {
                     return (
-                      <button onClick={openConnectModal} type="button" style={btnStyle}>
+                      <button onClick={openConnectModal} type="button" className={`${btnBase} bg-primary text-[#030303] shadow-[0_0_10px_rgba(255,42,77,0.2)] hover:shadow-[0_0_15px_rgba(255,42,77,0.4)] transition-all`}>
                         [CONNECT_WALLET]
                       </button>
                     )
                   }
-
                   if (chain.unsupported) {
                     return (
-                      <button onClick={openChainModal} type="button" style={{ ...btnStyle, background: '#ef4444', color: '#fff' }}>
+                      <button onClick={openChainModal} type="button" className={`${btnBase} bg-primary text-[#030303]`}>
                         [WRONG_NETWORK]
                       </button>
                     )
                   }
-
                   return (
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <Link href={`/maker/${account.address}`} style={{ ...btnStyle, background: '#2563EB', color: '#000', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+                    <div className="flex items-center gap-2">
+                      <NotificationBell address={account.address} />
+                      <Link href={`/maker/${account.address}`} className={`${btnBase} bg-[#110508] border border-primary text-primary hover:bg-primary hover:text-[#030303] transition-colors no-underline flex items-center`}>
                         [PROFILE]
                       </Link>
-
-                      <button
-                        onClick={openChainModal}
-                        style={{ ...btnStyle, background: '#1a1a1a', color: '#fff', border: '1px solid #333' }}
-                        type="button"
-                      >
+                      <button onClick={openChainModal} type="button" className={`${btnBase} bg-[#0a0a0a] text-[#EFEFEF] border border-[#222] hover:text-white hover:border-[#444] transition-colors`}>
                         {chain.name}
                       </button>
-
-                      <button onClick={openAccountModal} type="button" style={{ ...btnStyle, background: '#1a1a1a', color: '#00C9C0', border: '1px solid #00C9C0' }}>
+                      <button onClick={openAccountModal} type="button" className={`${btnBase} bg-[#0a0a0a] text-white border border-primary shadow-[0_0_5px_rgba(255,42,77,0.2)] hover:bg-[#111]`}>
                         {account.displayName}
                       </button>
                     </div>

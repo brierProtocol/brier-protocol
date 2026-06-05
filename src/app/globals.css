@@ -1,55 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
-  --bg: #0A0A0A;
-  --bg2: #111111;
-  --bg3: #181818;
-  --bg4: #1f1f1f;
-  --bg5: #252525;
-  --border: #222;
-  --border2: #2e2e2e;
-  --text: #efefef;
-  --muted: #555;
-  --muted2: #777;
-  --muted3: #999;
-  --blue: #2563EB;
-  --blue2: #e05a10;
-  --blue-dim: rgba(37,99,235,0.10);
-  --blue-glow: rgba(37,99,235,0.06);
-  --gold: #C9A84C;
-  --cyan: #00C9C0;
-  --green: #22c55e;
-  --red: #ef4444;
-  --radius: 6px;
-  --radius-lg: 10px;
+  --bg: #030303;
+  --bg-card: #080405;
+  --border-neon: #1a1a1a;
+  --primary: #ff2a4d;
+  --muted: #666666;
+  --glow: rgba(255, 42, 77, 0.25);
+  --text: #e8e8e8;
+  --text-secondary: #999999;
 }
 
 @theme inline {
   --color-base: var(--bg);
-  --color-surface: var(--bg2);
-  --color-ink: var(--text);
-  --color-accent: var(--blue);
-  --color-danger: var(--red);
-  --font-sans: var(--font-display);
-  --font-mono: var(--font-body);
+  --color-card: var(--bg-card);
+  --color-border: var(--border-neon);
+  --color-primary: var(--primary);
+  --color-muted: var(--muted);
+  --font-mono: var(--font-body), 'Courier New', monospace;
+  --font-sans: 'Inter', 'Space Grotesk', system-ui, sans-serif;
 }
 
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-body), 'DM Mono', monospace;
+  font-family: 'Inter', 'Space Grotesk', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--blue); }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }
 
 /* Selection */
-::selection { background: var(--blue); color: var(--bg); }
+::selection { background: var(--primary); color: var(--bg); }
 
 /* Smooth scroll */
 html { scroll-behavior: smooth; }
@@ -119,64 +109,7 @@ body::after {
 .cursor-blink::after {
   content: '_';
   animation: terminal-blink 1s step-end infinite;
-  color: #00FF00;
+  color: var(--primary);
 }
 
-/* Neon glow utility classes */
-.glow-blue { text-shadow: 0 0 10px rgba(37,99,235,0.8), 0 0 20px rgba(37,99,235,0.4); }
-.glow-green { text-shadow: 0 0 10px rgba(0,255,0,0.8), 0 0 20px rgba(0,255,0,0.4); }
-.glow-cyan { text-shadow: 0 0 10px rgba(0,201,192,0.8), 0 0 20px rgba(0,201,192,0.4); }
 
-/* Card hover with border glow transition */
-.card-hover {
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-.card-hover:hover {
-  box-shadow: 0 0 20px rgba(37,99,235,0.15), 0 0 40px rgba(37,99,235,0.05);
-}
-
-/* Smooth page transitions */
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(12px); filter: blur(2px); }
-  to   { opacity: 1; transform: translateY(0);    filter: blur(0);   }
-}
-
-/* --- Slime Vault Animation --- */
-@keyframes slimeWave {
-  0% { background-position-x: 0px; }
-  100% { background-position-x: 1000px; }
-}
-
-@keyframes slimeBubbles {
-  0% { transform: translateY(0) scale(1); opacity: 0; }
-  50% { transform: translateY(-10px) scale(1.2); opacity: 0.8; }
-  100% { transform: translateY(-20px) scale(0.8); opacity: 0; }
-}
-
-.slime-container {
-  position: relative;
-  overflow: hidden;
-  border-radius: 4px;
-  background-color: #111;
-  border: 1px solid #333;
-}
-
-.slime-liquid {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  background: linear-gradient(90deg, #22c55e, #4ade80, #22c55e);
-  background-size: 200% 100%;
-  animation: slimeWave 3s linear infinite;
-  box-shadow: 0 0 10px rgba(74, 222, 128, 0.4);
-  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.slime-bubble {
-  position: absolute;
-  background: rgba(255, 255, 255, 0.4);
-  border-radius: 50%;
-  animation: slimeBubbles linear infinite;
-}
-.animate-fade-up { animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }

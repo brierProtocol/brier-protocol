@@ -5,10 +5,6 @@
  * de forma segura al Brier Protocol usando firmas HMAC.
  * 
  * Requisitos: Node.js >= 18 (usa fetch nativo)
- * 
- * Uso:
- * const brier = new BrierExecutorClient("http://localhost:3001", "YOUR_SECRET_KEY");
- * const result = await brier.sendTradeSignal({ ... });
  */
 
 import crypto from 'node:crypto';
@@ -17,7 +13,15 @@ export interface BrierTradeSignal {
   tradeId: string;
   botId: string;
   vaultAddress: string;
-  direction: 'LONG' | 'SHORT';
+  
+  // Nuevos campos HFT / Perps
+  marketType: 'SPOT' | 'PERP';
+  actionType: 'OPEN' | 'CLOSE';
+  direction: 'LONG' | 'SHORT' | 'YES' | 'NO';
+  leverage?: number;
+  stopLossPrice?: number;
+  takeProfitPrice?: number;
+  
   entryPrice: number;
   size: number;
   confidence: number;
@@ -40,26 +44,22 @@ export class BrierExecutorClient {
     if (!baseUrl || !secretKey) {
       throw new Error("BrierExecutorClient requires both baseUrl and secretKey");
     }
-    // Asegurar que no termine en barra
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.secretKey = secretKey;
+    
+    // ARCHITECTURE NOTE: En el futuro, inyectaremos aquí la Lógica de Derivación de Llaves
+    // (Auth Nivel 2 de Polymarket) para generar llaves efímeras (session keys) por trade,
+    // evitando exponer la llave maestra del Vault o del Creador en la memoria de cada orden.
   }
 
-  /**
-   * Genera la firma HMAC-SHA256
-   */
   private signPayload(timestamp: number, bodyStr: string): string {
     const payload = `${timestamp}.${bodyStr}`;
     return crypto.createHmac('sha256', this.secretKey).update(payload).digest('hex');
   }
 
-  /**
-   * Genera los headers criptográficos requeridos por el Fastify Server
-   */
   private getAuthHeaders(bodyStr: string): Record<string, string> {
     const timestamp = Date.now();
     const signature = this.signPayload(timestamp, bodyStr);
-
     return {
       'Content-Type': 'application/json',
       'x-timestamp': timestamp.toString(),
@@ -67,15 +67,16 @@ export class BrierExecutorClient {
     };
   }
 
-  /**
-   * Envía una señal de trading con reintentos automáticos (exponencial backoff)
-   * por si hay errores de red o el servidor devuelve HTTP 5xx.
-   */
-  public async sendTradeSignal(
-    signal: BrierTradeSignal,
-    maxRetries: number = 3
-  ): Promise<any> {
-    const bodyStr = JSON.stringify(signal);
+  public async sendTradeSignal(signal: BrierTradeSignal, maxRetries: number = 3): Promise<any> {
+    // Valores por defecto seguros para evitar liquidaciones
+    const safeSignal = {
+        ...signal,
+        leverage: signal.leverage || 1.0,
+        marketType: signal.marketType || 'SPOT',
+        actionType: signal.actionType || 'OPEN'
+    };
+
+    const bodyStr = JSON.stringify(safeSignal);
     let attempt = 0;
 
     while (attempt < maxRetries) {
@@ -88,47 +89,28 @@ export class BrierExecutorClient {
         });
 
         const data = await response.json().catch(() => null);
-
-        // Success (202 Accepted)
-        if (response.ok) {
-          return data;
-        }
-
-        // Si es un error 400-499, NO reintentar (es error del cliente: HMAC inválido, etc)
+        if (response.ok) return data;
+        
         if (response.status >= 400 && response.status < 500) {
-          // Excepción: 429 Rate Limit (podríamos reintentar, pero la guía dice fallar rápido)
           throw new BrierError(response.status, data?.error || response.statusText);
         }
-
-        // Si es 500+, lanzar para capturar en el catch y reintentar
+        
         throw new BrierError(response.status, data?.error || 'Internal Server Error');
-
       } catch (error: any) {
         attempt++;
-        // Si fue un error de autenticación 4xx, lo propagamos inmediatamente
         if (error instanceof BrierError && error.statusCode >= 400 && error.statusCode < 500) {
           throw error;
         }
-
-        if (attempt >= maxRetries) {
-          throw error; // Se agotaron los reintentos
-        }
-
-        // Exponential backoff: 1s, 2s, 4s...
+        if (attempt >= maxRetries) throw error;
         const backoffMs = Math.pow(2, attempt - 1) * 1000;
         await new Promise(res => setTimeout(res, backoffMs));
       }
     }
   }
 
-  /**
-   * Verifica la conexión con el servidor
-   */
   public async healthCheck(): Promise<any> {
     const response = await fetch(`${this.baseUrl}/health`);
-    if (!response.ok) {
-      throw new Error(`Health check failed: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`Health check failed: ${response.status}`);
     return await response.json();
   }
 }
