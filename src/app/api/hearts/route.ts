@@ -1,6 +1,35 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+// GET /api/hearts?botId=...&userId=...
+// Devuelve el total de likes del bot y, si se pasa userId, si ese usuario ya dio like.
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const botId = searchParams.get('botId')
+  const userId = searchParams.get('userId')
+
+  if (!botId) {
+    return NextResponse.json({ error: 'Missing botId' }, { status: 400 })
+  }
+
+  try {
+    const count = await prisma.heart.count({ where: { botId } })
+
+    let hearted = false
+    if (userId) {
+      const existing = await prisma.heart.findUnique({
+        where: { userId_botId: { userId, botId } },
+      })
+      hearted = !!existing
+    }
+
+    return NextResponse.json({ count, hearted })
+  } catch (error) {
+    console.error('Heart fetch error:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const { userId, botId } = await request.json()

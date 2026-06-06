@@ -1,6 +1,55 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+// GET /api/follows?address=...&viewerId=...
+// Devuelve los seguidores y seguidos de `address`, sus contadores, y
+// (si se pasa viewerId) si el visitante ya sigue a `address`.
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const address = searchParams.get('address')
+  const viewerId = searchParams.get('viewerId')
+
+  if (!address) {
+    return NextResponse.json({ error: 'Missing address' }, { status: 400 })
+  }
+
+  try {
+    // followers = quienes siguen a `address` (followingId == address)
+    // following = a quienes sigue `address` (followerId == address)
+    const [followerRows, followingRows] = await Promise.all([
+      prisma.follow.findMany({
+        where: { followingId: address },
+        include: { follower: { select: { walletAddress: true, name: true, handle: true, pfpUrl: true } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.follow.findMany({
+        where: { followerId: address },
+        include: { following: { select: { walletAddress: true, name: true, handle: true, pfpUrl: true } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ])
+
+    let isFollowing = false
+    if (viewerId && viewerId !== address) {
+      const existing = await prisma.follow.findUnique({
+        where: { followerId_followingId: { followerId: viewerId, followingId: address } },
+      })
+      isFollowing = !!existing
+    }
+
+    return NextResponse.json({
+      followers: followerRows.map((r) => r.follower),
+      following: followingRows.map((r) => r.following),
+      followersCount: followerRows.length,
+      followingCount: followingRows.length,
+      isFollowing,
+    })
+  } catch (error) {
+    console.error('Follow fetch error:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const { followerId, followingId } = await request.json()
