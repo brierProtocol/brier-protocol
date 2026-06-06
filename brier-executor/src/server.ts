@@ -21,6 +21,10 @@ const settlementQueue = new Queue('trade-settlements', { connection: redisConfig
 const VAULT_TOTAL_POOL = 1_000_000; // 1M USDC
 const MAX_CAPACITY = 200_000; // Max allowed total lock
 
+// Slippage por defecto si el bot no especifica uno (200 bps = 2%).
+const DEFAULT_MAX_SLIPPAGE_BPS = 200;
+const MAX_ALLOWED_SLIPPAGE_BPS = 1000; // techo duro: nunca aceptar peor de 10%
+
 const SECRET = process.env.BUILDER_SECRET_KEY || 'your-64-char-hex-secret';
 const ALLOWED_IPS: string[] | null = process.env.EXECUTOR_ALLOWED_IPS
   ? process.env.EXECUTOR_ALLOWED_IPS.split(',').map(s => s.trim()).filter(Boolean)
@@ -48,7 +52,7 @@ fastify.addHook('onRequest', async (req, reply) => {
   if (!ALLOWED_IPS) return;
 
   const forwarded = req.headers['x-forwarded-for'] as string | undefined;
-  const clientIp = (forwarded ? forwarded.split(',')[0] : req.ip).trim();
+  const clientIp = (forwarded?.split(',')[0] ?? req.ip).trim();
 
   if (!ALLOWED_IPS.includes(clientIp)) {
     fastify.log.warn({ clientIp }, 'Blocked request from unlisted IP');
@@ -68,11 +72,12 @@ interface SignalBody {
   botId: string;
   vaultAddress: string;
   direction: 'LONG' | 'SHORT';
-  entryPrice: number;
+  entryPrice: number;        // precio esperado por el bot (0..1 en mercados de Polymarket)
   size: number;
   confidence: number;
   marketId: string;
   outcomeIndex: number;
+  maxSlippageBps?: number;   // tolerancia de slippage en basis points (100 = 1%)
 }
 
 fastify.post<{ Body: SignalBody }>('/api/v1/signals', async (request, reply) => {
@@ -108,6 +113,22 @@ fastify.post<{ Body: SignalBody }>('/api/v1/signals', async (request, reply) => 
     return reply.status(400).send({ error: 'Risk Validation Failed: Size exceeds 20% of total pool' });
   }
 
+  // --- Protección de slippage ---
+  // Calculamos el "peor precio" aceptable. El executor enviará una orden FAK con
+  // este límite: si el libro no llena dentro de la tolerancia, se llena parcial o
+  // se cancela, NUNCA peor. (Polymarket: el campo price en market orders actúa
+  // como worst-price limit.)
+  const slippageBps = Math.min(
+    Math.max(request.body.maxSlippageBps ?? DEFAULT_MAX_SLIPPAGE_BPS, 0),
+    MAX_ALLOWED_SLIPPAGE_BPS
+  );
+  const slip = slippageBps / 10_000;
+  // LONG/BUY: peor precio = más caro; SHORT/SELL: peor precio = más barato.
+  const worstPrice =
+    direction === 'LONG'
+      ? Math.min(entryPrice * (1 + slip), 0.999)
+      : Math.max(entryPrice * (1 - slip), 0.001);
+
   const botStateKey = `bot:${botId}:state`;
   const tradeKey = `trade:${tradeId}`;
 
@@ -134,6 +155,8 @@ fastify.post<{ Body: SignalBody }>('/api/v1/signals', async (request, reply) => 
     vaultAddress,
     direction,
     entryPrice,
+    worstPrice,
+    slippageBps,
     size,
     confidence,
     status: 'pending',
@@ -154,7 +177,9 @@ fastify.post<{ Body: SignalBody }>('/api/v1/signals', async (request, reply) => 
     vaultAddress,
     marketId,
     outcomeIndex,
-    size
+    size,
+    worstPrice,
+    slippageBps
   });
 
   return reply.status(202).send({ message: 'Signal accepted and queued for execution', tradeId });
@@ -218,7 +243,7 @@ fastify.post<{ Body: SettleBody }>('/api/v1/settle', async (request, reply) => {
   return reply.status(202).send({ message: 'Settlement queued', tradeId });
 });
 
-import { ResolutionWatcher } from './watcher';
+import { ResolutionWatcher } from './watcher.js';
 
 const watcher = new ResolutionWatcher();
 

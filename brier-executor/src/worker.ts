@@ -16,7 +16,7 @@ const CTF_ABI = ['function redeemPositions(address collateralToken, bytes32 pare
 // Trade Execution Worker (SPOT + PERP Routing)
 // =========================================================
 const executionWorker = new Worker('trade-signals', async job => {
-  const { tradeId, botId, vaultAddress, marketId, outcomeIndex, size, marketType, actionType, direction, leverage, stopLossPrice } = job.data;
+  const { tradeId, botId, vaultAddress, marketId, outcomeIndex, size, marketType, actionType, direction, leverage, stopLossPrice, worstPrice, slippageBps } = job.data;
   
   console.log(`[Executor] Processing ${actionType} trade ${tradeId} for Vault ${vaultAddress} (${marketType})`);
   
@@ -38,13 +38,22 @@ const executionWorker = new Worker('trade-signals', async job => {
     } else if (marketType === 'PERP') {
         // --- NUEVA LÓGICA PERP (CLOB Polymarket) ---
         if (actionType === 'OPEN') {
-            console.log(`[Perp Engine] Opening ${leverage}x ${direction} on ${marketId}...`);
-            // TODO: Integrar llamada directa a Polymarket CLOB API Level 2 aquí.
-            // Para proteger el Vault de Brier, solo inyectamos el margen off-chain temporalmente
+            console.log(`[Perp Engine] Opening ${leverage}x ${direction} on ${marketId} (worstPrice=${worstPrice}, slip=${slippageBps}bps)...`);
+            // PROTECCIÓN DE SLIPPAGE:
+            // Al integrar el CLOB de Polymarket, la orden debe enviarse como FAK
+            // (Fill-And-Kill) usando `worstPrice` como límite de peor precio:
+            //   - se llena todo lo que el libro ofrezca DENTRO de la tolerancia,
+            //   - lo que no, se cancela (fill parcial) en vez de barrer el libro.
+            // Además conviene comprobar la profundidad con /calculateMarketPrice y
+            // dimensionar la orden como % de la liquidez disponible (no multiplicador fijo).
+            //
+            // TODO: clobClient.postOrder({ tokenID, side, price: worstPrice, size, type: 'FAK' })
             await redis.hset(`trade:${tradeId}`, {
                 status: 'active_perp',
                 direction: direction,
                 leverage: leverage,
+                worstPrice: worstPrice ?? 0,
+                slippageBps: slippageBps ?? 0,
                 stopLoss: stopLossPrice || 0,
                 marketId: marketId,
                 vaultAddress: vaultAddress
