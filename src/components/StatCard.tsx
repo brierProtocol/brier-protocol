@@ -14,15 +14,16 @@ interface StatCardProps {
 }
 
 export function StatCard({ label, value, positive, negative, suffix, prefix, large, className = '' }: StatCardProps) {
-  const valueColor = positive ? 'text-[#C8FF00]' : negative ? 'text-[#FF3D00]' : 'text-white';
+  const valueColor = positive ? 'text-[var(--positive)]' : negative ? 'text-[var(--negative)]' : 'text-white';
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`rounded-[32px] bg-white/5 backdrop-blur-xl p-6 sm:p-8 border border-white/10 ${className}`}
+      whileHover={{ y: -2 }}
+      className={`rounded-[32px] bg-white/5 backdrop-blur-xl p-6 sm:p-8 border border-white/10 transition-colors hover:border-white/20 ${className}`}
     >
-      <p className={`font-[var(--font-dm-mono)] font-bold ${valueColor} ${large ? 'text-4xl sm:text-5xl' : 'text-2xl sm:text-3xl'} mb-2 tracking-tighter`}>
+      <p className={`font-mono tabular font-bold ${valueColor} ${large ? 'text-4xl sm:text-5xl' : 'text-2xl sm:text-3xl'} mb-2 tracking-tighter`}>
         {prefix}
         {value}
         {suffix}
