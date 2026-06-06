@@ -33,8 +33,11 @@ contract BrierVault is Initializable, ERC4626Upgradeable, OwnableUpgradeable, Pa
     uint256 public totalProfit;
     address public feeRecipient;
 
-    // Skin in the game (Maker's stake, e.g. 5,000 USDC)
+    // Skin in the game (Maker's stake, e.g. 5,000 USDC).
+    // `skinInGame` = USDC realmente fondeado y presente en el vault.
+    // `requiredSkinInGame` = objetivo mínimo configurado al desplegar.
     uint256 public skinInGame;
+    uint256 public requiredSkinInGame;
 
     uint256 public constant DEPOSITOR_SHARE_BPS = 6000;
     uint256 public constant BUILDER_SHARE_BPS   = 3000;
@@ -50,6 +53,7 @@ contract BrierVault is Initializable, ERC4626Upgradeable, OwnableUpgradeable, Pa
     event DaemonUpdated(address indexed oldDaemon, address indexed newDaemon);
     event MaxCapacityUpdated(uint256 newCapacity);
     event CircuitBreakerTriggered(uint256 slashedAmount);
+    event SkinFunded(address indexed funder, uint256 amount, uint256 totalSkin);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -84,7 +88,23 @@ contract BrierVault is Initializable, ERC4626Upgradeable, OwnableUpgradeable, Pa
         polymarketCTF = _polymarketCTF;
         feeRecipient  = _feeRecipient;
         maxCapacity   = _maxCapacity;
-        skinInGame    = _skinInGame;
+
+        // El skin NO se cuenta hasta que se fondee de verdad (ver fundSkinInGame).
+        requiredSkinInGame = _skinInGame;
+        skinInGame         = 0;
+    }
+
+    /**
+     * @notice El creador (Maker) deposita su skin-in-the-game real en USDC.
+     * @dev Transfiere USDC al vault y lo registra como buffer de seguridad.
+     *      No emite shares: el skin no es capital del LP, es un colchón que solo
+     *      entra en juego (idleCapital) si se dispara el Circuit Breaker.
+     */
+    function fundSkinInGame(uint256 amount) external nonReentrant {
+        require(amount > 0, "BrierVault: zero amount");
+        IERC20(asset()).safeTransferFrom(msg.sender, address(this), amount);
+        skinInGame += amount;
+        emit SkinFunded(msg.sender, amount, skinInGame);
     }
 
     modifier onlyExecutor() {
@@ -205,8 +225,11 @@ contract BrierVault is Initializable, ERC4626Upgradeable, OwnableUpgradeable, Pa
     // =========================================================
 
     function totalAssets() public view virtual override returns (uint256) {
-        // Includes idle capital, active locked capital, and the maker's skin in game stake
-        return idleCapital + activeLockedCapital + skinInGame;
+        // Solo capital propiedad de los LP (idle + en trades).
+        // El skinInGame NO se incluye: es un colchón aparte que no tiene shares y
+        // por tanto no debe diluir/inflar el precio de las shares del LP. Solo pasa
+        // a formar parte del capital (idleCapital) si se dispara el Circuit Breaker.
+        return idleCapital + activeLockedCapital;
     }
 
     function _deposit(

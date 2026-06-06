@@ -17,8 +17,9 @@ Estado a fecha de la rama `fix/funcionalidad-base`.
 
 ## 🔜 Fase 1 — Retiros y "claim" (1–2 días)
 
-- `POST /api/withdraw`: registra la salida de un LP (verifica el evento on-chain del vault,
-  marca `VaultDeposit.active=false`, `exitedAt`, `exitReason`, decrementa TVL).
+- ✅ `POST /api/withdraw`: registra la salida de un LP (verifica el evento on-chain del vault,
+  marca `VaultDeposit.active=false`, `exitedAt`, `exitReason`, decrementa TVL). *(Hecho — MVP
+  de salida total; falta soportar retiros parciales FIFO.)*
 - Vista de ganancias del creador: ya cobra el 30% automáticamente en cada `settleMarket`;
   falta agregarlo y mostrarlo en su perfil (sumar `FeesDistributed` / trades resueltos).
 - UI inversor: modal de depósito con "cuadritos" explicativos (retiro instantáneo del idle
@@ -42,8 +43,9 @@ Estado a fecha de la rama `fix/funcionalidad-base`.
 ## ⚠️ Deuda técnica a vigilar
 
 - Alinear de verdad `@rainbow-me/rainbowkit` con `wagmi` v3 y quitar `.npmrc legacy-peer-deps`.
-- `skinInGame` en el contrato se contabiliza en `totalAssets()` pero nunca se transfiere
-  al vault en `initialize` → revisar antes de mainnet (distorsiona el precio de las shares).
+- ✅ `skinInGame` ahora se fondea de verdad (`fundSkinInGame`) y se excluye de `totalAssets()`
+  para no diluir las shares del LP; solo entra al capital si se dispara el Circuit Breaker.
+  *(Hecho — pero requiere TESTS de Hardhat + auditoría antes de mainnet.)*
 - Definir red única: desarrollo en Polygon Amoy, producción en Polygon mainnet
   (Polymarket NO vive en Arbitrum, pese a lo que dice el README).
 - Quitar `next_dev.log` (784 KB) del repo y añadirlo al `.gitignore`.
