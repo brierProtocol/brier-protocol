@@ -47,22 +47,28 @@ export function deriveAvatarColor(seed: string): string {
 // Curated palette offered when creating a bot — all vivid and legible on black.
 export const EYE_PALETTE = [
   '#ff2a4d', // crimson
+  '#ff3b6b', // rose-red
   '#ff5a3c', // vermilion
   '#ff7a00', // orange
   '#ffb000', // gold
   '#ffd400', // amber
+  '#eaff00', // chartreuse
   '#c8ff00', // acid lime
   '#7bff3c', // green
   '#22e88a', // emerald
   '#00d4aa', // teal
+  '#00ffd5', // aqua
   '#00e5ff', // cyan
   '#42c8ff', // sky
   '#4285f0', // blue
+  '#5a7cff', // cornflower
   '#6a5cff', // indigo
+  '#8b5cff', // amethyst
   '#a96bff', // violet
+  '#cf5cff', // purple
   '#e05cff', // magenta
   '#ff5ccd', // pink
-  '#ff4f8b', // rose
+  '#ff4f8b', // hot rose
   '#f5f5f5', // white
 ] as const
 
@@ -74,6 +80,12 @@ export const EYE_SHAPES = [
   { id: 'diamond',  label: 'DIAMOND' },
   { id: 'scanner',  label: 'SCANNER' },
   { id: 'ring',     label: 'HALO' },
+  { id: 'star',     label: 'STAR' },
+  { id: 'triangle', label: 'DELTA' },
+  { id: 'cross',    label: 'RETICLE' },
+  { id: 'spiral',   label: 'VORTEX' },
+  { id: 'nova',     label: 'NOVA' },
+  { id: 'void',     label: 'VOID' },
 ] as const
 
 export type EyeShapeId = typeof EYE_SHAPES[number]['id']

@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       : '#ff2a4d'
 
     // Eye shape chosen at creation — validated against the allowed set
-    const allowedShapes = ['round', 'aperture', 'cat', 'diamond', 'scanner', 'ring']
+    const allowedShapes = ['round', 'aperture', 'cat', 'diamond', 'scanner', 'ring', 'star', 'triangle', 'cross', 'spiral', 'nova', 'void']
     const chosenShape = allowedShapes.includes(eyeShape) ? eyeShape : 'round'
 
     // Validation

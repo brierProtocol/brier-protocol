@@ -2,7 +2,9 @@
 
 import React, { useEffect, useRef, useMemo } from 'react'
 
-export type EyeShape = 'round' | 'aperture' | 'cat' | 'diamond' | 'scanner' | 'ring'
+export type EyeShape = 'round' | 'aperture' | 'cat' | 'diamond' | 'scanner' | 'ring' | 'star' | 'triangle' | 'cross' | 'spiral' | 'nova' | 'void'
+
+const ALL_SHAPES: EyeShape[] = ['round', 'aperture', 'cat', 'diamond', 'scanner', 'ring', 'star', 'triangle', 'cross', 'spiral', 'nova', 'void']
 
 interface BotIrisAvatarProps {
   avatarId: string
@@ -86,8 +88,7 @@ export default function BotIrisAvatar({ avatarId, size = 120, accentColor = '#ff
   // Pupil shape: explicit prop wins; otherwise derived deterministically from avatarId.
   const eyeShape: EyeShape = useMemo(() => {
     if (shape) return shape
-    const shapes: EyeShape[] = ['round', 'aperture', 'cat', 'diamond', 'scanner', 'ring']
-    return shapes[hashCode(avatarId) % shapes.length]
+    return ALL_SHAPES[hashCode(avatarId) % ALL_SHAPES.length]
   }, [shape, avatarId])
 
   // Subtle per-eye variation — color is the main differentiator, structure stays consistent.
@@ -202,10 +203,8 @@ export default function BotIrisAvatar({ avatarId, size = 120, accentColor = '#ff
       const tracePupil = () => {
         ctx.beginPath()
         if (eyeShape === 'cat') {
-          // vertical slit
           ctx.ellipse(cx, cy, pupilR * 0.5, pupilR * 1.25, 0, 0, Math.PI * 2)
         } else if (eyeShape === 'scanner') {
-          // horizontal lens
           ctx.ellipse(cx, cy, pupilR * 1.25, pupilR * 0.5, 0, 0, Math.PI * 2)
         } else if (eyeShape === 'diamond') {
           ctx.moveTo(cx, cy - pupilR * 1.2)
@@ -214,7 +213,6 @@ export default function BotIrisAvatar({ avatarId, size = 120, accentColor = '#ff
           ctx.lineTo(cx - pupilR * 0.85, cy)
           ctx.closePath()
         } else if (eyeShape === 'aperture') {
-          // hexagon, slowly rotating
           for (let i = 0; i < 6; i++) {
             const a = (i / 6) * Math.PI * 2 + t * 0.15
             const px = cx + Math.cos(a) * pupilR
@@ -222,13 +220,34 @@ export default function BotIrisAvatar({ avatarId, size = 120, accentColor = '#ff
             i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)
           }
           ctx.closePath()
+        } else if (eyeShape === 'triangle') {
+          const rot = t * 0.2
+          for (let i = 0; i < 3; i++) {
+            const a = rot + (i / 3) * Math.PI * 2 - Math.PI / 2
+            const px = cx + Math.cos(a) * pupilR * 1.2
+            const py = cy + Math.sin(a) * pupilR * 1.2
+            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)
+          }
+          ctx.closePath()
+        } else if (eyeShape === 'star') {
+          const spikes = 5, outer = pupilR * 1.25, inner = pupilR * 0.52, rot = t * 0.25 - Math.PI / 2
+          for (let i = 0; i < spikes * 2; i++) {
+            const r = i % 2 === 0 ? outer : inner
+            const a = rot + (i / (spikes * 2)) * Math.PI * 2
+            const px = cx + Math.cos(a) * r
+            const py = cy + Math.sin(a) * r
+            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)
+          }
+          ctx.closePath()
+        } else if (eyeShape === 'void') {
+          ctx.arc(cx, cy, pupilR * 1.15, 0, Math.PI * 2)
         } else {
-          // round + ring
+          // round, ring, cross, spiral, nova
           ctx.arc(cx, cy, pupilR, 0, Math.PI * 2)
         }
       }
 
-      const pupilGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, pupilR * 1.2)
+      const pupilGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, pupilR * 1.3)
       pupilGrad.addColorStop(0, '#000000')
       pupilGrad.addColorStop(0.82, '#000000')
       pupilGrad.addColorStop(1, shade(safeColor, -0.6))
@@ -245,24 +264,63 @@ export default function BotIrisAvatar({ avatarId, size = 120, accentColor = '#ff
       ctx.stroke()
       ctx.shadowBlur = 0
 
-      // 'ring' shape adds a bright concentric iris ring
+      // ── Per-shape flourishes ──
+      ctx.save()
+      ctx.translate(cx, cy)
       if (eyeShape === 'ring') {
-        ctx.beginPath()
-        ctx.arc(cx, cy, pupilR * 1.7, 0, Math.PI * 2)
-        ctx.lineWidth = 2
-        ctx.strokeStyle = irisLight + 'cc'
-        ctx.stroke()
-      }
-      // 'scanner' shape adds a sweeping laser line
-      if (eyeShape === 'scanner') {
+        ctx.beginPath(); ctx.arc(0, 0, pupilR * 1.7, 0, Math.PI * 2)
+        ctx.lineWidth = 2; ctx.strokeStyle = irisLight + 'cc'; ctx.stroke()
+      } else if (eyeShape === 'scanner') {
         const sweep = Math.sin(t * 1.5) * irisR * 0.7
+        ctx.beginPath(); ctx.moveTo(-irisR * 0.8, sweep); ctx.lineTo(irisR * 0.8, sweep)
+        ctx.lineWidth = 1.2; ctx.strokeStyle = safeColor + '66'; ctx.stroke()
+      } else if (eyeShape === 'cross') {
+        // targeting reticle
+        ctx.shadowBlur = 8; ctx.shadowColor = safeColor
+        ctx.strokeStyle = safeColor + 'cc'; ctx.lineWidth = 1.4
+        const gap = pupilR * 0.5, len = irisR * 0.82
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          ctx.beginPath(); ctx.moveTo(dx * gap, dy * gap); ctx.lineTo(dx * len, dy * len); ctx.stroke()
+        }
+        ctx.beginPath(); ctx.arc(0, 0, irisR * 0.55, 0, Math.PI * 2)
+        ctx.lineWidth = 0.8; ctx.strokeStyle = safeColor + '55'; ctx.stroke()
+        ctx.shadowBlur = 0
+      } else if (eyeShape === 'spiral') {
+        ctx.rotate(t * 0.6 * dna.rotDir)
         ctx.beginPath()
-        ctx.moveTo(cx - irisR * 0.8, cy + sweep)
-        ctx.lineTo(cx + irisR * 0.8, cy + sweep)
-        ctx.lineWidth = 1.2
-        ctx.strokeStyle = safeColor + '66'
-        ctx.stroke()
+        for (let a = 0; a < Math.PI * 6; a += 0.2) {
+          const r = pupilR * 0.4 + (a / (Math.PI * 6)) * (irisR * 0.85 - pupilR * 0.4)
+          const px = Math.cos(a) * r, py = Math.sin(a) * r
+          a === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)
+        }
+        ctx.lineWidth = 1.4; ctx.strokeStyle = safeColor + 'aa'
+        ctx.shadowBlur = 6; ctx.shadowColor = safeColor; ctx.stroke(); ctx.shadowBlur = 0
+      } else if (eyeShape === 'nova') {
+        ctx.rotate(t * 0.15 * dna.rotDir)
+        const rays = 12
+        ctx.shadowBlur = 6; ctx.shadowColor = safeColor
+        for (let i = 0; i < rays; i++) {
+          const a = (i / rays) * Math.PI * 2
+          const long = i % 2 === 0 ? irisR * 0.9 : irisR * 0.66
+          ctx.beginPath()
+          ctx.moveTo(Math.cos(a) * pupilR * 1.1, Math.sin(a) * pupilR * 1.1)
+          ctx.lineTo(Math.cos(a) * long, Math.sin(a) * long)
+          ctx.lineWidth = i % 2 === 0 ? 1.6 : 0.8
+          ctx.strokeStyle = safeColor + (i % 2 === 0 ? 'cc' : '66')
+          ctx.stroke()
+        }
+        ctx.shadowBlur = 0
+      } else if (eyeShape === 'void') {
+        // bright accretion ring around a deep black hole
+        const pulse = 1 + Math.sin(t * 1.2) * 0.06
+        ctx.beginPath(); ctx.arc(0, 0, pupilR * 1.32 * pulse, 0, Math.PI * 2)
+        ctx.lineWidth = 2.4; ctx.strokeStyle = irisLight
+        ctx.shadowBlur = 16; ctx.shadowColor = safeColor; ctx.stroke()
+        ctx.beginPath(); ctx.arc(0, 0, pupilR * 1.55 * pulse, 0, Math.PI * 2)
+        ctx.lineWidth = 1; ctx.strokeStyle = safeColor + '55'; ctx.stroke()
+        ctx.shadowBlur = 0
       }
+      ctx.restore()
 
       // ─── 7. CATCHLIGHT (the "alive" highlight) ───
       const clx = cx - maxR * 0.24
