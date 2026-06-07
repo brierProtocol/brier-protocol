@@ -19,6 +19,18 @@ function hashCode(str: string): number {
   return Math.abs(hash)
 }
 
+// Lighten (amt > 0) or darken (amt < 0) a hex color by mixing toward white/black.
+function shade(hex: string, amt: number): string {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  const target = amt < 0 ? 0 : 255
+  const p = Math.abs(amt)
+  const mix = (c: number) => Math.round((target - c) * p) + c
+  const toHex = (n: number) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0')
+  return `#${toHex(mix(r))}${toHex(mix(g))}${toHex(mix(b))}`
+}
+
 // Generate a complementary secondary color from the accent
 function shiftHue(hex: string, degrees: number): string {
   const r = parseInt(hex.slice(1, 3), 16) / 255
@@ -68,18 +80,15 @@ export default function BotIrisAvatar({ avatarId, size = 120, accentColor = '#ff
     return accentColor
   }, [accentColor])
 
-  // Derive unique visual DNA from avatarId
+  // Subtle per-eye variation — color is the main differentiator, structure stays consistent.
   const dna = useMemo(() => {
     const h = hashCode(avatarId)
     return {
-      rings: 2 + (h % 3),              // 2-4 orbital rings
-      ticks: 24 + (h % 24),            // 24-48 tick marks
-      particleCount: 6 + (h % 8),      // 6-14 particles
-      orbitTilt: (h % 60) - 30,        // -30° to +30° tilt
-      rotDir: h % 2 === 0 ? 1 : -1,   // CW or CCW
-      pulseSpeed: 0.8 + (h % 4) * 0.3, // 0.8-2.0
-      arcSegments: 3 + (h % 4),        // 3-6 gradient arcs
-      coreStyle: h % 3,                // 0=solid, 1=ring, 2=diamond
+      pupilScale: 0.30 + (h % 6) * 0.018,  // 0.30–0.39 pupil size
+      fiberCount: 56 + (h % 4) * 8,        // iris fiber density
+      rotDir: h % 2 === 0 ? 1 : -1,        // fiber drift direction
+      breatheSpeed: 0.5 + (h % 5) * 0.12,  // pupil breathing rate
+      fiberSeed: (h % 100) / 100,          // fiber rotation offset
     }
   }, [avatarId])
 
@@ -106,152 +115,113 @@ export default function BotIrisAvatar({ avatarId, size = 120, accentColor = '#ff
 
     const cx = baseSize / 2
     const cy = baseSize / 2
-    const maxR = baseSize * 0.44
+    const maxR = baseSize * 0.46
+
+    // Precompute color variants for the iris
+    const irisLight = shade(safeColor, 0.28)
+    const irisDeep = shade(safeColor, -0.45)
+    const irisEdge = shade(safeColor, -0.68)
 
     const render = () => {
-      t += 0.012
+      t += 0.006
       ctx.clearRect(0, 0, baseSize, baseSize)
 
-      // ─── 1. BACKGROUND LENS HOUSING ───
-      // A dark, deep socket for the robotic eye to sit in
-      const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR * 1.1)
-      bgGrad.addColorStop(0, safeColor + '20')
-      bgGrad.addColorStop(0.7, '#030303')
-      bgGrad.addColorStop(1, '#000000')
-      ctx.fillStyle = bgGrad
+      const irisR = maxR * 0.92
+      const breathe = 1 + Math.sin(t * dna.breatheSpeed) * 0.05
+      const pupilR = irisR * dna.pupilScale * breathe
+
+      // ─── 1. AMBIENT GLOW ───
+      const glow = ctx.createRadialGradient(cx, cy, irisR * 0.4, cx, cy, maxR * 1.15)
+      glow.addColorStop(0, safeColor + '22')
+      glow.addColorStop(1, 'transparent')
+      ctx.fillStyle = glow
       ctx.fillRect(0, 0, baseSize, baseSize)
 
-      // ─── 2. OUTER MECHANICAL CHASSIS ───
+      // ─── 2. EYEBALL SOCKET ───
+      const socket = ctx.createRadialGradient(cx, cy, irisR * 0.8, cx, cy, maxR)
+      socket.addColorStop(0, '#0a0a0a')
+      socket.addColorStop(1, '#000000')
+      ctx.beginPath()
+      ctx.arc(cx, cy, maxR, 0, Math.PI * 2)
+      ctx.fillStyle = socket
+      ctx.fill()
+
+      // ─── 3. IRIS BASE (depth gradient) ───
+      const iris = ctx.createRadialGradient(cx, cy, pupilR * 0.7, cx, cy, irisR)
+      iris.addColorStop(0, irisDeep)        // darker near pupil
+      iris.addColorStop(0.30, safeColor)
+      iris.addColorStop(0.62, irisLight)    // brightest mid-band
+      iris.addColorStop(0.85, safeColor)
+      iris.addColorStop(1, irisEdge)        // dark limbal edge
+      ctx.beginPath()
+      ctx.arc(cx, cy, irisR, 0, Math.PI * 2)
+      ctx.fillStyle = iris
+      ctx.fill()
+
+      // ─── 4. IRIS FIBERS (radial texture, soft) ───
       ctx.save()
       ctx.translate(cx, cy)
-      
-      // Solid outer rim
-      ctx.beginPath()
-      ctx.arc(0, 0, maxR * 0.95, 0, Math.PI * 2)
-      ctx.lineWidth = 1.5
-      ctx.strokeStyle = safeColor + '60'
-      ctx.stroke()
+      ctx.rotate(t * 0.02 * dna.rotDir + dna.fiberSeed * Math.PI * 2)
+      for (let i = 0; i < dna.fiberCount; i++) {
+        const a = (i / dna.fiberCount) * Math.PI * 2
+        const light = i % 2 === 0
+        ctx.beginPath()
+        ctx.moveTo(Math.cos(a) * pupilR * 1.05, Math.sin(a) * pupilR * 1.05)
+        ctx.lineTo(Math.cos(a) * irisR * 0.97, Math.sin(a) * irisR * 0.97)
+        ctx.lineWidth = light ? 1.1 : 0.7
+        ctx.strokeStyle = light ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.16)'
+        ctx.stroke()
+      }
+      ctx.restore()
 
-      // Inner dashed calibration ring
+      // ─── 5. LIMBAL RING (dark outer edge — key realism) ───
       ctx.beginPath()
-      ctx.arc(0, 0, maxR * 0.85, 0, Math.PI * 2)
-      ctx.setLineDash([3, 8])
+      ctx.arc(cx, cy, irisR, 0, Math.PI * 2)
+      ctx.lineWidth = 2.5
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)'
+      ctx.stroke()
+      // subtle accent rim just inside
+      ctx.beginPath()
+      ctx.arc(cx, cy, irisR * 0.93, 0, Math.PI * 2)
       ctx.lineWidth = 1
-      ctx.strokeStyle = safeColor + '40'
+      ctx.strokeStyle = irisLight + '66'
       ctx.stroke()
-      ctx.setLineDash([])
-      
-      // Rotating outer focus notches
-      ctx.rotate(t * 0.1 * dna.rotDir)
-      for (let i = 0; i < 3; i++) {
-        const angle = (i / 3) * Math.PI * 2
-        ctx.beginPath()
-        ctx.arc(0, 0, maxR * 0.95, angle, angle + 0.2)
-        ctx.lineWidth = 3
-        ctx.strokeStyle = safeColor + 'aa'
-        ctx.stroke()
-      }
-      ctx.restore()
 
-      // ─── 3. THE AI SENSOR CORE (ROBOTIC EYE) ───
-      ctx.save()
-      ctx.translate(cx, cy)
-      const pulse = 1 + Math.sin(t * dna.pulseSpeed) * 0.05
-      const coreR = maxR * 0.45 * pulse
-      
-      // Deep shadow for the core
-      ctx.shadowBlur = 25
+      // ─── 6. PUPIL ───
+      const pupilGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, pupilR)
+      pupilGrad.addColorStop(0, '#000000')
+      pupilGrad.addColorStop(0.82, '#000000')
+      pupilGrad.addColorStop(1, shade(safeColor, -0.6))
+      ctx.beginPath()
+      ctx.arc(cx, cy, pupilR, 0, Math.PI * 2)
+      ctx.fillStyle = pupilGrad
+      ctx.fill()
+      // glowing pupil rim
+      ctx.shadowBlur = 12
       ctx.shadowColor = safeColor
-
-      if (dna.coreStyle === 0) {
-        // TYPE A: THE APERTURE (Hexagonal shutter)
-        ctx.beginPath()
-        for (let i = 0; i < 6; i++) {
-          const angle = (i / 6) * Math.PI * 2 + t * 0.2
-          const px = Math.cos(angle) * coreR
-          const py = Math.sin(angle) * coreR
-          if (i === 0) ctx.moveTo(px, py)
-          else ctx.lineTo(px, py)
-        }
-        ctx.closePath()
-        ctx.lineWidth = 2
-        ctx.strokeStyle = safeColor + 'cc'
-        ctx.stroke()
-
-        // Glowing center optic
-        ctx.beginPath()
-        ctx.arc(0, 0, coreR * 0.4, 0, Math.PI * 2)
-        ctx.fillStyle = safeColor
-        ctx.fill()
-        
-        ctx.shadowBlur = 0
-        ctx.beginPath()
-        ctx.arc(0, 0, coreR * 0.15, 0, Math.PI * 2)
-        ctx.fillStyle = '#ffffff'
-        ctx.fill()
-
-      } else if (dna.coreStyle === 1) {
-        // TYPE B: THE SCANNER (Radar/Laser eye)
-        ctx.beginPath()
-        ctx.arc(0, 0, coreR * 0.8, 0, Math.PI * 2)
-        ctx.lineWidth = 2
-        ctx.strokeStyle = safeColor + '50'
-        ctx.stroke()
-        
-        // Sweeping scanner laser
-        ctx.beginPath()
-        ctx.moveTo(0, 0)
-        ctx.lineTo(Math.cos(t * dna.rotDir * 2) * coreR * 0.8, Math.sin(t * dna.rotDir * 2) * coreR * 0.8)
-        ctx.lineWidth = 2.5
-        ctx.strokeStyle = safeColor
-        ctx.stroke()
-
-        // Core diode
-        ctx.beginPath()
-        ctx.arc(0, 0, coreR * 0.35, 0, Math.PI * 2)
-        ctx.fillStyle = secondaryColor || '#ffffff'
-        ctx.fill()
-
-      } else {
-        // TYPE C: THE HAL NODE (Classic concentric glowing AI eye)
-        const nodeGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, coreR * 0.8)
-        nodeGrad.addColorStop(0, '#ffffff')
-        nodeGrad.addColorStop(0.3, safeColor)
-        nodeGrad.addColorStop(1, safeColor + '10')
-        
-        ctx.beginPath()
-        ctx.arc(0, 0, coreR * 0.8, 0, Math.PI * 2)
-        ctx.fillStyle = nodeGrad
-        ctx.fill()
-        
-        ctx.beginPath()
-        ctx.arc(0, 0, coreR * 0.8, 0, Math.PI * 2)
-        ctx.lineWidth = 1.5
-        ctx.strokeStyle = safeColor + '80'
-        ctx.stroke()
-      }
-      
+      ctx.beginPath()
+      ctx.arc(cx, cy, pupilR, 0, Math.PI * 2)
+      ctx.lineWidth = 1.4
+      ctx.strokeStyle = safeColor + 'aa'
+      ctx.stroke()
       ctx.shadowBlur = 0
-      ctx.restore()
 
-      // ─── 4. HUD DATA ARCS (Inner mechanical tracking) ───
-      ctx.save()
-      ctx.translate(cx, cy)
-      ctx.rotate(t * 0.4 * dna.rotDir)
-      
-      for (let i = 0; i < dna.arcSegments; i++) {
-        const startAngle = (i / dna.arcSegments) * Math.PI * 2
-        const sweep = (Math.PI * 2 / dna.arcSegments) * 0.3
-        const radius = maxR * 0.65
-        
-        ctx.beginPath()
-        ctx.arc(0, 0, radius, startAngle, startAngle + sweep)
-        ctx.lineWidth = 2.5
-        ctx.lineCap = 'butt' // Hard mechanical edges
-        ctx.strokeStyle = safeColor + '90'
-        ctx.stroke()
-      }
-      ctx.restore()
+      // ─── 7. CATCHLIGHT (the "alive" highlight) ───
+      const clx = cx - maxR * 0.24
+      const cly = cy - maxR * 0.26
+      const cl = ctx.createRadialGradient(clx, cly, 0, clx, cly, maxR * 0.30)
+      cl.addColorStop(0, 'rgba(255,255,255,0.85)')
+      cl.addColorStop(0.5, 'rgba(255,255,255,0.18)')
+      cl.addColorStop(1, 'transparent')
+      ctx.beginPath()
+      ctx.arc(clx, cly, maxR * 0.30, 0, Math.PI * 2)
+      ctx.fillStyle = cl
+      ctx.fill()
+      // tiny secondary glint
+      ctx.beginPath()
+      ctx.arc(cx + pupilR * 0.45, cy + pupilR * 0.55, maxR * 0.04, 0, Math.PI * 2)
+      ctx.fillStyle = 'rgba(255,255,255,0.45)'
+      ctx.fill()
 
       animId = requestAnimationFrame(render)
     }
