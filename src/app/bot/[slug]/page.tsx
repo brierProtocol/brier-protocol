@@ -304,7 +304,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           eyeShape: dbBot.eyeShape,
           createdAt: dbBot.createdAt,
           monthlyYield: 0,
-          tvl: dbBot.currentTVL || 0, vaultCap: 50000, markets: [dbBot.marketType || 'SPOT'],
+          tvl: dbBot.liveNav?.totalAssets ?? dbBot.currentTVL ?? 0, sharePrice: dbBot.liveNav?.sharePrice ?? 1, vaultCap: 50000, markets: [dbBot.marketType || 'SPOT'],
           pnlHistory: dynamicPnl, vaultAddress: dbBot.vaultAddress, dbTradeEvents: dbBot.trades || []
         }
         

@@ -19,22 +19,29 @@ describe("BrierVault Industrial v4 — Full Test Suite", function () {
     mockCTF = await MockCTF.deploy();
     await mockCTF.waitForDeployment();
 
-    // Deploy Factory
-    const BrierFactory = await ethers.getContractFactory("BrierFactory");
-    brierFactory = await BrierFactory.deploy(
-      await mockUSDC.getAddress(),
-      daemon.address,
-      await mockCTF.getAddress()
-    );
+    // Deploy upgradeable implementation
+    const BrierVaultImpl = await ethers.getContractFactory("BrierVault");
+    const impl = await BrierVaultImpl.deploy();
+    await impl.waitForDeployment();
+
+    // Deploy Factory (implementation, admin/owner)
+    const BrierVaultFactory = await ethers.getContractFactory("BrierVaultFactory");
+    brierFactory = await BrierVaultFactory.deploy(await impl.getAddress(), owner.address);
     await brierFactory.waitForDeployment();
 
-    // Deploy Vault via Factory (now with maxCapacity)
+    // Deploy Vault clone via Factory (full real signature)
     const tx = await brierFactory.deployVault(
-      builder.address,
       "alpha-strike",
+      await mockUSDC.getAddress(),
       "Brier Vault: Alpha Strike",
       "bvALPHA",
-      MAX_CAPACITY
+      daemon.address,
+      builder.address,
+      await mockCTF.getAddress(),
+      owner.address,
+      feeRecipient.address,
+      MAX_CAPACITY,
+      0
     );
     const receipt = await tx.wait();
 
@@ -92,13 +99,12 @@ describe("BrierVault Industrial v4 — Full Test Suite", function () {
       await mockUSDC.mint(await brierVault.getAddress(), payout);
 
       const builderBefore = await mockUSDC.balanceOf(builder.address);
-      // feeRecipient is owner() in the factory
-      const platformBefore = await mockUSDC.balanceOf(owner.address);
+      const platformBefore = await mockUSDC.balanceOf(feeRecipient.address);
 
       await brierVault.connect(daemon).settleMarket(tradeId(1), payout);
 
       const builderAfter = await mockUSDC.balanceOf(builder.address);
-      const platformAfter = await mockUSDC.balanceOf(owner.address);
+      const platformAfter = await mockUSDC.balanceOf(feeRecipient.address);
 
       // Profit = 3000 - 2000 = 1000
       const profit = ethers.parseEther("1000");

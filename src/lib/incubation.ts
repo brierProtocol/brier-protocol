@@ -33,17 +33,31 @@ export async function checkStatusTransitions(botId: string) {
     const meetsTime = daysInShadow >= SHADOW_MIN_DAYS
 
     if (meetsTrades && meetsBrier && meetsDrawdown && meetsTime) {
+      // Deploy the bot's on-chain clone vault (no-op/null if factory not configured yet).
+      let vaultAddress: string | null = null
+      if (!bot.vaultAddress) {
+        const { createVaultForBot } = await import('./vault-factory')
+        vaultAddress = await createVaultForBot({
+          id: bot.id, slug: bot.slug, name: bot.name, walletAddress: bot.walletAddress, vaultCap: 500000,
+        })
+      }
+
       await prisma.$transaction([
         prisma.bot.update({
           where: { id: botId },
-          data: { status: 'VAULT_ELIGIBLE_T1', tier: 'TIER1', vaultCap: 500000 }
+          data: {
+            status: 'VAULT_ELIGIBLE_T1',
+            tier: 'TIER1',
+            vaultCap: 500000,
+            ...(vaultAddress ? { vaultAddress } : {}),
+          }
         }),
         prisma.incubationLog.create({
           data: {
             botId,
             fromStatus: 'LIVE',
             toStatus: 'VAULT_ELIGIBLE_T1',
-            reason: `Met T1 requirements: ${score.totalTrades} trades, ${score.brierScore.toFixed(3)} Brier, ${(Math.abs(score.maxDrawdown) * 100).toFixed(1)}% max DD, ${daysInShadow.toFixed(1)}d in shadow.`,
+            reason: `Met T1 requirements: ${score.totalTrades} trades, ${score.brierScore.toFixed(3)} Brier, ${(Math.abs(score.maxDrawdown) * 100).toFixed(1)}% max DD, ${daysInShadow.toFixed(1)}d in shadow.${vaultAddress ? ` Vault: ${vaultAddress}` : ''}`,
             brierAtTransition: score.brierScore,
             winRateAtTransition: score.winRate,
             tradesAtTransition: score.totalTrades,
