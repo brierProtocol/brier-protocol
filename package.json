@@ -14,7 +14,8 @@
     "compile:contracts": "hardhat compile",
     "test:contracts": "hardhat test",
     "deploy:mumbai": "npx hardhat compile && npx ts-node scripts/deploy-mumbai.ts",
-    "deploy:amoy": "hardhat compile && hardhat run scripts/deploy-amoy.ts --network polygonAmoy"
+    "deploy:amoy": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"customConditions\":null}' hardhat run scripts/deploy-amoy.ts --network polygonAmoy",
+    "deploy:hardhat": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"customConditions\":null}' hardhat run scripts/deploy-amoy.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts"
