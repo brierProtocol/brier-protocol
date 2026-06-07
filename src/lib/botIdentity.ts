@@ -44,14 +44,38 @@ export function deriveAvatarColor(seed: string): string {
   return hslToHex(hue, 85, 60)
 }
 
+// Curated palette offered when creating a bot — all vivid and legible on black.
+export const EYE_PALETTE = [
+  '#ff2a4d', // crimson
+  '#ff7a00', // orange
+  '#ffd400', // amber
+  '#c8ff00', // acid lime
+  '#22e88a', // emerald
+  '#00d4aa', // teal
+  '#42c8ff', // sky
+  '#4285f0', // blue
+  '#a96bff', // violet
+  '#ff5ccd', // pink
+] as const
+
+// A chosen color is honored only if it's a real 6-char hex that isn't near-black.
+function isVividHex(c?: string | null): c is string {
+  if (!c || !/^#[0-9a-fA-F]{6}$/.test(c)) return false
+  const r = parseInt(c.slice(1, 3), 16)
+  const g = parseInt(c.slice(3, 5), 16)
+  const b = parseInt(c.slice(5, 7), 16)
+  return Math.max(r, g, b) >= 60 // reject #0A0A0A-style dark defaults
+}
+
 // Stable eye identity for a bot — identical on discover, leaderboard, detail, maker.
 // Returns props that spread directly into <BotIrisAvatar {...botEye(bot)} />.
-export function botEye(bot: { slug?: string | null; id?: string | null; name?: string | null }): {
+// Honors a color the maker chose at creation; falls back to a derived vivid color.
+export function botEye(bot: { slug?: string | null; id?: string | null; name?: string | null; color?: string | null }): {
   avatarId: string
   accentColor: string
 } {
   const seed = (bot?.slug || bot?.id || bot?.name || 'void').toString().toLowerCase()
-  return { avatarId: seed, accentColor: deriveAvatarColor(seed) }
+  return { avatarId: seed, accentColor: isVividHex(bot?.color) ? bot.color : deriveAvatarColor(seed) }
 }
 
 // Stable eye identity for a maker/user, derived from their wallet address.

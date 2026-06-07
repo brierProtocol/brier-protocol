@@ -4,10 +4,12 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useAccount, useSignMessage } from 'wagmi'
 import { motion } from 'framer-motion'
+import BotIrisAvatar from '@/components/BotIrisAvatar'
+import { EYE_PALETTE } from '@/lib/botIdentity'
 
 export default function ListBotPage() {
   const [step, setStep] = useState(1)
-  const [formData, setFormData] = useState({ name: '', repo: '', description: '', market: 'Polymarket' })
+  const [formData, setFormData] = useState({ name: '', repo: '', description: '', market: 'Polymarket', color: EYE_PALETTE[0] as string })
   const [verifying, setVerifying] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [secretKey, setSecretKey] = useState('')
@@ -52,6 +54,7 @@ export default function ListBotPage() {
             name: formData.name,
             description: formData.description,
             market: formData.market,
+            color: formData.color,
             walletAddress: finalAddress,
           })
         })
@@ -159,13 +162,44 @@ export default function ListBotPage() {
 
               <div className="mb-8">
                 <div className="text-muted text-[11px] mb-2 tracking-widest">STRATEGY_DESCRIPTION</div>
-                <textarea 
+                <textarea
                   value={formData.description}
                   onChange={e => setFormData({...formData, description: e.target.value})}
-                  placeholder="Define protocol strategy..." 
+                  placeholder="Define protocol strategy..."
                   style={{ ...inputStyle, minHeight: '120px', resize: 'vertical' }}
                   className="focus:border-primary focus:shadow-[0_0_10px_rgba(255,42,77,0.15)] placeholder-[#331015]"
                 />
+              </div>
+
+              {/* EYE SIGNATURE — chosen once at creation */}
+              <div className="mb-8">
+                <div className="text-muted text-[11px] mb-1 tracking-widest">EYE_SIGNATURE</div>
+                <div className="text-[10px] text-[#555] mb-3 font-mono">Pick your bot&apos;s color. This is permanent — chosen once.</div>
+                <div className="flex items-center gap-5 flex-wrap">
+                  {/* Live preview */}
+                  <div className="shrink-0 rounded-full" style={{ boxShadow: `0 0 24px ${formData.color}44` }}>
+                    <BotIrisAvatar avatarId={(formData.name || 'preview').toLowerCase()} accentColor={formData.color} size={72} />
+                  </div>
+                  {/* Swatches */}
+                  <div className="grid grid-cols-5 gap-2">
+                    {EYE_PALETTE.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, color: c })}
+                        aria-label={`Select ${c}`}
+                        className="w-8 h-8 rounded-full transition-all"
+                        style={{
+                          background: c,
+                          outline: formData.color === c ? `2px solid #fff` : '2px solid transparent',
+                          outlineOffset: '2px',
+                          transform: formData.color === c ? 'scale(1.12)' : 'scale(1)',
+                          boxShadow: formData.color === c ? `0 0 12px ${c}` : 'none',
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
 
               <div className="flex justify-end">

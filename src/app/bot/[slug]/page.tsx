@@ -295,9 +295,13 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           description: dbBot.description || dbBot.tagline, mood: dbBot.mood || 'neutral',
           status: dbBot.status || 'PAPER', 
           brierScore: latestScore?.brierScore ?? null,
-          winRate: latestScore?.winRate ?? null, 
-          sharpe: latestScore?.sharpe ?? null, 
+          winRate: latestScore?.winRate ?? null,
+          sharpe: latestScore?.sharpe ?? null,
           maxDrawdown: latestScore?.maxDrawdown ?? null,
+          totalTrades: latestScore?.totalTrades ?? null,
+          totalVolume: latestScore?.totalVolume ?? null,
+          tier: dbBot.tier || 'NONE',
+          color: dbBot.color,
           monthlyYield: 0,
           tvl: dbBot.currentTVL || 0, vaultCap: 50000, markets: [dbBot.marketType || 'SPOT'],
           pnlHistory: dynamicPnl, vaultAddress: dbBot.vaultAddress, dbTradeEvents: dbBot.trades || []
@@ -408,7 +412,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               {bot.pfpUrl ? (
                 <img src={bot.pfpUrl} alt={bot.name} className="w-20 h-20 rounded-full border-2 border-primary object-cover" />
               ) : (
-                <BotIrisAvatar {...botEye({ slug, id: bot.id, name: bot.name })} size={80} />
+                <BotIrisAvatar {...botEye({ slug, id: bot.id, name: bot.name, color: bot.color })} size={80} />
               )}
               <div>
                 <div className="text-[13px] mb-1 flex items-center gap-2 flex-wrap">
@@ -553,36 +557,70 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             {viewMode === 'investor' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4">
                 
-                {/* Investor Stats Box */}
-                <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-4">
-                  <div className="text-white font-sans font-bold border-b border-[#1a1a1a] pb-1 mb-2 text-[13px] tracking-tight">Quantitative Performance</div>
-                  <div className="grid grid-cols-4 gap-2 text-xs">
-                    <div>
-                      <div className="text-[#666] text-[10px] font-sans">Brier Score</div> 
-                      <div className="text-white font-bold text-base font-mono">
-                        {bot.brierScore !== null ? bot.brierScore.toFixed(3) : 'N/A'}
+                {/* Quantitative Performance — Brier-grade metrics */}
+                {(() => {
+                  const b = bot.brierScore
+                  const grade = b == null ? null
+                    : b <= 0.15 ? { t: 'ELITE',    c: '#00d4aa' }
+                    : b <= 0.25 ? { t: 'STRONG',   c: '#C8FF00' }
+                    : b <= 0.40 ? { t: 'MODERATE', c: '#C9A84C' }
+                    :             { t: 'WEAK',     c: '#ff3b3b' }
+                  // Brier ranges 0 (perfect) → 0.25 (coin-flip baseline). Bar fills as it approaches 0.
+                  const brierFill = b == null ? 0 : Math.max(0, Math.min(100, (1 - b / 0.5) * 100))
+                  const sharpeGood = (bot.sharpe ?? 0) >= 1.5
+                  const fmt = (n: number) => n >= 1000 ? `$${(n / 1000).toFixed(1)}K` : `$${n.toFixed(0)}`
+                  return (
+                    <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-4">
+                      <div className="flex items-center justify-between border-b border-[#1a1a1a] pb-2 mb-3">
+                        <div className="text-white font-mono font-bold text-[12px] tracking-widest">QUANTITATIVE_PERFORMANCE</div>
+                        {grade && (
+                          <span className="text-[9px] font-mono px-2 py-0.5" style={{ color: grade.c, background: `${grade.c}14`, border: `0.5px solid ${grade.c}44` }}>
+                            {grade.t}
+                          </span>
+                        )}
                       </div>
-                    </div>
-                    <div>
-                      <div className="text-[#666] text-[10px] font-sans">Win Rate</div> 
-                      <div className="text-white font-bold text-base font-mono">
-                        {bot.winRate !== null ? `${(bot.winRate * 100).toFixed(1)}%` : 'N/A'}
+
+                      {/* Hero: Brier score with grade bar */}
+                      <div className="mb-4">
+                        <div className="flex items-end justify-between mb-1">
+                          <span className="text-[#666] text-[10px] font-mono tracking-widest">BRIER_SCORE</span>
+                          <span className="text-[9px] text-[#444] font-mono">0 = perfect · ≤0.25 = strong</span>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                          <span className="font-mono font-bold text-3xl" style={{ color: grade?.c || '#fff' }}>
+                            {b !== null ? b.toFixed(3) : '—'}
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-[#030303] border border-[#1a1a1a] mt-2 overflow-hidden">
+                          <motion.div className="h-full" style={{ background: grade?.c || '#333' }} initial={{ width: 0 }} animate={{ width: `${brierFill}%` }} transition={{ duration: 1, ease: 'easeOut' }} />
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <div className="text-[#666] text-[10px] font-sans">Sharpe</div> 
-                      <div className="text-white font-bold text-base font-mono">
-                        {bot.sharpe !== null ? bot.sharpe.toFixed(2) : 'N/A'}
+
+                      {/* Metric grid */}
+                      <div className="grid grid-cols-3 gap-px bg-[#1a1a1a] border border-[#1a1a1a]">
+                        {[
+                          { label: 'WIN_RATE',    value: bot.winRate != null ? `${(bot.winRate * 100).toFixed(1)}%` : '—', color: 'text-white' },
+                          { label: 'SHARPE',      value: bot.sharpe != null ? bot.sharpe.toFixed(2) : '—', color: sharpeGood ? 'text-[#C8FF00]' : 'text-white' },
+                          { label: 'MAX_DD',      value: bot.maxDrawdown != null ? `-${(Math.abs(bot.maxDrawdown) * 100).toFixed(1)}%` : '—', color: 'text-[#ff3b3b]' },
+                          { label: 'TRADES',      value: bot.totalTrades != null ? bot.totalTrades.toLocaleString() : '—', color: 'text-white' },
+                          { label: 'VOLUME',      value: bot.totalVolume != null ? fmt(bot.totalVolume) : '—', color: 'text-white' },
+                          { label: 'TIER',        value: bot.tier && bot.tier !== 'NONE' ? bot.tier : '—', color: 'text-primary' },
+                        ].map((m) => (
+                          <div key={m.label} className="bg-[#0a0a0a] p-3">
+                            <div className="text-[#555] text-[9px] font-mono tracking-widest mb-1">{m.label}</div>
+                            <div className={`font-mono font-bold text-sm ${m.color}`}>{m.value}</div>
+                          </div>
+                        ))}
                       </div>
+
+                      {bot.totalTrades != null && bot.totalTrades < 50 && (
+                        <div className="text-[9px] text-[#C9A84C] font-mono mt-3">
+                          ⚠ LOW_SAMPLE — Brier needs ≥50 resolved trades for statistical confidence ({bot.totalTrades}/50)
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <div className="text-[#666] text-[10px] font-sans">Max Drawdown</div> 
-                      <div className="text-primary text-base font-bold font-mono">
-                        {bot.maxDrawdown !== null ? `-${(bot.maxDrawdown * 100).toFixed(1)}%` : 'N/A'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                  )
+                })()}
 
                 <VaultCapacityBar current={animatedTVL} cap={vaultCap} />
                 

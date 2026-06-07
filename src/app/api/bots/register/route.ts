@@ -11,7 +11,12 @@ import { prisma } from '@/lib/prisma'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { name, description, market, walletAddress } = body
+    const { name, description, market, walletAddress, color } = body
+
+    // Eye color chosen at creation — validated, vivid hex only (else a sane default)
+    const chosenColor = typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color)
+      ? color
+      : '#ff2a4d'
 
     // Validation
     if (!name || name.length < 2) {
@@ -47,7 +52,8 @@ export async function POST(req: NextRequest) {
         name,
         description: description || null,
         tagline: description ? description.substring(0, 120) : `${name} prediction algorithm`,
-        color: '#2563EB',
+        color: chosenColor,
+        avatarId: slug,
         mood,
         status: 'PAPER',
         tier: 'NONE',
