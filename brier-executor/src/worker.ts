@@ -1,5 +1,6 @@
 import { Worker } from 'bullmq';
 import { ethers } from 'ethers';
+import { openPerpPosition, closePerpPosition } from './polymarket.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const Redis = require('ioredis');
@@ -39,17 +40,18 @@ const executionWorker = new Worker('trade-signals', async job => {
         // --- NUEVA LÓGICA PERP (CLOB Polymarket) ---
         if (actionType === 'OPEN') {
             console.log(`[Perp Engine] Opening ${leverage}x ${direction} on ${marketId} (worstPrice=${worstPrice}, slip=${slippageBps}bps)...`);
-            // PROTECCIÓN DE SLIPPAGE:
-            // Al integrar el CLOB de Polymarket, la orden debe enviarse como FAK
-            // (Fill-And-Kill) usando `worstPrice` como límite de peor precio:
-            //   - se llena todo lo que el libro ofrezca DENTRO de la tolerancia,
-            //   - lo que no, se cancela (fill parcial) en vez de barrer el libro.
-            // Además conviene comprobar la profundidad con /calculateMarketPrice y
-            // dimensionar la orden como % de la liquidez disponible (no multiplicador fijo).
-            //
-            // TODO: clobClient.postOrder({ tokenID, side, price: worstPrice, size, type: 'FAK' })
+            // Real CLOB execution: Fill-And-Kill bounded by worstPrice (slippage guard).
+            // marketId here must be the outcome tokenID being traded.
+            const result = await openPerpPosition({
+                tokenID: marketId,
+                direction: (direction || 'LONG') as 'LONG' | 'SHORT',
+                size: Number(size),
+                worstPrice: Number(worstPrice ?? 0.5),
+            });
             await redis.hset(`trade:${tradeId}`, {
                 status: 'active_perp',
+                orderId: result.orderId ?? '',
+                clobStatus: result.status,
                 direction: direction,
                 leverage: leverage,
                 worstPrice: worstPrice ?? 0,
@@ -58,12 +60,17 @@ const executionWorker = new Worker('trade-signals', async job => {
                 marketId: marketId,
                 vaultAddress: vaultAddress
             });
-            console.log(`[Perp Engine] Position tracked in Risk Engine. SL: ${stopLossPrice}`);
+            console.log(`[Perp Engine] CLOB order ${result.orderId} → ${result.status}. SL: ${stopLossPrice}`);
         } else if (actionType === 'CLOSE') {
             console.log(`[Perp Engine] Executing Market CLOSE for ${tradeId}...`);
-            // TODO: Enviar orden IOC opuesta al CLOB.
-            await redis.hset(`trade:${tradeId}`, 'status', 'settled');
-            console.log(`[Perp Engine] Position closed. Ready for PnL settlement.`);
+            const result = await closePerpPosition({
+                tokenID: marketId,
+                direction: (direction || 'LONG') as 'LONG' | 'SHORT',
+                size: Number(size),
+                worstPrice: Number(worstPrice ?? 0.5),
+            });
+            await redis.hset(`trade:${tradeId}`, { status: 'settled', closeOrderId: result.orderId ?? '' });
+            console.log(`[Perp Engine] Position closed via CLOB order ${result.orderId}. Ready for PnL settlement.`);
         }
     }
 
