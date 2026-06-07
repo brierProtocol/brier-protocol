@@ -5,8 +5,30 @@ import { Providers } from "@/lib/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "BRIER_TERMINAL // Prediction Protocol",
-  description: "Terminal interface for Brier Protocol. Predictive market infrastructure.",
+  metadataBase: new URL("https://brier-protocol.vercel.app"),
+  title: {
+    default: "BRIER // Prediction Market Protocol",
+    template: "%s // BRIER",
+  },
+  description:
+    "Non-custodial vaults for algorithmic prediction-market bots. Ranked by Brier Score, traded on Polymarket. Deposit, deploy, and earn.",
+  keywords: ["prediction markets", "Polymarket", "Brier Score", "trading bots", "DeFi vaults", "market making"],
+  applicationName: "Brier Protocol",
+  openGraph: {
+    title: "BRIER // Prediction Market Protocol",
+    description:
+      "Non-custodial vaults for algorithmic prediction-market bots. Ranked by Brier Score, traded on Polymarket.",
+    type: "website",
+    siteName: "Brier Protocol",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BRIER // Prediction Market Protocol",
+    description: "Non-custodial vaults for algorithmic prediction-market bots.",
+  },
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
 };
 
 export default function RootLayout({

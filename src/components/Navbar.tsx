@@ -238,6 +238,7 @@ export function GlobalSearch({ isLarge = false }: { isLarge?: boolean } = {}) {
 export default function Navbar() {
   const { address, isConnected } = useAccount()
   const pathname = usePathname()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const navLinks = [
     { href: '/leaderboard',  label: 'LEADERBOARD'  },
@@ -259,14 +260,15 @@ export default function Navbar() {
         </pre>
       </Link>
 
-      <div className="flex items-center gap-1 flex-1">
+      {/* Desktop links */}
+      <div className="hidden md:flex items-center gap-1 flex-1">
         {navLinks.map((link) => (
           <Link
             key={link.href}
             href={link.href}
             className={`font-sans text-[11px] no-underline px-3 py-[6px] tracking-wide transition-colors font-medium ${
-              pathname === link.href 
-                ? 'text-white border-b-2 border-primary bg-transparent' 
+              pathname === link.href
+                ? 'text-white border-b-2 border-primary bg-transparent'
                 : 'text-[#888] bg-transparent border-b-2 border-transparent hover:text-white'
             }`}
           >
@@ -275,8 +277,23 @@ export default function Navbar() {
         ))}
       </div>
 
+      {/* Mobile spacer */}
+      <div className="flex-1 md:hidden" />
+
       <div className="flex items-center gap-3">
-        <GlobalSearch />
+        <div className="hidden sm:block"><GlobalSearch /></div>
+
+        {/* Hamburger (mobile only) */}
+        <button
+          onClick={() => setMobileOpen(v => !v)}
+          aria-label="Menu"
+          className="md:hidden flex flex-col gap-[3px] p-2 border border-[#1a1a1a] hover:border-primary/50 transition-colors"
+        >
+          <span className={`block w-4 h-[1.5px] bg-white transition-all ${mobileOpen ? 'translate-y-[4.5px] rotate-45' : ''}`} />
+          <span className={`block w-4 h-[1.5px] bg-white transition-all ${mobileOpen ? 'opacity-0' : ''}`} />
+          <span className={`block w-4 h-[1.5px] bg-white transition-all ${mobileOpen ? '-translate-y-[4.5px] -rotate-45' : ''}`} />
+        </button>
+
         
         <ConnectButton.Custom>
           {({ account, chain, openAccountModal, openChainModal, openConnectModal, authenticationStatus, mounted }) => {
@@ -322,6 +339,33 @@ export default function Navbar() {
           }}
         </ConnectButton.Custom>
       </div>
+
+      {/* Mobile dropdown menu */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="md:hidden absolute top-14 left-0 right-0 bg-[rgba(3,3,3,0.98)] backdrop-blur-md border-b border-[#1a1a1a] flex flex-col px-6 py-3 z-50"
+          >
+            <div className="mb-3 sm:hidden"><GlobalSearch isLarge /></div>
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMobileOpen(false)}
+                className={`font-mono text-xs no-underline py-3 border-b border-[#111] tracking-widest transition-colors ${
+                  pathname === link.href ? 'text-primary' : 'text-[#999] hover:text-white'
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   )
 }
