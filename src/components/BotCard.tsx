@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import BotIrisAvatar from './BotIrisAvatar'
+import { botEye } from '@/lib/botIdentity'
 import type { Bot } from '@/data/bots'
 
 interface BotCardProps {
@@ -89,7 +90,7 @@ export function BotCard({ bot, rank, onClick }: BotCardProps) {
           <div className="flex items-center gap-4 mb-5">
             {/* Character */}
             <div className="relative flex-shrink-0">
-              <BotIrisAvatar avatarId={(bot as any).avatarId || 'void-eye'} accentColor={bot.color} size={72} />
+              <BotIrisAvatar {...botEye(bot)} size={72} />
               {/* Status dot on character */}
               <div
                 className="absolute bottom-1 right-1 w-3 h-3 rounded-full border-2"

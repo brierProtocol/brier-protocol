@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
+import { botEye } from '@/lib/botIdentity'
 
 type Mood = 'cool' | 'happy' | 'excited' | 'neutral' | 'anxious' | 'sad' | 'suspicious' | 'sleeping'
 import { useBot } from '@/hooks/useBots'
@@ -183,7 +184,7 @@ export default function VaultPage() {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 200, damping: 20 }}
           >
-            <BotIrisAvatar avatarId={(bot as any).avatarId || 'void-eye'} accentColor={bot.color} size={160} />
+            <BotIrisAvatar {...botEye(bot)} size={160} />
           </motion.div>
           
           {/* Bot name */}

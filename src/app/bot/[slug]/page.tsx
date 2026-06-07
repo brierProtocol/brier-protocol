@@ -6,6 +6,7 @@ import { getBotById } from '@/data/bots'
 import { notFound } from 'next/navigation'
 import { getBotTradeHistory } from '@/lib/polymarket-indexer'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
+import { botEye } from '@/lib/botIdentity'
 import { computeQuantitativeMood } from '@/lib/mood-engine'
 import { useAccount } from 'wagmi'
 import { ethers } from 'ethers'
@@ -407,7 +408,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               {bot.pfpUrl ? (
                 <img src={bot.pfpUrl} alt={bot.name} className="w-20 h-20 rounded-full border-2 border-primary object-cover" />
               ) : (
-                <BotIrisAvatar avatarId={(bot as any).avatarId || 'void-eye'} accentColor={BRAND} size={80} />
+                <BotIrisAvatar {...botEye({ slug, id: bot.id, name: bot.name })} size={80} />
               )}
               <div>
                 <div className="text-[13px] mb-1 flex items-center gap-2 flex-wrap">

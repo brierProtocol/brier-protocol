@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
+import { botEye } from '@/lib/botIdentity'
 
 const RANK_STYLES = [
   { badge: '#FFD700', glow: 'rgba(255,215,0,0.15)', label: 'GOLD',   border: 'rgba(255,215,0,0.2)' },
@@ -102,7 +103,7 @@ export default function LeaderboardPage() {
                           {bot.pfpUrl ? (
                             <img src={bot.pfpUrl} alt={bot.name} className="w-full h-full object-cover" />
                           ) : (
-                            <BotIrisAvatar avatarId={bot.avatarId || 'void'} accentColor={bot.color || rs.badge} size={40} />
+                            <BotIrisAvatar {...botEye(bot)} size={40} />
                           )}
                         </div>
                         <div>

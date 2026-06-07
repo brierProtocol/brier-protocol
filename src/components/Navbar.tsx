@@ -6,6 +6,7 @@ import { useAccount } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { motion, AnimatePresence } from 'framer-motion'
 import BotIrisAvatar from './BotIrisAvatar'
+import { botEye } from '@/lib/botIdentity'
 
 interface Notification {
   id: string
@@ -190,7 +191,7 @@ export function GlobalSearch({ isLarge = false }: { isLarge?: boolean } = {}) {
                         onClick={() => { setOpen(false); setQuery(''); router.push(`/bot/${b.slug}`) }}
                       >
                         <div className="w-6 h-6 flex items-center justify-center rounded-full overflow-hidden border border-[#222] group-hover:border-[#444] transition-colors">
-                          <BotIrisAvatar avatarId={b.avatarId || 'void-eye'} accentColor={b.color || '#ff2a4d'} size={24} />
+                          <BotIrisAvatar {...botEye(b)} size={24} />
                         </div>
                         <div>
                           <div className="text-[11px] text-white font-semibold font-sans group-hover:text-primary transition-colors">{b.name}</div>

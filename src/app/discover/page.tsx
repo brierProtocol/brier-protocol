@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
+import { botEye } from '@/lib/botIdentity'
 import { motion } from 'framer-motion'
 
 type SortKey = 'brier' | 'yield' | 'tvl' | 'new'
@@ -199,7 +200,7 @@ export default function DiscoverPage() {
                       {b.pfpUrl ? (
                         <img src={b.pfpUrl} alt={b.name} className="w-16 h-16 rounded-full object-cover border border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
                       ) : (
-                        <BotIrisAvatar avatarId={b.avatarId || b.slug || 'void'} accentColor={b.color || '#ff2a4d'} size={64} />
+                        <BotIrisAvatar {...botEye(b)} size={64} />
                       )}
                     </div>
 

@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
+import { botEye, makerEye } from '@/lib/botIdentity'
 
 // ── Count-up animation ──
 function useCountUp(target: number, duration = 1000) {
@@ -22,34 +23,19 @@ function useCountUp(target: number, duration = 1000) {
   return value
 }
 
-// ── Pixel Identicon (5x5 symmetric) ──
+// ── Maker avatar — a robotic "eye" matching the bot aesthetic ──
 function UserIdenticon({ id, size = 100, customUrl }: { id: string, size?: number, customUrl?: string | null }) {
+  const eye = makerEye(id)
   if (customUrl) {
     return (
-      <div className="overflow-hidden border border-[#1a1a1a] bg-black shrink-0" style={{ width: size, height: size }}>
+      <div className="overflow-hidden rounded-full border-2 shrink-0" style={{ width: size, height: size, borderColor: eye.accentColor }}>
         <img src={customUrl} alt="PFP" className="w-full h-full object-cover" />
       </div>
     )
   }
-  const hash = id.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a }, 0)
-  const hue = Math.abs(hash % 360)
-  const c1 = `hsl(${hue}, 80%, 60%)`
-  const c2 = `hsl(${hue}, 80%, 20%)`
-  const bg = '#030303'
-  const grid = Array(5).fill(0).map((_, i) =>
-    Array(5).fill(0).map((_, j) => {
-      const mirrorJ = j > 2 ? 4 - j : j
-      const bit = (Math.abs(hash) >> (i * 3 + mirrorJ)) % 3
-      return bit === 0 ? bg : bit === 1 ? c1 : c2
-    })
-  )
   return (
-    <div className="inline-block p-1 bg-[#030303] overflow-hidden shrink-0" style={{ width: size, height: size, border: `1px solid ${c1}` }}>
-      <svg width="100%" height="100%" viewBox="0 0 5 5" shapeRendering="crispEdges">
-        {grid.map((row, i) => row.map((color, j) => (
-          <rect key={`${i}-${j}`} x={j} y={i} width="1" height="1" fill={color} />
-        )))}
-      </svg>
+    <div className="shrink-0 rounded-full" style={{ width: size, height: size, boxShadow: `0 0 24px ${eye.accentColor}33` }}>
+      <BotIrisAvatar {...eye} size={size} />
     </div>
   )
 }
@@ -451,7 +437,7 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
                         {b.pfpUrl ? (
                           <img src={b.pfpUrl} alt={b.name} className="w-16 h-16 rounded-full object-cover border border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
                         ) : (
-                          <BotIrisAvatar avatarId={b.avatarId || b.slug || 'void'} accentColor={b.color || '#ff2a4d'} size={64} />
+                          <BotIrisAvatar {...botEye(b)} size={64} />
                         )}
                       </div>
                       <div className="p-3 flex flex-col gap-1.5 text-[11px] font-mono">
