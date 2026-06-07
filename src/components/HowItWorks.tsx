@@ -240,12 +240,31 @@ export function HowItWorksDeck({ onClose }: { onClose?: () => void }) {
       </div>
 
       {/* ── Content ── */}
-      <div className="flex-1 flex flex-col relative min-h-[420px]">
+      <div className="flex-1 flex flex-col relative min-h-[420px] overflow-hidden">
+        {/* ambient glow following the active step color */}
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-0"
+          animate={{ background: `radial-gradient(620px circle at 72% 18%, ${s.accent}1f, transparent 62%)` }}
+          transition={{ duration: 0.7, ease: 'easeOut' }}
+        />
+        {/* faint grid texture */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-0 opacity-[0.5]"
+          style={{
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)',
+            backgroundSize: '28px 28px',
+            maskImage: 'radial-gradient(circle at 70% 30%, black, transparent 75%)',
+            WebkitMaskImage: 'radial-gradient(circle at 70% 30%, black, transparent 75%)',
+          }}
+        />
+
         {onClose && (
           <button onClick={onClose} aria-label="Close" className="hidden md:block absolute top-4 right-5 z-20 text-[#555] hover:text-white transition-colors font-mono text-xs">[ ESC ✕ ]</button>
         )}
 
-        <div className="flex-1 flex items-center justify-center p-8 md:p-12">
+        <div className="relative z-10 flex-1 flex items-center justify-center p-8 md:p-12">
           <AnimatePresence mode="wait">
             <motion.div
               key={i}
@@ -264,7 +283,7 @@ export function HowItWorksDeck({ onClose }: { onClose?: () => void }) {
         </div>
 
         {/* Footer controls */}
-        <div className="border-t border-[#1a1a1a] px-8 py-4 flex items-center justify-between bg-[#050505]">
+        <div className="relative z-10 border-t border-[#1a1a1a] px-8 py-4 flex items-center justify-between bg-[#050505]">
           <button
             onClick={prev}
             disabled={i === 0}
@@ -322,7 +341,7 @@ export function HowItWorksModal({ open, onClose }: { open: boolean; onClose: () 
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
           {/* panel */}
           <motion.div
-            className="relative w-full max-w-[920px] h-[600px] max-h-[88vh] border border-[#222] overflow-hidden shadow-[0_30px_120px_rgba(0,0,0,0.8)]"
+            className="relative w-full max-w-[920px] h-[600px] max-h-[88vh] border border-[#2a2a2a] overflow-hidden shadow-[0_40px_140px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.04),0_0_60px_rgba(255,42,77,0.06)]"
             initial={{ scale: 0.96, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, y: 20 }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
           >

@@ -6,7 +6,7 @@ import { getBotById } from '@/data/bots'
 import { notFound } from 'next/navigation'
 import { getBotTradeHistory } from '@/lib/polymarket-indexer'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
-import { botEye } from '@/lib/botIdentity'
+import { botEye, makerEye } from '@/lib/botIdentity'
 import { computeQuantitativeMood } from '@/lib/mood-engine'
 import { useAccount } from 'wagmi'
 import { ethers } from 'ethers'
@@ -303,6 +303,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           tier: dbBot.tier || 'NONE',
           color: dbBot.color,
           eyeShape: dbBot.eyeShape,
+          createdAt: dbBot.createdAt,
           monthlyYield: 0,
           tvl: dbBot.currentTVL || 0, vaultCap: 50000, markets: [dbBot.marketType || 'SPOT'],
           pnlHistory: dynamicPnl, vaultAddress: dbBot.vaultAddress, dbTradeEvents: dbBot.trades || []
@@ -409,18 +410,39 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           
           {/* OP Content */}
           <div className="flex-1">
-            <div className="flex items-center gap-6 mb-4 border-b border-[#222] pb-4">
-              {bot.pfpUrl ? (
-                <img src={bot.pfpUrl} alt={bot.name} className="w-20 h-20 rounded-full border-2 border-primary object-cover" />
-              ) : (
-                <BotIrisAvatar {...botEye({ slug, id: bot.id, name: bot.name, color: bot.color, eyeShape: bot.eyeShape })} size={80} />
-              )}
-              <div>
-                <div className="text-[13px] mb-1 flex items-center gap-2 flex-wrap">
-                  <span className="text-white font-bold text-[18px]">{bot.name}</span>
-                  <span className="text-[#666] font-sans text-[12px] font-medium ml-2 bg-[#1a1a1a] px-2 py-0.5 rounded">{bot.status}</span>
+            <div className="flex items-start gap-6 mb-5 border-b border-[#222] pb-5">
+              <div className="shrink-0 rounded-full" style={{ boxShadow: `0 0 28px ${botEye({ slug, id: bot.id, name: bot.name, color: bot.color }).accentColor}33` }}>
+                {bot.pfpUrl ? (
+                  <img src={bot.pfpUrl} alt={bot.name} className="w-20 h-20 rounded-full border-2 border-primary object-cover" />
+                ) : (
+                  <BotIrisAvatar {...botEye({ slug, id: bot.id, name: bot.name, color: bot.color, eyeShape: bot.eyeShape })} size={80} />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 flex-wrap mb-1">
+                  <h1 className="text-white font-bold text-2xl tracking-tight m-0">{bot.name}</h1>
+                  <span className="font-mono text-[10px] tracking-widest px-2 py-1 border border-[#222] text-[#888] bg-[#0a0a0a]">{bot.status}</span>
                 </div>
-                {bot.tagline && <div className="text-[#888] text-[11px] mb-2 font-sans">{bot.tagline}</div>}
+                {bot.tagline && <div className="text-[#888] text-xs mb-3 font-sans">{bot.tagline}</div>}
+
+                {/* CREATOR — link to maker profile */}
+                {bot.builder && (
+                  <Link
+                    href={`/maker/${bot.builder}`}
+                    className="inline-flex items-center gap-2 group no-underline bg-[#0a0a0a] border border-[#1a1a1a] hover:border-[#333] pl-1.5 pr-3 py-1.5 transition-colors"
+                  >
+                    <span className="rounded-full overflow-hidden shrink-0">
+                      <BotIrisAvatar {...makerEye(bot.builder)} size={22} />
+                    </span>
+                    <span className="flex flex-col leading-tight">
+                      <span className="text-[8px] font-mono text-[#555] tracking-widest">DEPLOYED_BY</span>
+                      <span className="text-[11px] font-mono text-[#aaa] group-hover:text-primary transition-colors">
+                        {bot.builder.substring(0, 6)}…{bot.builder.substring(bot.builder.length - 4)}
+                      </span>
+                    </span>
+                    <span className="text-[#444] group-hover:text-primary transition-colors ml-1">→</span>
+                  </Link>
+                )}
               </div>
             </div>
 
@@ -570,6 +592,10 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                   const brierFill = b == null ? 0 : Math.max(0, Math.min(100, (1 - b / 0.5) * 100))
                   const sharpeGood = (bot.sharpe ?? 0) >= 1.5
                   const fmt = (n: number) => n >= 1000 ? `$${(n / 1000).toFixed(1)}K` : `$${n.toFixed(0)}`
+                  // ROI from the equity curve, age from creation date
+                  const ph = bot.pnlHistory || []
+                  const roi = ph.length > 1 && ph[0] > 0 ? ((ph[ph.length - 1] - ph[0]) / ph[0]) * 100 : null
+                  const ageDays = bot.createdAt ? Math.max(0, Math.floor((Date.now() - new Date(bot.createdAt).getTime()) / 86400000)) : null
                   return (
                     <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-4">
                       <div className="flex items-center justify-between border-b border-[#1a1a1a] pb-2 mb-3">
@@ -598,14 +624,16 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                       </div>
 
                       {/* Metric grid */}
-                      <div className="grid grid-cols-3 gap-px bg-[#1a1a1a] border border-[#1a1a1a]">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-[#1a1a1a] border border-[#1a1a1a]">
                         {[
-                          { label: 'WIN_RATE',    value: bot.winRate != null ? `${(bot.winRate * 100).toFixed(1)}%` : '—', color: 'text-white' },
-                          { label: 'SHARPE',      value: bot.sharpe != null ? bot.sharpe.toFixed(2) : '—', color: sharpeGood ? 'text-[#C8FF00]' : 'text-white' },
-                          { label: 'MAX_DD',      value: bot.maxDrawdown != null ? `-${(Math.abs(bot.maxDrawdown) * 100).toFixed(1)}%` : '—', color: 'text-[#ff3b3b]' },
-                          { label: 'TRADES',      value: bot.totalTrades != null ? bot.totalTrades.toLocaleString() : '—', color: 'text-white' },
-                          { label: 'VOLUME',      value: bot.totalVolume != null ? fmt(bot.totalVolume) : '—', color: 'text-white' },
-                          { label: 'TIER',        value: bot.tier && bot.tier !== 'NONE' ? bot.tier : '—', color: 'text-primary' },
+                          { label: 'WIN_RATE',  value: bot.winRate != null ? `${(bot.winRate * 100).toFixed(1)}%` : '—', color: 'text-white' },
+                          { label: 'SHARPE',    value: bot.sharpe != null ? bot.sharpe.toFixed(2) : '—', color: sharpeGood ? 'text-[#C8FF00]' : 'text-white' },
+                          { label: 'ROI',       value: roi != null ? `${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%` : '—', color: roi != null && roi >= 0 ? 'text-[#C8FF00]' : 'text-[#ff3b3b]' },
+                          { label: 'MAX_DD',    value: bot.maxDrawdown != null ? `-${(Math.abs(bot.maxDrawdown) * 100).toFixed(1)}%` : '—', color: 'text-[#ff3b3b]' },
+                          { label: 'TRADES',    value: bot.totalTrades != null ? bot.totalTrades.toLocaleString() : '—', color: 'text-white' },
+                          { label: 'VOLUME',    value: bot.totalVolume != null ? fmt(bot.totalVolume) : '—', color: 'text-white' },
+                          { label: 'AGE',       value: ageDays != null ? `${ageDays}d` : '—', color: 'text-white' },
+                          { label: 'TIER',      value: bot.tier && bot.tier !== 'NONE' ? bot.tier : '—', color: 'text-primary' },
                         ].map((m) => (
                           <div key={m.label} className="bg-[#0a0a0a] p-3">
                             <div className="text-[#555] text-[9px] font-mono tracking-widest mb-1">{m.label}</div>
