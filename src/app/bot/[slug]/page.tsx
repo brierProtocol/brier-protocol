@@ -4,7 +4,6 @@ import { use, useState, useRef, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { getBotById } from '@/data/bots'
 import { notFound } from 'next/navigation'
-import { getBotTradeHistory } from '@/lib/polymarket-indexer'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
 import { botEye, makerEye } from '@/lib/botIdentity'
 import { computeQuantitativeMood } from '@/lib/mood-engine'
@@ -327,11 +326,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
       if (activeBot.dbTradeEvents && activeBot.dbTradeEvents.length > 0) {
         setTradeHistory(activeBot.dbTradeEvents.map((t: any) => ({
           date: new Date(t.timestamp).toLocaleDateString(),
-          market: t.marketTitle, predicted: t.side || "YES", probability: 0.8,
+          market: t.marketTitle, predicted: t.side || "YES", probability: t.entryPrice ?? 0.5,
           actualOutcome: t.outcome === "PENDING" ? null : (t.outcome === "WIN" ? 1 : 0)
         })))
-      } else {
-        getBotTradeHistory(activeBot.builder).then(data => setTradeHistory(data))
       }
       fetch(`/api/comments?botId=${activeBot.id}`).then(res => res.json()).then(data => { if (Array.isArray(data)) setPosts(data) })
     })
