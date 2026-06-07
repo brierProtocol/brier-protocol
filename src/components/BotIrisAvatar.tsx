@@ -2,10 +2,13 @@
 
 import React, { useEffect, useRef, useMemo } from 'react'
 
+export type EyeShape = 'round' | 'aperture' | 'cat' | 'diamond' | 'scanner' | 'ring'
+
 interface BotIrisAvatarProps {
   avatarId: string
   size?: number
   accentColor?: string
+  shape?: EyeShape
 }
 
 // Deterministic hash from avatarId string → number
@@ -71,7 +74,7 @@ function shiftHue(hex: string, degrees: number): string {
   return `#${toHex(rr)}${toHex(gg)}${toHex(bb)}`
 }
 
-export default function BotIrisAvatar({ avatarId, size = 120, accentColor = '#ff2a4d' }: BotIrisAvatarProps) {
+export default function BotIrisAvatar({ avatarId, size = 120, accentColor = '#ff2a4d', shape }: BotIrisAvatarProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   // Normalize accentColor to valid 7-char hex
@@ -79,6 +82,13 @@ export default function BotIrisAvatar({ avatarId, size = 120, accentColor = '#ff
     if (!accentColor || !/^#[0-9a-fA-F]{6}$/i.test(accentColor)) return '#ff2a4d'
     return accentColor
   }, [accentColor])
+
+  // Pupil shape: explicit prop wins; otherwise derived deterministically from avatarId.
+  const eyeShape: EyeShape = useMemo(() => {
+    if (shape) return shape
+    const shapes: EyeShape[] = ['round', 'aperture', 'cat', 'diamond', 'scanner', 'ring']
+    return shapes[hashCode(avatarId) % shapes.length]
+  }, [shape, avatarId])
 
   // Subtle per-eye variation — color is the main differentiator, structure stays consistent.
   const dna = useMemo(() => {
@@ -187,24 +197,72 @@ export default function BotIrisAvatar({ avatarId, size = 120, accentColor = '#ff
       ctx.strokeStyle = irisLight + '66'
       ctx.stroke()
 
-      // ─── 6. PUPIL ───
-      const pupilGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, pupilR)
+      // ─── 6. PUPIL (shape-aware) ───
+      // Trace the chosen pupil silhouette centered at (cx, cy).
+      const tracePupil = () => {
+        ctx.beginPath()
+        if (eyeShape === 'cat') {
+          // vertical slit
+          ctx.ellipse(cx, cy, pupilR * 0.5, pupilR * 1.25, 0, 0, Math.PI * 2)
+        } else if (eyeShape === 'scanner') {
+          // horizontal lens
+          ctx.ellipse(cx, cy, pupilR * 1.25, pupilR * 0.5, 0, 0, Math.PI * 2)
+        } else if (eyeShape === 'diamond') {
+          ctx.moveTo(cx, cy - pupilR * 1.2)
+          ctx.lineTo(cx + pupilR * 0.85, cy)
+          ctx.lineTo(cx, cy + pupilR * 1.2)
+          ctx.lineTo(cx - pupilR * 0.85, cy)
+          ctx.closePath()
+        } else if (eyeShape === 'aperture') {
+          // hexagon, slowly rotating
+          for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2 + t * 0.15
+            const px = cx + Math.cos(a) * pupilR
+            const py = cy + Math.sin(a) * pupilR
+            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)
+          }
+          ctx.closePath()
+        } else {
+          // round + ring
+          ctx.arc(cx, cy, pupilR, 0, Math.PI * 2)
+        }
+      }
+
+      const pupilGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, pupilR * 1.2)
       pupilGrad.addColorStop(0, '#000000')
       pupilGrad.addColorStop(0.82, '#000000')
       pupilGrad.addColorStop(1, shade(safeColor, -0.6))
-      ctx.beginPath()
-      ctx.arc(cx, cy, pupilR, 0, Math.PI * 2)
+      tracePupil()
       ctx.fillStyle = pupilGrad
       ctx.fill()
+
       // glowing pupil rim
       ctx.shadowBlur = 12
       ctx.shadowColor = safeColor
-      ctx.beginPath()
-      ctx.arc(cx, cy, pupilR, 0, Math.PI * 2)
+      tracePupil()
       ctx.lineWidth = 1.4
       ctx.strokeStyle = safeColor + 'aa'
       ctx.stroke()
       ctx.shadowBlur = 0
+
+      // 'ring' shape adds a bright concentric iris ring
+      if (eyeShape === 'ring') {
+        ctx.beginPath()
+        ctx.arc(cx, cy, pupilR * 1.7, 0, Math.PI * 2)
+        ctx.lineWidth = 2
+        ctx.strokeStyle = irisLight + 'cc'
+        ctx.stroke()
+      }
+      // 'scanner' shape adds a sweeping laser line
+      if (eyeShape === 'scanner') {
+        const sweep = Math.sin(t * 1.5) * irisR * 0.7
+        ctx.beginPath()
+        ctx.moveTo(cx - irisR * 0.8, cy + sweep)
+        ctx.lineTo(cx + irisR * 0.8, cy + sweep)
+        ctx.lineWidth = 1.2
+        ctx.strokeStyle = safeColor + '66'
+        ctx.stroke()
+      }
 
       // ─── 7. CATCHLIGHT (the "alive" highlight) ───
       const clx = cx - maxR * 0.24
@@ -228,7 +286,7 @@ export default function BotIrisAvatar({ avatarId, size = 120, accentColor = '#ff
 
     render()
     return () => cancelAnimationFrame(animId)
-  }, [avatarId, size, safeColor, dna, secondaryColor, tertiaryColor])
+  }, [avatarId, size, safeColor, dna, secondaryColor, tertiaryColor, eyeShape])
 
   return (
     <canvas

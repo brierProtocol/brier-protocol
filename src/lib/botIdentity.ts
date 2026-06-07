@@ -47,16 +47,36 @@ export function deriveAvatarColor(seed: string): string {
 // Curated palette offered when creating a bot — all vivid and legible on black.
 export const EYE_PALETTE = [
   '#ff2a4d', // crimson
+  '#ff5a3c', // vermilion
   '#ff7a00', // orange
+  '#ffb000', // gold
   '#ffd400', // amber
   '#c8ff00', // acid lime
+  '#7bff3c', // green
   '#22e88a', // emerald
   '#00d4aa', // teal
+  '#00e5ff', // cyan
   '#42c8ff', // sky
   '#4285f0', // blue
+  '#6a5cff', // indigo
   '#a96bff', // violet
+  '#e05cff', // magenta
   '#ff5ccd', // pink
+  '#ff4f8b', // rose
+  '#f5f5f5', // white
 ] as const
+
+// Pupil shapes a maker can pick at creation.
+export const EYE_SHAPES = [
+  { id: 'round',    label: 'IRIS' },
+  { id: 'aperture', label: 'APERTURE' },
+  { id: 'cat',      label: 'FELINE' },
+  { id: 'diamond',  label: 'DIAMOND' },
+  { id: 'scanner',  label: 'SCANNER' },
+  { id: 'ring',     label: 'HALO' },
+] as const
+
+export type EyeShapeId = typeof EYE_SHAPES[number]['id']
 
 // A chosen color is honored only if it's a real 6-char hex that isn't near-black.
 function isVividHex(c?: string | null): c is string {
@@ -70,12 +90,18 @@ function isVividHex(c?: string | null): c is string {
 // Stable eye identity for a bot — identical on discover, leaderboard, detail, maker.
 // Returns props that spread directly into <BotIrisAvatar {...botEye(bot)} />.
 // Honors a color the maker chose at creation; falls back to a derived vivid color.
-export function botEye(bot: { slug?: string | null; id?: string | null; name?: string | null; color?: string | null }): {
+export function botEye(bot: { slug?: string | null; id?: string | null; name?: string | null; color?: string | null; eyeShape?: string | null }): {
   avatarId: string
   accentColor: string
+  shape?: EyeShapeId
 } {
   const seed = (bot?.slug || bot?.id || bot?.name || 'void').toString().toLowerCase()
-  return { avatarId: seed, accentColor: isVividHex(bot?.color) ? bot.color : deriveAvatarColor(seed) }
+  const validShape = EYE_SHAPES.some(s => s.id === bot?.eyeShape) ? (bot!.eyeShape as EyeShapeId) : undefined
+  return {
+    avatarId: seed,
+    accentColor: isVividHex(bot?.color) ? bot.color : deriveAvatarColor(seed),
+    shape: validShape,
+  }
 }
 
 // Stable eye identity for a maker/user, derived from their wallet address.

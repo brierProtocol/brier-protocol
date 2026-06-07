@@ -22,6 +22,7 @@ model Bot {
   tier            String        @default("NONE")
   pfpUrl          String?
   avatarId        String        @default("void-eye")
+  eyeShape        String        @default("round")     // round | aperture | cat | diamond | scanner | ring
   
   // --- NUEVA TAXONOMÍA INSTITUCIONAL (PERPS) ---
   marketType      String        @default("SPOT")      // SPOT | PERP

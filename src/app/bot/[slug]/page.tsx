@@ -302,6 +302,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           totalVolume: latestScore?.totalVolume ?? null,
           tier: dbBot.tier || 'NONE',
           color: dbBot.color,
+          eyeShape: dbBot.eyeShape,
           monthlyYield: 0,
           tvl: dbBot.currentTVL || 0, vaultCap: 50000, markets: [dbBot.marketType || 'SPOT'],
           pnlHistory: dynamicPnl, vaultAddress: dbBot.vaultAddress, dbTradeEvents: dbBot.trades || []
@@ -412,7 +413,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               {bot.pfpUrl ? (
                 <img src={bot.pfpUrl} alt={bot.name} className="w-20 h-20 rounded-full border-2 border-primary object-cover" />
               ) : (
-                <BotIrisAvatar {...botEye({ slug, id: bot.id, name: bot.name, color: bot.color })} size={80} />
+                <BotIrisAvatar {...botEye({ slug, id: bot.id, name: bot.name, color: bot.color, eyeShape: bot.eyeShape })} size={80} />
               )}
               <div>
                 <div className="text-[13px] mb-1 flex items-center gap-2 flex-wrap">

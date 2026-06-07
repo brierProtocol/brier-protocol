@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { GlobalSearch } from '@/components/Navbar'
+import { HowItWorksModal } from '@/components/HowItWorks'
 
 const TICKER_EVENTS = [
   '> ALGO_DELTA executed LONG on BTC-USD/DEC26 @ 0.62 confidence',
@@ -28,6 +29,7 @@ const itemVariants: any = {
 export default function Home() {
   const [topBots, setTopBots] = useState<any[]>([])
   const [protocolStats, setProtocolStats] = useState({ bots: 0, tvl: 0, live: 0 })
+  const [howOpen, setHowOpen] = useState(false)
 
   useEffect(() => {
     fetch('/api/bots')
@@ -110,8 +112,20 @@ export default function Home() {
           </motion.div>
 
           {/* ── SEARCH ── */}
-          <motion.div variants={itemVariants} className="mb-12">
+          <motion.div variants={itemVariants} className="mb-6">
             <GlobalSearch isLarge={true} />
+          </motion.div>
+
+          {/* ── HOW IT WORKS TRIGGER ── */}
+          <motion.div variants={itemVariants} className="mb-12">
+            <button
+              onClick={() => setHowOpen(true)}
+              className="group inline-flex items-center gap-3 border border-[#1a1a1a] hover:border-primary/50 bg-[#0a0a0a] hover:bg-[#0d0d0d] px-5 py-3 transition-all"
+            >
+              <span className="flex items-center justify-center w-6 h-6 border border-primary/40 text-primary font-mono text-xs group-hover:bg-primary group-hover:text-[#030303] transition-all">▶</span>
+              <span className="font-mono text-xs text-white tracking-widest">HOW_IT_WORKS</span>
+              <span className="font-mono text-[10px] text-[#555] group-hover:text-[#888] transition-colors">— 60-second walkthrough</span>
+            </button>
           </motion.div>
 
           {/* ── CTA BOXES ── */}
@@ -252,6 +266,8 @@ export default function Home() {
 
         </motion.div>
       </div>
+
+      <HowItWorksModal open={howOpen} onClose={() => setHowOpen(false)} />
     </div>
   )
 }

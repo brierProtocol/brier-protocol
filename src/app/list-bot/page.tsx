@@ -5,11 +5,12 @@ import Link from 'next/link'
 import { useAccount, useSignMessage } from 'wagmi'
 import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
-import { EYE_PALETTE } from '@/lib/botIdentity'
+import { EYE_PALETTE, EYE_SHAPES } from '@/lib/botIdentity'
+import type { EyeShapeId } from '@/lib/botIdentity'
 
 export default function ListBotPage() {
   const [step, setStep] = useState(1)
-  const [formData, setFormData] = useState({ name: '', repo: '', description: '', market: 'Polymarket', color: EYE_PALETTE[0] as string })
+  const [formData, setFormData] = useState({ name: '', repo: '', description: '', market: 'Polymarket', color: EYE_PALETTE[0] as string, eyeShape: 'round' as EyeShapeId })
   const [verifying, setVerifying] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [secretKey, setSecretKey] = useState('')
@@ -55,6 +56,7 @@ export default function ListBotPage() {
             description: formData.description,
             market: formData.market,
             color: formData.color,
+            eyeShape: formData.eyeShape,
             walletAddress: finalAddress,
           })
         })
@@ -174,30 +176,65 @@ export default function ListBotPage() {
               {/* EYE SIGNATURE — chosen once at creation */}
               <div className="mb-8">
                 <div className="text-muted text-[11px] mb-1 tracking-widest">EYE_SIGNATURE</div>
-                <div className="text-[10px] text-[#555] mb-3 font-mono">Pick your bot&apos;s color. This is permanent — chosen once.</div>
-                <div className="flex items-center gap-5 flex-wrap">
+                <div className="text-[10px] text-[#555] mb-4 font-mono">Pick your bot&apos;s shape &amp; color. This is permanent — chosen once.</div>
+
+                <div className="flex items-start gap-6 flex-wrap">
                   {/* Live preview */}
-                  <div className="shrink-0 rounded-full" style={{ boxShadow: `0 0 24px ${formData.color}44` }}>
-                    <BotIrisAvatar avatarId={(formData.name || 'preview').toLowerCase()} accentColor={formData.color} size={72} />
+                  <div className="flex flex-col items-center gap-2 shrink-0">
+                    <div className="rounded-full" style={{ boxShadow: `0 0 28px ${formData.color}55` }}>
+                      <BotIrisAvatar avatarId={(formData.name || 'preview').toLowerCase()} accentColor={formData.color} shape={formData.eyeShape} size={96} />
+                    </div>
+                    <span className="text-[9px] font-mono text-[#555] tracking-widest">PREVIEW</span>
                   </div>
-                  {/* Swatches */}
-                  <div className="grid grid-cols-5 gap-2">
-                    {EYE_PALETTE.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, color: c })}
-                        aria-label={`Select ${c}`}
-                        className="w-8 h-8 rounded-full transition-all"
-                        style={{
-                          background: c,
-                          outline: formData.color === c ? `2px solid #fff` : '2px solid transparent',
-                          outlineOffset: '2px',
-                          transform: formData.color === c ? 'scale(1.12)' : 'scale(1)',
-                          boxShadow: formData.color === c ? `0 0 12px ${c}` : 'none',
-                        }}
-                      />
-                    ))}
+
+                  <div className="flex-1 min-w-[260px] flex flex-col gap-4">
+                    {/* Shapes */}
+                    <div>
+                      <div className="text-[9px] text-[#555] font-mono tracking-widest mb-2">SHAPE</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {EYE_SHAPES.map((sh) => {
+                          const active = formData.eyeShape === sh.id
+                          return (
+                            <button
+                              key={sh.id}
+                              type="button"
+                              onClick={() => setFormData({ ...formData, eyeShape: sh.id })}
+                              className="flex flex-col items-center gap-1.5 py-2 border transition-all"
+                              style={{
+                                borderColor: active ? formData.color : '#1a1a1a',
+                                background: active ? `${formData.color}11` : 'transparent',
+                              }}
+                            >
+                              <BotIrisAvatar avatarId={sh.id} accentColor={formData.color} shape={sh.id} size={34} />
+                              <span className="text-[8px] font-mono tracking-widest" style={{ color: active ? formData.color : '#555' }}>{sh.label}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Colors */}
+                    <div>
+                      <div className="text-[9px] text-[#555] font-mono tracking-widest mb-2">COLOR</div>
+                      <div className="grid grid-cols-9 gap-2">
+                        {EYE_PALETTE.map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, color: c })}
+                            aria-label={`Select ${c}`}
+                            className="w-7 h-7 rounded-full transition-all"
+                            style={{
+                              background: c,
+                              outline: formData.color === c ? `2px solid #fff` : '2px solid transparent',
+                              outlineOffset: '2px',
+                              transform: formData.color === c ? 'scale(1.15)' : 'scale(1)',
+                              boxShadow: formData.color === c ? `0 0 12px ${c}` : 'none',
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
