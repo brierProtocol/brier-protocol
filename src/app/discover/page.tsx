@@ -5,172 +5,241 @@ import Link from 'next/link'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
 import { motion } from 'framer-motion'
 
-export default function DiscoverPage() {
-  const [activeSort, setActiveSort] = useState<'brier' | 'yield' | 'tvl' | 'new'>('brier')
-  const [search, setSearch] = useState('')
+type SortKey = 'brier' | 'yield' | 'tvl' | 'new'
+type MarketKey = 'all' | 'crypto' | 'politics' | 'sports'
 
-  const [botsData, setBotsData] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+const SORT_OPTIONS = [
+  { id: 'brier',  label: 'Brier Score' },
+  { id: 'yield',  label: 'Yield' },
+  { id: 'tvl',    label: 'TVL' },
+  { id: 'new',    label: 'Newest' },
+] as const
+
+const MARKET_TABS: { id: MarketKey; label: string }[] = [
+  { id: 'all',      label: 'ALL' },
+  { id: 'crypto',   label: 'CRYPTO' },
+  { id: 'politics', label: 'POLITICS' },
+  { id: 'sports',   label: 'SPORTS' },
+]
+
+function statusLabel(s: string) {
+  if (['LIVE','live'].includes(s)) return { text: 'LIVE', color: '#C8FF00' }
+  if (s === 'VAULT_ELIGIBLE_T1') return { text: 'VAULT T1', color: '#3B82F6' }
+  if (s === 'VAULT_ELIGIBLE_T2') return { text: 'VAULT T2', color: '#D4AF37' }
+  if (s === 'SUSPENDED') return { text: 'SUSPENDED', color: '#FF3B3B' }
+  return { text: 'PAPER', color: '#555' }
+}
+
+function matchesMarket(bot: any, market: MarketKey): boolean {
+  if (market === 'all') return true
+  const m = [bot.market, ...(bot.markets || [])].join(' ').toLowerCase()
+  if (market === 'crypto')   return m.includes('crypto') || m.includes('btc') || m.includes('eth') || m.includes('solana')
+  if (market === 'politics') return m.includes('polit') || m.includes('elect') || m.includes('president')
+  if (market === 'sports')   return m.includes('sport') || m.includes('nba') || m.includes('nfl') || m.includes('soccer')
+  return true
+}
+
+export default function DiscoverPage() {
+  const [activeSort, setActiveSort]   = useState<SortKey>('brier')
+  const [activeMarket, setActiveMarket] = useState<MarketKey>('all')
+  const [search, setSearch]           = useState('')
+  const [botsData, setBotsData]       = useState<any[]>([])
+  const [loading, setLoading]         = useState(true)
 
   useEffect(() => {
     fetch('/api/bots')
       .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) setBotsData(data)
-        setLoading(false)
-      })
-      .catch(err => {
-        console.error(err)
-        setLoading(false)
-      })
+      .then(data => { if (Array.isArray(data)) setBotsData(data) })
+      .catch(console.error)
+      .finally(() => setLoading(false))
   }, [])
 
-  const getBrier = (b: any) => b.scores?.[0]?.brierScore ?? b.brierScore ?? 0
-  const getTvl = (b: any) => b.currentTVL ?? b.tvl ?? 0
-  const getYield = (b: any) => b.monthlyYield ?? 0
-  const getCreated = (b: any) => new Date(b.createdAt || 0).getTime()
+  const getBrier    = (b: any) => b.scores?.[0]?.brierScore ?? b.brierScore ?? 0
+  const getTvl      = (b: any) => b.currentTVL ?? b.tvl ?? 0
+  const getYield    = (b: any) => b.monthlyYield ?? 0
+  const getCreated  = (b: any) => new Date(b.createdAt || 0).getTime()
 
-  const filteredBots = botsData.filter(b => {
-    if (search && !b.name.toLowerCase().includes(search.toLowerCase()) && !(b.builder || b.walletAddress || '').toLowerCase().includes(search.toLowerCase())) return false
-    return true
-  }).sort((a, b) => {
-    if (activeSort === 'brier') return getBrier(a) - getBrier(b)
-    if (activeSort === 'yield') return getYield(b) - getYield(a)
-    if (activeSort === 'tvl') return getTvl(b) - getTvl(a)
-    if (activeSort === 'new') return getCreated(b) - getCreated(a)
-    return 0
-  })
+  const filtered = botsData
+    .filter(b => matchesMarket(b, activeMarket))
+    .filter(b => {
+      if (!search) return true
+      const q = search.toLowerCase()
+      return (
+        b.name?.toLowerCase().includes(q) ||
+        (b.slug || '').toLowerCase().includes(q) ||
+        (b.description || '').toLowerCase().includes(q) ||
+        (b.walletAddress || '').toLowerCase().includes(q)
+      )
+    })
+    .sort((a, b) => {
+      if (activeSort === 'brier') return getBrier(a) - getBrier(b)
+      if (activeSort === 'yield') return getYield(b) - getYield(a)
+      if (activeSort === 'tvl')   return getTvl(b) - getTvl(a)
+      if (activeSort === 'new')   return getCreated(b) - getCreated(a)
+      return 0
+    })
 
   return (
-    <div className="min-h-screen bg-[#030303] text-white p-12">
-      
-      {/* HEADER SECTION */}
-      <div className="max-w-[1200px] mx-auto mb-12">
-        <div className="flex justify-between items-end border-b border-[#1a1a1a] pb-6 flex-wrap gap-8">
-          
+    <div className="min-h-screen bg-[#030303] text-white">
+
+      {/* HEADER */}
+      <div className="border-b border-[#1a1a1a] bg-[#050505] px-12 py-6">
+        <div className="max-w-[1200px] mx-auto flex justify-between items-end flex-wrap gap-6">
           <div>
-            <h1 className="font-sans font-bold text-white text-2xl tracking-tight mb-1">
-              Discover Algorithms
+            <h1 className="font-mono font-bold text-white text-xl tracking-tight mb-1">
+              DISCOVER_ALGORITHMS
             </h1>
-            <p className="text-[#888] m-0 text-sm font-sans">
-              Deploy capital into verified quantitative models.
+            <p className="text-[#555] text-xs font-mono m-0">
+              {loading ? 'Loading...' : `${filtered.length} algorithm${filtered.length !== 1 ? 's' : ''} found`}
             </p>
           </div>
-
-          <div className="flex gap-6 items-center">
+          <div className="flex gap-4 items-center">
             <div className="relative">
-              <span className="absolute left-3 top-2.5 text-[#666] text-xs font-bold">⌕</span>
-              <input 
-                value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search bots..." 
-                className="bg-[#0a0a0a] border border-[#1a1a1a] text-white font-sans py-2 pr-3 pl-8 outline-none w-[260px] text-xs rounded transition-colors focus:border-[#333] focus:shadow-[0_0_8px_rgba(255,255,255,0.05)] placeholder-[#444]"
+              <span className="absolute left-3 top-2.5 text-[#444] text-xs font-mono">⌕</span>
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search name, slug..."
+                className="bg-[#080808] border border-[#1a1a1a] text-white font-mono py-2 pr-3 pl-8 outline-none w-[240px] text-xs transition-colors focus:border-[#333] placeholder-[#333]"
               />
             </div>
-            
-            <Link href="/list-bot" className="text-primary text-xs font-sans font-semibold tracking-wide hover:underline hover:drop-shadow-[0_0_8px_rgba(255,42,77,0.5)] transition-all">
-              Submit Algorithm
+            <Link href="/list-bot" className="text-primary text-xs font-mono font-bold tracking-widest hover:drop-shadow-[0_0_8px_rgba(255,42,77,0.5)] transition-all">
+              SUBMIT →
             </Link>
           </div>
-        </div>
-        
-        {/* FILTERS */}
-        <div className="flex gap-4 mt-6 text-xs items-center">
-          <span className="text-[#666] font-sans text-xs">Sort by:</span>
-          {[
-            { id: 'brier', label: 'Brier Score' },
-            { id: 'yield', label: 'Monthly Yield' },
-            { id: 'tvl', label: 'TVL' },
-            { id: 'new', label: 'Newest' },
-          ].map(s => (
-            <button 
-              key={s.id} 
-              onClick={() => setActiveSort(s.id as any)}
-              className={`bg-transparent border-none cursor-pointer tracking-wide transition-colors font-sans text-xs px-2 py-1 rounded ${activeSort === s.id ? 'text-primary font-semibold bg-primary/10' : 'text-[#888] hover:text-white'}`}
-            >
-              {s.label}
-            </button>
-          ))}
         </div>
       </div>
 
-      <div className="max-w-[1200px] mx-auto">
-        
-        {/* CATALOG GRID */}
-        {loading ? (
-          <div className="text-[#888] text-sm text-center p-16 animate-pulse font-sans">
-            Loading algorithms...
+      {/* MARKET TABS + SORT */}
+      <div className="border-b border-[#111] px-12 bg-[#030303]">
+        <div className="max-w-[1200px] mx-auto flex items-center justify-between py-3">
+          <div className="flex gap-1">
+            {MARKET_TABS.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setActiveMarket(t.id)}
+                className={`mkt-tab ${activeMarket === t.id ? 'active' : ''}`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
-        ) : filteredBots.length === 0 ? (
-          <div className="text-[#666] text-sm text-center p-16 font-sans">
-            No algorithms found
+          <div className="flex gap-1 items-center">
+            <span className="text-[#333] font-mono text-[10px] mr-2">SORT:</span>
+            {SORT_OPTIONS.map(s => (
+              <button
+                key={s.id}
+                onClick={() => setActiveSort(s.id as SortKey)}
+                className={`mkt-tab ${activeSort === s.id ? 'active' : ''}`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* GRID */}
+      <div className="max-w-[1200px] mx-auto px-12 py-10">
+        {loading ? (
+          <div className="text-center py-24 font-mono text-xs text-[#333]">
+            <div className="cursor-blink inline-block">&gt; SYNCHRONIZING_ONCHAIN_DATA</div>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-24 font-mono text-xs text-[#333]">
+            <div className="mb-4">&gt; NO_ALGORITHMS_FOUND</div>
+            <Link href="/list-bot" className="text-primary hover:underline">submit one →</Link>
           </div>
         ) : (
-          <motion.div 
-            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
             initial="hidden"
             animate="show"
-            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
+            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05 } } }}
           >
-            {filteredBots.map((b, i) => {
-            const brier = getBrier(b)
-            const wr = b.scores?.[0]?.winRate ?? b.winRate ?? 0
-            const tvl = getTvl(b)
-            const yld = getYield(b)
-            const isLive = (b.status || '').toLowerCase() === 'live' || (b.status || '').toLowerCase().includes('eligible')
-            
-            return (
-            <motion.div
-              key={b.id}
-              variants={{
-                hidden: { opacity: 0, y: 20, scale: 0.97 },
-                show:   { opacity: 1, y: 0,  scale: 1,    transition: { ease: [0.16, 1, 0.3, 1], duration: 0.4 } }
-              }}
-            >
-            <Link href={`/bot/${b.slug || b.id}`} className="flex flex-col bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg transition-all hover:bg-[#0e0e0e] hover:border-[#333] hover:shadow-[0_0_20px_rgba(255,42,77,0.08)] no-underline group relative">
-              <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-[#1a1a1a] group-hover:border-[#333] transition-colors rounded-tl-lg" />
-              <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-[#1a1a1a] group-hover:border-[#333] transition-colors rounded-br-lg" />
+            {filtered.map((b) => {
+              const brier  = getBrier(b)
+              const wr     = b.scores?.[0]?.winRate ?? b.winRate ?? 0
+              const tvl    = getTvl(b)
+              const yld    = getYield(b)
+              const sharpe = b.scores?.[0]?.sharpeRatio ?? b.sharpe ?? 0
+              const st     = statusLabel(b.status || 'PAPER')
 
-              <div className="text-white p-3 border-b border-[#1a1a1a] text-xs font-sans font-semibold flex justify-between items-center group-hover:text-primary transition-colors">
-                <span>{b.name}</span>
-                <span className={`text-[10px] font-mono tracking-wide ${isLive ? 'text-primary' : 'text-[#666]'}`}>{isLive ? 'LIVE' : 'PAPER'}</span>
-              </div>
+              return (
+                <motion.div
+                  key={b.id}
+                  variants={{
+                    hidden: { opacity: 0, y: 16, scale: 0.97 },
+                    show:   { opacity: 1, y: 0, scale: 1, transition: { ease: [0.16,1,0.3,1], duration: 0.4 } },
+                  }}
+                  whileHover={{ y: -4 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                >
+                  <Link
+                    href={`/bot/${b.slug || b.id}`}
+                    className="flex flex-col bg-[#080808] border border-[#1a1a1a] no-underline group relative overflow-hidden transition-all hover:border-[#2a2a2a] hover:shadow-[0_4px_24px_rgba(0,0,0,0.6),0_0_0_0.5px_rgba(255,42,77,0.08)]"
+                  >
+                    {/* Corner brackets */}
+                    <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
+                    <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
 
-              {/* Bot Image Frame */}
-              <div className="w-full bg-[#060606] flex justify-center py-6 border-b border-[#1a1a1a]">
-                {b.pfpUrl ? (
-                  <img src={b.pfpUrl} alt={b.name} className="w-[70px] h-[70px] rounded-full object-cover border-2 border-[#1a1a1a] group-hover:border-primary transition-colors" />
-                ) : (
-                  <BotIrisAvatar avatarId={b.avatarId || 'void-eye'} accentColor={b.color || '#ff2a4d'} size={70} />
-                )}
-              </div>
+                    {/* Status bar */}
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-[#111]">
+                      <span className="text-[11px] font-mono text-white font-semibold group-hover:text-primary transition-colors truncate pr-2">
+                        {b.name}
+                      </span>
+                      <span className="text-[9px] font-mono flex items-center gap-1 shrink-0" style={{ color: st.color }}>
+                        <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: st.color }} />
+                        {st.text}
+                      </span>
+                    </div>
 
-              {/* Data Rows */}
-              <div className="p-4 flex flex-col gap-2 text-xs font-sans">
-                <div className="flex justify-between">
-                  <span className="text-[#666]">Maker</span>
-                  <span className="text-white font-mono">{(b.builder || b.walletAddress || 'anon').substring(0, 8)}...</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#666]">Brier Score</span>
-                  <span className={`font-mono font-bold ${brier <= 0.25 ? 'text-primary drop-shadow-[0_0_5px_rgba(255,42,77,0.5)]' : 'text-white'}`}>{brier.toFixed(3)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#666]">Win Rate</span>
-                  <span className="text-white font-mono">{(wr * 100).toFixed(1)}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#666]">Mth Yield</span>
-                  <span className={`font-mono ${yld > 0 ? 'text-[#00d4aa]' : 'text-[#666]'}`}>{yld > 0 ? '+' : ''}{yld}%</span>
-                </div>
-                <div className="flex justify-between border-t border-[#1a1a1a] pt-2 mt-2">
-                  <span className="text-[#666]">Vault TVL</span>
-                  <span className="text-white font-mono font-bold">${tvl.toLocaleString()}</span>
-                </div>
-              </div>
-            </Link>
-            </motion.div>
-            )
-          })}
+                    {/* Avatar */}
+                    <div className="flex justify-center items-center py-6 bg-[#050505] border-b border-[#111]">
+                      {b.pfpUrl ? (
+                        <img src={b.pfpUrl} alt={b.name} className="w-16 h-16 rounded-full object-cover border border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
+                      ) : (
+                        <BotIrisAvatar avatarId={b.avatarId || b.slug || 'void'} accentColor={b.color || '#ff2a4d'} size={64} />
+                      )}
+                    </div>
+
+                    {/* Stats */}
+                    <div className="p-3 flex flex-col gap-2">
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[
+                          { lbl: 'BRIER', val: brier.toFixed(3), good: brier <= 0.25 && brier > 0 },
+                          { lbl: 'WIN %', val: `${(wr * 100).toFixed(1)}%`, good: wr > 0.54 },
+                          { lbl: 'SHARPE', val: sharpe > 0 ? sharpe.toFixed(2) : '—', good: sharpe > 1.5 },
+                        ].map(({ lbl, val, good }) => (
+                          <div key={lbl} className="bg-[#060606] border border-[#111] p-2 flex flex-col gap-0.5">
+                            <span className="text-[9px] font-mono text-[#333] tracking-widest">{lbl}</span>
+                            <span className={`text-xs font-mono font-bold ${good ? 'text-[#C8FF00]' : 'text-white'}`}>{val}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex justify-between items-center text-[11px] font-mono pt-1 border-t border-[#111] mt-1">
+                        <span className="text-[#333]">VAULT TVL</span>
+                        <span className={`font-bold ${tvl > 0 ? 'text-white' : 'text-[#333]'}`}>
+                          {tvl > 0 ? `$${tvl.toLocaleString()}` : '—'}
+                        </span>
+                      </div>
+
+                      {yld > 0 && (
+                        <div className="flex justify-between items-center text-[11px] font-mono">
+                          <span className="text-[#333]">MTH YIELD</span>
+                          <span className="text-[#C8FF00] font-bold">+{yld}%</span>
+                        </div>
+                      )}
+
+                      <div className="text-[10px] font-mono text-[#2a2a2a] truncate">
+                        @{b.slug || (b.walletAddress || 'anon').substring(0, 8)}
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              )
+            })}
           </motion.div>
         )}
       </div>

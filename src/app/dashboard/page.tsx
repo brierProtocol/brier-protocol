@@ -160,6 +160,31 @@ export default function DashboardPage() {
 
       <div className="max-w-[1200px] mx-auto">
 
+        {/* INFO BANNER */}
+        <div className="info-banner mb-6">
+          <span className="text-primary text-xs">[INFO]</span>
+          Capital is deployed via ERC-4626 shares. Exit is <span className="text-white mx-1 font-semibold">instant</span> — shares are redeemable 1:1 at current NAV. Principal + profit arrive in one transaction.
+        </div>
+
+        {/* HOW IT WORKS — Cuadritos */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
+          {[
+            { n: '01', title: 'DEPOSIT', icon: '[$]', desc: 'Send USDC to the vault. Shares minted proportionally. Your share = your claim on all vault assets.' },
+            { n: '02', title: 'BOT_TRADES', icon: '[⚡]', desc: 'Algorithm trades Polymarket markets. NAV updates on every settlement. You can exit any time.' },
+            { n: '03', title: 'REDEEM', icon: '[↗]', desc: 'Burn shares → receive USDC. Builder 30% + protocol 10% deducted from profit only. Principal always 100% liquid.' },
+          ].map(({ n, title, icon, desc }) => (
+            <div key={n} className="bg-black/40 border border-primary/10 hover:border-primary/25 transition-colors p-5 relative group">
+              <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-primary/20 group-hover:border-primary/40 transition-colors" />
+              <div className="flex items-start gap-3 mb-3">
+                <span className="text-primary/40 font-mono text-xs">{n}</span>
+                <span className="text-primary font-mono font-bold text-lg">{icon}</span>
+              </div>
+              <div className="text-white font-mono text-xs font-bold tracking-widest mb-2">{title}</div>
+              <div className="text-[#555] text-[11px] leading-relaxed font-sans">{desc}</div>
+            </div>
+          ))}
+        </div>
+
         {/* METRICS ROW */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           
@@ -295,9 +320,10 @@ export default function DashboardPage() {
                         ))
                       ) : (
                         <div className="p-12 text-center border border-primary/10 bg-black/30">
-                          <div className="text-primary/50 text-xs mb-4 tracking-widest font-bold">[ NO_CAPITAL_DEPLOYED ]</div>
-                          <Link href="/discover" className="inline-block bg-transparent border border-primary/50 text-primary px-6 py-3 no-underline text-[11px] font-bold tracking-widest transition-all hover:bg-primary hover:text-black hover:shadow-[0_0_20px_rgba(255,42,77,0.5)] rounded-sm">
-                            INITIALIZE DEPLOYMENT &gt;
+                          <div className="text-primary/50 text-xs mb-1 tracking-widest font-bold">[ NO_ACTIVE_POSITIONS ]</div>
+                          <div className="text-[#333] text-[10px] font-mono mb-6">No capital deployed in active vaults.</div>
+                          <Link href="/discover" className="inline-block bg-transparent border border-primary/50 text-primary px-6 py-3 no-underline text-[11px] font-bold tracking-widest transition-all hover:bg-primary hover:text-black hover:shadow-[0_0_20px_rgba(255,42,77,0.5)] font-mono">
+                            EXPLORE_CATALOG →
                           </Link>
                         </div>
                       )}

@@ -106,11 +106,25 @@ export default function ListBotPage() {
 
       <div className="max-w-[700px] mx-auto">
         
-        {/* PROGRESS BAR */}
-        <div className="flex mb-8">
-          <div className={`flex-1 h-1 transition-colors ${step >= 1 ? 'bg-primary shadow-[0_0_10px_rgba(255,42,77,0.5)]' : 'bg-[#110508]'}`}></div>
-          <div className={`flex-1 h-1 transition-colors ${step >= 2 ? 'bg-primary shadow-[0_0_10px_rgba(255,42,77,0.5)]' : 'bg-[#110508]'}`}></div>
-          <div className={`flex-1 h-1 transition-colors ${step >= 3 ? 'bg-primary shadow-[0_0_10px_rgba(255,42,77,0.5)]' : 'bg-[#110508]'}`}></div>
+        {/* STEPPER */}
+        <div className="flex items-center mb-8 select-none">
+          {[
+            { n: 1, label: 'METADATA' },
+            { n: 2, label: 'SIGN' },
+            { n: 3, label: 'SECRET' },
+          ].map((s, i) => (
+            <div key={s.n} className="flex items-center flex-1">
+              <div className={`flex items-center gap-2 ${step === s.n ? 'stepper-step active' : step > s.n ? 'stepper-step done' : 'stepper-step'}`}>
+                <span className={`w-5 h-5 border flex items-center justify-center text-[10px] font-bold ${step === s.n ? 'border-primary text-primary bg-primary/10' : step > s.n ? 'border-[#C8FF00]/50 text-[#C8FF00]' : 'border-[#222] text-[#333]'}`}>
+                  {step > s.n ? '✓' : s.n}
+                </span>
+                <span className="hidden sm:inline text-[10px] tracking-widest">{s.label}</span>
+              </div>
+              {i < 2 && (
+                <div className={`flex-1 h-px mx-2 ${step > s.n ? 'bg-[#C8FF00]/20' : 'bg-[#1a1a1a]'}`} />
+              )}
+            </div>
+          ))}
         </div>
 
         <div className="border border-border bg-[#080405] p-8 shadow-[0_0_20px_rgba(255,42,77,0.05)] relative">
@@ -243,29 +257,37 @@ export default function ListBotPage() {
                 </div>
               </div>
 
-              {/* SDK SNIPPET */}
-              <div className="mb-8">
-                <div className="text-muted text-[11px] mb-2 tracking-widest">SDK_INTEGRATION_SNIPPET</div>
-                <div className="bg-[#030303] border border-[#331015] p-4 text-primary text-[12px] overflow-x-auto whitespace-pre font-mono">
-{`import { BrierSDK } from '@brier/sdk';
+              {/* INSTALL COMMAND */}
+              <div className="mb-6">
+                <div className="text-muted text-[11px] mb-2 tracking-widest">QUICK_INSTALL — run this in your terminal:</div>
+                <div className="bg-[#030303] border border-[#1a1a1a] p-4 flex items-center gap-3 group">
+                  <span className="text-[#333] font-mono text-xs select-none">$</span>
+                  <code className="flex-1 text-[#C8FF00] font-mono text-[12px] select-all">
+                    {`BUILDER_SECRET_KEY=${secretKey} BOT_SLUG=${handle} yarn start`}
+                  </code>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(`BUILDER_SECRET_KEY=${secretKey} BOT_SLUG=${handle} yarn start`)}
+                    className="shrink-0 text-[10px] font-mono text-[#444] hover:text-primary transition-colors px-2 py-1 border border-[#1a1a1a] hover:border-primary/40"
+                  >
+                    [COPY]
+                  </button>
+                </div>
+              </div>
 
-const bot = new BrierSDK({
-  botId: '${handle}',
-  secretKey: process.env.BUILDER_SECRET_KEY,
-});
-
-// Run quantitative logic
-bot.predict({
-  market: 'polymarket-polygon',
-  prediction: 'YES',
-  confidence: 0.85
-});`}
+              {/* WHAT HAPPENS NEXT */}
+              <div className="mb-8 border border-[#1a1a1a] p-4 bg-[#060606]">
+                <div className="text-[#444] text-[10px] font-mono tracking-widest mb-3">WHAT_HAPPENS_NEXT</div>
+                <div className="flex flex-col gap-2 text-[11px] font-mono">
+                  <div className="flex gap-2 text-[#555]"><span className="text-[#333]">&gt;</span> Bot enters <span className="text-white mx-1">7-day shadow phase</span> — predictions tracked, no capital at risk</div>
+                  <div className="flex gap-2 text-[#555]"><span className="text-[#333]">&gt;</span> Brier Score calculated from on-chain market resolutions</div>
+                  <div className="flex gap-2 text-[#555]"><span className="text-[#333]">&gt;</span> Tier-1 eligibility: Brier ≤ 0.25, Sharpe ≥ 1.5, Win Rate ≥ 54%</div>
+                  <div className="flex gap-2 text-[#555]"><span className="text-[#333]">&gt;</span> Vault opens for <span className="text-primary mx-1">investor deposits</span> → you earn 30% of profits</div>
                 </div>
               </div>
 
               <div className="flex justify-end gap-4">
-                <Link href={`/bot/${handle}`} className="bg-transparent border border-primary text-primary px-8 py-3 no-underline font-bold text-[13px] transition-all hover:bg-primary hover:text-[#030303] tracking-widest shadow-[0_0_10px_rgba(255,42,77,0.2)]">
-                  VIEW_NODE_PROFILE &gt;
+                <Link href={`/bot/${handle}`} className="bg-transparent border border-primary text-primary px-8 py-3 no-underline font-mono font-bold text-[13px] transition-all hover:bg-primary hover:text-[#030303] tracking-widest shadow-[0_0_10px_rgba(255,42,77,0.2)]">
+                  VIEW_NODE_PROFILE →
                 </Link>
               </div>
             </motion.div>

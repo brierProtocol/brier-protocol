@@ -1,101 +1,198 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 
-export default function DevelopersPage() {
+type Tab = 'python' | 'typescript' | 'rest'
+
+const ENDPOINTS = [
+  { method: 'GET',  path: '/api/bots',               desc: 'List all registered algorithms with scores' },
+  { method: 'POST', path: '/api/bots/register',       desc: 'Register a new bot (wallet signature required)' },
+  { method: 'GET',  path: '/api/bots/:slug',          desc: 'Get bot metadata + latest BotScore' },
+  { method: 'GET',  path: '/api/search?q=',           desc: 'Full-text search bots + users (insensitive)' },
+  { method: 'POST', path: '/api/deposits',            desc: 'Record on-chain deposit (anti-replay via txHash)' },
+  { method: 'POST', path: '/api/withdraw',            desc: 'Record on-chain withdrawal + mark shares exited' },
+  { method: 'GET',  path: '/api/dashboard?address=',  desc: 'Investor portfolio: positions + history + PnL' },
+  { method: 'POST', path: '/api/hearts',              desc: 'Toggle heart/like on a bot' },
+  { method: 'POST', path: '/api/follows',             desc: 'Toggle follow on a maker address' },
+  { method: 'POST', path: '/api/comments',            desc: 'Post a comment on a bot page' },
+  { method: 'GET',  path: '/api/notifications',       desc: 'Pull latest notifications for connected wallet' },
+]
+
+const METHOD_COLOR: Record<string, string> = {
+  GET:  '#00d4aa',
+  POST: '#C8FF00',
+  PUT:  '#D4AF37',
+  DELETE: '#FF3B3B',
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
   return (
-    <div style={{ minHeight: '100vh', background: '#050505', fontFamily: 'var(--font-body), sans-serif', color: '#EFEFEF', padding: '3rem 1.5rem' }}>
-      
+    <button
+      onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+      className="text-[10px] font-mono text-[#444] hover:text-primary transition-colors px-2 py-1 border border-[#1a1a1a] hover:border-primary/40 shrink-0"
+    >
+      {copied ? '[COPIED]' : '[COPY]'}
+    </button>
+  )
+}
+
+const PY_CODE = `from brier_sdk import BrierExecutorClient
+
+client = BrierExecutorClient(
+    base_url="https://api.brier.com",
+    secret_key=os.environ["BUILDER_SECRET_KEY"]
+)
+
+client.send_trade_signal(
+    trade_id="uuid-123",
+    bot_id="cuid-bot-id",
+    vault_address="0xVault...",
+    direction="LONG",
+    entry_price=0.55,
+    size=100.0,
+    confidence=0.95,
+    market_id="0xMarket",
+    outcome_index=0
+)`
+
+const TS_CODE = `import { BrierExecutorClient } from 'brier-sdk';
+
+const brier = new BrierExecutorClient(
+  process.env.BRIER_URL,
+  process.env.BUILDER_SECRET_KEY
+);
+
+await brier.sendTradeSignal({
+  tradeId: "uuid-123",
+  botId: process.env.BOT_ID,
+  vaultAddress: process.env.VAULT_ADDRESS,
+  direction: "LONG",
+  entryPrice: 0.55,
+  size: 100.0,
+  confidence: 0.95,
+  marketId: "0xMarket",
+  outcomeIndex: 0
+});`
+
+export default function DevelopersPage() {
+  const [activeTab, setActiveTab] = useState<Tab>('python')
+
+  const code = activeTab === 'python' ? PY_CODE : TS_CODE
+
+  return (
+    <div className="min-h-screen bg-[#030303] text-[#e8e8e8] font-sans">
+
       {/* HEADER */}
-      <div style={{ maxWidth: 800, margin: '0 auto', marginBottom: '3rem', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '1.5rem' }}>
-        <div style={{ color: '#fff', fontSize: '2rem', fontWeight: 800, fontFamily: 'var(--font-display), sans-serif', letterSpacing: '-0.5px', marginBottom: '0.5rem' }}>
-          Developer Documentation
-        </div>
-        <div style={{ fontSize: '14px', color: '#888', fontFamily: 'var(--font-mono), monospace' }}>
-          Connect your quantitative models to the Brier protocol infrastructure.
+      <div className="border-b border-[#1a1a1a] bg-[#050505] px-12 py-5">
+        <div className="max-w-[860px] mx-auto flex justify-between items-end">
+          <div>
+            <h1 className="text-white font-mono font-bold text-xl tracking-tight m-0 mb-1">DEVELOPER_DOCS</h1>
+            <div className="text-[11px] text-[#444] font-mono">Connect your quantitative models to the Brier infrastructure.</div>
+          </div>
+          <Link href="/list-bot" className="text-primary text-xs font-mono hover:underline transition-all">REGISTER BOT →</Link>
         </div>
       </div>
 
-      <div style={{ maxWidth: 800, margin: '0 auto' }}>
-        
-        {/* NAMING CONVENTION */}
-        <div style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '2rem', marginBottom: '2rem', boxShadow: '0 4px 20px -10px rgba(0,0,0,0.5)' }}>
-          <div style={{ color: '#C9A84C', fontWeight: 700, marginBottom: '1.5rem', fontFamily: 'var(--font-display), sans-serif', fontSize: '1.1rem', letterSpacing: '0.5px' }}>
-            &gt;&gt; THE @HANDLE SYSTEM
-          </div>
-          <div style={{ fontSize: '14px', lineHeight: 1.6, color: '#aaa' }}>
-            When you register an algorithm on Brier, you are claiming a unique, global identifier. 
-            <br/><br/>
-            If you register the name <span style={{ color: '#fff', fontWeight: 600 }}>"Alpha Strike"</span>, your bot permanently owns the handle <span style={{ color: '#60a5fa', fontWeight: 600 }}>@alpha-strike</span>. No other builder can use this name. 
-            This handle is how investors will find, track, and deposit capital into your vault.
-          </div>
+      <div className="max-w-[860px] mx-auto px-12 py-10 flex flex-col gap-10">
+
+        {/* HANDLE SYSTEM */}
+        <div className="bg-[#080808] border border-[#1a1a1a] p-6 relative">
+          <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-[#C9A84C]/40" />
+          <div className="text-[#C9A84C] font-mono text-xs font-bold tracking-widest mb-4">&gt;&gt; THE @HANDLE SYSTEM</div>
+          <p className="text-[#888] text-sm leading-relaxed m-0">
+            When you register an algorithm, you claim a unique global identifier.
+            Registering <span className="text-white font-semibold">"Alpha Strike"</span> permanently owns the handle{' '}
+            <span className="text-[#60a5fa] font-semibold font-mono">@alpha-strike</span>.
+            No other builder can use this name. Investors find, track, and deposit via this handle.
+          </p>
         </div>
 
-        {/* SDK OVERVIEW */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '8px', padding: '2rem', marginBottom: '2rem' }}>
-          <div style={{ color: '#4ade80', fontWeight: 700, marginBottom: '1.5rem', fontFamily: 'var(--font-display), sans-serif', fontSize: '1.1rem', letterSpacing: '0.5px' }}>
-            &gt;&gt; THE @BRIER/SDK (ZERO-CRYPTO INTEGRATION)
-          </div>
-          <div style={{ fontSize: '14px', lineHeight: 1.6, color: '#aaa', marginBottom: '2rem' }}>
-            You do not need to understand smart contracts, manage gas fees, or deal with blockchain indexing. 
-            The Brier SDK abstracts the entire financial layer so you can focus strictly on your prediction logic.
+        {/* SDK — TABBED */}
+        <div className="bg-[#080808] border border-[#1a1a1a]">
+          <div className="border-b border-[#1a1a1a] px-6 py-4">
+            <div className="text-[#4ade80] font-mono text-xs font-bold tracking-widest">&gt;&gt; SDK INTEGRATION — ZERO-CRYPTO</div>
+            <div className="text-[#444] text-[11px] font-sans mt-1">You never touch smart contracts, gas fees, or blockchain indexing.</div>
           </div>
 
-          <div style={{ background: '#050505', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px', marginBottom: '1rem' }}>
-            <div style={{ color: '#666', fontSize: '11px', marginBottom: '0.75rem', fontFamily: 'var(--font-mono), monospace' }}>// Opción A: Python SDK (Recomendado para Data Science)</div>
-            <pre style={{ margin: 0, fontSize: '13px', color: '#c5c8c6', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-mono), monospace', lineHeight: 1.5 }}>
-<span style={{ color: '#c084fc' }}>from</span> brier_sdk <span style={{ color: '#c084fc' }}>import</span> BrierExecutorClient<br/><br/>
-<span style={{ color: '#666' }}># Inicializa con tu Secret Key generada en el Dashboard</span><br/>
-client = BrierExecutorClient(base_url=<span style={{ color: '#4ade80' }}>"https://api.brier.com"</span>, secret_key=<span style={{ color: '#4ade80' }}>"BUILDER_SECRET"</span>)<br/><br/>
-<span style={{ color: '#666' }}># Brier ejecuta tu trade On-Chain automáticamente</span><br/>
-client.send_trade_signal(<br/>
-{'    '}trade_id=<span style={{ color: '#4ade80' }}>"uuid-123"</span>,<br/>
-{'    '}bot_id=<span style={{ color: '#4ade80' }}>"cuid-bot-id"</span>,<br/>
-{'    '}vault_address=<span style={{ color: '#4ade80' }}>"0xVault..."</span>,<br/>
-{'    '}direction=<span style={{ color: '#4ade80' }}>"LONG"</span>,<br/>
-{'    '}entry_price=<span style={{ color: '#60a5fa' }}>0.55</span>,<br/>
-{'    '}size=<span style={{ color: '#60a5fa' }}>100.0</span>,<br/>
-{'    '}confidence=<span style={{ color: '#60a5fa' }}>0.95</span>,<br/>
-{'    '}market_id=<span style={{ color: '#4ade80' }}>"0xMarket"</span>,<br/>
-{'    '}outcome_index=<span style={{ color: '#60a5fa' }}>0</span><br/>
-)
-            </pre>
+          {/* Tab bar */}
+          <div className="flex border-b border-[#111]">
+            {([
+              { id: 'python',     label: 'PYTHON SDK' },
+              { id: 'typescript', label: 'TYPESCRIPT SDK' },
+              { id: 'rest',       label: 'REST API' },
+            ] as { id: Tab; label: string }[]).map(t => (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                className={`px-6 py-3 text-[10px] font-mono tracking-widest border-r border-[#111] transition-colors cursor-pointer ${activeTab === t.id ? 'text-primary bg-primary/05 border-b border-primary' : 'text-[#444] bg-transparent hover:text-white'}`}
+                style={{ borderBottom: activeTab === t.id ? '1px solid var(--primary)' : '1px solid transparent' }}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
 
-          <div style={{ background: '#050505', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px' }}>
-            <div style={{ color: '#666', fontSize: '11px', marginBottom: '0.75rem', fontFamily: 'var(--font-mono), monospace' }}>// Opción B: Node.js / TypeScript SDK (Recomendado para Ejecución Rápida)</div>
-            <pre style={{ margin: 0, fontSize: '13px', color: '#c5c8c6', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-mono), monospace', lineHeight: 1.5 }}>
-<span style={{ color: '#c084fc' }}>import</span> {'{ BrierExecutorClient }'} <span style={{ color: '#c084fc' }}>from</span> <span style={{ color: '#4ade80' }}>'brier-sdk'</span>;<br/><br/>
-<span style={{ color: '#c084fc' }}>const</span> brier = <span style={{ color: '#c084fc' }}>new</span> BrierExecutorClient(process.env.BRIER_URL, process.env.BUILDER_SECRET);<br/><br/>
-<span style={{ color: '#c084fc' }}>await</span> brier.sendTradeSignal({"{"}<br/>
-{'    '}tradeId: <span style={{ color: '#4ade80' }}>"uuid-123"</span>,<br/>
-{'    '}botId: process.env.BOT_ID,<br/>
-{'    '}vaultAddress: process.env.VAULT_ADDRESS,<br/>
-{'    '}direction: <span style={{ color: '#4ade80' }}>"LONG"</span>,<br/>
-{'    '}entryPrice: <span style={{ color: '#60a5fa' }}>0.55</span>,<br/>
-{'    '}size: <span style={{ color: '#60a5fa' }}>100.0</span>,<br/>
-{'    '}confidence: <span style={{ color: '#60a5fa' }}>0.95</span>,<br/>
-{'    '}marketId: <span style={{ color: '#4ade80' }}>"0xMarket"</span>,<br/>
-{'    '}outcomeIndex: <span style={{ color: '#60a5fa' }}>0</span><br/>
-{"}"});
-            </pre>
-          </div>
+          {/* Code panel */}
+          {activeTab !== 'rest' ? (
+            <div className="relative">
+              <div className="flex items-center justify-between px-6 pt-4 pb-2">
+                <span className="text-[#333] font-mono text-[10px]">
+                  {activeTab === 'python' ? '// Recommended for data science workflows' : '// Recommended for low-latency execution'}
+                </span>
+                <CopyButton text={code} />
+              </div>
+              <pre className="px-6 pb-6 m-0 text-[13px] text-[#c5c8c6] font-mono leading-relaxed overflow-x-auto whitespace-pre">
+                {code}
+              </pre>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-[11px] text-left border-collapse font-mono">
+                <thead>
+                  <tr className="border-b border-[#111] bg-[#060606]">
+                    <th className="px-6 py-3 text-[#333] font-medium tracking-widest">METHOD</th>
+                    <th className="px-4 py-3 text-[#333] font-medium tracking-widest">ENDPOINT</th>
+                    <th className="px-4 py-3 text-[#333] font-medium tracking-widest">DESCRIPTION</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ENDPOINTS.map((ep, i) => (
+                    <tr key={i} className="border-b border-[#0a0a0a] hover:bg-[#0d0d0d] transition-colors">
+                      <td className="px-6 py-3 font-bold" style={{ color: METHOD_COLOR[ep.method] ?? '#fff' }}>
+                        {ep.method}
+                      </td>
+                      <td className="px-4 py-3 text-[#888]">{ep.path}</td>
+                      <td className="px-4 py-3 text-[#555] font-sans">{ep.desc}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        {/* ON-CHAIN ALTERNATIVE */}
-        <div style={{ border: '1px solid rgba(255,255,255,0.06)', background: '#0A0A0A', borderRadius: '8px', padding: '2rem' }}>
-          <div style={{ color: '#666', fontWeight: 600, marginBottom: '1rem', fontFamily: 'var(--font-mono), monospace', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        {/* DIRECT ON-CHAIN */}
+        <div className="border border-[#1a1a1a] bg-[#080808] p-6">
+          <div className="text-[#444] font-mono text-[10px] font-bold tracking-widest uppercase mb-3">
             &gt;&gt; Advanced: Direct On-Chain Execution
           </div>
-          <div style={{ fontSize: '13px', lineHeight: 1.6, color: '#888' }}>
-            Prefer to write your own Solidity or interact with Polymarket directly? Simply execute trades from your registered wallet address. 
-            Brier's background indexer will automatically detect your trades, calculate your Brier Score, and mirror your strategy using Vault capital. No SDK required.
-          </div>
+          <p className="text-[#555] text-sm leading-relaxed m-0">
+            Prefer to write your own Solidity or interact with Polymarket directly?
+            Execute trades from your registered wallet address.
+            Brier's shadow indexer automatically detects your trades, calculates your Brier Score,
+            and mirrors your strategy using Vault capital. No SDK required.
+          </p>
         </div>
 
-        <div style={{ marginTop: '4rem', textAlign: 'center' }}>
-          <Link href="/list-bot" style={{ display: 'inline-block', background: '#2563EB', color: '#fff', borderRadius: '4px', textDecoration: 'none', padding: '14px 32px', fontWeight: 600, fontSize: '14px', boxShadow: '0 4px 14px 0 rgba(37,99,235,0.39)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background = '#1d4ed8'} onMouseOut={e => e.currentTarget.style.background = '#2563EB'}>
-            Register Algorithm →
+        {/* CTA */}
+        <div className="text-center">
+          <Link
+            href="/list-bot"
+            className="inline-block border border-primary text-primary px-8 py-3 no-underline font-mono font-bold text-sm tracking-widest transition-all hover:bg-primary hover:text-[#030303] hover:shadow-[0_0_20px_rgba(255,42,77,0.4)]"
+          >
+            REGISTER_ALGORITHM →
           </Link>
         </div>
 

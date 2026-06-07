@@ -181,6 +181,49 @@ body::after {
   color: var(--primary);
 }
 
+/* Podium rank colors */
+.rank-gold   { color: #FFD700; text-shadow: 0 0 12px rgba(255,215,0,0.5); }
+.rank-silver { color: #C0C0C0; text-shadow: 0 0 8px rgba(192,192,192,0.3); }
+.rank-bronze { color: #CD7F32; text-shadow: 0 0 8px rgba(205,127,50,0.3); }
+
+/* Info banner */
+.info-banner {
+  background: rgba(255, 42, 77, 0.05);
+  border: 0.5px solid rgba(255, 42, 77, 0.2);
+  color: var(--text-secondary);
+  padding: 10px 16px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Stepper */
+.stepper-step { color: rgba(255,255,255,0.25); font-family: var(--font-mono); font-size: 11px; }
+.stepper-step.active { color: var(--primary); }
+.stepper-step.done   { color: rgba(200,255,0,0.7); }
+.stepper-line { color: rgba(255,255,255,0.1); user-select: none; }
+
+/* Protocol stat pill */
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 0.5px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.stat-pill span { color: #fff; font-weight: 700; }
+
+/* Market tab */
+.mkt-tab { padding: 4px 12px; font-size: 11px; font-family: var(--font-mono); border: 0.5px solid transparent; background: transparent; cursor: pointer; transition: all 0.15s; color: #666; letter-spacing: 0.05em; }
+.mkt-tab:hover { color: #fff; }
+.mkt-tab.active { color: var(--primary); border-color: rgba(255,42,77,0.3); background: rgba(255,42,77,0.06); }
+
 /* Accessibility: respect users who prefer less motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
