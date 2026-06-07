@@ -240,10 +240,11 @@ export default function Navbar() {
   const pathname = usePathname()
 
   const navLinks = [
-    { href: '/leaderboard', label: 'LEADERBOARD' },
-    { href: '/discover',    label: 'DISCOVER'    },
-    { href: '/list-bot',    label: 'DEPLOY_BOT'  },
-    { href: '/dashboard',   label: 'DASHBOARD'   },
+    { href: '/how-it-works', label: 'HOW_IT_WORKS' },
+    { href: '/leaderboard',  label: 'LEADERBOARD'  },
+    { href: '/discover',     label: 'DISCOVER'     },
+    { href: '/list-bot',     label: 'DEPLOY_BOT'   },
+    { href: '/dashboard',    label: 'DASHBOARD'    },
   ]
 
   return (
