@@ -15,105 +15,135 @@ export default function VaultPage() {
     setTimeout(() => { setToast(''); setAmount('') }, 4000)
   }
 
+  const isDeposit = action === 'deposit'
+  const accent = isDeposit ? '#C8FF00' : '#ff3b3b'
+
   return (
-    <div style={{ minHeight: '100vh', background: '#050505', fontFamily: 'var(--font-body), sans-serif', color: '#EFEFEF', padding: '3rem 1.5rem' }}>
-      
+    <div className="min-h-screen bg-[#030303] text-[#e8e8e8] font-sans">
+
       {/* HEADER */}
-      <div style={{ maxWidth: 800, margin: '0 auto', marginBottom: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ display: 'flex', gap: '1rem', fontSize: '1.25rem', fontWeight: 700, fontFamily: 'var(--font-display), sans-serif', letterSpacing: '0.5px' }}>
-          <span style={{ color: '#fff' }}>Contract Interaction <span style={{ color: '#60a5fa' }}>/vault/SIGMA-7</span></span>
-        </div>
-        <div style={{ fontSize: '13px', color: '#666' }}>
-          <Link href="/dashboard" style={{ color: '#888', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#fff'} onMouseOut={e => e.currentTarget.style.color = '#888'}>Back to Terminal</Link>
+      <div className="border-b border-[#1a1a1a] bg-[#050505] px-12 py-5">
+        <div className="max-w-[800px] mx-auto flex justify-between items-center flex-wrap gap-3">
+          <div className="font-mono text-sm font-bold text-white tracking-tight">
+            CONTRACT_INTERACTION <span className="text-primary">/vault/SIGMA-7</span>
+          </div>
+          <Link href="/dashboard" className="text-[#444] hover:text-white transition-colors no-underline font-mono text-xs">
+            ← TERMINAL
+          </Link>
         </div>
       </div>
 
-      <div style={{ maxWidth: 800, margin: '0 auto' }}>
-        
-        {/* CONTRACT INFO */}
-        <div style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '2rem', marginBottom: '2rem', boxShadow: '0 4px 20px -10px rgba(0,0,0,0.5)' }}>
-          <div style={{ color: '#2563EB', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.75rem', marginBottom: '1.5rem', fontFamily: 'var(--font-mono), monospace', fontSize: '13px' }}>
+      <div className="max-w-[800px] mx-auto px-12 py-10 flex flex-col gap-6">
+
+        {/* VAULT STATE */}
+        <div className="bg-[#080808] border border-[#1a1a1a] relative">
+          <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-primary/40" />
+          <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-primary/40" />
+          <div className="px-6 py-3 border-b border-[#111] text-primary font-mono text-xs font-bold tracking-widest">
             &gt;&gt; VAULT_STATE_READ
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', fontSize: '13px', fontFamily: 'var(--font-mono), monospace' }}>
-            <div><span style={{ color: '#666', display: 'block', fontSize: '10px', textTransform: 'uppercase', marginBottom: 2 }}>Target Bot</span> <span style={{ color: '#60a5fa', fontWeight: 600, fontSize: '15px' }}>SIGMA-7</span></div>
-            <div><span style={{ color: '#666', display: 'block', fontSize: '10px', textTransform: 'uppercase', marginBottom: 2 }}>Contract Addr</span> <span style={{ color: '#EFEFEF', fontSize: '15px' }}>0x42f...e981</span></div>
-            <div><span style={{ color: '#666', display: 'block', fontSize: '10px', textTransform: 'uppercase', marginBottom: 2 }}>Network</span> <span style={{ color: '#c084fc', fontSize: '15px', fontWeight: 600 }}>POLYGON</span></div>
-            <div><span style={{ color: '#666', display: 'block', fontSize: '10px', textTransform: 'uppercase', marginBottom: 2 }}>Global TVL</span> <span style={{ color: '#EFEFEF', fontSize: '15px' }}>$1,400,000 USDC</span></div>
-            <div><span style={{ color: '#666', display: 'block', fontSize: '10px', textTransform: 'uppercase', marginBottom: 2 }}>Your Balance</span> <span style={{ color: '#4ade80', fontWeight: 600, fontSize: '15px' }}>$50,000 USDC</span></div>
-            <div><span style={{ color: '#666', display: 'block', fontSize: '10px', textTransform: 'uppercase', marginBottom: 2 }}>Unrealized PNL</span> <span style={{ color: '#4ade80', fontSize: '15px' }}>+$7,440 (+14.9%)</span></div>
-            <div><span style={{ color: '#666', display: 'block', fontSize: '10px', textTransform: 'uppercase', marginBottom: 2 }}>Performance Fee</span> <span style={{ color: '#EFEFEF', fontSize: '15px' }}>10%</span></div>
-            <div><span style={{ color: '#666', display: 'block', fontSize: '10px', textTransform: 'uppercase', marginBottom: 2 }}>Lockup Period</span> <span style={{ color: '#EFEFEF', fontSize: '15px' }}>NONE</span></div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-[#111]">
+            {[
+              { label: 'TARGET_BOT',   value: 'SIGMA-7',          color: 'text-primary' },
+              { label: 'CONTRACT',     value: '0x42f...e981',     color: 'text-white' },
+              { label: 'NETWORK',      value: 'POLYGON',          color: 'text-[#C8FF00]' },
+              { label: 'GLOBAL_TVL',   value: '$1.4M USDC',       color: 'text-white' },
+              { label: 'YOUR_BALANCE', value: '$50,000',          color: 'text-[#C8FF00]' },
+              { label: 'UNREAL_PNL',   value: '+$7,440 (+14.9%)', color: 'text-[#C8FF00]' },
+              { label: 'PERF_FEE',     value: '10%',              color: 'text-white' },
+              { label: 'LOCKUP',       value: 'NONE',             color: 'text-white' },
+            ].map((m) => (
+              <div key={m.label} className="bg-[#080808] p-4">
+                <div className="text-[9px] text-[#444] font-mono tracking-widest uppercase mb-1">{m.label}</div>
+                <div className={`text-sm font-mono font-bold ${m.color}`}>{m.value}</div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* INTERACTION FORM */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '8px', padding: '2rem' }}>
-          <div style={{ color: '#C9A84C', fontWeight: 600, marginBottom: '2rem', fontFamily: 'var(--font-mono), monospace', fontSize: '13px' }}>
+        {/* INTERACTION */}
+        <div className="bg-[#080808] border border-dashed border-[#1a1a1a] p-6">
+          <div className="text-[#C9A84C] font-mono text-xs font-bold tracking-widest mb-6">
             &gt;&gt; VAULT_WRITE_OPERATION
           </div>
 
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-            <button 
+          {/* Toggle */}
+          <div className="flex gap-2 mb-6">
+            <button
               onClick={() => setAction('deposit')}
-              style={{ flex: 1, background: action === 'deposit' ? 'rgba(37,99,235,0.1)' : 'transparent', color: action === 'deposit' ? '#60a5fa' : '#666', border: `1px solid ${action === 'deposit' ? 'rgba(37,99,235,0.3)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '4px', padding: '12px 16px', fontWeight: 600, fontFamily: 'var(--font-mono), monospace', fontSize: '13px', cursor: 'pointer', transition: 'all 0.2s' }}
-              onMouseOver={e => { if (action !== 'deposit') e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)' }}
-              onMouseOut={e => { if (action !== 'deposit') e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
+              className={`flex-1 py-3 font-mono text-xs font-bold tracking-widest transition-all border ${
+                isDeposit
+                  ? 'bg-[#C8FF00]/10 text-[#C8FF00] border-[#C8FF00]/40'
+                  : 'bg-transparent text-[#444] border-[#1a1a1a] hover:text-white hover:border-[#333]'
+              }`}
             >
-              Deposit
+              DEPOSIT
             </button>
-            <button 
+            <button
               onClick={() => setAction('withdraw')}
-              style={{ flex: 1, background: action === 'withdraw' ? 'rgba(248,113,113,0.1)' : 'transparent', color: action === 'withdraw' ? '#f87171' : '#666', border: `1px solid ${action === 'withdraw' ? 'rgba(248,113,113,0.3)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '4px', padding: '12px 16px', fontWeight: 600, fontFamily: 'var(--font-mono), monospace', fontSize: '13px', cursor: 'pointer', transition: 'all 0.2s' }}
-              onMouseOver={e => { if (action !== 'withdraw') e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)' }}
-              onMouseOut={e => { if (action !== 'withdraw') e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
+              className={`flex-1 py-3 font-mono text-xs font-bold tracking-widest transition-all border ${
+                !isDeposit
+                  ? 'bg-[#ff3b3b]/10 text-[#ff3b3b] border-[#ff3b3b]/40'
+                  : 'bg-transparent text-[#444] border-[#1a1a1a] hover:text-white hover:border-[#333]'
+              }`}
             >
-              Withdraw
+              WITHDRAW
             </button>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
-            <label style={{ fontSize: '11px', color: '#666', fontFamily: 'var(--font-mono), monospace', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Input Amount (USDC)</label>
-            <div style={{ display: 'flex', alignItems: 'stretch' }}>
-              <span style={{ background: 'rgba(255,255,255,0.03)', padding: '12px 16px', border: '1px solid rgba(255,255,255,0.1)', borderRight: 'none', borderRadius: '4px 0 0 4px', color: '#888', display: 'flex', alignItems: 'center' }}>$</span>
-              <input 
-                type="number" 
+          {/* Amount */}
+          <div className="mb-6">
+            <label className="text-[10px] text-[#444] font-mono tracking-widest uppercase block mb-2">
+              Input Amount (USDC)
+            </label>
+            <div className="flex">
+              <span className="bg-[#030303] border border-[#1a1a1a] border-r-0 px-4 flex items-center text-[#444] font-mono">$</span>
+              <input
+                type="number"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
                 placeholder="0.00"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderLeft: 'none', borderRight: 'none', color: '#fff', fontFamily: 'inherit', padding: '12px 16px', outline: 'none', flex: 1, fontSize: '14px' }}
+                className="flex-1 bg-[#030303] border border-[#1a1a1a] text-white font-mono px-4 py-3 outline-none focus:border-[#333] transition-colors placeholder:text-[#333]"
               />
-              <button 
-                onClick={() => setAmount(action === 'deposit' ? '10000' : '57440')}
-                style={{ background: 'rgba(255,255,255,0.03)', color: '#2563EB', border: '1px solid rgba(255,255,255,0.1)', borderLeft: 'none', borderRadius: '0 4px 4px 0', padding: '12px 20px', fontFamily: 'inherit', fontWeight: 600, cursor: 'pointer', fontSize: '12px', transition: 'background 0.2s' }}
-                onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
-                onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+              <button
+                onClick={() => setAmount(isDeposit ? '10000' : '57440')}
+                className="bg-[#030303] border border-[#1a1a1a] border-l-0 px-5 text-primary font-mono text-xs font-bold hover:bg-[#0d0d0d] transition-colors"
               >
                 MAX
               </button>
             </div>
           </div>
 
-          <button 
+          <button
             onClick={handleExecute}
-            style={{ width: '100%', background: action === 'deposit' ? '#2563EB' : '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', padding: '14px', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', fontSize: '14px', boxShadow: action === 'deposit' ? '0 4px 14px 0 rgba(37,99,235,0.39)' : '0 4px 14px 0 rgba(239,68,68,0.39)', transition: 'opacity 0.2s' }}
-            onMouseOver={e => e.currentTarget.style.opacity = '0.9'}
-            onMouseOut={e => e.currentTarget.style.opacity = '1'}
+            disabled={!amount}
+            className="w-full py-3.5 font-mono text-sm font-bold tracking-widest transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{
+              background: amount ? accent : '#1a1a1a',
+              color: amount ? '#030303' : '#444',
+              boxShadow: amount ? `0 0 20px ${accent}44` : 'none',
+            }}
           >
-            EXECUTE TRANSACTION
+            EXECUTE_TRANSACTION
           </button>
         </div>
 
-        {/* LOGS */}
-        <div style={{ marginTop: '2rem', fontSize: '13px', lineHeight: 1.6, fontFamily: 'var(--font-mono), monospace' }}>
-          {toast && (
-            <div style={{ color: toast.includes('SUCCESS') ? '#4ade80' : '#f87171', background: toast.includes('SUCCESS') ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)', padding: '1rem', borderRadius: '4px', border: `1px solid ${toast.includes('SUCCESS') ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)'}` }}>
+        {/* LOG */}
+        <div className="font-mono text-xs">
+          {toast ? (
+            <div
+              className="p-4 border"
+              style={{
+                color: toast.includes('SUCCESS') ? '#C8FF00' : '#ff3b3b',
+                background: toast.includes('SUCCESS') ? 'rgba(200,255,0,0.06)' : 'rgba(255,59,59,0.06)',
+                borderColor: toast.includes('SUCCESS') ? 'rgba(200,255,0,0.2)' : 'rgba(255,59,59,0.2)',
+              }}
+            >
               {toast}
             </div>
-          )}
-          {!toast && (
-            <div style={{ color: '#555', padding: '1rem' }}>
-              &gt; Waiting for user input...
+          ) : (
+            <div className="p-4 text-[#333] border border-[#111]">
+              <span className="cursor-blink">&gt; Awaiting user input</span>
             </div>
           )}
         </div>
