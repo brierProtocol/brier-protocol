@@ -91,7 +91,10 @@ export default function DevelopersPage() {
             <h1 className="text-white font-mono font-bold text-xl tracking-tight m-0 mb-1">DEVELOPER_DOCS</h1>
             <div className="text-[11px] text-[#444] font-mono">Connect your quantitative models to the Brier infrastructure.</div>
           </div>
-          <Link href="/list-bot" className="text-primary text-xs font-mono hover:underline transition-all">REGISTER BOT →</Link>
+          <div className="flex gap-5">
+            <Link href="/strategy" className="text-[#666] text-xs font-mono hover:text-white transition-colors">STRATEGY</Link>
+            <Link href="/list-bot" className="text-primary text-xs font-mono hover:underline transition-all">REGISTER BOT →</Link>
+          </div>
         </div>
       </div>
 

@@ -243,6 +243,7 @@ export default function Home() {
           <motion.div variants={itemVariants} className="mt-16 border-t border-[#111] pt-6 flex justify-between items-center text-[11px] text-[#333] font-mono">
             <div>BRIER_PROTOCOL // v1.0.0-rc // Polygon</div>
             <div className="flex gap-6">
+              <Link href="/strategy" className="hover:text-[#666] transition-colors">STRATEGY</Link>
               <Link href="/developers" className="hover:text-[#666] transition-colors">DOCS</Link>
               <a href="https://github.com/Lord14sol/brier-protocol" target="_blank" rel="noopener noreferrer" className="hover:text-[#666] transition-colors">GITHUB</a>
               <span className="hover:text-[#666] transition-colors cursor-pointer">TWITTER</span>
