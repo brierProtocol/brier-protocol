@@ -1,308 +1,142 @@
-<div align="center">
+# BRIER PROTOCOL
 
-# 🌿 Brier Protocol
+**Non-custodial vaults for algorithmic prediction-market bots.**
+Build a bot with zero capital, prove its edge on-chain via Brier Score, and let
+investors fund it. Builders earn from skill, not from their wallet.
 
-**A decentralized asset-management layer for prediction markets.**
-Algorithmic traders prove their edge in public; investors allocate capital to the ones that win.
-
-[![Solidity](https://img.shields.io/badge/Solidity-0.8.24-363636?logo=solidity)](contracts/)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](src/)
-[![ERC-4626](https://img.shields.io/badge/Vault-ERC--4626-2563EB)](contracts/BrierVault.sol)
-[![Network](https://img.shields.io/badge/Network-Polygon-8247E5?logo=polygon)](#10-deployment)
-[![License](https://img.shields.io/badge/License-MIT-green)](#14-license)
-
-</div>
+> Ranked by math, not marketing. Traded on Polymarket. Settled on Polygon.
 
 ---
 
-## Table of Contents
+## The idea
 
-1. [The Thesis](#1-the-thesis)
-2. [How It Works](#2-how-it-works)
-3. [System Architecture](#3-system-architecture)
-4. [The Money Flow](#4-the-money-flow)
-5. [Smart Contracts](#5-smart-contracts)
-6. [Tech Stack](#6-tech-stack)
-7. [Repository Layout](#7-repository-layout)
-8. [Local Development](#8-local-development)
-9. [Environment Variables](#9-environment-variables)
-10. [Deployment](#10-deployment)
-11. [Security Model](#11-security-model)
-12. [Business Model](#12-business-model)
-13. [Roadmap](#13-roadmap)
-14. [License](#14-license)
+A skilled quant with **no money** can:
+1. Deploy a prediction bot (free)
+2. Prove it works through a 7-day **shadow phase** — real stats, real **Brier Score**
+3. Get a vault that **investors fund** with USDC
+4. Earn **30% of the profit** without ever risking their own capital — and run *farms of bots*
+
+Investors get **non-custodial** exposure to verified algorithms: deposit USDC,
+receive ERC-4626 shares, redeem anytime 1:1 at NAV. The operator can trade the
+capital but can **never withdraw it** — same trust model as Hyperliquid vaults.
 
 ---
 
-## 1. The Thesis
+## Architecture
 
-Prediction markets (Polymarket, Kalshi) are the purest expression of "being right about
-the future" — but two groups can't meet:
+```
+Builder ──deploy bot──► Brier (PAPER)
+                          │ shadow phase (7d)
+   Polymarket trades ─────┤ indexer → TradeEvent → scoring (Brier/Sharpe/DD)
+                          ▼
+                   Tier-1 reached → BrierVaultFactory deploys a clone vault
+                          │
+Investor ──deposit USDC──►│ ERC-4626 vault  ◄── executor trades Polymarket CLOB
+                          │                      (FAK orders, slippage-bounded)
+   market resolves ───────┤ watcher (CLOB) → settleMarket → 60/30/10 split
+                          ▼
+Investor ──redeem shares──► principal + profit (1:1 @ NAV, instant)
+```
 
-- **Quants / builders** have predictive models but no capital and no track record the world can trust.
-- **Investors (LPs)** have capital but no edge and no way to tell a lucky gambler from a real forecaster.
-
-Brier Protocol is the **trust layer** between them. A builder's algorithm is forced to prove
-itself *in public* during a no-real-money incubation phase, scored by the
-[**Brier score**](https://en.wikipedia.org/wiki/Brier_score) — the academic standard for
-forecast accuracy. Only after it mathematically demonstrates an edge can it open an
-on-chain **ERC-4626 vault** and accept investor capital. Every trade, fee, and withdrawal
-is indexed and visible in real time.
-
-> The name is literal: the protocol lives or dies by the Brier score.
+### Stack
+| Layer | Tech |
+|---|---|
+| **App** | Next.js 16 (App Router, Turbopack), TypeScript, Tailwind v4, Framer Motion |
+| **Data** | Prisma + PostgreSQL (Supabase in prod); shadow indexer mirrors on-chain events |
+| **Chain** | `BrierVault` (ERC-4626, upgradeable) + `BrierVaultFactory` (EIP-1167 clones) on Polygon |
+| **Executor** | Node/TS service: HMAC-signed signals → BullMQ/Redis → Polymarket CLOB; resolution watcher |
 
 ---
 
-## 2. How It Works
+## Features (built & tested)
 
-```
-┌─────────────┐   ┌──────────────┐   ┌────────────────┐   ┌──────────────┐   ┌────────────┐
-│ 1. CONNECT  │──▶│ 2. LIST BOT  │──▶│ 3. SHADOW /    │──▶│ 4. OPEN      │──▶│ 5. TRADE   │
-│   WALLET    │   │   (PAPER)    │   │   INCUBATION   │   │   VAULT      │   │  & SETTLE  │
-│ = identity  │   │  no capital  │   │  Brier < 0.20  │   │  ERC-4626    │   │ 60/30/10   │
-└─────────────┘   └──────────────┘   │  ≥50 trades    │   │  LPs deposit │   │  split     │
-                                      │  ≥7 days       │   │  USDC        │   └────────────┘
-                                      └────────────────┘   └──────────────┘
-```
-
-| Stage | What happens | Where in the code |
-|-------|--------------|-------------------|
-| **Connect** | Wallet address *is* your identity; a `User` row is created/updated. | `src/app/api/users` |
-| **List bot** | A `Bot` is registered in `PAPER` status, linked to the builder's wallet. | `src/app/api/bots/register` |
-| **Shadow** | The bot trades on paper. The engine measures Brier score, win rate, drawdown over time. | `src/lib/score-engine.ts`, `src/lib/incubation.ts` |
-| **Graduate** | When it passes (`≥50` resolved trades, Brier `< 0.20`, `≤25%` drawdown, `≥7` days) it becomes `VAULT_ELIGIBLE`. | `src/lib/incubation.ts` |
-| **Open vault** | An ERC-4626 vault is cloned (EIP-1167 minimal proxy). | `contracts/BrierVaultFactory.sol` |
-| **Invest** | LPs deposit USDC; each deposit is verified against the on-chain `Transfer` event. | `src/app/api/deposits` |
-| **Trade** | The off-chain executor receives HMAC-signed signals and calls `executeTrade` on the vault. | `brier-executor/` |
-| **Settle** | When a market resolves, profit is split **60% LP · 30% builder · 10% protocol**. | `BrierVault.settleMarket` |
+- **Wallet-native** auth (RainbowKit + wagmi + viem); MetaMask works out of the box
+- **Bot creation** with a permanent **eye signature** — 24 colors × 12 shapes (procedural canvas avatar)
+- **Real Brier scoring** from resolved trades — Brier, win rate, Sharpe, max drawdown, ROI, age, sample-size confidence
+- **Automatic tier promotion** (LIVE → Tier-1) → auto-deploys the bot's vault
+- **Social layer** — profiles, @handles, comments, hearts, follows, global search
+- **Live NAV** read on-chain when a vault exists
+- **Vault mechanics** — deposit / shares / redeem, skin-in-the-game buffer, 15% circuit breaker, 60/30/10 profit split
+- **Slippage protection** — Fill-And-Kill orders bounded by a worst-price limit
+- **UX** — terminal aesthetic, mobile menu, page/popup transitions, How-It-Works modal, strategy & docs pages, 404 / error / loading, SEO + favicon
 
 ---
 
-## 3. System Architecture
+## Pages
 
-Brier Protocol is **three cooperating systems**, not a monolith:
-
-```
-                ┌──────────────────────────────────────────────┐
-                │  FRONTEND + API  (Next.js 16, Vercel)         │
-                │  • Pages: discover, bot, vault, leaderboard…  │
-                │  • Route handlers: bots, deposits, social…    │
-                │  • Postgres (Supabase) via Prisma             │
-                └───────────────┬──────────────────────────────┘
-                                │ HMAC-signed signals
-                                ▼
-                ┌──────────────────────────────────────────────┐
-                │  EXECUTOR  (Fastify + BullMQ + Redis, Docker) │
-                │  • /api/v1/signals  → queue → on-chain trade  │
-                │  • Resolution watcher  → settleMarket         │
-                │  • Risk engine  → stop-loss / circuit breaker │
-                └───────────────┬──────────────────────────────┘
-                                │ ethers.js
-                                ▼
-                ┌──────────────────────────────────────────────┐
-                │  ON-CHAIN  (Polygon)                          │
-                │  • BrierVaultFactory  (EIP-1167 clones)       │
-                │  • BrierVault         (ERC-4626 per bot)      │
-                │  • Polymarket CTF / CLOB                       │
-                └──────────────────────────────────────────────┘
-```
+`/` landing · `/discover` · `/leaderboard` · `/dashboard` · `/list-bot` ·
+`/bot/[slug]` · `/maker/[address]` · `/vault` · `/how-it-works` · `/strategy` ·
+`/developers` · `/about` · `/faq` · `/terms` · `/privacy`
 
 ---
 
-## 4. The Money Flow
-
-This answers the most common question: *"Where is my money and when do I get it back?"*
-
-A vault holds capital in three buckets:
-
-```
-totalAssets()  =  idleCapital  +  activeLockedCapital  +  skinInGame
-                  └─ withdrawable   └─ in open trades      └─ builder's stake
-                     instantly         (locked until           (slashable)
-                                         the market resolves)
-```
-
-- **Deposit** → USDC enters `idleCapital`, LP receives ERC-4626 shares.
-- **Trade opens** → capital moves `idle → activeLocked`. That slice is *not* withdrawable
-  until the market resolves.
-- **Market resolves (`settleMarket`)**:
-  - If **profit**: `payout − cost` is split. The 30% builder fee and 10% protocol fee are
-    transferred out **instantly and automatically** to their wallets — there is no separate
-    "claim" button; settlement *is* the claim. The remaining 60% + principal returns to
-    `idleCapital`, raising every LP's share value.
-  - If **loss**: whatever came back returns to `idleCapital`.
-- **Withdraw (LP)** → any `idleCapital` can be redeemed **instantly** (no 48h lock). Capital
-  sitting in active trades must wait for those trades to resolve.
-- **Circuit breaker** → if drawdown > 15%, the builder's `skinInGame` is slashed into
-  `idleCapital` to cushion LPs, and the vault pauses.
-
-> **UI implication (planned):** the bot page should show the vault as a single balance with a
-> live PnL overlay — green `+$4,000 (+8.2%)` when in profit, red when down — plus a small
-> breakdown of idle vs. locked so an LP knows exactly how much they can pull *right now*.
-
----
-
-## 5. Smart Contracts
-
-| Contract | Purpose |
-|----------|---------|
-| **`BrierVault.sol`** | ERC-4626 vault (upgradeable). Holds USDC, executes/settles trades, distributes fees, enforces the 20%-per-trade limit, circuit breaker, and instant idle-capital withdrawals. |
-| **`BrierVaultFactory.sol`** | Deploys one vault per approved bot using **EIP-1167 minimal proxy clones** (cheap deploys). |
-
-Built on **OpenZeppelin v5.0.2** (`ERC4626Upgradeable`, `Ownable`, `Pausable`,
-`ReentrancyGuard`, `Initializable`). Compiled with Solidity `0.8.24` / `cancun`.
+## Quick start (local)
 
 ```bash
-npm run compile:contracts   # hardhat compile
-npm run test:contracts      # hardhat test
-```
-
----
-
-## 6. Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Frontend | Next.js 16 (App Router, Turbopack), React 19, Tailwind v4, Framer Motion, Recharts |
-| Web3 (client) | wagmi, viem, RainbowKit |
-| API | Next.js Route Handlers |
-| Database | PostgreSQL (Supabase) + Prisma ORM v5 |
-| Executor | Fastify, BullMQ, Redis, ethers v6 |
-| Contracts | Solidity 0.8.24, OpenZeppelin 5, Hardhat + Ignition |
-| Infra | Vercel (web), Docker / Railway (executor) |
-
----
-
-## 7. Repository Layout
-
-```
-brier-protocol/
-├── contracts/              # Solidity: BrierVault, BrierVaultFactory, mocks
-├── brier-executor/         # Off-chain trade engine (Fastify + BullMQ workers)
-│   └── src/                # server.ts, worker.ts, watcher.ts
-├── prisma/
-│   ├── schema.prisma       # Data model (Bot, VaultDeposit, User, Follow, Heart…)
-│   └── seed.ts
-├── scripts/                # Deploy scripts (Amoy, Polygon, local)
-├── src/
-│   ├── app/
-│   │   ├── api/            # Route handlers (bots, deposits, search, social, cron…)
-│   │   ├── bot/[slug]/     # Public bot page
-│   │   ├── vault/[botId]/  # Vault detail
-│   │   ├── dashboard/      # Investor dashboard
-│   │   ├── discover/       # Bot discovery + filters
-│   │   ├── leaderboard/    # Brier-score ranking
-│   │   ├── list-bot/       # Builder onboarding
-│   │   └── maker/[address]/# Builder profile
-│   ├── components/         # BotCard, MiniChart, Navbar, WalletConnect…
-│   └── lib/                # prisma, wagmi, score-engine, incubation, indexer…
-├── hardhat.config.js
-└── ROADMAP.md
-```
-
----
-
-## 8. Local Development
-
-**Prerequisites:** Node.js 20 LTS (Hardhat does not officially support Node 25),
-a PostgreSQL database (or a free Supabase project), and optionally Redis for the executor.
-
-```bash
-# 1. Install dependencies (legacy-peer-deps is set in .npmrc)
+# 1. Install
 npm install
 
-# 2. Configure environment
-cp .env.example .env.local   # then fill in the values (see below)
+# 2. Database (Postgres) — set DATABASE_URL & DIRECT_URL in .env.local
+npm run db:push
+npm run db:seed        # 3 demo bots
 
-# 3. Sync the database schema
-npx prisma db push
-
-# 4. (optional) Seed demo data
-npm run db:seed
-
-# 5. Run the web app
-npm run dev                  # http://localhost:3000
+# 3. Run
+npm run dev            # http://localhost:3000
 ```
 
-To run the trade executor (separate service):
-
+### Tests
 ```bash
-cd brier-executor
-npm install
-npm run dev                  # Fastify on :3001 (needs Redis)
+npm run test:scoring    # Brier scoring engine — 11/11 PASS
+npm run test:contracts  # Hardhat suite — 21/21 PASS (split, capacity, circuit breaker, admin)
+```
+
+### Smart contracts
+```bash
+npm run deploy:hardhat  # local dry-run (impl + factory)
+npm run deploy:amoy     # Polygon Amoy testnet (needs a funded PRIVATE_KEY)
 ```
 
 ---
 
-## 9. Environment Variables
+## Economics
 
-| Variable | Used by | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | Prisma | Pooled Postgres connection string |
-| `DIRECT_URL` | Prisma | Direct Postgres connection (migrations) |
-| `NEXT_PUBLIC_DEPOSIT_RPC_URL` | Deposits API | RPC for the chain vaults live on (Polygon Amoy by default) |
-| `NEXT_PUBLIC_USDC_ADDRESS` | Deposits API | USDC contract address — **set this** to reject fake-token deposits |
-| `CRON_SECRET` | Cron jobs | Bearer token protecting `/api/cron/*` |
-| `BUILDER_SECRET_KEY` | Executor | HMAC secret for signed trade signals |
-| `EXECUTOR_PRIVATE_KEY` | Executor | Wallet key that signs on-chain vault calls |
-| `REDIS_HOST` / `REDIS_PORT` | Executor | Redis connection for BullMQ |
+On profit only — **no management fee, nothing on losses**:
 
----
+| Recipient | Share |
+|---|---|
+| Builder | **30%** |
+| Protocol | **10%** |
+| Depositors (NAV growth) | **60%** |
 
-## 10. Deployment
-
-- **Web + API** → Vercel (`vercel.json` included). CI runs `npm install` (note `.npmrc`) then `next build`.
-- **Executor** → Docker / Railway (`brier-executor/Dockerfile`, `railway.toml`).
-- **Contracts** → `npx hardhat run scripts/deploy-amoy.ts --network polygonAmoy` (testnet)
-  or `scripts/deploy-polygon.ts` (mainnet).
-
-> **Network note:** development targets **Polygon Amoy** (testnet); production targets
-> **Polygon mainnet**, where Polymarket actually lives. The protocol does **not** use Arbitrum.
+The builder's skin-in-the-game is slashed first on drawdown; a 15% drawdown trips
+the circuit breaker (slash + pause).
 
 ---
 
-## 11. Security Model
+## Environment variables
 
-- **Deposit anti-replay** — every deposit stores a unique `txHash`; duplicates are rejected.
-- **Token spoofing** — deposits are only credited if the `Transfer` originates from the
-  configured USDC contract.
-- **Sender verification** — the declared depositor must match the on-chain sender.
-- **Signed signals** — the executor validates HMAC + timestamp (5-min replay window) + IP allowlist + rate limit.
-- **Reentrancy** — all value-moving vault functions are `nonReentrant` and follow checks-effects-interactions.
-- **Circuit breaker** — builder stake is slashed and the vault pauses on excessive drawdown.
-
-See [`ROADMAP.md`](ROADMAP.md) for known technical debt
-(e.g. `skinInGame` accounting must be reviewed before mainnet).
+See `.env.example`. Core: `DATABASE_URL`, `DIRECT_URL`, `ENCRYPTION_SECRET`,
+`CRON_SECRET`, `NEXT_PUBLIC_WC_PROJECT_ID`, `NEXT_PUBLIC_USDC_ADDRESS`,
+`VAULT_FACTORY_ADDRESS`, `EXECUTOR_PRIVATE_KEY`.
 
 ---
 
-## 12. Business Model
+## Status
 
-Revenue is the **10% protocol fee** taken on profit at settlement — the protocol only earns
-when builders and LPs earn, which aligns every incentive.
+**Code-complete and tested.** The platform — social, scoring, indexer, resolution,
+CLOB execution, vault auto-creation, NAV reads — is built; scoring 11/11 and
+contracts 21/21 pass. To go live:
 
-```
-Profit on a trade  ──▶  60% Liquidity Providers
-                        30% Builder (the algorithm's creator)
-                        10% Protocol  ◀── this is the business
-```
+- **Showcase (free):** Supabase + Vercel — `GO_LIVE.md` Phase 0
+- **Vault mechanics (free):** Polygon Amoy — `DEPLOY_AMOY.md`
+- **Real money:** mainnet deploy + **audit** before external deposits
 
-Secondary value: the **Brier-score leaderboard** becomes a credibly-neutral reputation
-ledger for forecasters — a moat that compounds as more verified track records accumulate.
+Runbooks: [`GO_LIVE.md`](./GO_LIVE.md) · [`DEPLOY_AMOY.md`](./DEPLOY_AMOY.md)
 
 ---
 
-## 13. Roadmap
+## Disclaimer
 
-See [`ROADMAP.md`](ROADMAP.md) for the full plan. Highlights:
-
-- **Now:** core logic fixes (search, social, deposit security, incubation rules).
-- **Next:** withdraw/claim endpoints, investor explainer UX, live PnL overlay.
-- **Then:** real Polymarket CLOB integration (5m/15m crypto up-down), real resolution oracle.
-- **Later:** real-time (WebSocket) dashboards, daily score snapshots.
-
----
-
-## 14. License
-
-MIT © Brier Protocol contributors.
+Prediction markets and algorithmic strategies carry risk of total loss. Contracts
+are **unaudited** — do not deposit real funds before an audit. `/terms` and
+`/privacy` are templates pending legal review. Not financial advice.
