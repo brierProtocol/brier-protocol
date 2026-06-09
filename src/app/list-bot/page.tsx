@@ -10,7 +10,7 @@ import type { EyeShapeId } from '@/lib/botIdentity'
 
 export default function ListBotPage() {
   const [step, setStep] = useState(1)
-  const [formData, setFormData] = useState({ name: '', repo: '', description: '', market: 'Polymarket', color: EYE_PALETTE[0] as string, eyeShape: 'round' as EyeShapeId })
+  const [formData, setFormData] = useState({ name: '', repo: '', description: '', market: 'Polymarket', color: EYE_PALETTE[0] as string, eyeShape: 'round' as EyeShapeId, ticker: '' })
   const [verifying, setVerifying] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [secretKey, setSecretKey] = useState('')
@@ -63,12 +63,20 @@ export default function ListBotPage() {
         
         const result = await res.json()
         if (!res.ok) throw new Error(result.error || 'Registration failed. Please try again.')
-        
+
+        // Auto-launch the bot's conviction token (bonding curve)
+        try {
+          await fetch('/api/tokens', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ botId: result.botId, slug: result.slug, ticker: formData.ticker || undefined }),
+          })
+        } catch { /* non-fatal — owner can launch later from the bot page */ }
+
         const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
         let sk = 'sk_live_'
         for (let i = 0; i < 32; i++) sk += chars[Math.floor(Math.random() * chars.length)]
         setSecretKey(sk)
-        
+
         setStep(3)
       } catch (err: any) {
         setErrorMsg(err?.message || 'An error occurred.')
@@ -171,6 +179,21 @@ export default function ListBotPage() {
                   style={{ ...inputStyle, minHeight: '120px', resize: 'vertical' }}
                   className="focus:border-primary focus:shadow-[0_0_10px_rgba(255,42,77,0.15)] placeholder-[#331015]"
                 />
+              </div>
+
+              {/* TOKEN TICKER — launchpad */}
+              <div className="mb-8">
+                <div className="text-muted text-[11px] mb-1 tracking-widest">TOKEN_TICKER</div>
+                <div className="text-[10px] text-[#555] mb-3 font-mono">Your bot launches a conviction token on deploy. Pick its ticker (or leave blank to auto-derive).</div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[#c8ff00] text-lg">$</span>
+                  <input
+                    value={formData.ticker}
+                    onChange={e => setFormData({ ...formData, ticker: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) })}
+                    placeholder="ADAN"
+                    className="w-40 bg-[#050505] border border-[#331015] text-[#c8ff00] font-mono text-sm px-3 py-2 outline-none focus:border-[#c8ff00]/50 uppercase tracking-widest"
+                  />
+                </div>
               </div>
 
               {/* EYE SIGNATURE — chosen once at creation */}

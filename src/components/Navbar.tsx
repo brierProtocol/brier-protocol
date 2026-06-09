@@ -241,6 +241,7 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const navLinks = [
+    { href: '/launchpad',    label: 'LAUNCHPAD'    },
     { href: '/leaderboard',  label: 'LEADERBOARD'  },
     { href: '/discover',     label: 'DISCOVER'     },
     { href: '/list-bot',     label: 'DEPLOY_BOT'   },

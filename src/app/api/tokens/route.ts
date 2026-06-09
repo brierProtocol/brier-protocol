@@ -1,0 +1,73 @@
+import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { currentPrice, marketCap, bondingProgress } from '@/lib/bondingCurve'
+
+// GET /api/tokens — all launchpad tokens (for the board)
+export async function GET() {
+  try {
+    const tokens = await prisma.botToken.findMany({
+      include: {
+        bot: { select: { slug: true, name: true, color: true, eyeShape: true, status: true, walletAddress: true, scores: { where: { isLatest: true }, take: 1 } } },
+        _count: { select: { trades: true } },
+      },
+      orderBy: { reserve: 'desc' },
+    })
+
+    const shaped = tokens.map(t => {
+      const s = { supply: t.supply, basePrice: t.basePrice, slope: t.slope, graduationMcap: t.graduationMcap }
+      return {
+        botId: t.botId,
+        slug: t.bot.slug,
+        botName: t.bot.name,
+        color: t.bot.color,
+        eyeShape: t.bot.eyeShape,
+        botStatus: t.bot.status,
+        ticker: t.ticker,
+        name: t.name,
+        status: t.status,
+        price: currentPrice(s),
+        marketCap: marketCap(s),
+        progress: bondingProgress(s),
+        supply: t.supply,
+        holders: t.holdersCount,
+        trades: t._count.trades,
+        brier: t.bot.scores[0]?.brierScore ?? null,
+        createdAt: t.createdAt,
+      }
+    })
+
+    return NextResponse.json(shaped)
+  } catch (e: any) {
+    console.error('[tokens] list error', e)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+// POST /api/tokens — create a bot's token (idempotent per bot)
+export async function POST(req: Request) {
+  try {
+    const { botId, slug, ticker, name } = await req.json()
+
+    const bot = await prisma.bot.findFirst({
+      where: { OR: [{ id: botId || '' }, { slug: slug || '' }] },
+      include: { token: true },
+    })
+    if (!bot) return NextResponse.json({ error: 'Bot not found' }, { status: 404 })
+    if (bot.token) return NextResponse.json({ error: 'Token already exists', token: bot.token }, { status: 409 })
+
+    const cleanTicker = String(ticker || bot.name).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'BOT'
+
+    const token = await prisma.botToken.create({
+      data: {
+        botId: bot.id,
+        ticker: cleanTicker,
+        name: name || bot.name,
+      },
+    })
+
+    return NextResponse.json({ ok: true, token })
+  } catch (e: any) {
+    console.error('[tokens] create error', e)
+    return NextResponse.json({ error: e?.message || 'Internal server error' }, { status: 500 })
+  }
+}

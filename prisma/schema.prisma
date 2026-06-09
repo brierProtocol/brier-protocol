@@ -53,10 +53,69 @@ model Bot {
   kalshiConnection KalshiConnection?
   comments        Comment[]
   hearts          Heart[]
+  token           BotToken?
 
   @@index([walletAddress])
   @@index([status])       // FIX-5: leaderboard filters by status constantly
   @@index([tier])         // FIX-5: tier filtering
+}
+
+// ─────────────────────────────────────────────────────────────
+// LAUNCHPAD — each bot has a tokenized "conviction market".
+// During shadow it trades on a virtual bonding curve; on Tier-1 it graduates.
+// ─────────────────────────────────────────────────────────────
+model BotToken {
+  id            String   @id @default(cuid())
+  botId         String   @unique
+  bot           Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  ticker        String                         // e.g. ADAN
+  name          String                         // display name
+
+  // Virtual bonding-curve state (off-chain MVP; on-chain Polygon later)
+  supply        Float    @default(0)           // shares minted
+  reserve       Float    @default(0)           // virtual USDC collected
+  basePrice     Float    @default(0.0001)      // P0 of the curve
+  slope         Float    @default(0.000000005) // curve steepness (price per share)
+  graduationMcap Float   @default(10000)       // market cap that triggers graduation
+
+  status        String   @default("BONDING")   // BONDING | GRADUATED
+  holdersCount  Int      @default(0)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  trades        TokenTrade[]
+  holdings      TokenHolding[]
+
+  @@index([status])
+}
+
+model TokenTrade {
+  id         String   @id @default(cuid())
+  tokenId    String
+  token      BotToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  wallet     String
+  side       String                         // BUY | SELL
+  usdc       Float                          // virtual USDC in/out
+  shares     Float                          // shares minted/burned
+  priceAfter Float                          // curve price after the trade
+  createdAt  DateTime @default(now())
+
+  @@index([tokenId, createdAt])
+  @@index([wallet])
+}
+
+model TokenHolding {
+  id        String   @id @default(cuid())
+  tokenId   String
+  token     BotToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  wallet    String
+  shares    Float    @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([tokenId, wallet])
 }
 
 model BotMarket {

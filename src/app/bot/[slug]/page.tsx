@@ -6,6 +6,7 @@ import { getBotById } from '@/data/bots'
 import { notFound } from 'next/navigation'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
 import { botEye, makerEye } from '@/lib/botIdentity'
+import TokenPanel from '@/components/TokenPanel'
 import { computeQuantitativeMood } from '@/lib/mood-engine'
 import { useAccount } from 'wagmi'
 import { ethers } from 'ethers'
@@ -652,6 +653,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 
                 {/* PnL Chart */}
                 <PnlChart data={bot.pnlHistory} entryValue={bot.pnlHistory?.[0]} />
+
+                {/* CONVICTION TOKEN — launchpad bonding curve */}
+                <TokenPanel slug={slug} isOwner={!!isOwner} botColor={bot.color || '#ff2a4d'} />
 
                 {bot.status === 'PAPER' ? (
                   <div className="bg-[#0a0a0a] border border-[#1a1a1a] border-dashed p-4 text-center">
