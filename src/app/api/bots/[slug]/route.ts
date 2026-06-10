@@ -39,7 +39,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     // Live on-chain NAV when the bot has a deployed vault (null otherwise).
     const liveNav = await readVaultNav(bot.vaultAddress);
 
-    return NextResponse.json({ ...bot, liveNav });
+    // Maker profile (no Prisma relation between Bot.walletAddress and User)
+    const user = bot.walletAddress
+      ? await prisma.user.findUnique({ where: { walletAddress: bot.walletAddress.toLowerCase() } })
+      : null;
+
+    return NextResponse.json({
+      ...bot,
+      liveNav,
+      user: user ? { handle: user.handle, name: user.name, pfpUrl: user.pfpUrl } : null
+    });
   } catch (error) {
     console.error('Error fetching bot:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

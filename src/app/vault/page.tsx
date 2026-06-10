@@ -46,7 +46,7 @@ export default function VaultPage() {
             {[
               { label: 'TARGET_BOT',   value: 'SIGMA-7',          color: 'text-primary' },
               { label: 'CONTRACT',     value: '0x42f...e981',     color: 'text-white' },
-              { label: 'NETWORK',      value: 'POLYGON',          color: 'text-[#C8FF00]' },
+              { label: 'SETTLEMENT',   value: 'USDC',             color: 'text-[#C8FF00]' },
               { label: 'GLOBAL_TVL',   value: '$1.4M USDC',       color: 'text-white' },
               { label: 'YOUR_BALANCE', value: '$50,000',          color: 'text-[#C8FF00]' },
               { label: 'UNREAL_PNL',   value: '+$7,440 (+14.9%)', color: 'text-[#C8FF00]' },

@@ -78,7 +78,8 @@ export default function TokenPanel({ slug, isOwner, botColor = '#ff2a4d' }: { sl
     })
     const d = await res.json()
     if (res.ok) {
-      setMsg(d.graduated ? '🎓 GRADUATED → vault unlocked!' : `${side} ✓  ${side === 'BUY' ? d.shares.toFixed(0) + ' shares' : fmtUsd(d.usdc)}`)
+      const fmtTok = (n: number) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : n.toFixed(0)
+      setMsg(d.graduated ? 'GRADUATED → vault unlocked!' : `${side} ✓  ${side === 'BUY' ? fmtTok(d.shares) + ' tokens' : fmtUsd(d.usdc)}`)
       setAmount(''); await load()
     } else setMsg(d.error || 'Trade failed')
     setBusy(false)
@@ -100,7 +101,7 @@ export default function TokenPanel({ slug, isOwner, botColor = '#ff2a4d' }: { sl
               placeholder="TICKER" className="w-28 bg-[#030303] border border-[#1a1a1a] text-white font-mono text-xs px-3 py-2 outline-none focus:border-[#333] uppercase" />
             <button onClick={launch} disabled={busy}
               className="font-mono text-xs font-bold px-4 py-2 bg-[#c8ff00] text-[#030303] disabled:opacity-50 hover:shadow-[0_0_15px_rgba(200,255,0,0.4)] transition-all">
-              {busy ? 'LAUNCHING…' : '🚀 LAUNCH_TOKEN'}
+              {busy ? 'LAUNCHING…' : 'LAUNCH_TOKEN'}
             </button>
           </div>
         ) : (
@@ -138,7 +139,7 @@ export default function TokenPanel({ slug, isOwner, botColor = '#ff2a4d' }: { sl
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-px bg-[#1a1a1a] border-y border-[#1a1a1a]">
-        {[['MCAP', fmtUsd(tok.marketCap)], ['HOLDERS', String(tok.holders)], ['SUPPLY', tok.supply >= 1000 ? `${(tok.supply / 1000).toFixed(1)}K` : tok.supply.toFixed(0)]].map(([l, v]) => (
+        {[['MCAP', fmtUsd(tok.marketCap)], ['HOLDERS', String(tok.holders)], ['CURVE_SOLD', `${((tok.supply / (tok.totalSupply || 1_000_000_000)) * 100).toFixed(1)}%`]].map(([l, v]) => (
           <div key={l} className="bg-[#0a0a0a] p-2.5">
             <div className="text-[8px] font-mono text-[#555] tracking-widest">{l}</div>
             <div className="text-xs font-mono font-bold text-white">{v}</div>
@@ -166,7 +167,7 @@ export default function TokenPanel({ slug, isOwner, botColor = '#ff2a4d' }: { sl
             <button onClick={() => setSide('SELL')} className={`flex-1 py-2 font-mono text-xs font-bold border transition-all ${side === 'SELL' ? 'bg-[#ff3b3b]/10 text-[#ff3b3b] border-[#ff3b3b]/40' : 'bg-transparent text-[#444] border-[#1a1a1a] hover:text-white'}`}>SELL</button>
           </div>
           <div className="flex gap-2">
-            <input value={amount} onChange={e => setAmount(e.target.value)} type="number" placeholder={side === 'BUY' ? 'USDC amount' : 'shares'}
+            <input value={amount} onChange={e => setAmount(e.target.value)} type="number" placeholder={side === 'BUY' ? 'USDC amount' : 'tokens'}
               className="flex-1 bg-[#030303] border border-[#1a1a1a] text-white font-mono text-xs px-3 py-2 outline-none focus:border-[#333] placeholder:text-[#333]" />
             <button onClick={trade} disabled={busy || !amount}
               className="font-mono text-xs font-bold px-5 py-2 disabled:opacity-40 transition-all"
@@ -179,7 +180,7 @@ export default function TokenPanel({ slug, isOwner, botColor = '#ff2a4d' }: { sl
         </div>
       ) : (
         <div className="p-4 text-center">
-          <div className="text-[#FFD700] font-mono text-xs font-bold mb-1">🎓 GRADUATED</div>
+          <div className="text-[#FFD700] font-mono text-xs font-bold mb-1">GRADUATED</div>
           <div className="text-[10px] text-[#888] font-mono">Bonding complete — capital seeded the vault. Trade the token on the open market.</div>
         </div>
       )}

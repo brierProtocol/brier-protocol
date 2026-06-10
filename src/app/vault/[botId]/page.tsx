@@ -356,10 +356,10 @@ export default function VaultPage() {
               
               <div className="space-y-4">
                 <div className="p-4 rounded-2xl bg-black/40 border border-white/5">
-                  <div className="text-[10px] font-bold opacity-30 tracking-widest uppercase mb-2">Network Selection</div>
+                  <div className="text-[10px] font-bold opacity-30 tracking-widest uppercase mb-2">Settlement Asset</div>
                   <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-[#8247E5]" />
-                    <span className="font-mono text-sm font-bold">Polygon Mainnet</span>
+                    <div className="w-5 h-5 rounded-full bg-[#2775CA]" />
+                    <span className="font-mono text-sm font-bold">USDC</span>
                   </div>
                 </div>
 

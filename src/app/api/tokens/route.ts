@@ -7,21 +7,31 @@ export async function GET() {
   try {
     const tokens = await prisma.botToken.findMany({
       include: {
-        bot: { select: { slug: true, name: true, color: true, eyeShape: true, status: true, walletAddress: true, scores: { where: { isLatest: true }, take: 1 } } },
+        bot: { select: { slug: true, name: true, color: true, eyeShape: true, status: true, walletAddress: true, pfpUrl: true, scores: { where: { isLatest: true }, take: 1 } } },
         _count: { select: { trades: true } },
       },
       orderBy: { reserve: 'desc' },
     })
 
+    // Maker handles (Bot.walletAddress has no Prisma relation to User)
+    const wallets = [...new Set(tokens.map(t => t.bot.walletAddress?.toLowerCase()).filter(Boolean))] as string[]
+    const users = await prisma.user.findMany({ where: { walletAddress: { in: wallets } } })
+    const byWallet = new Map(users.map(u => [u.walletAddress.toLowerCase(), u]))
+
     const shaped = tokens.map(t => {
       const s = { supply: t.supply, basePrice: t.basePrice, slope: t.slope, graduationMcap: t.graduationMcap }
+      const maker = byWallet.get(t.bot.walletAddress?.toLowerCase() || '')
       return {
         botId: t.botId,
         slug: t.bot.slug,
         botName: t.bot.name,
         color: t.bot.color,
         eyeShape: t.bot.eyeShape,
+        pfpUrl: t.bot.pfpUrl,
         botStatus: t.bot.status,
+        makerWallet: t.bot.walletAddress,
+        makerHandle: maker?.handle || null,
+        makerName: maker?.name || null,
         ticker: t.ticker,
         name: t.name,
         status: t.status,
@@ -32,6 +42,7 @@ export async function GET() {
         holders: t.holdersCount,
         trades: t._count.trades,
         brier: t.bot.scores[0]?.brierScore ?? null,
+        resolvedTrades: t.bot.scores[0]?.totalTrades ?? 0,
         createdAt: t.createdAt,
       }
     })

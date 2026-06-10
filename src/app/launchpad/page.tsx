@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
@@ -15,6 +16,7 @@ function fmtUsd(n: number): string {
 }
 
 export default function LaunchpadPage() {
+  const router = useRouter()
   const [tokens, setTokens] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [sort, setSort] = useState<'mcap' | 'new' | 'progress'>('mcap')
@@ -35,11 +37,11 @@ export default function LaunchpadPage() {
         {/* Header */}
         <div className="flex justify-between items-end border-b border-[#1a1a1a] pb-6 mb-8 flex-wrap gap-4">
           <div>
-            <h1 className="font-mono text-3xl font-bold tracking-tight mb-1">LAUNCHPAD</h1>
-            <p className="text-sm text-[#888] font-sans">Back AI trading agents during their shadow phase. Every token has a Brier Score — speculation with fundamentals.</p>
+            <h1 className="font-mono text-3xl font-bold tracking-tight mb-1">SHADOW_MARKET</h1>
+            <p className="text-sm text-[#888] font-sans">Tokenize agents from day zero. Back them in the shadows, before the math proves them — every token wears its Brier Score.</p>
           </div>
           <Link href="/list-bot" className="font-mono text-xs font-bold px-5 py-2.5 bg-[#c8ff00] text-[#030303] no-underline hover:shadow-[0_0_15px_rgba(200,255,0,0.4)] transition-all">
-            🚀 LAUNCH_A_BOT
+            LAUNCH_A_BOT →
           </Link>
         </div>
 
@@ -57,7 +59,7 @@ export default function LaunchpadPage() {
         ) : sorted.length === 0 ? (
           <div className="text-center p-16 border border-dashed border-[#1a1a1a] bg-[#080808]">
             <div className="text-[#555] font-mono text-sm mb-4">&gt; NO_TOKENS_YET — be the first to launch</div>
-            <Link href="/list-bot" className="font-mono text-xs font-bold px-5 py-2.5 bg-[#c8ff00] text-[#030303] no-underline">🚀 LAUNCH_A_BOT</Link>
+            <Link href="/list-bot" className="font-mono text-xs font-bold px-5 py-2.5 bg-[#c8ff00] text-[#030303] no-underline">LAUNCH_A_BOT →</Link>
           </div>
         ) : (
           <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
@@ -71,13 +73,28 @@ export default function LaunchpadPage() {
                     <div className="absolute top-0 left-0 w-3 h-3 border-t border-l transition-colors" style={{ borderColor: grad + '66' }} />
                     {/* top */}
                     <div className="flex items-center gap-3 p-4 border-b border-[#111]">
-                      <BotIrisAvatar {...botEye({ slug: t.slug, name: t.botName, color: t.color, eyeShape: t.eyeShape })} size={44} />
+                      {t.pfpUrl ? (
+                        <img src={t.pfpUrl} alt={t.botName} className="w-11 h-11 object-cover border border-[#1a1a1a]" />
+                      ) : (
+                        <BotIrisAvatar {...botEye({ slug: t.slug, name: t.botName, color: t.color, eyeShape: t.eyeShape })} size={44} />
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-sm font-bold text-white">${t.ticker}</span>
                           <span className="text-[8px] font-mono px-1.5 py-0.5" style={{ color: grad, background: grad + '14', border: `0.5px solid ${grad}44` }}>{graduated ? 'GRAD' : 'BOND'}</span>
                         </div>
                         <div className="text-[11px] font-sans text-[#888] truncate group-hover:text-primary transition-colors">{t.botName}</div>
+                        {t.makerWallet && (
+                          <span
+                            role="link"
+                            tabIndex={0}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/maker/${t.makerWallet}`) }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); router.push(`/maker/${t.makerWallet}`) } }}
+                            className="text-[9px] font-mono text-[#444] hover:text-[#c8ff00] transition-colors cursor-pointer truncate block w-fit"
+                          >
+                            by {t.makerHandle ? `@${t.makerHandle}` : (t.makerName || `${t.makerWallet.substring(0, 6)}…`)}
+                          </span>
+                        )}
                       </div>
                       <div className="text-right">
                         <div className="font-mono text-sm font-bold text-white">{fmtUsd(t.price)}</div>
@@ -94,7 +111,11 @@ export default function LaunchpadPage() {
                         <div className="h-full" style={{ width: `${t.progress * 100}%`, background: grad }} />
                       </div>
                       <div className="flex justify-between mt-3 text-[10px] font-mono">
-                        <span className="text-[#555]">BRIER <span className={t.brier != null && t.brier <= 0.25 ? 'text-[#c8ff00]' : 'text-white'}>{t.brier != null ? t.brier.toFixed(3) : '—'}</span></span>
+                        {t.brier != null ? (
+                          <span className="text-[#555]">BRIER <span className={t.brier <= 0.25 ? 'text-[#c8ff00]' : 'text-white'}>{t.brier.toFixed(3)}</span></span>
+                        ) : (
+                          <span className="text-[#ffb000] animate-pulse" title="Shadow phase: collecting resolved trades">AWAITING_DATA{t.resolvedTrades > 0 ? ` (${t.resolvedTrades})` : ''}</span>
+                        )}
                         <span className="text-[#c8ff00] group-hover:underline">BACK →</span>
                       </div>
                     </div>

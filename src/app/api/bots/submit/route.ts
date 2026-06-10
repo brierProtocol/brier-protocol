@@ -70,7 +70,13 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    return NextResponse.json({ ok: true, botId: bot.id, slug: bot.slug })
+    // Shadow launch: the conviction token goes live the moment the bot deploys
+    const ticker = data.name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'BOT'
+    await prisma.botToken.create({
+      data: { botId: bot.id, ticker, name: data.name }
+    }).catch(() => { /* token is best-effort; the bot itself is already registered */ })
+
+    return NextResponse.json({ ok: true, botId: bot.id, slug: bot.slug, ticker })
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ errors: err.flatten() }, { status: 400 })

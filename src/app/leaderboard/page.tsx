@@ -12,11 +12,6 @@ const RANK_STYLES = [
   { badge: '#CD7F32', glow: 'rgba(205,127,50,0.12)', label: 'BRONZE', border: 'rgba(205,127,50,0.18)' },
 ]
 
-function fakeDelta(brier: number, i: number): number {
-  const seed = Math.sin(i * 7.3 + brier * 100) * 1000
-  return parseFloat((seed % 3).toFixed(2))
-}
-
 export default function LeaderboardPage() {
   const [botsData, setBotsData] = useState<any[]>([])
   const [loading, setLoading]   = useState(true)
@@ -61,7 +56,7 @@ export default function LeaderboardPage() {
         {/* INFO BAR */}
         <div className="info-banner mb-8">
           <span className="text-primary font-mono text-xs">[INFO]</span>
-          Ranked strictly by <span className="text-white mx-1 font-semibold">Brier Score</span> — lower is superior. All metrics verified on-chain via Polygon. Scores cannot be forged.
+          Ranked strictly by <span className="text-white mx-1 font-semibold">Brier Score</span> — lower is superior. Every score is derived from resolved trades. Scores cannot be forged.
         </div>
 
         {/* TOP 3 PODIUM */}
@@ -147,7 +142,7 @@ export default function LeaderboardPage() {
                 <th className="p-4 font-medium tracking-widest">BRIER</th>
                 <th className="p-4 font-medium tracking-widest">WIN_%</th>
                 <th className="p-4 font-medium tracking-widest">SHARPE</th>
-                <th className="p-4 font-medium tracking-widest">DELTA_24H</th>
+                <th className="p-4 font-medium tracking-widest">TRADES</th>
                 <th className="p-4 font-medium tracking-widest text-right">TVL</th>
               </tr>
             </thead>
@@ -175,8 +170,7 @@ export default function LeaderboardPage() {
                 const rankColor = isTop3 ? RANK_STYLES[i].badge : '#333'
                 const tier    = brier <= 0.15 ? 'ELITE' : brier <= 0.25 ? 'STRONG' : brier <= 0.4 ? 'MOD' : 'WEAK'
                 const tierColor = brier <= 0.15 ? '#00d4aa' : brier <= 0.25 ? '#C8FF00' : '#555'
-                const delta   = fakeDelta(brier, i)
-                const deltaUp = delta > 0
+                const nTrades = bot.scores?.[0]?.totalTrades ?? 0
 
                 return (
                   <tr
@@ -207,8 +201,9 @@ export default function LeaderboardPage() {
                     </td>
                     <td className="p-3 px-4 text-white font-bold font-mono">{(wr * 100).toFixed(1)}%</td>
                     <td className="p-3 px-4 text-white font-bold font-mono">{sharpe.toFixed(2)}</td>
-                    <td className="p-3 px-4 font-mono font-bold" style={{ color: deltaUp ? 'var(--positive)' : 'var(--negative)' }}>
-                      {deltaUp ? '↑' : '↓'} {Math.abs(delta).toFixed(2)}
+                    <td className="p-3 px-4 font-mono text-[#888]">
+                      {nTrades > 0 ? nTrades.toLocaleString() : '—'}
+                      {nTrades > 0 && nTrades < 50 && <span className="ml-1.5 text-[8px] text-[#C9A84C]">LOW_N</span>}
                     </td>
                     <td className="p-3 px-4 text-right text-white font-bold font-mono">
                       {tvl > 0 ? `$${tvl.toLocaleString()}` : '—'}
@@ -224,7 +219,7 @@ export default function LeaderboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {[
             { icon: '/>', title: 'MATH_ENFORCEMENT',  desc: 'Rankings derived from Brier Score — the gold standard in forecasting.' },
-            { icon: '{}', title: 'ONCHAIN_SETTLEMENT', desc: 'Every trade verified via Polygon. Immutable and tamper-proof.' },
+            { icon: '{}', title: 'VERIFIED_FILLS',     desc: 'Every score traces back to resolved market outcomes. No self-reporting.' },
             { icon: '[]', title: 'ZERO_TRUST',         desc: 'HMAC-SHA256 signed signals. Resolution state cannot be altered.' },
           ].map((item, i) => (
             <div key={i} className="bg-[#080808] border border-[#1a1a1a] p-4 relative group hover:border-[#2a2a2a] transition-colors">

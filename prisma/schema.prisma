@@ -72,12 +72,13 @@ model BotToken {
   ticker        String                         // e.g. ADAN
   name          String                         // display name
 
-  // Virtual bonding-curve state (off-chain MVP; on-chain Polygon later)
-  supply        Float    @default(0)           // shares minted
-  reserve       Float    @default(0)           // virtual USDC collected
-  basePrice     Float    @default(0.0001)      // P0 of the curve
-  slope         Float    @default(0.000000005) // curve steepness (price per share)
-  graduationMcap Float   @default(10000)       // market cap that triggers graduation
+  // Virtual bonding-curve state (off-chain MVP; on-chain later)
+  // Pump.fun-style: fixed 1B total supply, constant-product virtual reserves
+  supply        Float    @default(0)           // tokens SOLD from the curve
+  reserve       Float    @default(0)           // real virtual-USDC collected
+  basePrice     Float    @default(0.0001)      // LEGACY (old linear curve) — unused
+  slope         Float    @default(0.000000005) // LEGACY (old linear curve) — unused
+  graduationMcap Float   @default(50000)       // mcap that triggers graduation → vault
 
   status        String   @default("BONDING")   // BONDING | GRADUATED
   holdersCount  Int      @default(0)

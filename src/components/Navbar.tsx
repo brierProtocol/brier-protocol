@@ -241,7 +241,7 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const navLinks = [
-    { href: '/launchpad',    label: 'LAUNCHPAD'    },
+    { href: '/launchpad',    label: 'SHADOW_MARKET' },
     { href: '/leaderboard',  label: 'LEADERBOARD'  },
     { href: '/discover',     label: 'DISCOVER'     },
     { href: '/list-bot',     label: 'DEPLOY_BOT'   },
@@ -250,15 +250,11 @@ export default function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 bg-[rgba(3,3,3,0.95)] backdrop-blur-md border-b border-[#1a1a1a] h-14 flex items-center px-6">
-      <Link href="/" className="font-mono text-sm font-bold text-primary no-underline mr-8 flex items-center relative group">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[60px] bg-[radial-gradient(ellipse_at_center,rgba(255,42,77,0.15)_0%,transparent_70%)] blur-md pointer-events-none -z-10 transition-opacity opacity-50 group-hover:opacity-100" />
-        <pre className="whitespace-pre text-[5px] leading-[6px] font-bold drop-shadow-[0_0_5px_rgba(255,42,77,0.4)] transition-all group-hover:drop-shadow-[0_0_15px_rgba(255,42,77,0.8)] m-0">
-{`    ____       _           
-   / __ )_____(_)__  _____ 
-  / __  / ___/ / _ \\/ ___/ 
- / /_/ / /  / /  __/ /     
-/_____/_/  /_/\\___/_/      `}
-        </pre>
+      <Link href="/" className="no-underline mr-8 flex items-baseline gap-2 group">
+        <span className="font-sans font-extrabold text-white text-[17px] tracking-[-0.03em] leading-none">
+          Brier<span className="text-primary group-hover:drop-shadow-[0_0_8px_rgba(255,42,77,0.8)] transition-all">.</span>
+        </span>
+        <span className="hidden lg:inline font-mono text-[8px] text-[#444] tracking-[0.2em] uppercase">Protocol</span>
       </Link>
 
       {/* Desktop links */}

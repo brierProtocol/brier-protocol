@@ -11,7 +11,13 @@ import { prisma } from '@/lib/prisma'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { name, description, market, walletAddress, color, eyeShape } = body
+    const { name, description, market, walletAddress, color, eyeShape, pfpUrl } = body
+
+    // Optional uploaded PFP — data-URL or https URL, capped to ~300KB of text
+    const chosenPfp = typeof pfpUrl === 'string'
+      && pfpUrl.length < 300_000
+      && (pfpUrl.startsWith('data:image/') || pfpUrl.startsWith('https://'))
+      ? pfpUrl : null
 
     // Eye color chosen at creation — validated, vivid hex only (else a sane default)
     const chosenColor = typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color)
@@ -59,6 +65,7 @@ export async function POST(req: NextRequest) {
         color: chosenColor,
         avatarId: slug,
         eyeShape: chosenShape,
+        pfpUrl: chosenPfp,
         mood,
         status: 'PAPER',
         tier: 'NONE',
@@ -74,9 +81,10 @@ export async function POST(req: NextRequest) {
       update: {}
     })
 
-    return NextResponse.json({ 
-      ok: true, 
-      botId: bot.id, 
+    // Token launch is a separate, owner-initiated step (POST /api/tokens)
+    return NextResponse.json({
+      ok: true,
+      botId: bot.id,
       slug: bot.slug,
       message: `Algorithm "${bot.name}" registered successfully. Entering calibration phase (50 resolved trades).`
     })

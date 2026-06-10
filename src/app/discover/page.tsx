@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
-import { botEye } from '@/lib/botIdentity'
+import { botEye, makerEye } from '@/lib/botIdentity'
 import { motion } from 'framer-motion'
 
 type SortKey = 'brier' | 'yield' | 'tvl' | 'new'
@@ -11,7 +12,6 @@ type MarketKey = 'all' | 'crypto' | 'politics' | 'sports'
 
 const SORT_OPTIONS = [
   { id: 'brier',  label: 'Brier Score' },
-  { id: 'yield',  label: 'Yield' },
   { id: 'tvl',    label: 'TVL' },
   { id: 'new',    label: 'Newest' },
 ] as const
@@ -41,6 +41,7 @@ function matchesMarket(bot: any, market: MarketKey): boolean {
 }
 
 export default function DiscoverPage() {
+  const router = useRouter()
   const [activeSort, setActiveSort]   = useState<SortKey>('brier')
   const [activeMarket, setActiveMarket] = useState<MarketKey>('all')
   const [search, setSearch]           = useState('')
@@ -198,7 +199,7 @@ export default function DiscoverPage() {
                     {/* Avatar */}
                     <div className="flex justify-center items-center py-6 bg-[#050505] border-b border-[#111]">
                       {b.pfpUrl ? (
-                        <img src={b.pfpUrl} alt={b.name} className="w-16 h-16 rounded-full object-cover border border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
+                        <img src={b.pfpUrl} alt={b.name} className="w-16 h-16 object-cover border border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
                       ) : (
                         <BotIrisAvatar {...botEye(b)} size={64} />
                       )}
@@ -233,9 +234,21 @@ export default function DiscoverPage() {
                         </div>
                       )}
 
-                      <div className="text-[10px] font-mono text-[#2a2a2a] truncate">
-                        @{b.slug || (b.walletAddress || 'anon').substring(0, 8)}
-                      </div>
+                      {/* Maker attribution — clickable, navigates to the maker profile */}
+                      <span
+                        role="link"
+                        tabIndex={0}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (b.walletAddress) router.push(`/maker/${b.walletAddress}`) }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && b.walletAddress) { e.preventDefault(); e.stopPropagation(); router.push(`/maker/${b.walletAddress}`) } }}
+                        className="flex items-center gap-1.5 text-[10px] font-mono text-[#444] truncate hover:text-primary transition-colors cursor-pointer w-fit"
+                      >
+                        <span className="rounded-full overflow-hidden shrink-0 inline-flex">
+                          {b.maker?.pfpUrl
+                            ? <img src={b.maker.pfpUrl} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                            : <BotIrisAvatar {...makerEye(b.walletAddress || 'anon')} size={14} />}
+                        </span>
+                        by {b.maker?.handle ? `@${b.maker.handle}` : (b.maker?.name || `${(b.walletAddress || 'anon').substring(0, 6)}…`)}
+                      </span>
                     </div>
                   </Link>
                 </motion.div>

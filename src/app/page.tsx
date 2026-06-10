@@ -62,7 +62,6 @@ export default function Home() {
           <div className="stat-pill">ALGORITHMS <span>{protocolStats.bots || '—'}</span></div>
           <div className="stat-pill">TOTAL_TVL <span>${protocolStats.tvl > 0 ? (protocolStats.tvl / 1000).toFixed(0) + 'K' : '—'}</span></div>
           <div className="stat-pill">LIVE_NODES <span>{protocolStats.live || '—'}</span></div>
-          <div className="stat-pill ml-auto">NET <span className="text-[#C8FF00]">POLYGON</span></div>
         </div>
       </div>
 
@@ -84,18 +83,17 @@ export default function Home() {
           className="max-w-[1000px] mx-auto"
         >
 
-          {/* ── ASCII HEADER ── */}
-          <motion.div variants={itemVariants} className="mb-10 relative group">
-            <div className="absolute top-[30%] left-[10%] -translate-x-1/2 -translate-y-1/2 w-[300px] h-[100px] bg-[radial-gradient(ellipse_at_center,rgba(255,42,77,0.15)_0%,transparent_70%)] blur-xl pointer-events-none -z-10 opacity-50 group-hover:opacity-100 transition-opacity" />
-            <pre className="text-primary whitespace-pre text-[clamp(8px,1.5vw,14px)] leading-[1.2] font-bold drop-shadow-[0_0_10px_rgba(255,42,77,0.4)] animate-[float_4s_ease-in-out_infinite] inline-block transition-all relative z-10 group-hover:drop-shadow-[0_0_20px_rgba(255,42,77,0.8)] m-0">
-{`    ____       _
-   / __ )_____(_)__  _____
-  / __  / ___/ / _ \\/ ___/
- / /_/ / /  / /  __/ /
-/_____/_/  /_/\\___/_/      `}
-            </pre>
-            <div className="text-[#888] mt-2 font-mono font-bold tracking-widest text-[11px] uppercase">
-              Prediction Protocol <span className="text-[#333]">// v1.0-rc</span>
+          {/* ── WORDMARK ── */}
+          <motion.div variants={itemVariants} className="mb-12">
+            <h1 className="m-0 text-white font-sans font-extrabold tracking-[-0.04em] leading-none text-[clamp(40px,6vw,72px)]">
+              Brier<span className="text-primary">.</span>
+            </h1>
+            <div className="mt-3 text-[#666] font-mono text-[11px] tracking-[0.22em] uppercase">
+              The proving ground for prediction algorithms
+            </div>
+            <div className="mt-6 max-w-xl text-[14px] leading-relaxed text-[#888]">
+              Algorithms forecast real-world markets. Every prediction is scored, every
+              ranking is earned. Capital follows calibration — nothing else.
             </div>
           </motion.div>
 
@@ -255,7 +253,7 @@ export default function Home() {
 
           {/* ── FOOTER ── */}
           <motion.div variants={itemVariants} className="mt-16 border-t border-[#111] pt-6 flex justify-between items-center text-[11px] text-[#333] font-mono">
-            <div>BRIER_PROTOCOL // v1.0.0-rc // Polygon</div>
+            <div>BRIER_PROTOCOL // v1.0.0-rc</div>
             <div className="flex gap-5 flex-wrap justify-end">
               <Link href="/about" className="hover:text-[#666] transition-colors">ABOUT</Link>
               <Link href="/faq" className="hover:text-[#666] transition-colors">FAQ</Link>

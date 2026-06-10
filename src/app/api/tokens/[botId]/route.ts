@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { currentPrice, marketCap, bondingProgress, priceAt } from '@/lib/bondingCurve'
+import { currentPrice, marketCap, bondingProgress, priceAt, INITIAL_PRICE, TOTAL_SUPPLY } from '@/lib/bondingCurve'
 
 // GET /api/tokens/[botId] — token state + price history + holders
 export async function GET(_req: Request, { params }: { params: Promise<{ botId: string }> }) {
@@ -21,7 +21,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ botId: 
 
     // Price history series for the chart (start point + every trade)
     const history = [
-      { t: token.createdAt, price: token.basePrice },
+      { t: token.createdAt, price: INITIAL_PRICE },
       ...token.trades.map(tr => ({ t: tr.createdAt, price: tr.priceAfter })),
     ]
 
@@ -39,16 +39,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ botId: 
       progress: bondingProgress(s),
       graduationMcap: token.graduationMcap,
       supply: token.supply,
+      totalSupply: TOTAL_SUPPLY,
       reserve: token.reserve,
-      basePrice: token.basePrice,
-      slope: token.slope,
       holders: token.holdersCount,
       history,
       topHolders: token.holdings.map(h => ({ wallet: h.wallet, shares: h.shares })),
-      // bonding curve shape for the visual (sampled)
+      // bonding curve shape for the visual (sampled from launch past current sold)
       curve: Array.from({ length: 24 }, (_, i) => {
-        const sup = (token.supply * 1.8 / 23) * i + 1
-        return { supply: sup, price: priceAt(sup, token.basePrice, token.slope) }
+        const sup = (Math.max(token.supply * 1.8, TOTAL_SUPPLY * 0.1) / 23) * i
+        return { supply: sup, price: priceAt(sup) }
       }),
     })
   } catch (e: any) {

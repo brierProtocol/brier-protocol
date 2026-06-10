@@ -5,15 +5,21 @@ import Link from 'next/link'
 import { useAccount, useSignMessage } from 'wagmi'
 import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
-import { EYE_PALETTE, EYE_SHAPES } from '@/lib/botIdentity'
-import type { EyeShapeId } from '@/lib/botIdentity'
+import { botEye } from '@/lib/botIdentity'
 
 export default function ListBotPage() {
   const [step, setStep] = useState(1)
-  const [formData, setFormData] = useState({ name: '', repo: '', description: '', market: 'Polymarket', color: EYE_PALETTE[0] as string, eyeShape: 'round' as EyeShapeId, ticker: '' })
+  const [formData, setFormData] = useState({ name: '', repo: '', description: '', market: 'Polymarket' })
   const [verifying, setVerifying] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [secretKey, setSecretKey] = useState('')
+  const [pfp, setPfp] = useState('')
+  const [deployedSlug, setDeployedSlug] = useState('')
+  // Optional token launch (post-deploy step)
+  const [tokTicker, setTokTicker] = useState('')
+  const [tokBusy, setTokBusy] = useState(false)
+  const [tokLive, setTokLive] = useState(false)
+  const [tokErr, setTokErr] = useState('')
 
   const { isConnected, address } = useAccount()
   const { signMessageAsync } = useSignMessage()
@@ -55,8 +61,7 @@ export default function ListBotPage() {
             name: formData.name,
             description: formData.description,
             market: formData.market,
-            color: formData.color,
-            eyeShape: formData.eyeShape,
+            pfpUrl: pfp || undefined,
             walletAddress: finalAddress,
           })
         })
@@ -64,13 +69,8 @@ export default function ListBotPage() {
         const result = await res.json()
         if (!res.ok) throw new Error(result.error || 'Registration failed. Please try again.')
 
-        // Auto-launch the bot's conviction token (bonding curve)
-        try {
-          await fetch('/api/tokens', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ botId: result.botId, slug: result.slug, ticker: formData.ticker || undefined }),
-          })
-        } catch { /* non-fatal — owner can launch later from the bot page */ }
+        setDeployedSlug(result.slug)
+        setTokTicker(formData.name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'BOT')
 
         const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
         let sk = 'sk_live_'
@@ -85,6 +85,23 @@ export default function ListBotPage() {
       }
     } else {
       setStep(s => s + 1)
+    }
+  }
+
+  const launchToken = async () => {
+    setTokBusy(true); setTokErr('')
+    try {
+      const res = await fetch('/api/tokens', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: deployedSlug, ticker: tokTicker || undefined }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || 'Launch failed')
+      setTokLive(true)
+    } catch (e: any) {
+      setTokErr(e?.message || 'Launch failed')
+    } finally {
+      setTokBusy(false)
     }
   }
 
@@ -181,83 +198,53 @@ export default function ListBotPage() {
                 />
               </div>
 
-              {/* TOKEN TICKER — launchpad */}
+              {/* BOT PFP — square, 4chan style. The face of your bot. */}
               <div className="mb-8">
-                <div className="text-muted text-[11px] mb-1 tracking-widest">TOKEN_TICKER</div>
-                <div className="text-[10px] text-[#555] mb-3 font-mono">Your bot launches a conviction token on deploy. Pick its ticker (or leave blank to auto-derive).</div>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-[#c8ff00] text-lg">$</span>
-                  <input
-                    value={formData.ticker}
-                    onChange={e => setFormData({ ...formData, ticker: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) })}
-                    placeholder="ADAN"
-                    className="w-40 bg-[#050505] border border-[#331015] text-[#c8ff00] font-mono text-sm px-3 py-2 outline-none focus:border-[#c8ff00]/50 uppercase tracking-widest"
-                  />
-                </div>
-              </div>
-
-              {/* EYE SIGNATURE — chosen once at creation */}
-              <div className="mb-8">
-                <div className="text-muted text-[11px] mb-1 tracking-widest">EYE_SIGNATURE</div>
-                <div className="text-[10px] text-[#555] mb-4 font-mono">Pick your bot&apos;s shape &amp; color. This is permanent — chosen once.</div>
-
-                <div className="flex items-start gap-6 flex-wrap">
-                  {/* Live preview */}
-                  <div className="flex flex-col items-center gap-2 shrink-0">
-                    <div className="rounded-full" style={{ boxShadow: `0 0 28px ${formData.color}55` }}>
-                      <BotIrisAvatar avatarId={(formData.name || 'preview').toLowerCase()} accentColor={formData.color} shape={formData.eyeShape} size={96} />
+                <div className="text-muted text-[11px] mb-1 tracking-widest">BOT_PFP</div>
+                <div className="text-[10px] text-[#555] mb-3 font-mono">Upload your bot&apos;s face — shown square everywhere. No pic? A procedural eye is auto-assigned.</div>
+                <div className="flex items-center gap-4">
+                  {pfp ? (
+                    <img src={pfp} alt="Bot PFP" className="w-24 h-24 object-cover border border-[#333]" />
+                  ) : (
+                    <div className="w-24 h-24 border border-dashed border-[#222] flex items-center justify-center bg-[#050505]">
+                      <BotIrisAvatar {...botEye({ slug: formData.name || 'preview', name: formData.name })} size={64} />
                     </div>
-                    <span className="text-[9px] font-mono text-[#555] tracking-widest">PREVIEW</span>
-                  </div>
-
-                  <div className="flex-1 min-w-[260px] flex flex-col gap-4">
-                    {/* Shapes */}
-                    <div>
-                      <div className="text-[9px] text-[#555] font-mono tracking-widest mb-2">SHAPE</div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {EYE_SHAPES.map((sh) => {
-                          const active = formData.eyeShape === sh.id
-                          return (
-                            <button
-                              key={sh.id}
-                              type="button"
-                              onClick={() => setFormData({ ...formData, eyeShape: sh.id })}
-                              className="flex flex-col items-center gap-1.5 py-2 border transition-all"
-                              style={{
-                                borderColor: active ? formData.color : '#1a1a1a',
-                                background: active ? `${formData.color}11` : 'transparent',
-                              }}
-                            >
-                              <BotIrisAvatar avatarId={sh.id} accentColor={formData.color} shape={sh.id} size={34} />
-                              <span className="text-[8px] font-mono tracking-widest" style={{ color: active ? formData.color : '#555' }}>{sh.label}</span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Colors */}
-                    <div>
-                      <div className="text-[9px] text-[#555] font-mono tracking-widest mb-2">COLOR</div>
-                      <div className="grid grid-cols-9 gap-2">
-                        {EYE_PALETTE.map((c) => (
-                          <button
-                            key={c}
-                            type="button"
-                            onClick={() => setFormData({ ...formData, color: c })}
-                            aria-label={`Select ${c}`}
-                            className="w-7 h-7 rounded-full transition-all"
-                            style={{
-                              background: c,
-                              outline: formData.color === c ? `2px solid #fff` : '2px solid transparent',
-                              outlineOffset: '2px',
-                              transform: formData.color === c ? 'scale(1.15)' : 'scale(1)',
-                              boxShadow: formData.color === c ? `0 0 12px ${c}` : 'none',
-                            }}
-                          />
-                        ))}
-                      </div>
-                    </div>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    <label className="cursor-pointer font-mono text-[10px] tracking-widest px-4 py-2 border border-[#331015] text-[#888] hover:text-primary hover:border-primary/40 transition-colors w-fit">
+                      {pfp ? 'CHANGE_PIC' : 'UPLOAD_PIC'}
+                      <input
+                        type="file" accept="image/*" className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          const reader = new FileReader()
+                          reader.onload = (event) => {
+                            const img = new Image()
+                            img.onload = () => {
+                              const SIZE = 256
+                              const canvas = document.createElement('canvas')
+                              canvas.width = SIZE
+                              canvas.height = SIZE
+                              const ctx = canvas.getContext('2d')
+                              if (!ctx) return
+                              const scale = Math.max(SIZE / img.width, SIZE / img.height)
+                              const x = (SIZE - img.width * scale) / 2
+                              const y = (SIZE - img.height * scale) / 2
+                              ctx.drawImage(img, x, y, img.width * scale, img.height * scale)
+                              setPfp(canvas.toDataURL('image/jpeg', 0.85))
+                            }
+                            img.src = event.target?.result as string
+                          }
+                          reader.readAsDataURL(file)
+                        }}
+                      />
+                    </label>
+                    {pfp && (
+                      <button type="button" onClick={() => setPfp('')} className="font-mono text-[10px] text-[#444] hover:text-[#ff3b3b] transition-colors bg-transparent border-none cursor-pointer text-left">
+                        [REMOVE]
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -369,7 +356,7 @@ export default function ListBotPage() {
               </div>
 
               {/* WHAT HAPPENS NEXT */}
-              <div className="mb-8 border border-[#1a1a1a] p-4 bg-[#060606]">
+              <div className="mb-6 border border-[#1a1a1a] p-4 bg-[#060606]">
                 <div className="text-[#444] text-[10px] font-mono tracking-widest mb-3">WHAT_HAPPENS_NEXT</div>
                 <div className="flex flex-col gap-2 text-[11px] font-mono">
                   <div className="flex gap-2 text-[#555]"><span className="text-[#333]">&gt;</span> Bot enters <span className="text-white mx-1">7-day shadow phase</span> — predictions tracked, no capital at risk</div>
@@ -379,8 +366,53 @@ export default function ListBotPage() {
                 </div>
               </div>
 
+              {/* OPTIONAL: LAUNCH CONVICTION TOKEN */}
+              <div className="mb-8 border border-[#c8ff00]/25 p-5 bg-[#0a0d02] relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-[#c8ff00]" />
+                <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-[#c8ff00]" />
+                {!tokLive ? (
+                  <>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[#c8ff00] font-mono font-bold text-[12px] tracking-widest">BONUS: LAUNCH_YOUR_TOKEN</span>
+                      <span className="text-[8px] font-mono px-1.5 py-0.5 text-[#888] border border-[#222]">OPTIONAL</span>
+                    </div>
+                    <div className="text-[11px] text-[#888] font-mono mb-4 leading-relaxed">
+                      Let backers bet on <span className="text-white">{formData.name}</span> before it proves itself.
+                      You earn <span className="text-[#c8ff00] font-bold">50% of every trade fee</span> — from day one, no Tier-1 needed.
+                    </div>
+                    <div className="flex gap-2 items-center flex-wrap">
+                      <span className="font-mono text-[#c8ff00] text-lg">$</span>
+                      <input
+                        value={tokTicker}
+                        onChange={e => setTokTicker(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))}
+                        className="w-32 bg-[#030303] border border-[#1a1a1a] text-[#c8ff00] font-mono text-sm px-3 py-2 outline-none focus:border-[#c8ff00]/50 uppercase tracking-widest"
+                      />
+                      <button
+                        onClick={launchToken}
+                        disabled={tokBusy || !tokTicker}
+                        className="font-mono text-xs font-bold px-6 py-2.5 bg-[#c8ff00] text-[#030303] disabled:opacity-40 hover:shadow-[0_0_18px_rgba(200,255,0,0.45)] transition-all tracking-widest"
+                      >
+                        {tokBusy ? 'LAUNCHING…' : `LAUNCH_$${tokTicker || '…'}`}
+                      </button>
+                      <span className="text-[10px] font-mono text-[#444]">or skip — launch anytime from your bot page</span>
+                    </div>
+                    {tokErr && <div className="text-[10px] font-mono text-[#ff3b3b] mt-2">{tokErr}</div>}
+                  </>
+                ) : (
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                      <div className="text-[#c8ff00] font-mono font-bold text-[13px] tracking-widest mb-1">${tokTicker} IS LIVE 🟢</div>
+                      <div className="text-[10px] text-[#888] font-mono">Bonding curve open — every trade pays you 50% of the fee.</div>
+                    </div>
+                    <Link href="/launchpad" className="font-mono text-xs font-bold px-5 py-2.5 border border-[#c8ff00]/50 text-[#c8ff00] no-underline hover:bg-[#c8ff00] hover:text-[#030303] transition-all tracking-widest">
+                      VIEW_ON_SHADOW_MARKET →
+                    </Link>
+                  </div>
+                )}
+              </div>
+
               <div className="flex justify-end gap-4">
-                <Link href={`/bot/${handle}`} className="bg-transparent border border-primary text-primary px-8 py-3 no-underline font-mono font-bold text-[13px] transition-all hover:bg-primary hover:text-[#030303] tracking-widest shadow-[0_0_10px_rgba(255,42,77,0.2)]">
+                <Link href={`/bot/${deployedSlug || handle}`} className="bg-transparent border border-primary text-primary px-8 py-3 no-underline font-mono font-bold text-[13px] transition-all hover:bg-primary hover:text-[#030303] tracking-widest shadow-[0_0_10px_rgba(255,42,77,0.2)]">
                   VIEW_NODE_PROFILE →
                 </Link>
               </div>
