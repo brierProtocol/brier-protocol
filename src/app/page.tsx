@@ -32,7 +32,6 @@ export default function Home() {
   const [topBots, setTopBots] = useState<any[]>([])
   const [tokensByBot, setTokensByBot] = useState<Record<string, any>>({})
   const [protocolStats, setProtocolStats] = useState({ bots: 0, tvl: 0, live: 0 })
-  const [lastSync, setLastSync] = useState<string>('')
   const [howOpen, setHowOpen] = useState(false)
 
   useEffect(() => {
@@ -52,7 +51,6 @@ export default function Home() {
           ).length
           const tvl = data.reduce((acc: number, b: any) => acc + (b.currentTVL ?? b.tvl ?? 0), 0)
           setProtocolStats({ bots: data.length, tvl, live })
-          setLastSync(new Date().toLocaleTimeString())
         })
         .catch(console.error)
       fetch('/api/tokens')
@@ -137,11 +135,10 @@ export default function Home() {
           <motion.div variants={itemVariants} className="mb-12">
             <button
               onClick={() => setHowOpen(true)}
-              className="group inline-flex items-center gap-3 border border-[#1a1a1a] hover:border-primary/50 bg-[#0a0a0a] hover:bg-[#0d0d0d] px-5 py-3 transition-all"
+              className="group inline-flex items-center gap-3 border border-[#1a1a1a] hover:border-primary/50 bg-[#0a0a0a] hover:bg-[#0d0d0d] px-5 py-3 transition-all cursor-pointer"
             >
-              <span className="flex items-center justify-center w-6 h-6 border border-primary/40 text-primary font-mono text-xs group-hover:bg-primary group-hover:text-[#030303] transition-all">▶</span>
-              <span className="font-mono text-xs text-white tracking-widest">HOW_IT_WORKS</span>
-              <span className="font-mono text-[10px] text-[#555] group-hover:text-[#888] transition-colors">— 60-second walkthrough</span>
+              <span className="flex items-center justify-center w-6 h-6 border border-primary/40 text-primary text-[10px] group-hover:bg-primary group-hover:text-[#030303] transition-all">▶</span>
+              <span className="font-sans font-bold text-[14px] text-white tracking-tight">How it works<span className="text-primary">.</span></span>
             </button>
           </motion.div>
 
@@ -205,7 +202,7 @@ export default function Home() {
                   <h2 className="m-0 text-white font-sans font-extrabold tracking-tight text-[22px]">Top Algorithms</h2>
                 </div>
                 <div className="text-[10px] text-[#555] font-mono mt-1.5 tracking-wider">
-                  ranked by Brier score · refreshes live{lastSync ? ` · last sync ${lastSync}` : ''}
+                  ranked by Brier score — the best climb, the worst sink
                 </div>
               </div>
               <Link href="/leaderboard" className="text-xs font-mono text-[#666] hover:text-primary transition-colors">
@@ -226,6 +223,7 @@ export default function Home() {
                   return (
                     <motion.div
                       key={bot.id}
+                      layout
                       whileHover={{ y: -5 }}
                       transition={{ type: 'spring', stiffness: 320, damping: 22 }}
                     >
@@ -234,9 +232,9 @@ export default function Home() {
                         className="flex flex-col aspect-[1/1.12] bg-[#0a0a0a] border border-[#1a1a1a] no-underline relative overflow-hidden group transition-all hover:border-[#2a2a2a] hover:shadow-[0_10px_36px_rgba(0,0,0,0.65),0_0_0_0.5px_rgba(255,42,77,0.10)]"
                       >
                         {/* rank + status */}
-                        <div className="flex items-center justify-between px-4 pt-3.5">
-                          <span className="font-mono font-bold text-[13px]" style={{ color: rankColor }}>
-                            {String(i + 1).padStart(2, '0')}
+                        <div className="flex items-center justify-between px-4 pt-2.5">
+                          <span className="font-sans font-extrabold text-[26px] leading-none tracking-tight" style={{ color: rankColor, textShadow: i < 3 ? `0 0 18px ${rankColor}55` : 'none' }}>
+                            {i + 1}
                           </span>
                           <span className={`inline-flex items-center gap-1.5 text-[9px] font-mono ${isLive ? 'text-[#00d4aa]' : 'text-[#444]'}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-[#00d4aa] animate-pulse' : 'bg-[#333]'}`} />
@@ -278,9 +276,11 @@ export default function Home() {
                             <div className="font-mono font-bold text-[13px] text-white">{tvl > 0 ? `$${(tvl / 1000).toFixed(1)}K` : '—'}</div>
                           </div>
                           <div className="bg-[#0a0a0a] px-3 py-2">
-                            <div className="text-[8px] font-mono text-[#555] tracking-widest">{tok ? `$${tok.ticker}` : 'TOKEN'}</div>
+                            <div className="text-[8px] font-mono tracking-widest" style={{ color: tok ? '#c8ff00' : '#555' }}>{tok ? `$${tok.ticker}` : 'TOKEN'}</div>
                             <div className="font-mono font-bold text-[13px]" style={{ color: tok ? '#c8ff00' : '#333' }}>
-                              {tok ? `$${tok.marketCap >= 1000 ? (tok.marketCap / 1000).toFixed(1) + 'K' : tok.marketCap.toFixed(0)}` : 'not launched'}
+                              {tok
+                                ? <><span className="text-[#555] text-[9px] font-medium mr-1">MCAP</span>${tok.marketCap >= 1000 ? (tok.marketCap / 1000).toFixed(1) + 'K' : tok.marketCap.toFixed(0)}</>
+                                : 'not launched'}
                             </div>
                           </div>
                         </div>
@@ -298,12 +298,16 @@ export default function Home() {
 
           {/* ── FOOTER ── */}
           <motion.div variants={itemVariants} className="mt-16 border-t border-[#111] pt-6 flex justify-between items-center text-[11px] text-[#333] font-mono">
-            <div>BRIER_PROTOCOL // v1.0.0-rc</div>
+            <div className="flex items-baseline gap-3">
+              <span className="font-sans font-extrabold text-[15px] text-white tracking-tight">Brier<span className="text-primary">.</span></span>
+              <span className="text-[#444]">v1</span>
+              <span className="text-[#333] italic">start vaultmaxxing</span>
+            </div>
             <div className="flex gap-5 flex-wrap justify-end">
               <Link href="/about" className="hover:text-[#666] transition-colors">ABOUT</Link>
               <Link href="/faq" className="hover:text-[#666] transition-colors">FAQ</Link>
               <Link href="/strategy" className="hover:text-[#666] transition-colors">STRATEGY</Link>
-              <Link href="/developers" className="hover:text-[#666] transition-colors">DOCS</Link>
+              <Link href="/docs" className="hover:text-[#666] transition-colors">DOCS</Link>
               <Link href="/terms" className="hover:text-[#666] transition-colors">TERMS</Link>
               <Link href="/privacy" className="hover:text-[#666] transition-colors">PRIVACY</Link>
               <a href="https://github.com/Lord14sol/brier-protocol" target="_blank" rel="noopener noreferrer" className="hover:text-[#666] transition-colors">GITHUB</a>

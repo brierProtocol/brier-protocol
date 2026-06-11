@@ -13,7 +13,6 @@ export default function ListBotPage() {
   const [verifying, setVerifying] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [secretKey, setSecretKey] = useState('')
-  const [pfp, setPfp] = useState('')
   const [deployedSlug, setDeployedSlug] = useState('')
   // Optional token launch (post-deploy step)
   const [tokTicker, setTokTicker] = useState('')
@@ -61,7 +60,6 @@ export default function ListBotPage() {
             name: formData.name,
             description: formData.description,
             market: formData.market,
-            pfpUrl: pfp || undefined,
             walletAddress: finalAddress,
           })
         })
@@ -198,54 +196,14 @@ export default function ListBotPage() {
                 />
               </div>
 
-              {/* BOT PFP — square, 4chan style. The face of your bot. */}
-              <div className="mb-8">
-                <div className="text-muted text-[11px] mb-1 tracking-widest">BOT_PFP</div>
-                <div className="text-[10px] text-[#555] mb-3 font-mono">Upload your bot&apos;s face — shown square everywhere. No pic? A procedural eye is auto-assigned.</div>
-                <div className="flex items-center gap-4">
-                  {pfp ? (
-                    <img src={pfp} alt="Bot PFP" className="w-24 h-24 object-cover border border-[#333]" />
-                  ) : (
-                    <div className="w-24 h-24 border border-dashed border-[#222] flex items-center justify-center bg-[#050505]">
-                      <BotIrisAvatar {...botEye({ slug: formData.name || 'preview', name: formData.name })} size={64} />
-                    </div>
-                  )}
-                  <div className="flex flex-col gap-2">
-                    <label className="cursor-pointer font-mono text-[10px] tracking-widest px-4 py-2 border border-[#331015] text-[#888] hover:text-primary hover:border-primary/40 transition-colors w-fit">
-                      {pfp ? 'CHANGE_PIC' : 'UPLOAD_PIC'}
-                      <input
-                        type="file" accept="image/*" className="hidden"
-                        onChange={e => {
-                          const file = e.target.files?.[0]
-                          if (!file) return
-                          const reader = new FileReader()
-                          reader.onload = (event) => {
-                            const img = new Image()
-                            img.onload = () => {
-                              const SIZE = 256
-                              const canvas = document.createElement('canvas')
-                              canvas.width = SIZE
-                              canvas.height = SIZE
-                              const ctx = canvas.getContext('2d')
-                              if (!ctx) return
-                              const scale = Math.max(SIZE / img.width, SIZE / img.height)
-                              const x = (SIZE - img.width * scale) / 2
-                              const y = (SIZE - img.height * scale) / 2
-                              ctx.drawImage(img, x, y, img.width * scale, img.height * scale)
-                              setPfp(canvas.toDataURL('image/jpeg', 0.85))
-                            }
-                            img.src = event.target?.result as string
-                          }
-                          reader.readAsDataURL(file)
-                        }}
-                      />
-                    </label>
-                    {pfp && (
-                      <button type="button" onClick={() => setPfp('')} className="font-mono text-[10px] text-[#444] hover:text-[#ff3b3b] transition-colors bg-transparent border-none cursor-pointer text-left">
-                        [REMOVE]
-                      </button>
-                    )}
-                  </div>
+              {/* IDENTITY — auto-generated signature art; editable later from the bot profile */}
+              <div className="mb-8 flex items-center gap-4">
+                <div className="border border-[#1a1a1a]">
+                  <BotIrisAvatar {...botEye({ slug: formData.name || 'preview', name: formData.name })} size={72} />
+                </div>
+                <div className="text-[10px] text-[#555] font-mono leading-relaxed">
+                  Your bot&apos;s signature is generated from its name.<br />
+                  You can upload a custom picture later, from the bot&apos;s profile.
                 </div>
               </div>
 

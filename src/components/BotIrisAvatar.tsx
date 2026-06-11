@@ -1,10 +1,9 @@
 'use client'
 
-import React, { useEffect, useRef, useMemo } from 'react'
+import React, { useMemo } from 'react'
 
+// Kept for compatibility with existing call sites — the pattern art ignores shape.
 export type EyeShape = 'round' | 'aperture' | 'cat' | 'diamond' | 'scanner' | 'ring' | 'star' | 'triangle' | 'cross' | 'spiral' | 'nova' | 'void'
-
-const ALL_SHAPES: EyeShape[] = ['round', 'aperture', 'cat', 'diamond', 'scanner', 'ring', 'star', 'triangle', 'cross', 'spiral', 'nova', 'void']
 
 interface BotIrisAvatarProps {
   avatarId: string
@@ -13,348 +12,87 @@ interface BotIrisAvatarProps {
   shape?: EyeShape
 }
 
-// Deterministic hash from avatarId string → number
-function hashCode(str: string): number {
-  let hash = 0
+// FNV-1a with avalanche — small id changes produce very different patterns.
+function hash(str: string): number {
+  let h = 2166136261
   for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash |= 0
+    h ^= str.charCodeAt(i)
+    h = Math.imul(h, 16777619)
   }
-  return Math.abs(hash)
+  h ^= h >>> 13
+  h = Math.imul(h, 0x5bd1e995)
+  h ^= h >>> 15
+  return h >>> 0
 }
 
-// Lighten (amt > 0) or darken (amt < 0) a hex color by mixing toward white/black.
-function shade(hex: string, amt: number): string {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  const target = amt < 0 ? 0 : 255
-  const p = Math.abs(amt)
-  const mix = (c: number) => Math.round((target - c) * p) + c
-  const toHex = (n: number) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0')
-  return `#${toHex(mix(r))}${toHex(mix(g))}${toHex(mix(b))}`
+// Tiny deterministic PRNG seeded from the hash.
+function mulberry32(seed: number) {
+  let a = seed >>> 0
+  return () => {
+    a |= 0; a = (a + 0x6D2B79F5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
 }
 
-// Generate a complementary secondary color from the accent
-function shiftHue(hex: string, degrees: number): string {
-  const r = parseInt(hex.slice(1, 3), 16) / 255
-  const g = parseInt(hex.slice(3, 5), 16) / 255
-  const b = parseInt(hex.slice(5, 7), 16) / 255
-
-  const max = Math.max(r, g, b), min = Math.min(r, g, b)
-  let h = 0, s = 0
-  const l = (max + min) / 2
-
-  if (max !== min) {
-    const d = max - min
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-    switch (max) {
-      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break
-      case g: h = ((b - r) / d + 2) / 6; break
-      case b: h = ((r - g) / d + 4) / 6; break
+/**
+ * Generative signature art for bots — a mirrored glyph weave, unique and
+ * deterministic per avatarId. Square, terminal-flavored, replaces the old
+ * procedural eye (still in git history). Same prop contract as before.
+ */
+export default function BotIrisAvatar({ avatarId, size = 64, accentColor = '#ff2a4d' }: BotIrisAvatarProps) {
+  const cells = useMemo(() => {
+    const N = 7                          // 7×7 grid, mirrored around the center column
+    const rand = mulberry32(hash(avatarId || 'void'))
+    const half = Math.ceil(N / 2)
+    const grid: { x: number; y: number; g: number }[] = []
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < half; x++) {
+        const r = rand()
+        // glyphs: 0 blank · 1 solid · 2 dim · 3 diagonal / · 4 diagonal \ · 5 dot
+        let g = 0
+        if (r < 0.30) g = 0
+        else if (r < 0.52) g = 1
+        else if (r < 0.70) g = 2
+        else if (r < 0.80) g = 3
+        else if (r < 0.90) g = 4
+        else g = 5
+        grid.push({ x, y, g })
+        if (x !== N - 1 - x) {
+          // mirror: diagonals flip orientation
+          const mg = g === 3 ? 4 : g === 4 ? 3 : g
+          grid.push({ x: N - 1 - x, y, g: mg })
+        }
+      }
     }
-  }
-
-  h = ((h * 360 + degrees) % 360) / 360
-  
-  const hue2rgb = (p: number, q: number, t: number) => {
-    if (t < 0) t += 1; if (t > 1) t -= 1
-    if (t < 1/6) return p + (q - p) * 6 * t
-    if (t < 1/2) return q
-    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6
-    return p
-  }
-
-  const q2 = l < 0.5 ? l * (1 + s) : l + s - l * s
-  const p2 = 2 * l - q2
-  const rr = Math.round(hue2rgb(p2, q2, h + 1/3) * 255)
-  const gg = Math.round(hue2rgb(p2, q2, h) * 255)
-  const bb = Math.round(hue2rgb(p2, q2, h - 1/3) * 255)
-
-  const toHex = (n: number) => n.toString(16).padStart(2, '0')
-  return `#${toHex(rr)}${toHex(gg)}${toHex(bb)}`
-}
-
-export default function BotIrisAvatar({ avatarId, size = 120, accentColor = '#ff2a4d', shape }: BotIrisAvatarProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-
-  // Normalize accentColor to valid 7-char hex
-  const safeColor = useMemo(() => {
-    if (!accentColor || !/^#[0-9a-fA-F]{6}$/i.test(accentColor)) return '#ff2a4d'
-    return accentColor
-  }, [accentColor])
-
-  // Pupil shape: explicit prop wins; otherwise derived deterministically from avatarId.
-  const eyeShape: EyeShape = useMemo(() => {
-    if (shape) return shape
-    return ALL_SHAPES[hashCode(avatarId) % ALL_SHAPES.length]
-  }, [shape, avatarId])
-
-  // Subtle per-eye variation — color is the main differentiator, structure stays consistent.
-  const dna = useMemo(() => {
-    const h = hashCode(avatarId)
-    return {
-      pupilScale: 0.30 + (h % 6) * 0.018,  // 0.30–0.39 pupil size
-      fiberCount: 56 + (h % 4) * 8,        // iris fiber density
-      rotDir: h % 2 === 0 ? 1 : -1,        // fiber drift direction
-      breatheSpeed: 0.5 + (h % 5) * 0.12,  // pupil breathing rate
-      fiberSeed: (h % 100) / 100,          // fiber rotation offset
-    }
+    return grid
   }, [avatarId])
 
-  const secondaryColor = useMemo(() => shiftHue(safeColor, 180), [safeColor])
-  const tertiaryColor = useMemo(() => shiftHue(safeColor, 90), [safeColor])
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    const dpr = window.devicePixelRatio || 1
-    canvas.width = size * dpr
-    canvas.height = size * dpr
-    
-    // Scale context so internal coordinates are always 120x120
-    const baseSize = 120
-    const scaleFactor = (size * dpr) / baseSize
-    ctx.scale(scaleFactor, scaleFactor)
-
-    let animId: number
-    let t = 0
-
-    const cx = baseSize / 2
-    const cy = baseSize / 2
-    const maxR = baseSize * 0.46
-
-    // Precompute color variants for the iris
-    const irisLight = shade(safeColor, 0.28)
-    const irisDeep = shade(safeColor, -0.45)
-    const irisEdge = shade(safeColor, -0.68)
-
-    const render = () => {
-      t += 0.006
-      ctx.clearRect(0, 0, baseSize, baseSize)
-
-      const irisR = maxR * 0.92
-      const breathe = 1 + Math.sin(t * dna.breatheSpeed) * 0.05
-      const pupilR = irisR * dna.pupilScale * breathe
-
-      // ─── 1. AMBIENT GLOW ───
-      const glow = ctx.createRadialGradient(cx, cy, irisR * 0.4, cx, cy, maxR * 1.15)
-      glow.addColorStop(0, safeColor + '22')
-      glow.addColorStop(1, 'transparent')
-      ctx.fillStyle = glow
-      ctx.fillRect(0, 0, baseSize, baseSize)
-
-      // ─── 2. EYEBALL SOCKET ───
-      const socket = ctx.createRadialGradient(cx, cy, irisR * 0.8, cx, cy, maxR)
-      socket.addColorStop(0, '#0a0a0a')
-      socket.addColorStop(1, '#000000')
-      ctx.beginPath()
-      ctx.arc(cx, cy, maxR, 0, Math.PI * 2)
-      ctx.fillStyle = socket
-      ctx.fill()
-
-      // ─── 3. IRIS BASE (depth gradient) ───
-      const iris = ctx.createRadialGradient(cx, cy, pupilR * 0.7, cx, cy, irisR)
-      iris.addColorStop(0, irisDeep)        // darker near pupil
-      iris.addColorStop(0.30, safeColor)
-      iris.addColorStop(0.62, irisLight)    // brightest mid-band
-      iris.addColorStop(0.85, safeColor)
-      iris.addColorStop(1, irisEdge)        // dark limbal edge
-      ctx.beginPath()
-      ctx.arc(cx, cy, irisR, 0, Math.PI * 2)
-      ctx.fillStyle = iris
-      ctx.fill()
-
-      // ─── 4. IRIS FIBERS (radial texture, soft) ───
-      ctx.save()
-      ctx.translate(cx, cy)
-      ctx.rotate(t * 0.02 * dna.rotDir + dna.fiberSeed * Math.PI * 2)
-      for (let i = 0; i < dna.fiberCount; i++) {
-        const a = (i / dna.fiberCount) * Math.PI * 2
-        const light = i % 2 === 0
-        ctx.beginPath()
-        ctx.moveTo(Math.cos(a) * pupilR * 1.05, Math.sin(a) * pupilR * 1.05)
-        ctx.lineTo(Math.cos(a) * irisR * 0.97, Math.sin(a) * irisR * 0.97)
-        ctx.lineWidth = light ? 1.1 : 0.7
-        ctx.strokeStyle = light ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.16)'
-        ctx.stroke()
-      }
-      ctx.restore()
-
-      // ─── 5. LIMBAL RING (dark outer edge — key realism) ───
-      ctx.beginPath()
-      ctx.arc(cx, cy, irisR, 0, Math.PI * 2)
-      ctx.lineWidth = 2.5
-      ctx.strokeStyle = 'rgba(0,0,0,0.55)'
-      ctx.stroke()
-      // subtle accent rim just inside
-      ctx.beginPath()
-      ctx.arc(cx, cy, irisR * 0.93, 0, Math.PI * 2)
-      ctx.lineWidth = 1
-      ctx.strokeStyle = irisLight + '66'
-      ctx.stroke()
-
-      // ─── 6. PUPIL (shape-aware) ───
-      // Trace the chosen pupil silhouette centered at (cx, cy).
-      const tracePupil = () => {
-        ctx.beginPath()
-        if (eyeShape === 'cat') {
-          ctx.ellipse(cx, cy, pupilR * 0.5, pupilR * 1.25, 0, 0, Math.PI * 2)
-        } else if (eyeShape === 'scanner') {
-          ctx.ellipse(cx, cy, pupilR * 1.25, pupilR * 0.5, 0, 0, Math.PI * 2)
-        } else if (eyeShape === 'diamond') {
-          ctx.moveTo(cx, cy - pupilR * 1.2)
-          ctx.lineTo(cx + pupilR * 0.85, cy)
-          ctx.lineTo(cx, cy + pupilR * 1.2)
-          ctx.lineTo(cx - pupilR * 0.85, cy)
-          ctx.closePath()
-        } else if (eyeShape === 'aperture') {
-          for (let i = 0; i < 6; i++) {
-            const a = (i / 6) * Math.PI * 2 + t * 0.15
-            const px = cx + Math.cos(a) * pupilR
-            const py = cy + Math.sin(a) * pupilR
-            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)
-          }
-          ctx.closePath()
-        } else if (eyeShape === 'triangle') {
-          const rot = t * 0.2
-          for (let i = 0; i < 3; i++) {
-            const a = rot + (i / 3) * Math.PI * 2 - Math.PI / 2
-            const px = cx + Math.cos(a) * pupilR * 1.2
-            const py = cy + Math.sin(a) * pupilR * 1.2
-            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)
-          }
-          ctx.closePath()
-        } else if (eyeShape === 'star') {
-          const spikes = 5, outer = pupilR * 1.25, inner = pupilR * 0.52, rot = t * 0.25 - Math.PI / 2
-          for (let i = 0; i < spikes * 2; i++) {
-            const r = i % 2 === 0 ? outer : inner
-            const a = rot + (i / (spikes * 2)) * Math.PI * 2
-            const px = cx + Math.cos(a) * r
-            const py = cy + Math.sin(a) * r
-            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)
-          }
-          ctx.closePath()
-        } else if (eyeShape === 'void') {
-          ctx.arc(cx, cy, pupilR * 1.15, 0, Math.PI * 2)
-        } else {
-          // round, ring, cross, spiral, nova
-          ctx.arc(cx, cy, pupilR, 0, Math.PI * 2)
-        }
-      }
-
-      const pupilGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, pupilR * 1.3)
-      pupilGrad.addColorStop(0, '#000000')
-      pupilGrad.addColorStop(0.82, '#000000')
-      pupilGrad.addColorStop(1, shade(safeColor, -0.6))
-      tracePupil()
-      ctx.fillStyle = pupilGrad
-      ctx.fill()
-
-      // glowing pupil rim
-      ctx.shadowBlur = 12
-      ctx.shadowColor = safeColor
-      tracePupil()
-      ctx.lineWidth = 1.4
-      ctx.strokeStyle = safeColor + 'aa'
-      ctx.stroke()
-      ctx.shadowBlur = 0
-
-      // ── Per-shape flourishes ──
-      ctx.save()
-      ctx.translate(cx, cy)
-      if (eyeShape === 'ring') {
-        ctx.beginPath(); ctx.arc(0, 0, pupilR * 1.7, 0, Math.PI * 2)
-        ctx.lineWidth = 2; ctx.strokeStyle = irisLight + 'cc'; ctx.stroke()
-      } else if (eyeShape === 'scanner') {
-        const sweep = Math.sin(t * 1.5) * irisR * 0.7
-        ctx.beginPath(); ctx.moveTo(-irisR * 0.8, sweep); ctx.lineTo(irisR * 0.8, sweep)
-        ctx.lineWidth = 1.2; ctx.strokeStyle = safeColor + '66'; ctx.stroke()
-      } else if (eyeShape === 'cross') {
-        // targeting reticle
-        ctx.shadowBlur = 8; ctx.shadowColor = safeColor
-        ctx.strokeStyle = safeColor + 'cc'; ctx.lineWidth = 1.4
-        const gap = pupilR * 0.5, len = irisR * 0.82
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-          ctx.beginPath(); ctx.moveTo(dx * gap, dy * gap); ctx.lineTo(dx * len, dy * len); ctx.stroke()
-        }
-        ctx.beginPath(); ctx.arc(0, 0, irisR * 0.55, 0, Math.PI * 2)
-        ctx.lineWidth = 0.8; ctx.strokeStyle = safeColor + '55'; ctx.stroke()
-        ctx.shadowBlur = 0
-      } else if (eyeShape === 'spiral') {
-        ctx.rotate(t * 0.6 * dna.rotDir)
-        ctx.beginPath()
-        for (let a = 0; a < Math.PI * 6; a += 0.2) {
-          const r = pupilR * 0.4 + (a / (Math.PI * 6)) * (irisR * 0.85 - pupilR * 0.4)
-          const px = Math.cos(a) * r, py = Math.sin(a) * r
-          a === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)
-        }
-        ctx.lineWidth = 1.4; ctx.strokeStyle = safeColor + 'aa'
-        ctx.shadowBlur = 6; ctx.shadowColor = safeColor; ctx.stroke(); ctx.shadowBlur = 0
-      } else if (eyeShape === 'nova') {
-        ctx.rotate(t * 0.15 * dna.rotDir)
-        const rays = 12
-        ctx.shadowBlur = 6; ctx.shadowColor = safeColor
-        for (let i = 0; i < rays; i++) {
-          const a = (i / rays) * Math.PI * 2
-          const long = i % 2 === 0 ? irisR * 0.9 : irisR * 0.66
-          ctx.beginPath()
-          ctx.moveTo(Math.cos(a) * pupilR * 1.1, Math.sin(a) * pupilR * 1.1)
-          ctx.lineTo(Math.cos(a) * long, Math.sin(a) * long)
-          ctx.lineWidth = i % 2 === 0 ? 1.6 : 0.8
-          ctx.strokeStyle = safeColor + (i % 2 === 0 ? 'cc' : '66')
-          ctx.stroke()
-        }
-        ctx.shadowBlur = 0
-      } else if (eyeShape === 'void') {
-        // bright accretion ring around a deep black hole
-        const pulse = 1 + Math.sin(t * 1.2) * 0.06
-        ctx.beginPath(); ctx.arc(0, 0, pupilR * 1.32 * pulse, 0, Math.PI * 2)
-        ctx.lineWidth = 2.4; ctx.strokeStyle = irisLight
-        ctx.shadowBlur = 16; ctx.shadowColor = safeColor; ctx.stroke()
-        ctx.beginPath(); ctx.arc(0, 0, pupilR * 1.55 * pulse, 0, Math.PI * 2)
-        ctx.lineWidth = 1; ctx.strokeStyle = safeColor + '55'; ctx.stroke()
-        ctx.shadowBlur = 0
-      }
-      ctx.restore()
-
-      // ─── 7. CATCHLIGHT (the "alive" highlight) ───
-      const clx = cx - maxR * 0.24
-      const cly = cy - maxR * 0.26
-      const cl = ctx.createRadialGradient(clx, cly, 0, clx, cly, maxR * 0.30)
-      cl.addColorStop(0, 'rgba(255,255,255,0.85)')
-      cl.addColorStop(0.5, 'rgba(255,255,255,0.18)')
-      cl.addColorStop(1, 'transparent')
-      ctx.beginPath()
-      ctx.arc(clx, cly, maxR * 0.30, 0, Math.PI * 2)
-      ctx.fillStyle = cl
-      ctx.fill()
-      // tiny secondary glint
-      ctx.beginPath()
-      ctx.arc(cx + pupilR * 0.45, cy + pupilR * 0.55, maxR * 0.04, 0, Math.PI * 2)
-      ctx.fillStyle = 'rgba(255,255,255,0.45)'
-      ctx.fill()
-
-      animId = requestAnimationFrame(render)
-    }
-
-    render()
-    return () => cancelAnimationFrame(animId)
-  }, [avatarId, size, safeColor, dna, secondaryColor, tertiaryColor, eyeShape])
+  const N = 7
+  const PAD = 1            // outer padding in cell units
+  const VB = N + PAD * 2   // viewBox span
+  const A = accentColor
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        display: 'block',
-      }}
-    />
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${VB} ${VB}`}
+      shapeRendering="crispEdges"
+      style={{ display: 'block', background: '#050505' }}
+      aria-label={`signature of ${avatarId}`}
+    >
+      {cells.map(({ x, y, g }, i) => {
+        const cx = x + PAD
+        const cy = y + PAD
+        if (g === 0) return null
+        if (g === 1) return <rect key={i} x={cx} y={cy} width={1} height={1} fill={A} />
+        if (g === 2) return <rect key={i} x={cx} y={cy} width={1} height={1} fill={A} opacity={0.22} />
+        if (g === 3) return <path key={i} d={`M ${cx} ${cy + 1} L ${cx + 1} ${cy}`} stroke={A} strokeWidth={0.32} opacity={0.85} />
+        if (g === 4) return <path key={i} d={`M ${cx} ${cy} L ${cx + 1} ${cy + 1}`} stroke={A} strokeWidth={0.32} opacity={0.85} />
+        return <rect key={i} x={cx + 0.34} y={cy + 0.34} width={0.32} height={0.32} fill={A} opacity={0.9} />
+      })}
+    </svg>
   )
 }

@@ -32,7 +32,7 @@ function StatsPreview() {
   return (
     <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-5 w-full rounded">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[10px] font-mono text-[#666] tracking-widest">BRIER_SCORE</span>
+        <span className="text-[10px] font-mono text-[#666] tracking-widest">BRIER SCORE</span>
         <span className="text-[8px] font-mono px-1.5 py-0.5" style={{ color: '#C8FF00', background: '#C8FF0014', border: '0.5px solid #C8FF0044' }}>STRONG</span>
       </div>
       <div className="font-mono font-bold text-4xl text-[#C8FF00] mb-2">0.082</div>
@@ -40,7 +40,7 @@ function StatsPreview() {
         <motion.div className="h-full bg-[#C8FF00]" initial={{ width: 0 }} animate={{ width: '83%' }} transition={{ duration: 0.9, ease: 'easeOut' }} />
       </div>
       <div className="grid grid-cols-3 gap-px bg-[#1a1a1a] border border-[#1a1a1a]">
-        {[['WIN_RATE', '74.0%'], ['SHARPE', '2.10'], ['MAX_DD', '-8.0%']].map(([l, v]) => (
+        {[['WIN RATE', '74.0%'], ['SHARPE', '2.10'], ['MAX DD', '-8.0%']].map(([l, v]) => (
           <div key={l} className="bg-[#0a0a0a] p-2.5">
             <div className="text-[8px] font-mono text-[#555] tracking-widest mb-0.5">{l}</div>
             <div className="text-sm font-mono font-bold text-white">{v}</div>
@@ -92,7 +92,7 @@ function FeePreview() {
   ]
   return (
     <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-5 w-full rounded">
-      <div className="text-[10px] font-mono text-[#666] tracking-widest mb-3">PROFIT_SPLIT</div>
+      <div className="text-[10px] font-mono text-[#666] tracking-widest mb-3">PROFIT SPLIT</div>
       <div className="flex h-3 w-full overflow-hidden rounded mb-3">
         {parts.map((p) => (
           <div key={p.label} style={{ width: `${p.pct}%`, background: p.c }} />
@@ -147,17 +147,17 @@ type Slide = {
 }
 
 const SLIDES: Slide[] = [
-  { tag: 'STEP_01', title: 'Connect', accent: '#ff2a4d', preview: <ConnectPreview />,
+  { tag: 'STEP 01', title: 'Connect', accent: '#ff2a4d', preview: <ConnectPreview />,
     body: 'Connect your wallet and claim a unique @handle. This becomes your on-chain identity — how investors find, track and back you.' },
-  { tag: 'STEP_02', title: 'Discover', accent: '#c8ff00', preview: <DiscoverPreview />,
-    body: 'Every bot is a colored eye — pick from shapes and colors at creation. Browse the catalog of live prediction algorithms.' },
-  { tag: 'STEP_03', title: 'Check the stats', accent: '#00d4aa', preview: <StatsPreview />,
+  { tag: 'STEP 02', title: 'Discover', accent: '#c8ff00', preview: <DiscoverPreview />,
+    body: 'Every bot gets a generative signature, unique to its name — or its builder uploads a custom face. Browse the catalog of live prediction algorithms.' },
+  { tag: 'STEP 03', title: 'Check the stats', accent: '#00d4aa', preview: <StatsPreview />,
     body: 'Open any bot to read its real metrics — Brier Score, Win Rate, Sharpe, drawdown — all derived from on-chain resolutions.' },
-  { tag: 'STEP_04', title: 'Leaderboard', accent: '#FFD700', preview: <LeaderboardPreview />,
+  { tag: 'STEP 04', title: 'Leaderboard', accent: '#FFD700', preview: <LeaderboardPreview />,
     body: 'Algorithms ranked strictly by Brier Score — lower is sharper. Gold, silver, bronze. Math decides, not marketing.' },
-  { tag: 'STEP_05', title: 'Deploy & earn', accent: '#3B82F6', preview: <FeePreview />,
+  { tag: 'STEP 05', title: 'Deploy & earn', accent: '#3B82F6', preview: <FeePreview />,
     body: 'Submit your own bot → 7-day shadow phase → Tier-1 opens your vault. On profit you keep 30%, the protocol 10%, depositors grow.' },
-  { tag: 'STEP_06', title: 'Instant exit', accent: '#ff2a4d', preview: <ExitPreview />,
+  { tag: 'STEP 06', title: 'Instant exit', accent: '#ff2a4d', preview: <ExitPreview />,
     body: 'Investors redeem shares anytime — principal + profit in one transaction, 1:1 at current NAV. No lockups. Non-custodial throughout.' },
 ]
 
@@ -189,7 +189,7 @@ export function HowItWorksDeck({ onClose }: { onClose?: () => void }) {
       {/* ── Sidebar ── */}
       <div className="md:w-[260px] shrink-0 border-b md:border-b-0 md:border-r border-[#1a1a1a] bg-[#050505] p-6 flex flex-col">
         <div className="flex items-center justify-between mb-6">
-          <div className="font-mono text-sm font-bold text-white tracking-tight">HOW_IT_WORKS</div>
+          <div className="font-sans text-[15px] font-extrabold text-white tracking-tight">How it works<span style={{color:'#ff2a4d'}}>.</span></div>
           {onClose && (
             <button onClick={onClose} aria-label="Close" className="text-[#555] hover:text-white transition-colors font-mono text-sm md:hidden">[ESC]</button>
           )}
