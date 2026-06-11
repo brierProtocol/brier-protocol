@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { GlobalSearch } from '@/components/Navbar'
 import { HowItWorksModal } from '@/components/HowItWorks'
+import BotIrisAvatar from '@/components/BotIrisAvatar'
+import { botEye } from '@/lib/botIdentity'
 
 const TICKER_EVENTS = [
   '> ALGO_DELTA executed LONG on BTC-USD/DEC26 @ 0.62 confidence',
@@ -28,27 +30,44 @@ const itemVariants: any = {
 
 export default function Home() {
   const [topBots, setTopBots] = useState<any[]>([])
+  const [tokensByBot, setTokensByBot] = useState<Record<string, any>>({})
   const [protocolStats, setProtocolStats] = useState({ bots: 0, tvl: 0, live: 0 })
+  const [lastSync, setLastSync] = useState<string>('')
   const [howOpen, setHowOpen] = useState(false)
 
   useEffect(() => {
-    fetch('/api/bots')
-      .then(res => res.json())
-      .then(data => {
-        if (!Array.isArray(data)) return
-        const sorted = data.sort((a: any, b: any) => {
-          const brierA = a.scores?.[0]?.brierScore ?? a.brierScore ?? 1
-          const brierB = b.scores?.[0]?.brierScore ?? b.brierScore ?? 1
-          return brierA - brierB
+    const load = () => {
+      fetch('/api/bots')
+        .then(res => res.json())
+        .then(data => {
+          if (!Array.isArray(data)) return
+          const sorted = data.sort((a: any, b: any) => {
+            const brierA = a.scores?.[0]?.brierScore ?? a.brierScore ?? 1
+            const brierB = b.scores?.[0]?.brierScore ?? b.brierScore ?? 1
+            return brierA - brierB
+          })
+          setTopBots(sorted.slice(0, 6))
+          const live = data.filter((b: any) =>
+            ['live', 'LIVE', 'VAULT_ELIGIBLE_T1', 'VAULT_ELIGIBLE_T2'].includes(b.status || '')
+          ).length
+          const tvl = data.reduce((acc: number, b: any) => acc + (b.currentTVL ?? b.tvl ?? 0), 0)
+          setProtocolStats({ bots: data.length, tvl, live })
+          setLastSync(new Date().toLocaleTimeString())
         })
-        setTopBots(sorted.slice(0, 5))
-        const live = data.filter((b: any) =>
-          ['live', 'LIVE', 'VAULT_ELIGIBLE_T1', 'VAULT_ELIGIBLE_T2'].includes(b.status || '')
-        ).length
-        const tvl = data.reduce((acc: number, b: any) => acc + (b.currentTVL ?? b.tvl ?? 0), 0)
-        setProtocolStats({ bots: data.length, tvl, live })
-      })
-      .catch(console.error)
+        .catch(console.error)
+      fetch('/api/tokens')
+        .then(res => res.json())
+        .then(toks => {
+          if (!Array.isArray(toks)) return
+          const map: Record<string, any> = {}
+          toks.forEach((t: any) => { map[t.botId] = t; if (t.slug) map[t.slug] = t })
+          setTokensByBot(map)
+        })
+        .catch(() => { })
+    }
+    load()
+    const iv = setInterval(load, 20_000) // keep the board breathing
+    return () => clearInterval(iv)
   }, [])
 
   const tickerLine = TICKER_EVENTS.join('     //     ')
@@ -174,81 +193,107 @@ export default function Home() {
             </div>
           </motion.div>
 
-          {/* ── TOP BOTS TABLE ── */}
-          <motion.div variants={itemVariants} className="bg-[#0a0a0a] border border-[#1a1a1a] relative">
-            <div className="absolute -top-[1px] -left-[1px] w-2 h-2 bg-[#1a1a1a]" />
-            <div className="absolute -bottom-[1px] -right-[1px] w-2 h-2 bg-[#1a1a1a]" />
-
-            <div className="px-6 py-4 border-b border-[#1a1a1a] flex items-center justify-between">
-              <div className="text-sm font-mono font-bold text-white tracking-tight">
-                TOP_ALGORITHMS
+          {/* ── TOP ALGORITHMS — live board ── */}
+          <motion.div variants={itemVariants}>
+            <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00d4aa] opacity-60" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00d4aa]" />
+                  </span>
+                  <h2 className="m-0 text-white font-sans font-extrabold tracking-tight text-[22px]">Top Algorithms</h2>
+                </div>
+                <div className="text-[10px] text-[#555] font-mono mt-1.5 tracking-wider">
+                  ranked by Brier score · refreshes live{lastSync ? ` · last sync ${lastSync}` : ''}
+                </div>
               </div>
-              <div className="text-[10px] text-[#444] font-mono">sorted by BRIER_SCORE ↑</div>
+              <Link href="/leaderboard" className="text-xs font-mono text-[#666] hover:text-primary transition-colors">
+                FULL LEADERBOARD →
+              </Link>
             </div>
 
-            <table className="w-full border-collapse text-left text-[13px]">
-              <thead>
-                <tr className="text-[#444] border-b border-[#111] text-[10px] uppercase tracking-widest font-mono">
-                  <th className="pb-3 pt-4 px-6 font-medium">Rank / Algorithm</th>
-                  <th className="pb-3 pt-4 px-4 font-medium">Brier</th>
-                  <th className="pb-3 pt-4 px-4 font-medium">Win Rate</th>
-                  <th className="pb-3 pt-4 px-4 font-medium">Status</th>
-                  <th className="pb-3 pt-4 px-4 font-medium text-right">Vault TVL</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topBots.length > 0 ? topBots.map((bot, i) => {
+            {topBots.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {topBots.map((bot, i) => {
                   const brier = bot.scores?.[0]?.brierScore ?? bot.brierScore ?? 0
                   const wr = bot.scores?.[0]?.winRate ?? bot.winRate ?? 0
                   const tvl = bot.currentTVL ?? bot.tvl ?? 0
-                  const isLive = ['live','LIVE','VAULT_ELIGIBLE_T1','VAULT_ELIGIBLE_T2'].includes(bot.status || '')
-                  const rankColors = ['text-[#FFD700]', 'text-[#C0C0C0]', 'text-[#CD7F32]']
+                  const isLive = ['live', 'LIVE', 'VAULT_ELIGIBLE_T1', 'VAULT_ELIGIBLE_T2'].includes(bot.status || '')
+                  const tok = tokensByBot[bot.id] || tokensByBot[bot.slug]
+                  const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32']
+                  const rankColor = rankColors[i] || '#333'
                   return (
-                    <tr key={bot.id} className="border-b border-[#111] transition-all cursor-pointer hover:bg-[#0d0d0d] group">
-                      <td className="p-4 px-6">
-                        <div className="flex items-center gap-4">
-                          <div className={`font-mono font-bold text-sm ${rankColors[i] ?? 'text-[#333]'}`}>
+                    <motion.div
+                      key={bot.id}
+                      whileHover={{ y: -5 }}
+                      transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+                    >
+                      <Link
+                        href={`/bot/${bot.slug || bot.id}`}
+                        className="flex flex-col aspect-[1/1.12] bg-[#0a0a0a] border border-[#1a1a1a] no-underline relative overflow-hidden group transition-all hover:border-[#2a2a2a] hover:shadow-[0_10px_36px_rgba(0,0,0,0.65),0_0_0_0.5px_rgba(255,42,77,0.10)]"
+                      >
+                        {/* rank + status */}
+                        <div className="flex items-center justify-between px-4 pt-3.5">
+                          <span className="font-mono font-bold text-[13px]" style={{ color: rankColor }}>
                             {String(i + 1).padStart(2, '0')}
+                          </span>
+                          <span className={`inline-flex items-center gap-1.5 text-[9px] font-mono ${isLive ? 'text-[#00d4aa]' : 'text-[#444]'}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-[#00d4aa] animate-pulse' : 'bg-[#333]'}`} />
+                            {isLive ? 'LIVE' : 'SHADOW'}
+                          </span>
+                        </div>
+
+                        {/* face */}
+                        <div className="flex-1 flex items-center justify-center">
+                          {bot.pfpUrl ? (
+                            <img src={bot.pfpUrl} alt={bot.name} className="w-[72px] h-[72px] object-cover border border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
+                          ) : (
+                            <BotIrisAvatar {...botEye(bot)} size={72} />
+                          )}
+                        </div>
+
+                        {/* name */}
+                        <div className="px-4 text-center">
+                          <div className="text-white font-sans font-bold text-[13px] truncate group-hover:text-primary transition-colors">{bot.name}</div>
+                          <div className="text-[10px] text-[#444] font-mono truncate">
+                            by {bot.maker?.handle ? `@${bot.maker.handle}` : (bot.maker?.name || `${(bot.walletAddress || 'anon').substring(0, 6)}…`)}
                           </div>
-                          <div>
-                            <Link href={`/bot/${bot.slug || bot.id}`} className="text-white font-sans font-bold text-sm hover:text-primary transition-colors">
-                              {bot.name}
-                            </Link>
-                            <div className="text-[11px] text-[#444] font-mono mt-[1px]">
-                              @{bot.slug || (bot.walletAddress || 'anon').substring(0, 8)}
+                        </div>
+
+                        {/* vitals */}
+                        <div className="grid grid-cols-2 gap-px bg-[#141414] border-t border-[#141414] mt-3.5">
+                          <div className="bg-[#0a0a0a] px-3 py-2">
+                            <div className="text-[8px] font-mono text-[#555] tracking-widest">BRIER</div>
+                            <div className={`font-mono font-bold text-[13px] ${brier > 0 && brier <= 0.25 ? 'text-[#00d4aa]' : 'text-white'}`}>
+                              {brier > 0 ? brier.toFixed(3) : <span className="text-[#ffb000] text-[10px] animate-pulse">AWAITING</span>}
+                            </div>
+                          </div>
+                          <div className="bg-[#0a0a0a] px-3 py-2">
+                            <div className="text-[8px] font-mono text-[#555] tracking-widest">WIN RATE</div>
+                            <div className="font-mono font-bold text-[13px] text-white">{wr > 0 ? `${(wr * 100).toFixed(0)}%` : '—'}</div>
+                          </div>
+                          <div className="bg-[#0a0a0a] px-3 py-2">
+                            <div className="text-[8px] font-mono text-[#555] tracking-widest">VAULT TVL</div>
+                            <div className="font-mono font-bold text-[13px] text-white">{tvl > 0 ? `$${(tvl / 1000).toFixed(1)}K` : '—'}</div>
+                          </div>
+                          <div className="bg-[#0a0a0a] px-3 py-2">
+                            <div className="text-[8px] font-mono text-[#555] tracking-widest">{tok ? `$${tok.ticker}` : 'TOKEN'}</div>
+                            <div className="font-mono font-bold text-[13px]" style={{ color: tok ? '#c8ff00' : '#333' }}>
+                              {tok ? `$${tok.marketCap >= 1000 ? (tok.marketCap / 1000).toFixed(1) + 'K' : tok.marketCap.toFixed(0)}` : 'not launched'}
                             </div>
                           </div>
                         </div>
-                      </td>
-                      <td className="p-4 font-bold text-sm font-mono">
-                        <span className={brier <= 0.25 ? 'text-[#00d4aa]' : 'text-white'}>{brier.toFixed(3)}</span>
-                        {brier <= 0.15 && <span className="ml-2 text-[9px] text-[#00d4aa] font-mono bg-[#00d4aa]/10 px-1.5 py-0.5">ELITE</span>}
-                      </td>
-                      <td className="p-4 text-white font-bold font-mono">{(wr * 100).toFixed(1)}%</td>
-                      <td className="p-4">
-                        <span className={`inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-1 ${isLive ? 'text-[#00d4aa] bg-[#00d4aa]/08 border border-[#00d4aa]/20' : 'text-[#444] border border-[#1a1a1a]'}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-[#00d4aa]' : 'bg-[#333]'}`} />
-                          {isLive ? 'LIVE' : 'PAPER'}
-                        </span>
-                      </td>
-                      <td className="p-4 text-right text-white font-bold font-mono">${tvl.toLocaleString()}</td>
-                    </tr>
+                      </Link>
+                    </motion.div>
                   )
-                }) : (
-                  <tr>
-                    <td colSpan={5} className="p-16 text-center text-[11px] text-[#333] font-mono">
-                      <div className="cursor-blink inline-block">&gt; AWAITING_DATA</div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-
-            <div className="px-6 py-4 border-t border-[#111] text-right">
-              <Link href="/discover" className="text-xs font-mono text-[#666] hover:text-primary transition-colors">
-                VIEW_ALL_ALGORITHMS →
-              </Link>
-            </div>
+                })}
+              </div>
+            ) : (
+              <div className="p-16 text-center text-[11px] text-[#333] font-mono border border-dashed border-[#1a1a1a] bg-[#080808]">
+                <div className="cursor-blink inline-block">&gt; AWAITING DATA — deploy the first algorithm</div>
+              </div>
+            )}
           </motion.div>
 
           {/* ── FOOTER ── */}
