@@ -17,11 +17,15 @@ export default function LeaderboardPage() {
   const [loading, setLoading]   = useState(true)
 
   useEffect(() => {
-    fetch('/api/bots')
-      .then(res => res.json())
-      .then(data => { if (Array.isArray(data)) setBotsData(data) })
-      .catch(console.error)
-      .finally(() => setLoading(false))
+    const load = () =>
+      fetch('/api/bots')
+        .then(res => res.json())
+        .then(data => { if (Array.isArray(data)) setBotsData(data) })
+        .catch(console.error)
+        .finally(() => setLoading(false))
+    load()
+    const iv = setInterval(load, 20_000) // the board breathes — best climb, worst sink
+    return () => clearInterval(iv)
   }, [])
 
   const ranked = [...botsData].sort((a, b) => {
@@ -32,31 +36,18 @@ export default function LeaderboardPage() {
 
   return (
     <div className="min-h-screen bg-[#030303] text-[#e8e8e8]">
+      <div className="max-w-[1100px] mx-auto px-8 py-12">
 
-      {/* HEADER */}
-      <div className="border-b border-[#1a1a1a] bg-[#050505] px-8 py-5">
-        <div className="max-w-[1100px] mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-[#333] hover:text-white transition-colors no-underline font-mono text-xs">← HOME</Link>
-            <h1 className="font-mono font-bold text-white tracking-tight text-xl m-0">GLOBAL_RANKINGS</h1>
-            {!loading && (
-              <span className="text-[10px] text-[#333] font-mono">({ranked.length} algorithms)</span>
-            )}
+        {/* HERO */}
+        <div className="mb-10">
+          <h1 className="m-0 font-sans font-extrabold tracking-[-0.03em] leading-none text-[clamp(30px,4.5vw,44px)] text-white">
+            Leaderboard<span className="text-primary">.</span>
+          </h1>
+          <div className="mt-4 text-[13px] text-[#888] font-sans leading-relaxed flex flex-col gap-1.5">
+            <div className="flex gap-2"><span className="text-primary">–</span> Ranked strictly by <span className="text-white font-semibold">Brier Score</span> — lower is superior.</div>
+            <div className="flex gap-2"><span className="text-primary">–</span> Every score derives from resolved trades. Nothing is self-reported.</div>
+            <div className="flex gap-2"><span className="text-primary">–</span> Sample size matters — thin track records are flagged <span className="text-[#C9A84C] font-mono text-[11px]">LOW N</span>.</div>
           </div>
-          <div className="flex gap-5 text-[11px] text-[#444] font-mono">
-            <Link href="/discover"  className="hover:text-white transition-colors no-underline">CATALOG</Link>
-            <Link href="/dashboard" className="hover:text-white transition-colors no-underline">DASHBOARD</Link>
-            <Link href="/list-bot"  className="hover:text-white transition-colors no-underline">SUBMIT</Link>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-[1100px] mx-auto px-8 py-8">
-
-        {/* INFO BAR */}
-        <div className="info-banner mb-8">
-          <span className="text-primary font-mono text-xs">[INFO]</span>
-          Ranked strictly by <span className="text-white mx-1 font-semibold">Brier Score</span> — lower is superior. Every score is derived from resolved trades. Scores cannot be forged.
         </div>
 
         {/* TOP 3 PODIUM */}
@@ -77,7 +68,9 @@ export default function LeaderboardPage() {
               return (
                 <motion.div
                   key={bot.id}
+                  layout
                   variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 100, damping: 15 } } }}
+                  whileHover={{ y: -4 }}
                 >
                   <Link
                     href={`/bot/${slug}`}
@@ -86,32 +79,35 @@ export default function LeaderboardPage() {
                   >
                     {/* Rank badge */}
                     <div
-                      className="absolute top-0 right-0 w-10 h-10 flex items-center justify-center font-mono font-black text-lg border-l border-b"
-                      style={{ color: rs.badge, borderColor: rs.border, background: `${rs.glow}` }}
+                      className="absolute top-0 right-0 w-11 h-11 flex items-center justify-center font-sans font-extrabold text-[22px] border-l border-b"
+                      style={{ color: rs.badge, borderColor: rs.border, background: `${rs.glow}`, textShadow: `0 0 16px ${rs.badge}66` }}
                     >
                       {i + 1}
                     </div>
 
                     <div className="p-5">
-                      <div className="flex items-center gap-3 mb-5 pr-10">
-                        <div className="w-10 h-10 border overflow-hidden rounded-sm" style={{ borderColor: rs.border }}>
+                      <div className="flex items-center gap-3.5 mb-5 pr-10">
+                        <div className="w-14 h-14 border overflow-hidden shrink-0" style={{ borderColor: rs.border }}>
                           {bot.pfpUrl ? (
                             <img src={bot.pfpUrl} alt={bot.name} className="w-full h-full object-cover" />
                           ) : (
-                            <BotIrisAvatar {...botEye(bot)} size={40} />
+                            <BotIrisAvatar {...botEye(bot)} size={54} />
                           )}
                         </div>
-                        <div>
-                          <div className="text-white font-bold text-sm font-sans">{bot.name}</div>
+                        <div className="min-w-0">
+                          <div className="text-white font-bold text-sm font-sans truncate">{bot.name}</div>
                           <div className="text-[10px] font-mono mt-0.5" style={{ color: rs.badge }}>{rs.label}</div>
+                          <div className="text-[10px] text-[#444] font-mono truncate">
+                            by {bot.maker?.handle ? `@${bot.maker.handle}` : (bot.maker?.name || `${(bot.walletAddress || 'anon').substring(0, 6)}…`)}
+                          </div>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-3 gap-2 text-[11px]">
                         {[
-                          { label: 'BRIER',   val: brier.toFixed(3) },
-                          { label: 'WIN_%',   val: `${(wr * 100).toFixed(1)}%` },
-                          { label: 'VAULT',   val: tvl > 0 ? `$${(tvl/1000).toFixed(0)}K` : '—' },
+                          { label: 'BRIER',    val: brier > 0 ? brier.toFixed(3) : 'AWAITING' },
+                          { label: 'WIN RATE', val: wr > 0 ? `${(wr * 100).toFixed(1)}%` : '—' },
+                          { label: 'VAULT',    val: tvl > 0 ? `$${(tvl/1000).toFixed(0)}K` : '—' },
                         ].map(m => (
                           <div key={m.label} className="border-l-2 pl-2" style={{ borderColor: rs.border }}>
                             <div className="text-[#444] text-[9px] font-mono uppercase tracking-widest">{m.label}</div>
@@ -140,7 +136,7 @@ export default function LeaderboardPage() {
                 <th className="p-4 font-medium tracking-widest">#</th>
                 <th className="p-4 font-medium tracking-widest">ALGORITHM</th>
                 <th className="p-4 font-medium tracking-widest">BRIER</th>
-                <th className="p-4 font-medium tracking-widest">WIN_%</th>
+                <th className="p-4 font-medium tracking-widest">WIN RATE</th>
                 <th className="p-4 font-medium tracking-widest">SHARPE</th>
                 <th className="p-4 font-medium tracking-widest">TRADES</th>
                 <th className="p-4 font-medium tracking-widest text-right">TVL</th>
@@ -150,13 +146,13 @@ export default function LeaderboardPage() {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="p-12 text-center font-mono text-primary text-xs">
-                    <div className="cursor-blink inline-block">&gt; SYNCHRONIZING_ONCHAIN_DATA</div>
+                    <div className="cursor-blink inline-block">&gt; syncing on-chain data…</div>
                   </td>
                 </tr>
               ) : ranked.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-12 text-center font-mono text-[#333] text-xs">
-                    &gt; NO_DATA — be the first to submit
+                    &gt; No data yet — be the first to deploy
                   </td>
                 </tr>
               ) : ranked.map((bot, i) => {
@@ -178,32 +174,49 @@ export default function LeaderboardPage() {
                     className="border-b border-[#111] transition-colors cursor-pointer hover:bg-[#0d0d0d]"
                     onClick={() => { window.location.href = `/bot/${slug}` }}
                   >
-                    <td className="p-3 px-4 font-bold font-mono" style={{ color: rankColor }}>
-                      {String(i + 1).padStart(2, '0')}
+                    <td className="p-3 px-4 font-sans font-extrabold text-[15px]" style={{ color: rankColor }}>
+                      {i + 1}
                     </td>
                     <td className="p-3 px-4">
-                      <Link href={`/bot/${slug}`} className="text-white no-underline font-semibold font-sans hover:text-primary transition-colors" onClick={e => e.stopPropagation()}>
-                        {bot.name}
-                      </Link>
-                      <div className="text-[10px] text-[#333] mt-[2px] font-mono">
-                        <Link href={`/maker/${builderId}`} className="no-underline text-[#333] hover:text-white transition-colors" onClick={e => e.stopPropagation()}>
-                          {builderId.substring(0, 6)}...{builderId.substring(builderId.length - 4)}
-                        </Link>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 border border-[#1a1a1a] overflow-hidden shrink-0">
+                          {bot.pfpUrl ? (
+                            <img src={bot.pfpUrl} alt={bot.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <BotIrisAvatar {...botEye(bot)} size={30} />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <Link href={`/bot/${slug}`} className="text-white no-underline font-semibold font-sans hover:text-primary transition-colors" onClick={e => e.stopPropagation()}>
+                            {bot.name}
+                          </Link>
+                          <div className="text-[10px] text-[#333] mt-[2px] font-mono">
+                            <Link href={`/maker/${builderId}`} className="no-underline text-[#333] hover:text-white transition-colors" onClick={e => e.stopPropagation()}>
+                              by {bot.maker?.handle ? `@${bot.maker.handle}` : (bot.maker?.name || `${builderId.substring(0, 6)}…${builderId.substring(builderId.length - 4)}`)}
+                            </Link>
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td className="p-3 px-4">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-white font-mono">{brier.toFixed(3)}</span>
-                        <span className="text-[9px] font-mono px-1.5 py-0.5" style={{ color: tierColor, background: `${tierColor}14`, border: `0.5px solid ${tierColor}33` }}>
-                          {tier}
-                        </span>
+                        {brier > 0 ? (
+                          <>
+                            <span className="font-bold text-white font-mono">{brier.toFixed(3)}</span>
+                            <span className="text-[9px] font-mono px-1.5 py-0.5" style={{ color: tierColor, background: `${tierColor}14`, border: `0.5px solid ${tierColor}33` }}>
+                              {tier}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-[10px] font-mono text-[#ffb000] animate-pulse">AWAITING DATA</span>
+                        )}
                       </div>
                     </td>
-                    <td className="p-3 px-4 text-white font-bold font-mono">{(wr * 100).toFixed(1)}%</td>
-                    <td className="p-3 px-4 text-white font-bold font-mono">{sharpe.toFixed(2)}</td>
+                    <td className="p-3 px-4 text-white font-bold font-mono">{wr > 0 ? `${(wr * 100).toFixed(1)}%` : '—'}</td>
+                    <td className="p-3 px-4 text-white font-bold font-mono">{sharpe > 0 ? sharpe.toFixed(2) : '—'}</td>
                     <td className="p-3 px-4 font-mono text-[#888]">
                       {nTrades > 0 ? nTrades.toLocaleString() : '—'}
-                      {nTrades > 0 && nTrades < 50 && <span className="ml-1.5 text-[8px] text-[#C9A84C]">LOW_N</span>}
+                      {nTrades > 0 && nTrades < 50 && <span className="ml-1.5 text-[8px] text-[#C9A84C]">LOW N</span>}
                     </td>
                     <td className="p-3 px-4 text-right text-white font-bold font-mono">
                       {tvl > 0 ? `$${tvl.toLocaleString()}` : '—'}
@@ -218,15 +231,15 @@ export default function LeaderboardPage() {
         {/* TRUST GRID */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {[
-            { icon: '/>', title: 'MATH_ENFORCEMENT',  desc: 'Rankings derived from Brier Score — the gold standard in forecasting.' },
-            { icon: '{}', title: 'VERIFIED_FILLS',     desc: 'Every score traces back to resolved market outcomes. No self-reporting.' },
-            { icon: '[]', title: 'ZERO_TRUST',         desc: 'HMAC-SHA256 signed signals. Resolution state cannot be altered.' },
+            { icon: '/>', title: 'Math enforcement', desc: 'Rankings derived from the Brier Score — the gold standard in forecasting.' },
+            { icon: '{}', title: 'Verified fills',   desc: 'Every score traces back to resolved market outcomes. No self-reporting.' },
+            { icon: '[]', title: 'Zero trust',       desc: 'HMAC-SHA256 signed signals. Resolution state cannot be altered.' },
           ].map((item, i) => (
             <div key={i} className="bg-[#080808] border border-[#1a1a1a] p-4 relative group hover:border-[#2a2a2a] transition-colors">
               <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-[#1a1a1a] group-hover:border-[#2a2a2a]" />
               <div className="text-primary font-mono font-bold text-base mb-2">{item.icon}</div>
-              <div className="font-mono text-[10px] text-white tracking-widest mb-1">{item.title}</div>
-              <div className="text-[10px] text-[#444] leading-relaxed font-sans">{item.desc}</div>
+              <div className="font-sans font-bold text-[13px] text-white mb-1">{item.title}</div>
+              <div className="text-[11px] text-[#555] leading-relaxed font-sans">{item.desc}</div>
             </div>
           ))}
         </div>
