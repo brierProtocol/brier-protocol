@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react'
 
-// Kept for compatibility with existing call sites — the pattern art ignores shape.
+// Kept for compatibility with existing call sites — the creature ignores shape.
 export type EyeShape = 'round' | 'aperture' | 'cat' | 'diamond' | 'scanner' | 'ring' | 'star' | 'triangle' | 'cross' | 'spiral' | 'nova' | 'void'
 
 interface BotIrisAvatarProps {
@@ -12,7 +12,7 @@ interface BotIrisAvatarProps {
   shape?: EyeShape
 }
 
-// FNV-1a with avalanche — small id changes produce very different patterns.
+// FNV-1a with avalanche — small id changes produce very different creatures.
 function hash(str: string): number {
   let h = 2166136261
   for (let i = 0; i < str.length; i++) {
@@ -25,7 +25,6 @@ function hash(str: string): number {
   return h >>> 0
 }
 
-// Tiny deterministic PRNG seeded from the hash.
 function mulberry32(seed: number) {
   let a = seed >>> 0
   return () => {
@@ -36,43 +35,62 @@ function mulberry32(seed: number) {
   }
 }
 
+// Mix a hex color toward white (amt 0..1)
+function lighten(hex: string, amt: number): string {
+  const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16)
+  const mix = (c: number) => Math.round(c + (255 - c) * amt).toString(16).padStart(2, '0')
+  return `#${mix(r)}${mix(g)}${mix(b)}`
+}
+
 /**
- * Generative signature art for bots — a mirrored glyph weave, unique and
- * deterministic per avatarId. Square, terminal-flavored, replaces the old
- * procedural eye (still in git history). Same prop contract as before.
+ * Pixel creature — every bot is an entity. A mirrored invader-style being,
+ * deterministic per avatarId, with eyes so it reads as a face. Replaces the
+ * old glyph weave (git history keeps both ancestors).
  */
 export default function BotIrisAvatar({ avatarId, size = 64, accentColor = '#ff2a4d' }: BotIrisAvatarProps) {
-  const cells = useMemo(() => {
-    const N = 7                          // 7×7 grid, mirrored around the center column
+  const { cells, eyes } = useMemo(() => {
+    const N = 10                       // 10×10 board, mirrored halves
+    const half = N / 2
     const rand = mulberry32(hash(avatarId || 'void'))
-    const half = Math.ceil(N / 2)
-    const grid: { x: number; y: number; g: number }[] = []
-    for (let y = 0; y < N; y++) {
+
+    // Body silhouette: center-weighted density so the mass connects into a creature
+    const cells: { x: number; y: number; tone: number }[] = []
+    const on: boolean[][] = Array.from({ length: N }, () => Array(N).fill(false))
+    for (let y = 1; y < N - 1; y++) {
       for (let x = 0; x < half; x++) {
-        const r = rand()
-        // glyphs: 0 blank · 1 solid · 2 dim · 3 diagonal / · 4 diagonal \ · 5 dot
-        let g = 0
-        if (r < 0.30) g = 0
-        else if (r < 0.52) g = 1
-        else if (r < 0.70) g = 2
-        else if (r < 0.80) g = 3
-        else if (r < 0.90) g = 4
-        else g = 5
-        grid.push({ x, y, g })
-        if (x !== N - 1 - x) {
-          // mirror: diagonals flip orientation
-          const mg = g === 3 ? 4 : g === 4 ? 3 : g
-          grid.push({ x: N - 1 - x, y, g: mg })
-        }
+        const cx = (half - 1 - x) / half          // 0 at center col → 1 at edge
+        const cy = Math.abs(y - (N - 1) / 2) / ((N - 1) / 2)
+        const p = 0.78 - cx * 0.45 - cy * 0.28    // denser core, raggedy edges
+        if (rand() < p) { on[y][x] = true; on[y][N - 1 - x] = true }
       }
     }
-    return grid
+
+    // Eyes: a symmetric pair on an upper row — the face
+    const eyeRow = 2 + Math.floor(rand() * 3)            // rows 2-4
+    const eyeCol = 1 + Math.floor(rand() * (half - 2))   // 1..half-2 from center
+    const ex1 = half - 1 - eyeCol
+    const ex2 = N - 1 - ex1
+    // guarantee sockets exist (and a brow above, for shape)
+    on[eyeRow][ex1] = true; on[eyeRow][ex2] = true
+    if (eyeRow > 1) { on[eyeRow - 1][ex1] = true; on[eyeRow - 1][ex2] = true }
+
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < half; x++) {
+        if (!on[y][x]) continue
+        const tone = rand() < 0.28 ? 1 : 0   // some pixels lighter → depth
+        cells.push({ x, y, tone })
+        cells.push({ x: N - 1 - x, y, tone })
+      }
+    }
+
+    return { cells, eyes: [{ x: ex1, y: eyeRow }, { x: ex2, y: eyeRow }] }
   }, [avatarId])
 
-  const N = 7
-  const PAD = 1            // outer padding in cell units
-  const VB = N + PAD * 2   // viewBox span
+  const N = 10
+  const PAD = 1
+  const VB = N + PAD * 2
   const A = accentColor
+  const ALight = lighten(accentColor, 0.45)
 
   return (
     <svg
@@ -81,18 +99,14 @@ export default function BotIrisAvatar({ avatarId, size = 64, accentColor = '#ff2
       viewBox={`0 0 ${VB} ${VB}`}
       shapeRendering="crispEdges"
       style={{ display: 'block', background: '#050505' }}
-      aria-label={`signature of ${avatarId}`}
+      aria-label={`agent ${avatarId}`}
     >
-      {cells.map(({ x, y, g }, i) => {
-        const cx = x + PAD
-        const cy = y + PAD
-        if (g === 0) return null
-        if (g === 1) return <rect key={i} x={cx} y={cy} width={1} height={1} fill={A} />
-        if (g === 2) return <rect key={i} x={cx} y={cy} width={1} height={1} fill={A} opacity={0.22} />
-        if (g === 3) return <path key={i} d={`M ${cx} ${cy + 1} L ${cx + 1} ${cy}`} stroke={A} strokeWidth={0.32} opacity={0.85} />
-        if (g === 4) return <path key={i} d={`M ${cx} ${cy} L ${cx + 1} ${cy + 1}`} stroke={A} strokeWidth={0.32} opacity={0.85} />
-        return <rect key={i} x={cx + 0.34} y={cy + 0.34} width={0.32} height={0.32} fill={A} opacity={0.9} />
-      })}
+      {cells.map(({ x, y, tone }, i) => (
+        <rect key={i} x={x + PAD} y={y + PAD} width={1} height={1} fill={tone ? ALight : A} />
+      ))}
+      {eyes.map(({ x, y }, i) => (
+        <rect key={`e${i}`} x={x + PAD + 0.22} y={y + PAD + 0.22} width={0.56} height={0.56} fill="#050505" />
+      ))}
     </svg>
   )
 }
