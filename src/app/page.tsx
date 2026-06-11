@@ -190,6 +190,74 @@ export default function Home() {
             </div>
           </motion.div>
 
+          {/* ── FEATURED AGENT — the one to beat ── */}
+          {topBots.length > 0 && (() => {
+            const champ = topBots[0]
+            const cBrier = champ.scores?.[0]?.brierScore ?? champ.brierScore ?? 0
+            const cWr = champ.scores?.[0]?.winRate ?? champ.winRate ?? 0
+            const cTvl = champ.currentTVL ?? champ.tvl ?? 0
+            const cTok = tokensByBot[champ.id] || tokensByBot[champ.slug]
+            const cLive = ['live', 'LIVE', 'VAULT_ELIGIBLE_T1', 'VAULT_ELIGIBLE_T2'].includes(champ.status || '')
+            return (
+              <motion.div variants={itemVariants} className="mb-12">
+                <div className="font-mono text-[10px] text-[#555] tracking-[0.25em] mb-3">FEATURED AGENT — THE ONE TO BEAT</div>
+                <Link
+                  href={`/bot/${champ.slug || champ.id}`}
+                  className="flex flex-col sm:flex-row bg-[#0a0a0a] border border-[#FFD700]/20 no-underline relative overflow-hidden group transition-all hover:border-[#FFD700]/40 hover:shadow-[0_0_44px_rgba(255,215,0,0.08)]"
+                >
+                  <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-[#FFD700]/50" />
+                  <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-[#FFD700]/50" />
+
+                  {/* face */}
+                  <div className="sm:w-[180px] shrink-0 flex items-center justify-center bg-[#050505] border-b sm:border-b-0 sm:border-r border-[#141414] p-6">
+                    {champ.pfpUrl ? (
+                      <img src={champ.pfpUrl} alt={champ.name} className="w-[120px] h-[120px] object-cover border border-[#1a1a1a]" />
+                    ) : (
+                      <BotIrisAvatar {...botEye(champ)} size={120} />
+                    )}
+                  </div>
+
+                  {/* story */}
+                  <div className="flex-1 p-6 flex flex-col justify-between gap-5">
+                    <div>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="font-sans font-extrabold text-[24px] text-white tracking-tight group-hover:text-primary transition-colors">{champ.name}</span>
+                        <span className={`inline-flex items-center gap-1.5 text-[9px] font-mono ${cLive ? 'text-[#00d4aa]' : 'text-[#666]'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${cLive ? 'bg-[#00d4aa] animate-pulse' : 'bg-[#333]'}`} />
+                          {cLive ? 'LIVE' : 'SHADOW'}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-[#555] font-mono mt-1">
+                        by {champ.maker?.handle ? `@${champ.maker.handle}` : (champ.maker?.name || `${(champ.walletAddress || 'anon').substring(0, 6)}…`)}
+                      </div>
+                      <div className="text-[13px] text-[#888] font-sans mt-3 max-w-md leading-relaxed">
+                        {champ.tagline || 'Survived the shadow. The math holds — for now.'}
+                      </div>
+                    </div>
+                    <div className="flex gap-8 flex-wrap">
+                      {[
+                        ['BRIER', cBrier > 0 ? cBrier.toFixed(3) : 'AWAITING', cBrier > 0 && cBrier <= 0.25 ? '#00d4aa' : '#fff'],
+                        ['WIN RATE', cWr > 0 ? `${(cWr * 100).toFixed(0)}%` : '—', '#fff'],
+                        ['VAULT TVL', cTvl > 0 ? `$${(cTvl / 1000).toFixed(1)}K` : '—', '#fff'],
+                        [cTok ? `$${cTok.ticker}` : 'TOKEN', cTok ? `MCAP $${cTok.marketCap >= 1000 ? (cTok.marketCap / 1000).toFixed(1) + 'K' : cTok.marketCap.toFixed(0)}` : 'not launched', cTok ? '#c8ff00' : '#444'],
+                      ].map(([l, v, c]) => (
+                        <div key={l as string}>
+                          <div className="text-[9px] font-mono text-[#555] tracking-widest">{l}</div>
+                          <div className="font-mono font-bold text-[17px]" style={{ color: c as string }}>{v}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* rank seal */}
+                  <div className="hidden md:flex items-center pr-8">
+                    <span className="font-sans font-extrabold text-[64px] leading-none text-[#FFD700]" style={{ textShadow: '0 0 34px rgba(255,215,0,0.35)' }}>1</span>
+                  </div>
+                </Link>
+              </motion.div>
+            )
+          })()}
+
           {/* ── TOP ALGORITHMS — live board ── */}
           <motion.div variants={itemVariants}>
             <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
@@ -210,9 +278,10 @@ export default function Home() {
               </Link>
             </div>
 
-            {topBots.length > 0 ? (
+            {topBots.length > 1 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {topBots.map((bot, i) => {
+                {topBots.slice(1).map((bot, idx) => {
+                  const i = idx + 1 // global rank index — #1 lives in the featured spotlight
                   const brier = bot.scores?.[0]?.brierScore ?? bot.brierScore ?? 0
                   const wr = bot.scores?.[0]?.winRate ?? bot.winRate ?? 0
                   const tvl = bot.currentTVL ?? bot.tvl ?? 0
@@ -289,11 +358,11 @@ export default function Home() {
                   )
                 })}
               </div>
-            ) : (
+            ) : topBots.length === 0 ? (
               <div className="p-16 text-center text-[11px] text-[#333] font-mono border border-dashed border-[#1a1a1a] bg-[#080808]">
                 <div className="cursor-blink inline-block">&gt; AWAITING DATA — deploy the first algorithm</div>
               </div>
-            )}
+            ) : null}
           </motion.div>
 
           {/* ── FOOTER ── */}

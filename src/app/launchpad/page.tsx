@@ -38,8 +38,39 @@ export default function LaunchpadPage() {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   })
 
+  const totalMcap = tokens.reduce((a, t) => a + (t.marketCap || 0), 0)
+  const totalTrades = tokens.reduce((a, t) => a + (t.trades || 0), 0)
+  const graduatedCount = tokens.filter(t => t.status === 'GRADUATED').length
+  const tape = tokens.length > 0
+    ? tokens.map(t => `$${t.ticker} ${fmtUsd(t.marketCap)} ${t.status === 'GRADUATED' ? '◆ GRAD' : `▲ ${(t.progress * 100).toFixed(0)}%`}`).join('      //      ')
+    : ''
+
   return (
-    <div className="min-h-screen bg-[#030303] text-white p-8 md:p-12">
+    <div className="min-h-screen bg-[#030303] text-white">
+
+      {/* MARKET STATS STRIP */}
+      <div className="border-b border-[#1a1a1a] bg-[#050505]">
+        <div className="max-w-[1200px] mx-auto px-8 md:px-12 py-2 flex gap-6 flex-wrap font-mono text-[10px] tracking-widest text-[#555]">
+          <span>TOTAL MCAP <span className="text-white font-bold">{fmtUsd(totalMcap)}</span></span>
+          <span>TOKENS <span className="text-white font-bold">{tokens.length || '—'}</span></span>
+          <span>TRADES <span className="text-white font-bold">{totalTrades || '—'}</span></span>
+          <span>GRADUATED <span className="text-[#FFD700] font-bold">{graduatedCount}</span></span>
+        </div>
+      </div>
+
+      {/* TICKER TAPE */}
+      {tape && (
+        <div className="border-b border-[#111] overflow-hidden bg-[#030303]">
+          <div
+            className="whitespace-nowrap text-[11px] font-mono text-[#444] py-1.5"
+            style={{ animation: 'scroll-left 30s linear infinite' }}
+          >
+            {tape}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{tape}
+          </div>
+        </div>
+      )}
+
+      <div className="p-8 md:p-12">
       <div className="max-w-[1200px] mx-auto">
 
         {/* HERO */}
@@ -148,6 +179,7 @@ export default function LaunchpadPage() {
             })}
           </motion.div>
         )}
+      </div>
       </div>
     </div>
   )
