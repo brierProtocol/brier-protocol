@@ -78,5 +78,7 @@ async function settlePending() {
 }
 
 console.log('[WATCHER] Shadow resolution watcher started. Interval: 5m')
-await settlePending()
-setInterval(settlePending, INTERVAL_MS)
+// A transient DB/network error must never kill the daemon
+const safeSettle = () => settlePending().catch(e => console.error(`[WATCHER] cycle error: ${e.message?.slice(0, 200)}`))
+await safeSettle()
+setInterval(safeSettle, INTERVAL_MS)
