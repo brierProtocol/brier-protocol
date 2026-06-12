@@ -270,7 +270,8 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         setTradeHistory(activeBot.dbTradeEvents.map((t: any) => ({
           ts: t.timestamp,
           market: t.marketTitle, side: t.side || "YES", entry: t.entryPrice ?? 0.5,
-          size: t.sizeUsdc ?? t.size ?? null,
+          size: t.amount ?? t.sizeUsdc ?? t.size ?? null,
+          flagged: !!t.fraudFlag,
           outcome: t.outcome === "PENDING" ? null : (t.outcome === "WIN" ? 1 : 0)
         })))
       }
@@ -288,6 +289,24 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         setTokenTicks(tok.history.map((h: any) => ({ t: new Date(h.t).getTime(), v: h.price })))
       })
       .catch(() => setTokenTicks(null))
+
+    // Live tape: ADAN reports trades in real time — keep the log breathing
+    const tapeIv = setInterval(() => {
+      fetch(`/api/bots/${slug}`)
+        .then(r => r.ok ? r.json() : null)
+        .then((b: any) => {
+          if (!b?.trades?.length) return
+          setTradeHistory(b.trades.map((t: any) => ({
+            ts: t.timestamp,
+            market: t.marketTitle, side: t.side || "YES", entry: t.entryPrice ?? 0.5,
+            size: t.amount ?? null,
+            flagged: !!t.fraudFlag,
+            outcome: t.outcome === "PENDING" ? null : (t.outcome === "WIN" ? 1 : 0)
+          })))
+        })
+        .catch(() => { })
+    }, 15_000)
+    return () => clearInterval(tapeIv)
   }, [slug])
 
   const addPost = async () => {
@@ -539,7 +558,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                       </tr>
                     </thead>
                     <tbody>
-                      {[...tradeHistory].reverse().map((t, i) => (
+                      {tradeHistory.map((t, i) => (
                         <tr key={i} className="border-b border-[#101010] hover:bg-[#0b0b0b] transition-colors">
                           <td className="px-4 py-2.5 font-mono text-[10px] text-[#555] whitespace-nowrap tabular">
                             {new Date(t.ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}

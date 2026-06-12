@@ -32,6 +32,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     const bot = await prisma.bot.findUnique({ where: { slug } })
     if (!bot) return NextResponse.json({ error: 'Bot not found' }, { status: 404 })
 
+    // ── Integrity: the claimed entryPrice is verified against the live CLOB
+    // at receipt. Investors score the bot on this price — a bot cannot report
+    // a price the market never showed. Deviation > 7¢ ⇒ we record the price
+    // the market actually had and flag the trade.
+    let finalPrice = price
+    let fraudFlag = false
+    try {
+      const clobRes = await fetch(`https://clob.polymarket.com/markets/${marketId}`, {
+        signal: AbortSignal.timeout(6000),
+      })
+      if (clobRes.ok) {
+        const m = await clobRes.json()
+        const yesTok = (m.tokens || [])[0]
+        if (yesTok?.price != null) {
+          const liveSidePrice = cleanSide === 'YES' ? Number(yesTok.price) : 1 - Number(yesTok.price)
+          if (liveSidePrice > 0 && liveSidePrice < 1 && Math.abs(liveSidePrice - price) > 0.07) {
+            finalPrice = liveSidePrice
+            fraudFlag = true
+            console.warn(`[paper-trade] price mismatch ${slug}: claimed ${price}, live ${liveSidePrice} — using live, flagged`)
+          }
+        }
+      }
+    } catch { /* CLOB unreachable → accept claimed price; the watcher still verifies the outcome */ }
+
     const trade = await prisma.tradeEvent.upsert({
       where: { source_externalTradeId: { source: 'SHADOW_PAPER', externalTradeId: String(externalTradeId || `${slug}-${Date.now()}`) } },
       create: {
@@ -40,8 +64,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
         marketTitle: String(marketTitle || 'Unknown market').slice(0, 200),
         side: cleanSide,
         amount: size,
-        entryPrice: price,
+        entryPrice: finalPrice,
         outcome: 'PENDING',
+        fraudFlag,
         executionWallet: bot.walletAddress,
         source: 'SHADOW_PAPER',
         externalTradeId: String(externalTradeId || `${slug}-${Date.now()}`),
