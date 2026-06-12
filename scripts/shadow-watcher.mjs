@@ -6,10 +6,41 @@
 // Run:  set -a && source .env.local && set +a && node scripts/shadow-watcher.mjs
 
 import { PrismaClient } from '@prisma/client'
+import dns from 'dns'
+import https from 'https'
+import { promisify } from 'util'
 
 const prisma = new PrismaClient()
-const CLOB = process.env.POLYMARKET_CLOB_URL || 'https://clob.polymarket.com'
 const INTERVAL_MS = 5 * 60 * 1000
+
+// ISP blocks *.polymarket.com at resolver level — resolve via 1.1.1.1 and
+// connect by IP with explicit SNI (same bypass as ADAN's polymarket.js).
+dns.setServers(['1.1.1.1', '8.8.8.8'])
+const resolve4 = promisify(dns.resolve4)
+const CLOB_HOST = 'clob.polymarket.com'
+let _clobIP = null
+
+async function clobGet(path) {
+  if (!_clobIP) {
+    try { _clobIP = (await resolve4(CLOB_HOST))[0] } catch { _clobIP = null }
+  }
+  if (!_clobIP) throw new Error('CLOB DNS unresolved')
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: _clobIP, port: 443, path, method: 'GET',
+      servername: CLOB_HOST,
+      headers: { Host: CLOB_HOST, Accept: 'application/json' },
+      timeout: 15000,
+    }, res => {
+      let data = ''
+      res.on('data', c => data += c)
+      res.on('end', () => resolve({ status: res.statusCode, json: () => JSON.parse(data) }))
+    })
+    req.on('error', reject)
+    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')) })
+    req.end()
+  })
+}
 
 async function settlePending() {
   const pending = await prisma.tradeEvent.findMany({ where: { outcome: 'PENDING' } })
@@ -17,10 +48,10 @@ async function settlePending() {
 
   for (const trade of pending) {
     try {
-      const res = await fetch(`${CLOB}/markets/${trade.marketId}`, { signal: AbortSignal.timeout(15000) })
+      const res = await clobGet(`/markets/${trade.marketId}`)
       if (res.status === 404) { console.warn(`[WATCHER] ${trade.marketId} not on CLOB — skipping`); continue }
-      if (!res.ok) continue
-      const data = await res.json()
+      if (res.status !== 200) continue
+      const data = res.json()
       if (data?.closed !== true) continue // still open
 
       const winner = (data.tokens || []).find(t => t.winner === true)
