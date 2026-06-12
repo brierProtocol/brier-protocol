@@ -54,13 +54,17 @@ async function settlePending() {
       const data = res.json()
       if (data?.closed !== true) continue // still open
 
-      const winner = (data.tokens || []).find(t => t.winner === true)
-      if (!winner) { console.log(`[WATCHER] ${trade.marketId} closed, winner not finalized (UMA window)`); continue }
+      const tokens = data.tokens || []
+      const winnerIdx = tokens.findIndex(t => t.winner === true)
+      if (winnerIdx === -1) { console.log(`[WATCHER] ${trade.marketId} closed, winner not finalized (UMA window)`); continue }
 
-      const winningOutcome = (winner.outcome || '').toUpperCase()
+      // Outcome names vary by market ("Yes/No", "Up/Down"). ADAN's YES always
+      // means the FIRST outcome (its entryPrice is outcomePrices[0]), so we
+      // match by token index, not by name.
+      const winningOutcome = (tokens[winnerIdx].outcome || '').toUpperCase()
       const bet = (trade.side || '').toUpperCase()
       const normalized = bet === 'LONG' ? 'YES' : bet === 'SHORT' ? 'NO' : bet
-      const didWin = normalized === winningOutcome
+      const didWin = normalized === 'YES' ? winnerIdx === 0 : winnerIdx === 1
 
       await prisma.tradeEvent.update({
         where: { id: trade.id },
