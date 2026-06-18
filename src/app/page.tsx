@@ -8,6 +8,7 @@ import WaveWordmark from '@/components/WaveWordmark'
 
 const PlanetAgentsBackground = dynamic(() => import('@/components/PlanetAgentsBackground'), { ssr: false })
 const BlockchainLoader = dynamic(() => import('@/components/BlockchainLoader'), { ssr: false })
+const BrierJourney = dynamic(() => import('@/components/BrierJourney'), { ssr: false })
 
 const fadeUp: any = {
   hidden: { opacity: 0, y: 28 },
@@ -120,6 +121,9 @@ export default function Landing() {
           </p>
         </motion.div>
       </section>
+
+      {/* ── JOURNEY 3D ── */}
+      <BrierJourney />
 
       {/* ── FEATURES ── */}
       <section className="relative bg-[#030303] py-32 px-6">
