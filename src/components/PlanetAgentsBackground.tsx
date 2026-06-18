@@ -46,8 +46,8 @@ export default function PlanetAgentsBackground({ className = '' }: { className?:
 
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 100)
-    camera.position.set(0, 1.4, 6.6)
-    camera.lookAt(0, -0.35, 0)
+    camera.position.set(0, 1.7, 10)
+    camera.lookAt(0, -0.5, 0)
 
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
     renderer.setClearColor(0x000000, 0)
