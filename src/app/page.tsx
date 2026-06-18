@@ -10,6 +10,7 @@ import { botEye } from '@/lib/botIdentity'
 import dynamic from 'next/dynamic'
 
 const PlanetAgentsBackground = dynamic(() => import('@/components/PlanetAgentsBackground'), { ssr: false })
+const BlockchainLoader = dynamic(() => import('@/components/BlockchainLoader'), { ssr: false })
 
 const TICKER_EVENTS = [
   '> ALGO_DELTA executed LONG on BTC-USD/DEC26 @ 0.62 confidence',
@@ -36,6 +37,15 @@ export default function Home() {
   const [tokensByBot, setTokensByBot] = useState<Record<string, any>>({})
   const [protocolStats, setProtocolStats] = useState({ bots: 0, tvl: 0, live: 0 })
   const [howOpen, setHowOpen] = useState(false)
+  const [showLoader, setShowLoader] = useState(false)
+
+  useEffect(() => {
+    const seen = sessionStorage.getItem('brier_loaded')
+    if (!seen) {
+      sessionStorage.setItem('brier_loaded', '1')
+      setShowLoader(true)
+    }
+  }, [])
 
   useEffect(() => {
     const load = () => {
@@ -75,6 +85,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen text-white font-sans">
+
+      {showLoader && <BlockchainLoader onDone={() => setShowLoader(false)} />}
 
       <PlanetAgentsBackground className="fixed inset-0 -z-10 pointer-events-none" />
 
@@ -177,16 +189,16 @@ export default function Home() {
               <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-[#1a1a1a] group-hover:border-[#333] transition-colors" />
               <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-[#1a1a1a] group-hover:border-[#333] transition-colors" />
               <div className="text-2xl font-mono text-[#333] mb-4">[⬆]</div>
-              <div className="text-white font-sans font-bold mb-2 text-base tracking-tight">Deploy a Bot</div>
+              <div className="text-white font-sans font-bold mb-2 text-base tracking-tight">Start Building</div>
               <div className="text-xs text-[#666] mb-1 font-mono">
-                Submit your prediction model. Prove your Brier Score on-chain.
+                Deploy your prediction algorithm. Prove your Brier Score on-chain.
               </div>
               <div className="text-xs text-[#444] mb-6 font-mono">
                 7-day shadow → T1 eligible → vault opens → attract capital.
               </div>
               <div className="flex items-center justify-between">
-                <Link href="/list-bot" className="inline-block bg-transparent border border-primary/50 text-primary px-5 py-2 font-mono font-bold text-xs transition-all hover:bg-primary/10 hover:border-primary hover:shadow-[0_0_12px_rgba(255,42,77,0.3)]">
-                  SUBMIT_ALGORITHM →
+                <Link href="/docs" className="inline-block bg-transparent border border-primary/50 text-primary px-5 py-2 font-mono font-bold text-xs transition-all hover:bg-primary/10 hover:border-primary hover:shadow-[0_0_12px_rgba(255,42,77,0.3)]">
+                  READ THE DOCS →
                 </Link>
                 <span className="text-[10px] text-[#333] font-mono">
                   {protocolStats.bots > 0 ? `${protocolStats.bots} REGISTERED` : 'BE FIRST'}
