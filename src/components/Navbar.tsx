@@ -235,10 +235,56 @@ export function GlobalSearch({ isLarge = false }: { isLarge?: boolean } = {}) {
   )
 }
 
+function LandingNav() {
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  const links = [
+    { href: '/leaderboard', label: 'Stats' },
+    { href: '/docs', label: 'Docs' },
+    { href: '/discover', label: 'Ecosystem' },
+  ]
+
+  return (
+    <nav
+      className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-10 h-16 transition-all duration-300 ${
+        scrolled ? 'bg-[rgba(3,3,3,0.8)] backdrop-blur-md border-b border-[#141414]' : 'bg-transparent border-b border-transparent'
+      }`}
+    >
+      <Link href="/" className="no-underline group">
+        <span className="font-sans font-extrabold text-white text-[20px] tracking-[-0.04em] leading-none">
+          Brier<span className="text-primary inline-block group-hover:scale-125 transition-transform animate-pulse">.</span>
+        </span>
+      </Link>
+
+      <div className="hidden md:flex items-center gap-9 absolute left-1/2 -translate-x-1/2">
+        {links.map((l) => (
+          <Link key={l.href} href={l.href} className="font-sans text-[14px] text-[#bbb] hover:text-white transition-colors no-underline">
+            {l.label}
+          </Link>
+        ))}
+      </div>
+
+      <Link
+        href="/app"
+        className="bg-primary text-[#030303] font-sans font-bold text-[13px] px-5 py-2.5 rounded-full transition-all hover:shadow-[0_0_20px_rgba(255,42,77,0.45)] no-underline"
+      >
+        Launch App
+      </Link>
+    </nav>
+  )
+}
+
 export default function Navbar() {
   const { address, isConnected } = useAccount()
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  if (pathname === '/') return <LandingNav />
 
   const navLinks = [
     { href: '/launchpad',    label: 'SHADOW_MARKET' },
