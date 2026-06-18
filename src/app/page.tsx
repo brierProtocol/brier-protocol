@@ -18,7 +18,7 @@ const FEATURES = [
   {
     icon: 'M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z',
     title: 'The Brier Score',
-    body: 'A proper scoring rule that cannot be gamed. Every prediction is measured against reality — lower is better. Calibration is the only currency.',
+    body: 'A proper scoring rule that cannot be gamed. Every prediction is measured against reality, and lower is better. Calibration is the only currency.',
   },
   {
     icon: 'M4 4h16v6H4zM4 14h16v6H4z',
@@ -27,18 +27,20 @@ const FEATURES = [
   },
   {
     icon: 'M12 2a10 10 0 100 20 10 10 0 000-20zM2 12h20',
-    title: 'Shadow Market',
-    body: 'Tokenize agents from day zero. A conviction token on a bonding curve — the only memecoin with a truth counter running next to the price.',
+    title: 'The Shadow Phase',
+    body: 'Seven days of paper trading with no capital at risk. Every prediction settles against real outcomes, and only proven algorithms graduate to a live vault.',
   },
   {
     icon: 'M13 2L3 14h7l-1 8 10-12h-7z',
     title: 'Deploy a Bot',
-    body: 'Connect a wallet, name your agent, ship. Survive the 7-day shadow phase, prove your Brier Score on-chain, and unlock a vault.',
+    body: 'Connect a wallet, name your agent, ship. Survive the shadow phase, prove your Brier Score on chain, and unlock a vault that attracts real capital.',
   },
 ]
 
 export default function Landing() {
   const [showLoader, setShowLoader] = useState(false)
+
+  const [scrollP, setScrollP] = useState(0)
 
   useEffect(() => {
     const seen = sessionStorage.getItem('brier_loaded')
@@ -48,44 +50,52 @@ export default function Landing() {
     }
   }, [])
 
+  useEffect(() => {
+    const onScroll = () => {
+      const max = document.body.scrollHeight - window.innerHeight
+      setScrollP(max > 0 ? Math.min(1, window.scrollY / max) : 0)
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   return (
     <div className="relative text-white font-sans overflow-x-hidden">
       {showLoader && <BlockchainLoader onDone={() => setShowLoader(false)} />}
+
+      {/* Atardecer: un tinte rojizo cálido va apareciendo a medida que bajas */}
+      <div
+        className="fixed inset-0 z-30 pointer-events-none"
+        style={{
+          background: 'linear-gradient(160deg, rgba(60,4,14,0) 0%, rgba(80,6,18,0.5) 60%, rgba(120,12,28,0.7) 100%)',
+          opacity: scrollP * 0.5,
+          mixBlendMode: 'screen',
+        }}
+      />
 
       {/* ── HERO ── */}
       <section className="relative min-h-[100svh] flex flex-col items-center justify-center px-6 text-center">
         <PlanetAgentsBackground className="fixed inset-0 -z-10 pointer-events-none" />
 
         <motion.div initial="hidden" animate="show" variants={fadeUp} className="max-w-3xl">
-          <div className="font-mono text-[11px] tracking-[0.28em] uppercase text-primary mb-8">
-            Shadow Index · Prediction Vaults
-          </div>
           <h1 className="m-0 font-sans font-extrabold tracking-[-0.045em] leading-[0.98] text-[clamp(44px,8vw,96px)]">
             The proving ground<br />for prediction<br />algorithms<span className="text-primary">.</span>
           </h1>
           <p className="mt-8 mx-auto max-w-xl text-[15px] md:text-[17px] leading-relaxed text-[#9a9a9a]">
-            Algorithms forecast real-world markets. Every prediction is scored, every
-            ranking is earned. Capital follows calibration — nothing else.
+            Autonomous bots forecast real world markets. Every prediction is scored against
+            reality, and only the algorithms that prove their accuracy open a vault. Capital
+            follows calibration, nothing else.
           </p>
-          <div className="mt-12 flex items-center justify-center gap-4 flex-wrap">
+          <div className="mt-12 flex items-center justify-center">
             <Link
               href="/app"
-              className="inline-flex items-center gap-2 bg-primary text-[#030303] font-sans font-bold text-[14px] px-7 py-3.5 rounded-full transition-all hover:shadow-[0_0_24px_rgba(255,42,77,0.45)] no-underline"
+              className="inline-flex items-center gap-2 bg-primary text-[#030303] font-sans font-bold text-[15px] px-9 py-4 rounded-full transition-all hover:shadow-[0_0_28px_rgba(255,42,77,0.5)] no-underline"
             >
-              Deposit into Vaults
-            </Link>
-            <Link
-              href="/docs"
-              className="inline-flex items-center gap-2 border border-[#2a2a2a] text-white font-sans font-medium text-[14px] px-7 py-3.5 rounded-full transition-all hover:border-[#555] hover:bg-white/[0.03] no-underline"
-            >
-              Start Building
+              Launch App
             </Link>
           </div>
         </motion.div>
-
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 font-mono text-[10px] tracking-[0.2em] text-[#444] uppercase animate-pulse">
-          scroll to explore ↓
-        </div>
       </section>
 
       {/* ── FLAGSHIP ── */}
@@ -101,12 +111,12 @@ export default function Landing() {
             The flagship product
           </div>
           <h2 className="m-0 font-sans font-extrabold tracking-[-0.04em] leading-tight text-[clamp(30px,5vw,56px)]">
-            Where algorithms compete<br />for <span className="text-primary">real capital</span>.
+            Every vault is<br /><span className="text-primary">earned</span>, never given.
           </h2>
           <p className="mt-8 mx-auto max-w-2xl text-[15px] md:text-[16px] leading-relaxed text-[#888]">
-            Brier runs two parallel economies around every agent: a conviction token on the
-            Shadow Market, live from day zero, and a vault of real USDC — unlocked only once
-            the math proves it. Hype moves the token. Only the Brier Score moves the capital.
+            Every algorithm starts in the shadows. For seven days it predicts on paper, with no
+            capital at risk, while its Brier Score is measured against reality. Prove your
+            accuracy and your vault opens. From there, real capital follows the math.
           </p>
         </motion.div>
       </section>
@@ -213,7 +223,7 @@ export default function Landing() {
           <WaveWordmark className="text-[clamp(80px,20vw,260px)] text-center" />
         </div>
         <div className="border-t border-[#111] py-6 px-6 text-center font-mono text-[10px] text-[#444] tracking-wider">
-          © 2026 BRIER — START VAULTMAXXING
+          © 2026 BRIER · START VAULTMAXXING
         </div>
       </footer>
     </div>
