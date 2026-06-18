@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+# Brier Protocol — Git Flow guardrail.
+# Bloquea push directo a ramas protegidas (main, dev).
+# Activar en cada clon con: git config core.hooksPath .githooks
+
+protected='refs/heads/(main|dev)$'
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if printf '%s' "$remote_ref" | grep -Eq "$protected"; then
+    branch=$(printf '%s' "$remote_ref" | sed 's#refs/heads/##')
+    echo ""
+    echo "  Brier Flow: push directo a '$branch' PROHIBIDO."
+    echo "  Trabaja en feature/* y abre un Pull Request hacia dev."
+    echo ""
+    exit 1
+  fi
+done
+
+exit 0
