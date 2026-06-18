@@ -285,6 +285,8 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   if (pathname === '/') return <LandingNav />
+  // Docs trae su propio header (logo + search ⌘K + tabs) — sin navbar global encima
+  if (pathname.startsWith('/docs')) return null
 
   const navLinks = [
     { href: '/launchpad',    label: 'SHADOW_MARKET' },
