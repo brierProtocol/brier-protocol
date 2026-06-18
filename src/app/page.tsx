@@ -7,6 +7,9 @@ import { GlobalSearch } from '@/components/Navbar'
 import { HowItWorksModal } from '@/components/HowItWorks'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
+import dynamic from 'next/dynamic'
+
+const PlanetAgentsBackground = dynamic(() => import('@/components/PlanetAgentsBackground'), { ssr: false })
 
 const TICKER_EVENTS = [
   '> ALGO_DELTA executed LONG on BTC-USD/DEC26 @ 0.62 confidence',
@@ -71,7 +74,9 @@ export default function Home() {
   const tickerLine = TICKER_EVENTS.join('     //     ')
 
   return (
-    <div className="min-h-screen bg-[#030303] text-white font-sans">
+    <div className="min-h-screen text-white font-sans">
+
+      <PlanetAgentsBackground className="fixed inset-0 -z-10 pointer-events-none" />
 
       {/* ── PROTOCOL STATS BAR ── */}
       <div className="border-b border-[#1a1a1a] bg-[#050505]">
