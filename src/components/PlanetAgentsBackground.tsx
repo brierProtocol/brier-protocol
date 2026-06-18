@@ -4,33 +4,30 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 
 /**
- * Fondo 3D del hero: núcleo Brier + red de nodos (personas con bots conectados).
- * Sin líneas de órbita — los nodos flotan libres, unidos entre sí en constelación,
- * con flujo de datos/capital viajando constantemente hacia el núcleo.
+ * Fondo 3D del hero: el planeta es Brier. Los nodos grandes son VAULTS conectados al
+ * núcleo con flujo de capital; la nube de puntos rojos son los USUARIOS de Brier.
+ * Sin líneas de órbita. Movimiento fluido, atmósfera en capas para realismo.
  * Paleta estricta: negro / blanco / rojo Brier (#ff2a4d). Three.js, fondo transparente.
- * Reutilizable en cualquier hero — montar siempre vía next/dynamic con { ssr: false }.
+ * Montar siempre vía next/dynamic con { ssr: false }.
  */
 
 const RED = 0xff2a4d
 const RED_LIGHT = 0xff5570
 const WHITE = 0xffffff
 
-interface Node {
+interface Vault {
   mesh: THREE.Mesh
-  baseColor: number
-  // posición orbital libre (esférica, sin línea visible)
+  halo: THREE.Mesh
   R: number
   theta: number
   phi: number
   thetaSpeed: number
   phiSpeed: number
   pos: THREE.Vector3
-  // flujo de datos hacia el núcleo
   flow: THREE.Mesh
   flowT: number
   flowSpeed: number
   conn: THREE.Line
-  halo: THREE.Mesh
 }
 
 export default function PlanetAgentsBackground({ className = '' }: { className?: string }) {
@@ -49,20 +46,20 @@ export default function PlanetAgentsBackground({ className = '' }: { className?:
 
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 100)
-    camera.position.set(0, 1.7, 10)
-    camera.lookAt(0, -0.5, 0)
+    camera.position.set(0, 1.6, 10)
+    camera.lookAt(0, -0.4, 0)
 
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
     renderer.setClearColor(0x000000, 0)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setSize(W, H, false)
 
-    // ── Campo de estrellas ──
+    // ── Estrellas lejanas ──
     const starGeo = new THREE.BufferGeometry()
-    const starN = 620
+    const starN = 700
     const starPos = new Float32Array(starN * 3)
     for (let i = 0; i < starN; i++) {
-      const r = 14
+      const r = 15
       const t = Math.acos(2 * Math.random() - 1)
       const f = Math.random() * Math.PI * 2
       starPos[i * 3] = r * Math.sin(t) * Math.cos(f)
@@ -70,41 +67,52 @@ export default function PlanetAgentsBackground({ className = '' }: { className?:
       starPos[i * 3 + 2] = r * Math.cos(t)
     }
     starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3))
-    const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: WHITE, size: 0.05, transparent: true, opacity: 0.6 }))
+    const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: WHITE, size: 0.045, transparent: true, opacity: 0.55 }))
     scene.add(stars)
 
-    // ── World group (parallax + offset hacia abajo) ──
+    // ── World group (parallax + offset) ──
     const world = new THREE.Group()
     world.position.y = -0.4
     scene.add(world)
 
-    // ── Núcleo Brier ──
+    // ── Núcleo Brier (con atmósfera en capas para glow realista) ──
     const planet = new THREE.Group()
     world.add(planet)
-    planet.add(new THREE.Mesh(new THREE.SphereGeometry(1.42, 32, 32), new THREE.MeshBasicMaterial({ color: 0x070707 })))
-    const atmo = new THREE.Mesh(
-      new THREE.SphereGeometry(1.95, 32, 32),
-      new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0.05, side: THREE.BackSide }),
-    )
-    planet.add(atmo)
+    planet.add(new THREE.Mesh(new THREE.SphereGeometry(1.4, 48, 48), new THREE.MeshBasicMaterial({ color: 0x060606 })))
+    // capas de atmósfera
+    const atmoLayers: THREE.Mesh[] = []
+    const atmoSpecs = [
+      { r: 1.55, o: 0.10 },
+      { r: 1.78, o: 0.05 },
+      { r: 2.1, o: 0.025 },
+    ]
+    for (const s of atmoSpecs) {
+      const a = new THREE.Mesh(
+        new THREE.SphereGeometry(s.r, 32, 32),
+        new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: s.o, side: THREE.BackSide }),
+      )
+      planet.add(a)
+      atmoLayers.push(a)
+    }
     planet.add(new THREE.LineSegments(
-      new THREE.WireframeGeometry(new THREE.IcosahedronGeometry(1.48, 1)),
-      new THREE.LineBasicMaterial({ color: WHITE, transparent: true, opacity: 0.14 }),
+      new THREE.WireframeGeometry(new THREE.IcosahedronGeometry(1.46, 2)),
+      new THREE.LineBasicMaterial({ color: WHITE, transparent: true, opacity: 0.1 }),
     ))
-    // halo de recepción — pulsa cuando llega flujo
+    // núcleo de recepción que pulsa al recibir flujo
     const coreHalo = new THREE.Mesh(
-      new THREE.SphereGeometry(1.55, 24, 24),
+      new THREE.SphereGeometry(1.5, 24, 24),
       new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0, side: THREE.BackSide }),
     )
     planet.add(coreHalo)
-    const dotsMat = new THREE.PointsMaterial({ color: RED, size: 0.028, transparent: true, opacity: 0.7 })
+    // puntos de superficie (latido)
+    const dotsMat = new THREE.PointsMaterial({ color: RED, size: 0.026, transparent: true, opacity: 0.65 })
     const dotGeo = new THREE.BufferGeometry()
-    const dotN = 360
+    const dotN = 420
     const dotPos = new Float32Array(dotN * 3)
     for (let i = 0; i < dotN; i++) {
       const t = Math.acos(2 * Math.random() - 1)
       const f = Math.random() * Math.PI * 2
-      const r = 1.5
+      const r = 1.43
       dotPos[i * 3] = r * Math.sin(t) * Math.cos(f)
       dotPos[i * 3 + 1] = r * Math.sin(t) * Math.sin(f)
       dotPos[i * 3 + 2] = r * Math.cos(t)
@@ -112,63 +120,73 @@ export default function PlanetAgentsBackground({ className = '' }: { className?:
     dotGeo.setAttribute('position', new THREE.BufferAttribute(dotPos, 3))
     planet.add(new THREE.Points(dotGeo, dotsMat))
 
-    // ── Red de nodos (personas con bots conectados) ──
-    const NODE_N = 14
-    const nodes: Node[] = []
-    for (let i = 0; i < NODE_N; i++) {
-      const baseColor = i % 3 === 0 ? RED : WHITE
+    // ── Usuarios (nube de puntos rojos orbitando) ──
+    const userN = 90
+    const userGeo = new THREE.BufferGeometry()
+    const userBase: { r: number; th: number; ph: number; sp: number }[] = []
+    const userPos = new Float32Array(userN * 3)
+    for (let i = 0; i < userN; i++) {
+      const r = 2.6 + Math.random() * 2.6
+      const th = Math.random() * Math.PI * 2
+      const ph = Math.acos(2 * Math.random() - 1)
+      userBase.push({ r, th, ph, sp: (0.04 + Math.random() * 0.08) * (Math.random() < 0.5 ? 1 : -1) })
+      userPos[i * 3] = r * Math.sin(ph) * Math.cos(th)
+      userPos[i * 3 + 1] = r * Math.cos(ph) * 0.75
+      userPos[i * 3 + 2] = r * Math.sin(ph) * Math.sin(th)
+    }
+    userGeo.setAttribute('position', new THREE.BufferAttribute(userPos, 3))
+    const users = new THREE.Points(userGeo, new THREE.PointsMaterial({ color: RED, size: 0.05, transparent: true, opacity: 0.8 }))
+    world.add(users)
+
+    // ── Vaults (nodos grandes conectados al núcleo con flujo) ──
+    const VAULT_N = 6
+    const vaults: Vault[] = []
+    for (let i = 0; i < VAULT_N; i++) {
       const mesh = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(0.1, 0),
-        new THREE.MeshBasicMaterial({ color: baseColor, transparent: true, opacity: 0.95 }),
+        new THREE.IcosahedronGeometry(0.15, 0),
+        new THREE.MeshBasicMaterial({ color: i % 2 ? RED : WHITE, transparent: true, opacity: 0.95 }),
       )
       world.add(mesh)
-
-      // halo suave alrededor de cada nodo
       const halo = new THREE.Mesh(
-        new THREE.SphereGeometry(0.2, 12, 12),
-        new THREE.MeshBasicMaterial({ color: baseColor, transparent: true, opacity: 0.08, side: THREE.BackSide }),
+        new THREE.SphereGeometry(0.3, 14, 14),
+        new THREE.MeshBasicMaterial({ color: i % 2 ? RED : WHITE, transparent: true, opacity: 0.07, side: THREE.BackSide }),
       )
       world.add(halo)
 
-      // línea de flujo nodo → núcleo
       const connGeo = new THREE.BufferGeometry()
       connGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3))
-      const conn = new THREE.Line(connGeo, new THREE.LineBasicMaterial({ color: RED, transparent: true, opacity: 0.08 }))
+      const conn = new THREE.Line(connGeo, new THREE.LineBasicMaterial({ color: RED, transparent: true, opacity: 0.12 }))
       world.add(conn)
 
-      // partícula de flujo que viaja del nodo al núcleo
       const flow = new THREE.Mesh(
-        new THREE.SphereGeometry(0.04, 8, 8),
+        new THREE.SphereGeometry(0.05, 8, 8),
         new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0.95 }),
       )
       world.add(flow)
 
-      nodes.push({
-        mesh, baseColor, halo,
-        R: 2.3 + Math.random() * 1.6,
-        theta: Math.random() * Math.PI * 2,
-        phi: Math.acos(2 * Math.random() - 1),
-        thetaSpeed: (0.06 + Math.random() * 0.12) * (Math.random() < 0.5 ? 1 : -1),
-        phiSpeed: (0.02 + Math.random() * 0.05) * (Math.random() < 0.5 ? 1 : -1),
+      vaults.push({
+        mesh, halo,
+        R: 2.7 + Math.random() * 1.2,
+        theta: (i / VAULT_N) * Math.PI * 2,
+        phi: 0.7 + Math.random() * 1.7,
+        thetaSpeed: (0.05 + Math.random() * 0.06) * (Math.random() < 0.5 ? 1 : -1),
+        phiSpeed: (0.015 + Math.random() * 0.03) * (Math.random() < 0.5 ? 1 : -1),
         pos: new THREE.Vector3(),
-        flow, flowT: Math.random(), flowSpeed: 0.3 + Math.random() * 0.4,
+        flow, flowT: Math.random(), flowSpeed: 0.22 + Math.random() * 0.25,
         conn,
       })
     }
 
-    // ── Red entre nodos (constelación — "unidos") ──
-    const maxLinks = (NODE_N * (NODE_N - 1)) / 2
+    // ── Red entre vaults (constelación) ──
+    const maxLinks = (VAULT_N * (VAULT_N - 1)) / 2
     const meshLinkPos = new Float32Array(maxLinks * 6)
     const meshLinkGeo = new THREE.BufferGeometry()
     meshLinkGeo.setAttribute('position', new THREE.BufferAttribute(meshLinkPos, 3))
-    const meshLinks = new THREE.LineSegments(
-      meshLinkGeo,
-      new THREE.LineBasicMaterial({ color: WHITE, transparent: true, opacity: 0.1 }),
-    )
+    const meshLinks = new THREE.LineSegments(meshLinkGeo, new THREE.LineBasicMaterial({ color: WHITE, transparent: true, opacity: 0.07 }))
     world.add(meshLinks)
-    const LINK_DIST = 2.1
+    const LINK_DIST = 3.0
 
-    // ── Parallax ──
+    // ── Parallax suave ──
     let mx = 0, my = 0, trx = 0, tryy = 0
     const onMove = (e: MouseEvent) => {
       mx = (e.clientX / window.innerWidth) * 2 - 1
@@ -187,78 +205,75 @@ export default function PlanetAgentsBackground({ className = '' }: { className?:
       elapsed += dt
       const t = elapsed
 
-      planet.rotation.y += dt * 0.1
-      dotsMat.opacity = 0.45 + 0.3 * Math.sin(t * 1.6)
-      atmo.scale.setScalar(1 + 0.012 * Math.sin(t * 1.2))
-      stars.rotation.y += dt * 0.005
+      planet.rotation.y += dt * 0.08
+      dotsMat.opacity = 0.4 + 0.28 * Math.sin(t * 1.4)
+      atmoLayers[0].scale.setScalar(1 + 0.015 * Math.sin(t * 1.1))
+      stars.rotation.y += dt * 0.004
 
-      trx += (mx * 0.32 - trx) * 0.04
-      tryy += (my * 0.18 - tryy) * 0.04
+      trx += (mx * 0.3 - trx) * 0.035
+      tryy += (my * 0.16 - tryy) * 0.035
       world.rotation.y = trx
       world.rotation.x = tryy
 
-      // posicionar nodos en órbita esférica libre (sin línea)
-      for (const n of nodes) {
-        n.theta += n.thetaSpeed * dt
-        n.phi += n.phiSpeed * dt
-        n.pos.set(
-          n.R * Math.sin(n.phi) * Math.cos(n.theta),
-          n.R * Math.cos(n.phi) * 0.7,
-          n.R * Math.sin(n.phi) * Math.sin(n.theta),
+      // usuarios orbitando (fluido)
+      const up = users.geometry.attributes.position.array as Float32Array
+      for (let i = 0; i < userN; i++) {
+        const u = userBase[i]
+        u.th += u.sp * dt
+        up[i * 3] = u.r * Math.sin(u.ph) * Math.cos(u.th)
+        up[i * 3 + 1] = u.r * Math.cos(u.ph) * 0.75 + Math.sin(t * 0.5 + i) * 0.04
+        up[i * 3 + 2] = u.r * Math.sin(u.ph) * Math.sin(u.th)
+      }
+      users.geometry.attributes.position.needsUpdate = true
+
+      // vaults + flujo de capital al núcleo
+      for (const v of vaults) {
+        v.theta += v.thetaSpeed * dt
+        v.phi += v.phiSpeed * dt
+        v.pos.set(
+          v.R * Math.sin(v.phi) * Math.cos(v.theta),
+          v.R * Math.cos(v.phi) * 0.7,
+          v.R * Math.sin(v.phi) * Math.sin(v.theta),
         )
-        n.mesh.position.copy(n.pos)
-        n.halo.position.copy(n.pos)
+        v.mesh.position.copy(v.pos)
+        v.halo.position.copy(v.pos)
+        v.mesh.rotation.x += dt * 0.5
+        v.mesh.rotation.y += dt * 0.4
 
-        // línea de flujo nodo → núcleo
-        const cp = n.conn.geometry.attributes.position.array as Float32Array
-        cp[0] = n.pos.x; cp[1] = n.pos.y; cp[2] = n.pos.z
+        const cp = v.conn.geometry.attributes.position.array as Float32Array
+        cp[0] = v.pos.x; cp[1] = v.pos.y; cp[2] = v.pos.z
         cp[3] = 0; cp[4] = 0; cp[5] = 0
-        n.conn.geometry.attributes.position.needsUpdate = true
+        v.conn.geometry.attributes.position.needsUpdate = true
 
-        // partícula de flujo viajando hacia el núcleo (constante)
-        n.flowT += n.flowSpeed * dt
-        if (n.flowT >= 1) {
-          n.flowT -= 1
-          coreGlow = 1 // el núcleo recibe → pulso
-        }
-        const ft = n.flowT
-        // easing hacia el centro
+        v.flowT += v.flowSpeed * dt
+        if (v.flowT >= 1) { v.flowT -= 1; coreGlow = 1 }
+        const ft = v.flowT
         const e = ft * ft
-        n.flow.position.set(n.pos.x * (1 - e), n.pos.y * (1 - e), n.pos.z * (1 - e))
-        ;(n.flow.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - ft * 0.5)
+        v.flow.position.set(v.pos.x * (1 - e), v.pos.y * (1 - e), v.pos.z * (1 - e))
+        ;(v.flow.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - ft * 0.4)
+        ;(v.conn.material as THREE.LineBasicMaterial).opacity = 0.08 + 0.14 * (1 - ft)
 
-        // brillo de línea sube con el flujo cerca del nodo
-        const connMat = n.conn.material as THREE.LineBasicMaterial
-        connMat.opacity = 0.05 + 0.12 * (1 - ft)
-
-        // pulso del nodo
-        const np = 1 + 0.12 * Math.sin(t * 2 + n.theta * 3)
-        n.mesh.scale.setScalar(np)
+        const np = 1 + 0.1 * Math.sin(t * 1.8 + v.theta * 2)
+        v.mesh.scale.setScalar(np)
       }
 
-      // recalcular red entre nodos cercanos
+      // red entre vaults
       let li = 0
-      for (let a = 0; a < nodes.length; a++) {
-        for (let b = a + 1; b < nodes.length; b++) {
-          const d = nodes[a].pos.distanceTo(nodes[b].pos)
+      for (let a = 0; a < vaults.length; a++) {
+        for (let b = a + 1; b < vaults.length; b++) {
+          const d = vaults[a].pos.distanceTo(vaults[b].pos)
           if (d < LINK_DIST) {
-            meshLinkPos[li++] = nodes[a].pos.x
-            meshLinkPos[li++] = nodes[a].pos.y
-            meshLinkPos[li++] = nodes[a].pos.z
-            meshLinkPos[li++] = nodes[b].pos.x
-            meshLinkPos[li++] = nodes[b].pos.y
-            meshLinkPos[li++] = nodes[b].pos.z
+            meshLinkPos[li++] = vaults[a].pos.x; meshLinkPos[li++] = vaults[a].pos.y; meshLinkPos[li++] = vaults[a].pos.z
+            meshLinkPos[li++] = vaults[b].pos.x; meshLinkPos[li++] = vaults[b].pos.y; meshLinkPos[li++] = vaults[b].pos.z
           }
         }
       }
-      // limpiar el resto del buffer
       for (let k = li; k < meshLinkPos.length; k++) meshLinkPos[k] = 0
       meshLinkGeo.attributes.position.needsUpdate = true
       meshLinkGeo.setDrawRange(0, li / 3)
 
-      // núcleo recibiendo flujo
-      coreGlow = Math.max(0, coreGlow - dt * 2.2)
-      ;(coreHalo.material as THREE.MeshBasicMaterial).opacity = 0.04 + 0.16 * coreGlow
+      coreGlow = Math.max(0, coreGlow - dt * 2)
+      ;(coreHalo.material as THREE.MeshBasicMaterial).opacity = 0.05 + 0.18 * coreGlow
 
       renderer.render(scene, camera)
     }
@@ -285,7 +300,6 @@ export default function PlanetAgentsBackground({ className = '' }: { className?:
     }
     window.addEventListener('resize', onResize)
 
-    // ── Cleanup: imprescindible en App Router para no fugar contextos WebGL ──
     return () => {
       cancelAnimationFrame(raf)
       window.removeEventListener('mousemove', onMove)
