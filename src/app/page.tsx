@@ -9,7 +9,7 @@ import WaveWordmark from '@/components/WaveWordmark'
 const PlanetAgentsBackground = dynamic(() => import('@/components/PlanetAgentsBackground'), { ssr: false })
 const BlockchainLoader = dynamic(() => import('@/components/BlockchainLoader'), { ssr: false })
 
-const fadeUp = {
+const fadeUp: any = {
   hidden: { opacity: 0, y: 28 },
   show: { opacity: 1, y: 0, transition: { ease: [0.16, 1, 0.3, 1], duration: 0.7 } },
 }
