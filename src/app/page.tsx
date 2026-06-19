@@ -40,7 +40,7 @@ export default function Landing() {
   }, [])
 
   return (
-    <div className="relative text-white font-sans overflow-x-hidden">
+    <div className="relative text-white font-sans overflow-x-clip">
       {showLoader && <BlockchainLoader onDone={() => setShowLoader(false)} />}
 
       {/* Atardecer: un tinte rojizo cálido va apareciendo a medida que bajas */}
