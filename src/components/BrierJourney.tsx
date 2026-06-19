@@ -54,11 +54,6 @@ export default function BrierJourney() {
 
   const clamp = (v: number) => Math.max(0, Math.min(N - 1, v))
 
-  // controles del panel (Next / Back / restart)
-  const goNext = () => { tProgRef.current = clamp(Math.round(curRef.current) + 1) }
-  const goBack = () => { tProgRef.current = clamp(Math.round(curRef.current) - 1) }
-  const restart = () => { tProgRef.current = 0 }
-
   useEffect(() => {
     const czone = czoneRef.current
     const canvas = canvasRef.current
@@ -122,15 +117,25 @@ export default function BrierJourney() {
       slabs.push({ mesh, edges, mat, edgeMat })
     }
 
-    // agente
+    // agente: estrella sparkle de 4 puntas (el destello de Brier)
+    const starShape = new THREE.Shape()
+    const spikes = 4, outer = 0.3, inner = 0.085
+    for (let i = 0; i <= spikes * 2; i++) {
+      const r = i % 2 === 0 ? outer : inner
+      const a = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2
+      const x = Math.cos(a) * r, y = Math.sin(a) * r
+      if (i === 0) starShape.moveTo(x, y); else starShape.lineTo(x, y)
+    }
+    const starGeo = new THREE.ExtrudeGeometry(starShape, { depth: 0.05, bevelEnabled: true, bevelSize: 0.015, bevelThickness: 0.015, bevelSegments: 1 })
+    starGeo.center()
     const agent = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.22, 1),
-      new THREE.MeshStandardMaterial({ color: RED, emissive: RED, emissiveIntensity: 0.6, metalness: 0.3, roughness: 0.4 }),
+      starGeo,
+      new THREE.MeshStandardMaterial({ color: RED, emissive: RED, emissiveIntensity: 0.7, metalness: 0.2, roughness: 0.35 }),
     )
     stack.add(agent)
     agent.add(new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(0.22, 1)),
-      new THREE.LineBasicMaterial({ color: REDL, transparent: true, opacity: 0.6 }),
+      new THREE.EdgesGeometry(starGeo),
+      new THREE.LineBasicMaterial({ color: WHITE, transparent: true, opacity: 0.7 }),
     ))
     const halo = new THREE.Mesh(
       new THREE.SphereGeometry(0.42, 16, 16),
@@ -225,7 +230,7 @@ export default function BrierJourney() {
       // agente sube al layer actual
       const ay = baseY(cur) + 0.3
       agent.position.set(0, ay, 0.18)
-      agent.rotation.y += 0.02; agent.rotation.x += 0.012
+      agent.rotation.z += 0.012; agent.rotation.x = 0.4
       halo.position.copy(agent.position)
       const hp = 1 + 0.12 * Math.sin(f * 5)
       halo.scale.setScalar(hp)
@@ -381,11 +386,6 @@ export default function BrierJourney() {
                 Done. Your bot earns real capital.
               </div>
             )}
-
-            {/* scroll cue */}
-            <div className="absolute bottom-4 right-4 bg-[rgba(10,10,10,0.8)] border border-[#222] px-3 py-1.5 rounded-full font-mono text-[10px] text-[#888]">
-              ↕ scroll here
-            </div>
           </div>
 
           {/* panel info */}
@@ -409,18 +409,11 @@ export default function BrierJourney() {
                   <div className="text-[14px] text-[#ccc] leading-relaxed">{d.res}</div>
                 </div>
               </div>
-
-              <div className="flex items-center gap-3 mt-9">
-                <button onClick={goBack} disabled={step === 0} className="font-mono text-[11px] px-4 py-2 border border-[#222] text-[#999] rounded-md hover:border-[#444] hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed">← Back</button>
-                {step < N - 1
-                  ? <button onClick={goNext} className="font-mono text-[11px] px-4 py-2 bg-primary text-[#030303] font-bold rounded-md hover:shadow-[0_0_14px_rgba(255,42,77,0.4)] transition-all">Next →</button>
-                  : <button onClick={restart} className="font-mono text-[11px] px-4 py-2 border border-primary/50 text-primary rounded-md hover:bg-primary/10 transition-colors">↺ Start over</button>}
-              </div>
             </div>
           </div>
         </div>
 
-        <div className="text-center mt-5 font-mono text-[10px] text-[#555] tracking-wider">Scroll on the scene, or use Next</div>
+        <div className="text-center mt-5 font-mono text-[10px] text-[#555] tracking-wider">Scroll on the scene to walk through it</div>
       </div>
     </section>
   )
