@@ -43,12 +43,12 @@ export default function Landing() {
     <div className="relative text-white font-sans overflow-x-clip">
       {showLoader && <BlockchainLoader onDone={() => setShowLoader(false)} />}
 
-      {/* Atardecer: un tinte rojizo cálido va apareciendo a medida que bajas */}
+      {/* Atardecer: negro arriba, rojizo cálido en el medio, negro otra vez al final */}
       <div
         className="fixed inset-0 z-30 pointer-events-none"
         style={{
-          background: 'linear-gradient(160deg, rgba(60,4,14,0) 0%, rgba(80,6,18,0.5) 60%, rgba(120,12,28,0.7) 100%)',
-          opacity: scrollP * 0.5,
+          background: 'linear-gradient(160deg, rgba(60,4,14,0) 0%, rgba(90,7,20,0.55) 55%, rgba(130,14,30,0.8) 100%)',
+          opacity: Math.sin(scrollP * Math.PI) * 0.6,
           mixBlendMode: 'screen',
         }}
       />

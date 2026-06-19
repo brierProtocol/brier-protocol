@@ -4,10 +4,9 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 
 /**
- * Cadena de bloques 3D literal para la sección "Everything is on-chain".
- * Cuatro bloques encadenados (Deploy → Shadow → Vault → Earn) con paquetes de datos
- * que fluyen de uno al siguiente, como una blockchain pasando estado hacia Brier.
- * Los textos explicativos van debajo, alineados con cada bloque.
+ * Cadena de bloques 3D para "Everything is on-chain", a otro nivel: bloques grandes
+ * encadenados (Deploy, Shadow, Vault, Earn) con wireframe, hash flotante y paquetes de
+ * datos fluyendo de uno al siguiente como una blockchain pasando estado hacia Brier.
  * Paleta: negro / blanco / rojo #ff2a4d. Three.js (npm), { ssr: false }.
  */
 
@@ -30,15 +29,12 @@ export default function BlockchainStrip() {
     const wrap = wrapRef.current
     const canvas = canvasRef.current
     if (!wrap || !canvas) return
-
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-    let cw = wrap.clientWidth
-    let ch = wrap.clientHeight
-
+    let cw = wrap.clientWidth, ch = wrap.clientHeight
     const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(40, cw / ch, 0.1, 100)
-    camera.position.set(0, 0.4, 9)
+    const camera = new THREE.PerspectiveCamera(38, cw / ch, 0.1, 100)
+    camera.position.set(0, 1.2, 9.5)
     camera.lookAt(0, 0, 0)
 
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
@@ -47,102 +43,88 @@ export default function BlockchainStrip() {
     renderer.setSize(cw, ch, false)
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.5))
-    const p = new THREE.PointLight(RED, 1.2); p.position.set(2, 3, 5); scene.add(p)
+    const p = new THREE.PointLight(RED, 1.3); p.position.set(2, 3, 5); scene.add(p)
 
     const group = new THREE.Group()
     scene.add(group)
 
-    const SPAN = 7.2
+    const SPAN = 9.2
     const xOf = (i: number) => -SPAN / 2 + (SPAN / (N - 1)) * i
+    const SIZE = 1.7
 
-    // bloques
-    interface Blk { core: THREE.Mesh; wire: THREE.LineSegments; mat: THREE.MeshStandardMaterial; x: number }
+    function makeHash(text: string) {
+      const c = document.createElement('canvas'); c.width = 256; c.height = 64
+      const x = c.getContext('2d')!
+      x.fillStyle = '#ff2a4d'; x.font = '700 30px "JetBrains Mono", monospace'
+      x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, 128, 36)
+      const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t
+    }
+
+    interface Blk { core: THREE.Mesh; wire: THREE.LineSegments; mat: THREE.MeshStandardMaterial; inner: THREE.Mesh; sprite: THREE.Sprite; x: number }
     const blocks: Blk[] = []
     for (let i = 0; i < N; i++) {
       const x = xOf(i)
-      const geo = new THREE.BoxGeometry(1.15, 1.15, 1.15)
-      const mat = new THREE.MeshStandardMaterial({ color: 0x0a0a0c, emissive: RED, emissiveIntensity: 0.05, metalness: 0.4, roughness: 0.5 })
-      const core = new THREE.Mesh(geo, mat)
-      core.position.set(x, 0, 0)
-      group.add(core)
-      const wire = new THREE.LineSegments(
-        new THREE.EdgesGeometry(geo),
-        new THREE.LineBasicMaterial({ color: i % 2 ? RED : WHITE, transparent: true, opacity: 0.6 }),
-      )
+      const geo = new THREE.BoxGeometry(SIZE, SIZE, SIZE)
+      const mat = new THREE.MeshStandardMaterial({ color: 0x0b0b10, emissive: RED, emissiveIntensity: 0.06, metalness: 0.45, roughness: 0.5, transparent: true, opacity: 0.9 })
+      const core = new THREE.Mesh(geo, mat); core.position.set(x, 0, 0); group.add(core)
+      const wire = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: i % 2 ? RED : WHITE, transparent: true, opacity: 0.6 }))
       core.add(wire)
-      blocks.push({ core, wire, mat, x })
+      // núcleo interno (da profundidad / "datos dentro")
+      const inner = new THREE.Mesh(new THREE.IcosahedronGeometry(SIZE * 0.28, 0), new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0.5, wireframe: true }))
+      core.add(inner)
+      // hash flotante encima
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeHash(`0x${(i + 1).toString(16).padStart(2, '0')}a${i}f`), transparent: true, depthTest: false }))
+      sprite.scale.set(1.6, 0.4, 1); sprite.position.set(x, SIZE * 0.95, 0); group.add(sprite)
+      blocks.push({ core, wire, mat, inner, sprite, x })
     }
 
-    // conexiones entre bloques + paquetes de datos
     interface Link { line: THREE.Line; packet: THREE.Mesh; t: number; from: number }
     const links: Link[] = []
     for (let i = 0; i < N - 1; i++) {
-      const x0 = xOf(i) + 0.6, x1 = xOf(i + 1) - 0.6
+      const x0 = xOf(i) + SIZE / 2, x1 = xOf(i + 1) - SIZE / 2
       const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x0, 0, 0), new THREE.Vector3(x1, 0, 0)])
-      const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: RED, transparent: true, opacity: 0.25 }))
-      group.add(line)
-      const packet = new THREE.Mesh(
-        new THREE.SphereGeometry(0.07, 10, 10),
-        new THREE.MeshBasicMaterial({ color: RED }),
-      )
+      group.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: RED, transparent: true, opacity: 0.3 })))
+      const packet = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 12), new THREE.MeshBasicMaterial({ color: RED }))
       group.add(packet)
-      links.push({ line, packet, t: i * 0.25, from: i })
+      links.push({ line: null as any, packet, t: i * 0.25, from: i })
     }
 
-    // parallax
     let tmx = 0, tmy = 0, mx = 0, my = 0
-    const onMove = (e: MouseEvent) => {
-      const r = wrap.getBoundingClientRect()
-      tmx = ((e.clientX - r.left) / r.width) * 2 - 1
-      tmy = ((e.clientY - r.top) / r.height) * 2 - 1
-    }
+    const onMove = (e: MouseEvent) => { const r = wrap.getBoundingClientRect(); tmx = ((e.clientX - r.left) / r.width) * 2 - 1; tmy = ((e.clientY - r.top) / r.height) * 2 - 1 }
     wrap.addEventListener('mousemove', onMove)
 
-    let f = 0
-    let raf = 0
-    let active = 0
-    let lastBeat = 0
-
+    let f = 0, raf = 0, active = 0, lastBeat = 0
     const frame = () => {
       f += 0.016
-
-      mx += (tmx - mx) * 0.05
-      my += (tmy - my) * 0.05
-      group.rotation.y = -0.35 + mx * 0.25
-      group.rotation.x = 0.12 + my * 0.12
+      mx += (tmx - mx) * 0.05; my += (tmy - my) * 0.05
+      group.rotation.y = -0.3 + mx * 0.25
+      group.rotation.x = 0.14 + my * 0.12
 
       blocks.forEach((b, i) => {
-        b.core.rotation.y += 0.004
-        b.core.position.y = Math.sin(f * 1.1 + i) * 0.05
+        b.core.rotation.y += 0.003
+        b.inner.rotation.y -= 0.01; b.inner.rotation.x += 0.008
+        b.core.position.y = Math.sin(f * 1.0 + i) * 0.06
+        b.sprite.position.y = SIZE * 0.95 + Math.sin(f * 1.0 + i) * 0.06
         const on = i === active
-        b.mat.emissiveIntensity += ((on ? 0.5 : 0.05) - b.mat.emissiveIntensity) * 0.08
-        ;(b.wire.material as THREE.LineBasicMaterial).opacity += ((on ? 0.95 : 0.55) - (b.wire.material as THREE.LineBasicMaterial).opacity) * 0.08
-        b.core.scale.setScalar(on ? 1.08 : 1)
+        b.mat.emissiveIntensity += ((on ? 0.55 : 0.06) - b.mat.emissiveIntensity) * 0.08
+        ;(b.wire.material as THREE.LineBasicMaterial).opacity += ((on ? 1 : 0.55) - (b.wire.material as THREE.LineBasicMaterial).opacity) * 0.08
+        b.core.scale.setScalar(on ? 1.06 : 1)
       })
 
-      // paquetes fluyen de bloque a bloque; el bloque que recibe se enciende
       for (const l of links) {
         l.t += 0.006
         if (l.t > 1) { l.t -= 1; active = (l.from + 1) % N; lastBeat = f }
-        const x0 = xOf(l.from) + 0.6, x1 = xOf(l.from + 1) - 0.6
-        l.packet.position.set(x0 + (x1 - x0) * l.t, Math.sin(f * 1.1 + l.from) * 0.05, 0)
-        ;(l.packet.material as THREE.MeshBasicMaterial).color.setHex(RED)
+        const x0 = xOf(l.from) + SIZE / 2, x1 = xOf(l.from + 1) - SIZE / 2
+        l.packet.position.set(x0 + (x1 - x0) * l.t, Math.sin(f * 1.0 + l.from) * 0.06, 0)
       }
-      // ciclo de activación al primer bloque al reiniciar
       if (f - lastBeat > 1.6) { active = 0; lastBeat = f }
 
       renderer.render(scene, camera)
     }
-
     const loop = () => { raf = requestAnimationFrame(loop); frame() }
     if (reduceMotion) frame(); else loop()
 
-    const onResize = () => {
-      cw = wrap.clientWidth; ch = wrap.clientHeight
-      camera.aspect = cw / ch; camera.updateProjectionMatrix()
-      renderer.setSize(cw, ch, false)
-      if (reduceMotion) frame()
-    }
+    const onResize = () => { cw = wrap.clientWidth; ch = wrap.clientHeight; camera.aspect = cw / ch; camera.updateProjectionMatrix(); renderer.setSize(cw, ch, false); if (reduceMotion) frame() }
     window.addEventListener('resize', onResize)
 
     return () => {
@@ -161,14 +143,14 @@ export default function BlockchainStrip() {
 
   return (
     <div>
-      <div ref={wrapRef} className="relative w-full" style={{ height: 'clamp(220px, 32vw, 360px)' }}>
+      <div ref={wrapRef} className="relative w-full" style={{ height: 'clamp(300px, 42vw, 480px)' }}>
         <canvas ref={canvasRef} className="block w-full h-full" />
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-[#141414] border border-[#141414] mt-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-[#141414] border border-[#141414] mt-8">
         {BLOCKS.map((b) => (
           <div key={b.tag} className="bg-[#060606] p-6 hover:bg-[#080808] transition-colors">
             <div className="font-mono text-[10px] text-primary tracking-widest mb-2">{b.tag}</div>
-            <h3 className="m-0 font-sans font-bold text-[17px] tracking-tight mb-2">{b.title}</h3>
+            <h3 className="m-0 font-sans font-bold text-[18px] tracking-tight mb-2">{b.title}</h3>
             <p className="m-0 text-[13px] leading-relaxed text-[#888]">{b.body}</p>
           </div>
         ))}
