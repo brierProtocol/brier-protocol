@@ -5,16 +5,7 @@ import Link from 'next/link'
 import { useAccount, useReadContract, useWriteContract } from 'wagmi'
 import { parseUnits } from 'viem'
 import { motion, useSpring, useTransform, AnimatePresence } from 'framer-motion'
-
-const brierVaultABI = [
-  {
-    "inputs": [{"internalType": "uint256", "name": "shares", "type": "uint256"}, {"internalType": "address", "name": "receiver", "type": "address"}, {"internalType": "address", "name": "owner", "type": "address"}],
-    "name": "redeem",
-    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  }
-]
+import { brierVaultABI } from '@/lib/abis/BrierVault'
 
 // ── Portfolio Chart (canvas) ──
 function PortfolioChart({ data }: { data: number[] }) {

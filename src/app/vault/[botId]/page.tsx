@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
+import { USDC_ADDRESS } from '@/constants/contracts'
 
 type Mood = 'cool' | 'happy' | 'excited' | 'neutral' | 'anxious' | 'sad' | 'suspicious' | 'sleeping'
 import { useBot } from '@/hooks/useBots'
@@ -30,7 +31,6 @@ export default function VaultPage() {
   const [depositAmount, setDepositAmount] = useState('')
   const [txState, setTxState] = useState<'idle' | 'approving' | 'awaiting_approve' | 'depositing' | 'awaiting_deposit' | 'success' | 'error'>('idle')
 
-  const USDC_ADDRESS = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'
   const VAULT_ABI = parseAbi(['function deposit(uint256 assets, address receiver) external returns (uint256)'])
 
   const { data: approveHash, writeContract: writeApprove, error: approveError } = useWriteContract()

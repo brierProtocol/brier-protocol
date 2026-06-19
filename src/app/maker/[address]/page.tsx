@@ -5,23 +5,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
 import { botEye, makerEye } from '@/lib/botIdentity'
-
-// ── Count-up animation ──
-function useCountUp(target: number, duration = 1000) {
-  const [value, setValue] = useState(0)
-  useEffect(() => {
-    if (!target) { setValue(0); return }
-    let start = 0
-    const step = target / (duration / 16)
-    const timer = setInterval(() => {
-      start += step
-      if (start >= target) { setValue(target); clearInterval(timer) }
-      else setValue(start)
-    }, 16)
-    return () => clearInterval(timer)
-  }, [target, duration])
-  return value
-}
+import { useCountUp } from '@/hooks/useCountUp'
 
 // ── Maker avatar — a robotic "eye" matching the bot aesthetic ──
 function UserIdenticon({ id, size = 100, customUrl }: { id: string, size?: number, customUrl?: string | null }) {
@@ -43,7 +27,8 @@ function UserIdenticon({ id, size = 100, customUrl }: { id: string, size?: numbe
 // ── Animated Stat Card ──
 function StatCard({ label, value, suffix = '', prefix = '', decimals = 0, color = 'text-white', delay = 0 }:
   { label: string, value: number, suffix?: string, prefix?: string, decimals?: number, color?: string, delay?: number }) {
-  const animated = useCountUp(value)
+  // round=false + 1000ms preserves the original decimal stat-card animation.
+  const animated = useCountUp(value, 1000, false)
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}

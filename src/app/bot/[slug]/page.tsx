@@ -9,60 +9,8 @@ import CandleChart, { type Tick } from '@/components/CandleChart'
 import { useAccount } from 'wagmi'
 import { ethers } from 'ethers'
 import { motion } from 'framer-motion'
-
-function useCountUp(target: number, duration = 1200) {
-  const [value, setValue] = useState(0)
-  useEffect(() => {
-    if (!target) return
-    let start = 0
-    const step = target / (duration / 16)
-    const timer = setInterval(() => {
-      start += step
-      if (start >= target) { setValue(target); clearInterval(timer) }
-      else setValue(Math.floor(start))
-    }, 16)
-    return () => clearInterval(timer)
-  }, [target, duration])
-  return value
-}
-
-// ── Anonymous poster identity: deterministic ID + hue from wallet ──
-function posterId(wallet: string): { id: string; hue: number } {
-  let h = 0
-  for (let i = 0; i < wallet.length; i++) h = (Math.imul(h, 31) + wallet.charCodeAt(i)) | 0
-  const id = Math.abs(h).toString(36).padStart(6, '0').slice(0, 6).toUpperCase()
-  return { id, hue: Math.abs(h) % 360 }
-}
-
-// ── Thread text renderer: greentext + >>quotelinks ──
-function PostBody({ text, onQuoteClick }: { text: string; onQuoteClick: (n: number) => void }) {
-  const lines = text.split('\n')
-  return (
-    <div className="post-text">
-      {lines.map((line, li) => {
-        const parts = line.split(/(>>\d{1,5})/g)
-        const isGreen = line.trimStart().startsWith('>') && !line.trimStart().startsWith('>>')
-        return (
-          <div key={li} className={isGreen ? 'greentext' : undefined}>
-            {parts.map((p, pi) => {
-              const m = p.match(/^>>(\d{1,5})$/)
-              if (m) {
-                const n = parseInt(m[1], 10)
-                return (
-                  <a key={pi} className="quotelink" onClick={() => onQuoteClick(n)}>
-                    {p}
-                  </a>
-                )
-              }
-              return <span key={pi}>{p}</span>
-            })}
-            {line === '' ? ' ' : ''}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
+import { useCountUp } from '@/hooks/useCountUp'
+import { posterId, PostBody } from '@/components/bot/PostBody'
 
 function VaultCapacityBar({ current, cap }: { current: number; cap: number }) {
   const percentage = Math.min((current / cap) * 100, 100)

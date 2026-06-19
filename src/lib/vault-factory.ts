@@ -1,4 +1,5 @@
 import { ethers } from 'ethers'
+import { USDC_ADDRESS as USDC, CTF_EXCHANGE_ADDRESS as CTF_EXCHANGE } from '@/constants/contracts'
 
 // Minimal ABI for the on-chain factory.
 const FACTORY_ABI = [
@@ -6,9 +7,6 @@ const FACTORY_ABI = [
   'event VaultDeployed(string botId, address vaultAddress)',
 ]
 
-// Polygon mainnet defaults (overridable via env for Amoy/test).
-const USDC = process.env.NEXT_PUBLIC_USDC_ADDRESS || '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'
-const CTF_EXCHANGE = process.env.POLYMARKET_CTF_EXCHANGE || '0x4bFB41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E'
 
 type BotForVault = {
   id: string
