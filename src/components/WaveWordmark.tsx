@@ -4,35 +4,33 @@ import { useState } from 'react'
 
 /**
  * Wordmark gigante "Brier." con efecto Wave (Efecto 2 aprobado).
- * Las letras rebotan hacia arriba en secuencia al pasar el mouse o hacer click.
+ * Al pasar el mouse: las letras rebotan en secuencia, el relleno se vuelve hueco
+ * (contorno, dejando ver el negro del fondo) y aparece "start vaultmaxxing".
  * Se usa SOLO en el footer del landing. Mantiene Inter + punto rojo intactos.
  */
 export default function WaveWordmark({ className = '' }: { className?: string }) {
-  const [wave, setWave] = useState(false)
+  const [hover, setHover] = useState(false)
 
   const letters = ['B', 'r', 'i', 'e', 'r']
 
-  const trigger = () => {
-    setWave(true)
-    window.setTimeout(() => setWave(false), 900)
-  }
-
   return (
     <div
-      className={`select-none cursor-pointer leading-none ${className}`}
-      onMouseEnter={trigger}
-      onClick={trigger}
+      className={`relative select-none cursor-pointer leading-none ${className}`}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       role="img"
       aria-label="Brier"
     >
       {letters.map((ch, i) => (
         <span
           key={i}
-          className="inline-block font-sans font-extrabold tracking-[-0.05em] text-white"
+          className="inline-block font-sans font-extrabold tracking-[-0.05em]"
           style={{
-            transform: wave ? 'translateY(-0.12em)' : 'translateY(0)',
-            transition: 'transform 0.42s cubic-bezier(.34,1.56,.64,1)',
-            transitionDelay: `${i * 60}ms`,
+            transform: hover ? 'translateY(-0.1em)' : 'translateY(0)',
+            transition: 'transform 0.42s cubic-bezier(.34,1.56,.64,1), color 0.3s ease, -webkit-text-stroke-color 0.3s ease',
+            transitionDelay: `${i * 55}ms`,
+            color: hover ? 'transparent' : '#ffffff',
+            WebkitTextStroke: hover ? '2px #ffffff' : '0px transparent',
           }}
         >
           {ch}
@@ -41,13 +39,27 @@ export default function WaveWordmark({ className = '' }: { className?: string })
       <span
         className="inline-block font-sans font-extrabold tracking-[-0.05em] text-primary"
         style={{
-          transform: wave ? 'translateY(-0.12em)' : 'translateY(0)',
+          transform: hover ? 'translateY(-0.1em)' : 'translateY(0)',
           transition: 'transform 0.42s cubic-bezier(.34,1.56,.64,1)',
-          transitionDelay: `${letters.length * 60}ms`,
+          transitionDelay: `${letters.length * 55}ms`,
         }}
       >
         .
       </span>
+
+      {/* aparece al hover */}
+      <div
+        className="absolute left-1/2 -translate-x-1/2 font-mono uppercase tracking-[0.3em] text-primary whitespace-nowrap"
+        style={{
+          bottom: '-0.2em',
+          fontSize: '0.085em',
+          opacity: hover ? 1 : 0,
+          transform: hover ? 'translate(-50%, 0)' : 'translate(-50%, 0.6em)',
+          transition: 'opacity 0.4s ease, transform 0.4s ease',
+        }}
+      >
+        start vaultmaxxing
+      </div>
     </div>
   )
 }
