@@ -1,6 +1,18 @@
 import { prisma } from './prisma'
 
-// v1.4 Thresholds
+/**
+ * Bot status state machine — Tier-1 (T1) promotion.
+ *
+ * Flow:  PAPER ──(manual, verified wallet)──► LIVE ──(meets ALL T1 gates)──►
+ *        VAULT_ELIGIBLE_T1  (tier = TIER1, auto-deploys the on-chain clone vault)
+ *
+ * A LIVE bot graduates to T1 only when it clears EVERY gate below: enough
+ * resolved trades, a low-enough Brier (proven edge), a bounded drawdown, AND a
+ * minimum time in the shadow phase (so a lucky 1-day streak can't graduate).
+ * checkStatusTransitions() is the single place that performs this transition.
+ */
+
+// v1.4 T1 thresholds
 const T1_MIN_TRADES = 50
 const T1_MAX_BRIER = 0.20
 const T1_MAX_DRAWDOWN = 0.25       // máx 25% de drawdown histórico

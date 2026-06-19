@@ -20,8 +20,12 @@ type BotForVault = {
  * Deploys a per-bot clone vault via BrierVaultFactory and returns its address.
  *
  * Gated on configuration: requires VAULT_FACTORY_ADDRESS + a funded
- * DEPLOYER/EXECUTOR key. If not configured, returns null so the caller can still
- * promote the bot and wire the vault later (e.g. on testnet before mainnet keys).
+ * DEPLOYER/EXECUTOR key + an RPC URL. If not configured, returns null so the
+ * caller can still promote the bot and wire the vault later (e.g. on testnet
+ * before mainnet keys).
+ *
+ * NEVER THROWS: returns null on missing config OR on an on-chain failure (both
+ * logged). A deploy hiccup must not roll back the bot's DB promotion.
  */
 export async function createVaultForBot(bot: BotForVault): Promise<string | null> {
   const factoryAddress = process.env.VAULT_FACTORY_ADDRESS || process.env.NEXT_PUBLIC_VAULT_FACTORY_ADDRESS

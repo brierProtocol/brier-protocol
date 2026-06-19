@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
+import type { BotListItem } from '@/types'
 
 const RANK_STYLES = [
   { badge: '#FFD700', glow: 'rgba(255,215,0,0.15)', label: 'GOLD',   border: 'rgba(255,215,0,0.2)' },
@@ -13,7 +14,7 @@ const RANK_STYLES = [
 ]
 
 export default function LeaderboardPage() {
-  const [botsData, setBotsData] = useState<any[]>([])
+  const [botsData, setBotsData] = useState<BotListItem[]>([])
   const [loading, setLoading]   = useState(true)
 
   useEffect(() => {

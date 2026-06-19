@@ -12,15 +12,15 @@ export function WalletConnect() {
 
   // Listen to raw provider just in case Wagmi hydration fails
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).ethereum) {
+    if (typeof window !== 'undefined' && window.ethereum) {
       const getAddr = async () => {
         try {
-          const accounts = await (window as any).ethereum.request({ method: 'eth_accounts' })
+          const accounts = await window.ethereum!.request({ method: 'eth_accounts' })
           if (accounts.length > 0) setRawAddress(accounts[0])
         } catch (e) {}
       }
       getAddr()
-      ;(window as any).ethereum.on('accountsChanged', (accounts: string[]) => {
+      ;window.ethereum.on('accountsChanged', (accounts: string[]) => {
         if (accounts.length > 0) setRawAddress(accounts[0])
         else setRawAddress(null)
       })
@@ -70,24 +70,24 @@ export function WalletConnect() {
 
   const handleConnect = async () => {
     try {
-      if (typeof window !== 'undefined' && (window as any).ethereum) {
+      if (typeof window !== 'undefined' && window.ethereum) {
         
         // Force the MetaMask popup via raw provider first
-        const accounts = await (window as any).ethereum.request({ method: 'eth_requestAccounts' })
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
         if (accounts && accounts.length > 0) {
           setRawAddress(accounts[0]) // Instantly update UI!
         }
         
         // Enforce Arbitrum One network switch (chainId 42161 -> 0xa4b1)
         try {
-          await (window as any).ethereum.request({
+          await window.ethereum.request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: '0xa4b1' }],
           });
         } catch (switchError: any) {
           // This error code indicates that the chain has not been added to MetaMask.
           if (switchError.code === 4902) {
-            await (window as any).ethereum.request({
+            await window.ethereum.request({
               method: 'wallet_addEthereumChain',
               params: [
                 {

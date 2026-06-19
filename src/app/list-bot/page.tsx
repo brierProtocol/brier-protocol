@@ -27,9 +27,9 @@ export default function ListBotPage() {
     setErrorMsg('')
     if (step === 2) {
       let finalAddress = address
-      if (!finalAddress && typeof window !== 'undefined' && (window as any).ethereum) {
+      if (!finalAddress && typeof window !== 'undefined' && window.ethereum) {
         try {
-          const accounts = await (window as any).ethereum.request({ method: 'eth_accounts' })
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' })
           if (accounts && accounts.length > 0) finalAddress = accounts[0]
         } catch (e) {}
       }
@@ -47,7 +47,7 @@ export default function ListBotPage() {
             await signMessageAsync({ message })
           } else {
             const hexMsg = '0x' + message.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('')
-            await (window as any).ethereum.request({ method: 'personal_sign', params: [hexMsg, finalAddress] })
+            await window.ethereum!.request({ method: 'personal_sign', params: [hexMsg, finalAddress] })
           }
         } catch (signErr: any) {
           throw new Error(signErr?.shortMessage || signErr?.message || 'Signature rejected by user.')

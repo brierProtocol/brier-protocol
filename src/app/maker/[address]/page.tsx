@@ -64,15 +64,15 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).ethereum) {
+    if (typeof window !== 'undefined' && window.ethereum) {
       const getAddr = async () => {
         try {
-          const accounts = await (window as any).ethereum.request({ method: 'eth_accounts' })
+          const accounts = await window.ethereum!.request({ method: 'eth_accounts' })
           if (accounts.length > 0) setActiveUser(accounts[0].toLowerCase())
         } catch (e) {}
       }
       getAddr()
-      ;(window as any).ethereum.on('accountsChanged', (accounts: string[]) => {
+      ;window.ethereum.on('accountsChanged', (accounts: string[]) => {
         if (accounts.length > 0) setActiveUser(accounts[0].toLowerCase())
         else setActiveUser(null)
       })

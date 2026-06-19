@@ -146,7 +146,7 @@ export default function VaultPage() {
   // Determine mood from bot stats
   function getMoodFromStats(b: typeof bot): Mood {
     if (!b) return 'neutral'
-    if ((b as any).fraudFlag > 0) return 'suspicious'
+    if (((b as { fraudFlag?: number }).fraudFlag ?? 0) > 0) return 'suspicious'
     if (b.maxDrawdown < -0.15) return 'sad'
     if (b.brierScore < 0.20 && b.winRate > 0.57) return 'cool'
     if (b.brierScore < 0.25 && b.winRate > 0.54) return 'happy'
@@ -384,7 +384,7 @@ export default function VaultPage() {
                     {['CONSERVATIVE', 'DEGEN'].map((m) => (
                       <button
                         key={m}
-                        onClick={() => setMode(m as any)}
+                        onClick={() => setMode(m as 'CONSERVATIVE' | 'DEGEN')}
                         className={`flex-1 py-2 rounded-xl text-[10px] font-bold tracking-widest transition-all ${
                           mode === m ? 'bg-white text-[#050505]' : 'bg-white/5 text-white/30 hover:text-white/60'
                         }`}

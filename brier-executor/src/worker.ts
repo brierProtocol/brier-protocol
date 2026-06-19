@@ -16,6 +16,13 @@ const CTF_ABI = ['function redeemPositions(address collateralToken, bytes32 pare
 // =========================================================
 // Trade Execution Worker (SPOT + PERP Routing)
 // =========================================================
+// REAL vs MOCK status:
+//   - SPOT path → on-chain CTF via BrierVault.executeTrade ........ REAL
+//   - PERP path → Polymarket CLOB via openPerpPosition/closePerpPosition
+//                 in polymarket.ts (real @polymarket/clob-client) .. REAL
+//   - Risk Engine price feed (further below) ..................... MOCK
+//                 hardcoded 0.50; TODO: wire a live CLOB WebSocket
+//                 price before trusting stop-loss execution in prod.
 const executionWorker = new Worker('trade-signals', async job => {
   const { tradeId, botId, vaultAddress, marketId, outcomeIndex, size, marketType, actionType, direction, leverage, stopLossPrice, worstPrice, slippageBps } = job.data;
   

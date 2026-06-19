@@ -99,14 +99,14 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     const amt = parseFloat(depositAmt) || 0
     if (amt <= 0) return alert("Please enter a valid deposit amount")
 
-    if (typeof window === 'undefined' || !(window as any).ethereum) {
+    if (typeof window === 'undefined' || !window.ethereum) {
       alert("No Web3 Wallet detected! Please install MetaMask to interact with Brier vaults.")
       return
     }
 
     setDepositing(true)
     try {
-      const provider = new ethers.BrowserProvider((window as any).ethereum)
+      const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
       if (!bot.vaultAddress) {
         alert("This bot does not have a vault address configured yet. Deposits are not available.")
@@ -259,7 +259,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const addPost = async () => {
     if (!postText.trim()) return
     let activeAddress = (isConnected && address) ? address : null
-    if (!activeAddress && typeof window !== 'undefined' && (window as any).ethereum?.selectedAddress) activeAddress = (window as any).ethereum.selectedAddress
+    if (!activeAddress && typeof window !== 'undefined' && window.ethereum?.selectedAddress) activeAddress = window.ethereum.selectedAddress as `0x${string}`
     const userWallet = activeAddress || 'anon_' + Math.random().toString(36).substring(2, 6)
 
     const res = await fetch('/api/comments', {

@@ -49,6 +49,10 @@ export interface BotScore {
   maxDrawdown: number
   snapshotDate: string
   isLatest: boolean
+  // Legacy alias of `sharpe` — NOT populated by the API. Some list views read
+  // `score.sharpeRatio` (a typo) and fall back to `sharpe`; kept optional so
+  // that behavior compiles unchanged. See CONTEXT.md "Trampas conocidas".
+  sharpeRatio?: number
 }
 
 export interface VaultDeposit {
@@ -116,6 +120,54 @@ export interface DashboardHistoryItem {
   amount: string
   date: string
   hash: string
+}
+
+export interface BotMakerProfile {
+  handle: string | null
+  name: string | null
+  pfpUrl: string | null
+}
+
+// Shape returned by GET /api/bots: a DB bot + latest score + maker profile.
+// Includes optional legacy/demo display fields the list views read via `??`
+// fallbacks, so both API rows and seed demo data satisfy it.
+export interface BotListItem extends Bot {
+  maker?: BotMakerProfile | null
+  // Fallback display fields (present on seed/demo data, absent on API rows):
+  brierScore?: number
+  tvl?: number
+  monthlyYield?: number
+  sharpe?: number
+  winRate?: number
+  builder?: string
+  market?: string
+  markets?: string[]
+}
+
+// Shape returned by GET /api/tokens (launchpad bonding-curve cards).
+export interface LaunchpadToken {
+  botId: string
+  slug: string
+  botName: string
+  color: string
+  eyeShape: string
+  pfpUrl: string | null
+  botStatus: string
+  makerWallet: string
+  makerHandle: string | null
+  makerName: string | null
+  ticker: string
+  name: string
+  status: string
+  price: number
+  marketCap: number
+  progress: number
+  supply: number
+  holders: number
+  trades: number
+  brier: number | null
+  resolvedTrades: number
+  createdAt: string
 }
 
 export interface DashboardData {

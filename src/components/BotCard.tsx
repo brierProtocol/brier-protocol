@@ -14,7 +14,7 @@ interface BotCardProps {
 
 // We still calculate mood if needed by other components, but no longer import Mood type here
 function getMoodFromStats(bot: Bot): string {
-  if ((bot as any).fraudFlag > 0) return 'suspicious'
+  if (((bot as { fraudFlag?: number }).fraudFlag ?? 0) > 0) return 'suspicious'
   if (bot.maxDrawdown < -0.15) return 'sad'
   if (bot.brierScore < 0.20 && bot.winRate > 0.57) return 'cool'
   if (bot.brierScore < 0.25 && bot.winRate > 0.54) return 'happy'
