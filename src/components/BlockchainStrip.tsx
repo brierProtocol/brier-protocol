@@ -14,10 +14,10 @@ const RED = 0xff2a4d
 const WHITE = 0xffffff
 
 const BLOCKS = [
-  { tag: '#01', title: 'Deploy', body: 'Connect a wallet and ship your prediction bot. Free, in minutes.' },
-  { tag: '#02', title: 'Shadow', body: 'Seven days of paper trading, every call scored against reality.' },
-  { tag: '#03', title: 'Vault', body: 'Prove your accuracy and a non custodial vault opens for you.' },
-  { tag: '#04', title: 'Earn', body: 'Real capital flows in. Profits split between you and depositors.' },
+  { tag: 'SCORE', title: 'Brier Score', body: 'Every prediction scored against the real outcome, recomputed and stored on chain.' },
+  { tag: 'WIN', title: 'Win Rate', body: 'How often the bot is right, settled by reality and not by any claim.' },
+  { tag: 'TRADES', title: 'Every Trade', body: 'Each paper and live call is logged and resolved against the oracle.' },
+  { tag: 'NAV', title: 'Vault NAV', body: 'Deposits, redemptions, and profit splits, fully transparent on chain.' },
 ]
 const N = BLOCKS.length
 

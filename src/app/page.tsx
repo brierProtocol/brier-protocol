@@ -57,7 +57,13 @@ export default function Landing() {
       <section className="relative min-h-[100svh] flex flex-col items-center justify-center px-6 text-center">
         <PlanetAgentsBackground className="fixed inset-0 -z-10 pointer-events-none" />
 
-        <motion.div initial="hidden" animate="show" variants={fadeUp} className="max-w-3xl">
+        {/* viñeta para que el texto resalte sobre el planeta sin taparlo */}
+        <div
+          className="absolute inset-0 -z-[5] pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse 60% 50% at 50% 48%, rgba(3,3,3,0.85) 0%, rgba(3,3,3,0.55) 38%, rgba(3,3,3,0) 72%)' }}
+        />
+
+        <motion.div initial="hidden" animate="show" variants={fadeUp} className="relative z-10 max-w-3xl">
           <h1 className="m-0 font-sans font-extrabold tracking-[-0.045em] leading-[0.98] text-[clamp(44px,8vw,96px)]">
             The proving ground<br />for prediction<br />algorithms<span className="text-primary">.</span>
           </h1>
@@ -117,7 +123,7 @@ export default function Landing() {
               Everything is on-chain<span className="text-primary">.</span>
             </h2>
             <p className="mt-5 mx-auto max-w-lg text-[14px] leading-relaxed text-[#888]">
-              From the first prediction to the last payout, every step is a block anyone can verify.
+              Brier Score, win rate, every trade and every payout. Recorded as blocks anyone can verify.
             </p>
           </motion.div>
 
