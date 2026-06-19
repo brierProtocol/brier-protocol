@@ -155,8 +155,22 @@ export default function Landing() {
 
       {/* ── GIANT FOOTER ── */}
       <footer className="relative bg-[#050505] border-t border-[#111] pt-20 overflow-hidden">
+        {/* iconos sociales (se conectan luego) */}
+        <div className="flex justify-center gap-7 pb-10">
+          {[
+            { label: 'X', href: '#', d: 'M18.9 1.5h3.7l-8 9.2L24 22.5h-7.4l-5.8-7.6-6.6 7.6H.5l8.6-9.8L0 1.5h7.6l5.2 6.9 6.1-6.9zm-1.3 18.8h2L6.5 3.6h-2.2L17.6 20.3z' },
+            { label: 'Discord', href: '#', d: 'M20.3 4.4A19.8 19.8 0 0015.5 3l-.2.5a18 18 0 014.3 1.4 17.4 17.4 0 00-15.2 0A18 18 0 018.7 3.5L8.5 3a19.8 19.8 0 00-4.8 1.4C1 9 0 13.5.5 18a19.9 19.9 0 006 3 14.3 14.3 0 001.3-2 13 13 0 01-2-1l.5-.4a14.2 14.2 0 0012.4 0l.5.4a13 13 0 01-2 1 14.3 14.3 0 001.3 2 19.9 19.9 0 006-3c.6-5-.5-9.3-3.9-13.6zM8.3 15.3c-1.2 0-2.1-1.1-2.1-2.4 0-1.3.9-2.4 2.1-2.4 1.2 0 2.2 1.1 2.1 2.4 0 1.3-.9 2.4-2.1 2.4zm7.4 0c-1.2 0-2.1-1.1-2.1-2.4 0-1.3.9-2.4 2.1-2.4 1.2 0 2.2 1.1 2.1 2.4 0 1.3-.9 2.4-2.1 2.4z' },
+            { label: 'GitHub', href: '#', d: 'M12 .5A11.5 11.5 0 008.4 22.9c.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.4-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 016 0C17.6 5 18.6 5.3 18.6 5.3c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A11.5 11.5 0 0012 .5z' },
+            { label: 'Telegram', href: '#', d: 'M23.8 2.8l-3.6 17c-.3 1.2-1 1.5-2 .9l-5.5-4-2.7 2.6c-.3.3-.5.5-1 .5l.4-5.4L19.2 5c.4-.4-.1-.6-.7-.2L6.3 12.4l-5.3-1.7c-1.2-.4-1.2-1.2.2-1.7L22.3 1c1-.4 1.8.2 1.5 1.8z' },
+          ].map((s) => (
+            <a key={s.label} href={s.href} aria-label={s.label} className="text-[#666] hover:text-white transition-colors" target="_blank" rel="noopener noreferrer">
+              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current"><path d={s.d} /></svg>
+            </a>
+          ))}
+        </div>
+
         {/* Wordmark gigante con Wave (hover: hueco + start vaultmaxxing) */}
-        <div className="px-6 pt-6 pb-2">
+        <div className="px-6 pt-2 pb-2">
           <WaveWordmark className="text-[clamp(84px,21vw,280px)] text-center" />
         </div>
         <div className="border-t border-[#111] mt-6 py-6 px-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-[10px] text-[#444] tracking-wider">
