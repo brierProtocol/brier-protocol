@@ -2,7 +2,7 @@
 // Add to vercel.json: {"crons": [{"path": "/api/cron/sync", "schedule": "*/15 * * * *"}]}
 
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/db/prisma'
 import { indexPolymarketWallet } from '@/lib/polymarket-indexer'
 import { checkStatusTransitions } from '@/lib/incubation'
 

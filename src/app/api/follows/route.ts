@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/db/prisma'
 
 // GET /api/follows?address=...&viewerId=...
 // Devuelve los seguidores y seguidos de `address`, sus contadores, y

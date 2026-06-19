@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/db/prisma'
 import { currentPrice, marketCap, bondingProgress, priceAt, INITIAL_PRICE, TOTAL_SUPPLY } from '@/lib/bondingCurve'
 
 // GET /api/tokens/[botId] — token state + price history + holders

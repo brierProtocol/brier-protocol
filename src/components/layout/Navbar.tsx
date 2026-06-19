@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAccount } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { motion, AnimatePresence } from 'framer-motion'
-import BotIrisAvatar from './BotIrisAvatar'
+import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
 
 interface Notification {

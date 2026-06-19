@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import BotCharacter, { Mood } from './BotCharacter'
+import BotCharacter, { Mood } from '@/components/bot/BotCharacter'
 
 export function FloatingBubbles() {
   const characters = [

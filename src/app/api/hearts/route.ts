@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/db/prisma'
 
 // GET /api/hearts?botId=...&userId=...
 // Devuelve el total de likes del bot y, si se pasa userId, si ese usuario ya dio like.

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/db/prisma'
 import { encryptApiKey } from '@/lib/crypto'
 
 const CreateBotSchema = z.object({

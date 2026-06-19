@@ -4,7 +4,7 @@
 // Vercel cron: {"path": "/api/cron/score", "schedule": "0 * * * *"}  (hourly)
 
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/db/prisma'
 import { computeBotMetrics } from '@/lib/score-engine'
 import { checkStatusTransitions } from '@/lib/incubation'
 

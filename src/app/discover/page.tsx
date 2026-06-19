@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import BotIrisAvatar from '@/components/BotIrisAvatar'
+import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye, makerEye } from '@/lib/botIdentity'
 import { motion } from 'framer-motion'
 import type { BotListItem } from '@/types'

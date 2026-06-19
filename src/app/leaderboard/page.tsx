@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import BotIrisAvatar from '@/components/BotIrisAvatar'
+import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
 import type { BotListItem } from '@/types'
 

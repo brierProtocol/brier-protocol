@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db/prisma';
 import { readVaultNav } from '@/lib/vault-reader';
 
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {

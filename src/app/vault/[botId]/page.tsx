@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import BotIrisAvatar from '@/components/BotIrisAvatar'
+import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
 import { USDC_ADDRESS } from '@/constants/contracts'
 

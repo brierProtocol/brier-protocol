@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/db/prisma'
 import { buy, sell, currentPrice, marketCap, bondingProgress, splitFee } from '@/lib/bondingCurve'
 
 // POST /api/tokens/[botId]/trade  { wallet, side: 'BUY'|'SELL', amount }

@@ -1,4 +1,4 @@
-import { prisma } from './prisma'
+import { prisma } from './db/prisma'
 
 /**
  * Bot status state machine — Tier-1 (T1) promotion.

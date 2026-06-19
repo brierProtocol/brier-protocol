@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useAccount, useSignMessage } from 'wagmi'
 import { motion } from 'framer-motion'
-import BotIrisAvatar from '@/components/BotIrisAvatar'
+import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
 
 export default function ListBotPage() {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db/prisma';
 import { ethers } from 'ethers';
 import { notifyDeposit } from '@/lib/notifications';
 import { DEPOSIT_RPC_URL as RPC_URL, USDC_ADDRESS_ENV, USDC_DECIMALS } from '@/constants/contracts';

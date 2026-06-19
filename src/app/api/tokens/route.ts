@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/db/prisma'
 import { currentPrice, marketCap, bondingProgress } from '@/lib/bondingCurve'
 
 // GET /api/tokens — all launchpad tokens (for the board)

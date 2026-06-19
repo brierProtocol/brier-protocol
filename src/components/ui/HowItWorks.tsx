@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import BotIrisAvatar from '@/components/BotIrisAvatar'
+import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 
 // ─────────────────────────────────────────────────────────────
 // Live mini-previews built from the real product components
