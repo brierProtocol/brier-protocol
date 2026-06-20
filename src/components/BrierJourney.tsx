@@ -4,21 +4,22 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 
 /**
- * The Brier Stack: escena isométrica estructural (cámara ortográfica). Una plataforma base
- * con pilares distribuidos en grid (no en línea), que se elevan e iluminan con el scroll.
- * La estrella de Brier recorre el camino saltando entre pilares. Notas con leader lines
- * apuntan a cada etapa. Se asienta en etapas discretas (presentación). Inglés, Inter.
+ * The Brier Stack: escena isométrica estructural (cámara ortográfica). Pilares en grid sobre
+ * una plataforma sobria (poco rojo, solo el pilar activo brilla). Un punto 3D (el punto de Brier)
+ * flota sobre el pilar activo. Solo se muestra el label del pilar activo, así nada se solapa.
+ * La descripción se conecta al pilar activo con una leader line real (proyección 3D a pantalla).
+ * Se asienta en etapas discretas con el scroll. Inglés, Inter, sin guiones.
  */
 
 const RED = 0xff2a4d
 const REDL = 0xff5570
 const WHITE = 0xffffff
 
-// pilares en grid (no en línea); el orden del array es el recorrido que sigue la estrella
+// pilares en grid; el orden es el recorrido que sigue el punto
 const PILLARS = [
   { label: 'Deploy', h: 2.0, gx: -3.0, gz: -1.2 },
   { label: 'Shadow', h: 2.7, gx: -1.4, gz: 1.0 },
-  { label: 'Score', h: 3.2, gx: 0.4, gz: -1.4 },
+  { label: 'Brier Score', h: 3.2, gx: 0.4, gz: -1.4 },
   { label: 'Vault', h: 3.7, gx: 2.0, gz: 0.6 },
   { label: 'Earn', h: 4.2, gx: 3.4, gz: -0.9 },
 ]
@@ -27,16 +28,19 @@ const NP = PILLARS.length
 const STAGE_NOTES = [
   { title: 'Deploy', text: 'Submit your algorithm with a wallet signature. No capital of your own. Brier runs it through the shadow phase.' },
   { title: 'Shadow', text: 'Brier scores every prediction against reality, confirming the bot works and measuring its true Brier Score.' },
-  { title: 'Score', text: 'A proper scoring rule that cannot be gamed. Lower is better, and it is all public.' },
+  { title: 'Brier Score', text: 'A proper scoring rule that cannot be gamed. Lower is better, and the whole record is public.' },
   { title: 'Vault', text: 'Pass the bar (100 resolved predictions, Brier 0.20 or lower, over 21 days) and a non custodial vault opens.' },
-  { title: 'Earn', text: 'Profits split automatically, 60 to depositors, 30 to you, 10 to the protocol. Better calibration attracts more capital.' },
+  { title: 'Earn', text: 'Profits split automatically: 60 to depositors, 30 to you, 10 to the protocol. Better calibration attracts more capital.' },
 ]
 
 export default function BrierJourney() {
   const sectionRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const noteRef = useRef<HTMLDivElement>(null)
+  const lineRef = useRef<SVGLineElement>(null)
+  const dotRef = useRef<SVGCircleElement>(null)
   const progRef = useRef(0)
-  const [prog, setProg] = useState(0)
+  const [stage, setStage] = useState(0)
 
   useEffect(() => {
     const onScroll = () => {
@@ -46,7 +50,6 @@ export default function BrierJourney() {
       const total = rect.height - window.innerHeight
       const p = total > 0 ? Math.min(1, Math.max(0, -rect.top / total)) : 0
       progRef.current = p
-      setProg(p)
     }
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -71,62 +74,47 @@ export default function BrierJourney() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setSize(W, H, false)
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.62))
-    const key = new THREE.DirectionalLight(0xffffff, 0.55); key.position.set(5, 10, 7); scene.add(key)
-    const starLight = new THREE.PointLight(REDL, 0.8, 8); scene.add(starLight)
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7))
+    const key = new THREE.DirectionalLight(0xffffff, 0.5); key.position.set(5, 10, 7); scene.add(key)
+    const dotLight = new THREE.PointLight(REDL, 1.0, 8); scene.add(dotLight)
 
     const stack = new THREE.Group()
     scene.add(stack)
 
-    // ── plataforma base (la infraestructura Brier) ──
+    // ── plataforma base (sobria, casi sin rojo) ──
     const baseGeo = new THREE.BoxGeometry(8.4, 0.5, 5.6)
-    const base = new THREE.Mesh(baseGeo, new THREE.MeshStandardMaterial({ color: 0x0b0c12, metalness: 0.4, roughness: 0.65, emissive: RED, emissiveIntensity: 0.04 }))
+    const base = new THREE.Mesh(baseGeo, new THREE.MeshStandardMaterial({ color: 0x0d0e12, metalness: 0.35, roughness: 0.7 }))
     base.position.y = -0.25; stack.add(base)
-    stack.add(new THREE.LineSegments(new THREE.EdgesGeometry(baseGeo), new THREE.LineBasicMaterial({ color: WHITE, transparent: true, opacity: 0.14 })))
-    // reflejo/contacto
-    const shadow = new THREE.Mesh(new THREE.PlaneGeometry(8.4, 5.6), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3 }))
-    shadow.rotation.x = -Math.PI / 2; shadow.position.y = -0.49; stack.add(shadow)
+    stack.add(new THREE.LineSegments(new THREE.EdgesGeometry(baseGeo), new THREE.LineBasicMaterial({ color: WHITE, transparent: true, opacity: 0.1 })))
 
-    function makeLabel(text: string) {
-      const c = document.createElement('canvas'); c.width = 320; c.height = 84
-      const x = c.getContext('2d')!
-      x.fillStyle = '#ffffff'; x.font = '700 44px Inter, system-ui, sans-serif'
-      x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, 160, 46)
-      const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t
-    }
-
-    interface Pillar { mesh: THREE.Mesh; mat: THREE.MeshStandardMaterial; cap: THREE.Mesh; capMat: THREE.MeshStandardMaterial; edge: THREE.LineBasicMaterial; sprite: THREE.Sprite; full: number; gx: number; gz: number; link: THREE.Line; linkMat: THREE.LineBasicMaterial }
+    interface Pillar { mesh: THREE.Mesh; mat: THREE.MeshStandardMaterial; cap: THREE.Mesh; capMat: THREE.MeshStandardMaterial; edge: THREE.LineBasicMaterial; full: number; gx: number; gz: number }
     const pillars: Pillar[] = []
     PILLARS.forEach((pl) => {
       const w = 0.95
       const geo = new THREE.BoxGeometry(w, 1, w); geo.translate(0, 0.5, 0)
-      const mat = new THREE.MeshStandardMaterial({ color: 0x15161e, metalness: 0.25, roughness: 0.6, transparent: true, opacity: 0.9, emissive: RED, emissiveIntensity: 0.04 })
+      const mat = new THREE.MeshStandardMaterial({ color: 0x191a20, metalness: 0.2, roughness: 0.65, transparent: true, opacity: 0.85, emissive: RED, emissiveIntensity: 0.0 })
       const mesh = new THREE.Mesh(geo, mat); mesh.position.set(pl.gx, 0, pl.gz); mesh.scale.y = 0.001; stack.add(mesh)
-      const edge = new THREE.LineBasicMaterial({ color: WHITE, transparent: true, opacity: 0.18 })
+      const edge = new THREE.LineBasicMaterial({ color: WHITE, transparent: true, opacity: 0.16 })
       mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edge))
-      const capMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, emissive: RED, emissiveIntensity: 0.1, metalness: 0.4, roughness: 0.4 })
+      const capMat = new THREE.MeshStandardMaterial({ color: 0x26272e, emissive: RED, emissiveIntensity: 0.0, metalness: 0.4, roughness: 0.4 })
       const cap = new THREE.Mesh(new THREE.BoxGeometry(w * 1.04, 0.13, w * 1.04), capMat); stack.add(cap)
-      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeLabel(pl.label), transparent: true, depthTest: false, opacity: 0 }))
-      sprite.scale.set(1.9, 0.5, 1); stack.add(sprite)
-      // linea a la base (raiz comun = estructura, no fila)
-      const linkMat = new THREE.LineBasicMaterial({ color: RED, transparent: true, opacity: 0.0 })
-      const link = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(pl.gx, 0, pl.gz), new THREE.Vector3(0, 0, 0)]), linkMat)
-      stack.add(link)
-      pillars.push({ mesh, mat, cap, capMat, edge, sprite, full: pl.h, gx: pl.gx, gz: pl.gz, link, linkMat })
+      pillars.push({ mesh, mat, cap, capMat, edge, full: pl.h, gx: pl.gx, gz: pl.gz })
     })
 
-    // estrella de Brier
-    const sh = new THREE.Shape()
-    const spk = 4, ro = 0.32, ri = 0.1
-    for (let i = 0; i <= spk * 2; i++) { const r = i % 2 === 0 ? ro : ri; const a = (i / (spk * 2)) * Math.PI * 2 - Math.PI / 2; const x = Math.cos(a) * r, y = Math.sin(a) * r; if (i === 0) sh.moveTo(x, y); else sh.lineTo(x, y) }
-    const sg = new THREE.ExtrudeGeometry(sh, { depth: 0.06, bevelEnabled: true, bevelSize: 0.02, bevelThickness: 0.02, bevelSegments: 1 }); sg.center()
-    const star = new THREE.Mesh(sg, new THREE.MeshStandardMaterial({ color: RED, emissive: RED, emissiveIntensity: 0.95, metalness: 0.3, roughness: 0.3 }))
-    stack.add(star)
-    star.add(new THREE.LineSegments(new THREE.EdgesGeometry(sg), new THREE.LineBasicMaterial({ color: WHITE, transparent: true, opacity: 0.9 })))
+    // ── el punto de Brier (esfera 3D con halo) ──
+    const dot = new THREE.Mesh(
+      new THREE.SphereGeometry(0.2, 24, 24),
+      new THREE.MeshStandardMaterial({ color: RED, emissive: RED, emissiveIntensity: 1.1, metalness: 0.2, roughness: 0.3 }),
+    )
+    stack.add(dot)
+    const halo = new THREE.Mesh(
+      new THREE.SphereGeometry(0.42, 20, 20),
+      new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending }),
+    )
+    stack.add(halo)
 
-    const v = new THREE.Vector3()
-    let f = 0, raf = 0
-    let displayCur = 0
+    const projV = new THREE.Vector3()
+    let f = 0, raf = 0, displayCur = 0, lastStage = -1
     const frame = () => {
       f += 0.016
       const targetStage = Math.round(progRef.current * (NP - 1))
@@ -138,26 +126,46 @@ export default function BrierJourney() {
         const h = reached ? p.full : 0.001
         p.mesh.scale.y += (h - p.mesh.scale.y) * 0.16
         const lit = activeStage === i
-        p.mat.emissiveIntensity += ((lit ? 0.34 : 0.04) - p.mat.emissiveIntensity) * 0.12
-        p.mat.opacity += ((reached ? (lit ? 1 : 0.7) : 0.35) - p.mat.opacity) * 0.12
-        p.edge.opacity += ((lit ? 0.7 : reached ? 0.3 : 0.12) - p.edge.opacity) * 0.12
-        p.capMat.emissiveIntensity += ((lit ? 0.7 : 0.08) - p.capMat.emissiveIntensity) * 0.12
-        p.linkMat.opacity += ((reached ? 0.14 : 0) - p.linkMat.opacity) * 0.1
+        // solo el activo en rojo; los demas gris sobrio
+        p.mat.emissiveIntensity += ((lit ? 0.5 : 0) - p.mat.emissiveIntensity) * 0.12
+        const col = lit ? 0x2a1116 : 0x191a20
+        ;(p.mat.color as THREE.Color).lerp(new THREE.Color(col), 0.12)
+        p.mat.opacity += ((reached ? 0.95 : 0.3) - p.mat.opacity) * 0.12
+        p.edge.color.lerp(new THREE.Color(lit ? RED : WHITE), 0.12)
+        p.edge.opacity += ((lit ? 0.8 : reached ? 0.25 : 0.1) - p.edge.opacity) * 0.12
+        p.capMat.emissiveIntensity += ((lit ? 0.85 : 0) - p.capMat.emissiveIntensity) * 0.12
+        ;(p.capMat.color as THREE.Color).lerp(new THREE.Color(lit ? RED : 0x26272e), 0.12)
         p.cap.position.set(p.gx, p.mesh.scale.y + 0.07, p.gz)
         p.cap.visible = p.mesh.scale.y > 0.1
-        p.sprite.position.set(p.gx, p.mesh.scale.y * 0.5 + 0.2, p.gz + 0.6)
-        ;(p.sprite.material as THREE.SpriteMaterial).opacity += ((reached ? 1 : 0) - (p.sprite.material as THREE.SpriteMaterial).opacity) * 0.12
       })
 
-      // estrella salta entre pilares (recorrido por el grid, no en linea)
+      // punto sobre el pilar activo (salta suave entre pilares)
       const a = Math.floor(displayCur), b = Math.min(NP - 1, a + 1), tt = displayCur - a
-      const sx = pillars[a].gx + (pillars[b].gx - pillars[a].gx) * tt
-      const sz = pillars[a].gz + (pillars[b].gz - pillars[a].gz) * tt
-      const arc = Math.sin(tt * Math.PI) * 0.5 // pequeño arco al saltar
-      const sy = Math.max(pillars[a].mesh.scale.y, pillars[b].mesh.scale.y) + 0.85 + arc + Math.sin(f * 2) * 0.08
-      star.position.set(sx, sy, sz)
-      star.rotation.z += 0.03
-      star.getWorldPosition(v); starLight.position.copy(v)
+      const dx = pillars[a].gx + (pillars[b].gx - pillars[a].gx) * tt
+      const dz = pillars[a].gz + (pillars[b].gz - pillars[a].gz) * tt
+      const arc = Math.sin(tt * Math.PI) * 0.5
+      const dy = Math.max(pillars[a].mesh.scale.y, pillars[b].mesh.scale.y) + 0.55 + arc + Math.sin(f * 2) * 0.06
+      dot.position.set(dx, dy, dz)
+      halo.position.copy(dot.position)
+      halo.scale.setScalar(1 + 0.14 * Math.sin(f * 3.5))
+      dot.getWorldPosition(projV); dotLight.position.copy(projV)
+
+      // ── leader line real: de la nota al tope del pilar activo (proyeccion 3D -> pantalla) ──
+      const ap = pillars[activeStage]
+      projV.set(ap.gx, ap.mesh.scale.y + 0.25, ap.gz)
+      projV.project(camera)
+      const px = (projV.x * 0.5 + 0.5) * W
+      const py = (-projV.y * 0.5 + 0.5) * H
+      if (dotRef.current) { dotRef.current.setAttribute('cx', String(px)); dotRef.current.setAttribute('cy', String(py)) }
+      if (lineRef.current && noteRef.current) {
+        const nr = noteRef.current.getBoundingClientRect()
+        const cr = canvas.getBoundingClientRect()
+        const ax = nr.right - cr.left
+        const ay = nr.top - cr.top + 14
+        lineRef.current.setAttribute('x1', String(ax)); lineRef.current.setAttribute('y1', String(ay))
+        lineRef.current.setAttribute('x2', String(px)); lineRef.current.setAttribute('y2', String(py))
+      }
+      if (activeStage !== lastStage) { lastStage = activeStage; setStage(activeStage) }
 
       renderer.render(scene, camera)
     }
@@ -185,11 +193,10 @@ export default function BrierJourney() {
     }
   }, [])
 
-  const activeStage = Math.min(NP - 1, Math.max(0, Math.round(prog * (NP - 1))))
-  const note = STAGE_NOTES[activeStage]
+  const note = STAGE_NOTES[stage]
 
   return (
-    <section ref={sectionRef} className="relative bg-[#040404] border-t border-[#111]" style={{ height: '420vh' }}>
+    <section ref={sectionRef} className="relative bg-[#040404] border-t border-[#111]" style={{ height: '440vh' }}>
       <div className="sticky top-0 h-screen overflow-hidden">
         <div className="absolute top-[10vh] left-0 right-0 text-center px-6 z-10 pointer-events-none">
           <div className="font-mono text-[11px] tracking-[0.24em] uppercase text-primary mb-3">the stack</div>
@@ -200,14 +207,17 @@ export default function BrierJourney() {
 
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
 
-        {/* nota con leader line, sincronizada con la etapa activa */}
-        <div className="absolute left-6 md:left-12 bottom-[14vh] max-w-[300px]">
-          <div key={activeStage} style={{ animation: 'fadeIn 0.5s ease' }} className="flex items-start gap-3">
-            <div className="hidden md:block w-10 h-px bg-primary/60 mt-2.5 shrink-0" />
-            <div>
-              <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-primary mb-1.5">{note.title}</div>
-              <div className="text-[13px] md:text-[14px] leading-relaxed text-[#cfcfcf]">{note.text}</div>
-            </div>
+        {/* leader line real (se conecta a la cima del pilar activo) */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none z-20" aria-hidden="true">
+          <line ref={lineRef} x1="0" y1="0" x2="0" y2="0" stroke="rgba(255,42,77,0.55)" strokeWidth="1" />
+          <circle ref={dotRef} cx="0" cy="0" r="3" fill="#ff2a4d" />
+        </svg>
+
+        {/* descripcion, conectada por la leader line al pilar activo */}
+        <div ref={noteRef} className="absolute left-6 md:left-12 bottom-[16vh] max-w-[290px] z-20">
+          <div key={`n-${stage}`} style={{ animation: 'fadeIn 0.5s ease' }}>
+            <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-primary mb-1.5">{note.title}</div>
+            <div className="text-[13px] md:text-[14px] leading-relaxed text-[#cfcfcf]">{note.text}</div>
           </div>
         </div>
       </div>
