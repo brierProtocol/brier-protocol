@@ -70,29 +70,41 @@ export default function BlockchainStrip() {
     }
 
     // conexiones + paquetes que fluyen
-    interface Link { packet: THREE.Mesh; t: number; from: number }
-    const links: Link[] = []
+    // líneas conectoras entre bloques
     for (let i = 0; i < N - 1; i++) {
       const x0 = xOf(i) + SIZE / 2, x1 = xOf(i + 1) - SIZE / 2
       group.add(new THREE.Line(
         new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x0, 0, 0), new THREE.Vector3(x1, 0, 0)]),
-        new THREE.LineBasicMaterial({ color: RED, transparent: true, opacity: 0.3 }),
+        new THREE.LineBasicMaterial({ color: RED, transparent: true, opacity: 0.22 }),
       ))
-      const packet = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12), new THREE.MeshBasicMaterial({ color: REDL }))
-      group.add(packet)
-      links.push({ packet, t: i * 0.25, from: i })
+    }
+
+    // corriente de datos: paquetes que recorren TODA la cadena, atravesando los bloques de cristal
+    const xStart = xOf(0), xEnd = xOf(N - 1)
+    const STREAM = 22
+    interface Pkt { m: THREE.Mesh; mat: THREE.MeshBasicMaterial; t: number; lane: number }
+    const stream: Pkt[] = []
+    for (let i = 0; i < STREAM; i++) {
+      const mat = new THREE.MeshBasicMaterial({ color: REDL, transparent: true, opacity: 0 })
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 10), mat)
+      group.add(m)
+      stream.push({ m, mat, t: i / STREAM, lane: (Math.random() - 0.5) * 0.5 })
     }
 
     let tmx = 0, tmy = 0, mx = 0, my = 0
     const onMove = (e: MouseEvent) => { const r = wrap.getBoundingClientRect(); tmx = ((e.clientX - r.left) / r.width) * 2 - 1; tmy = ((e.clientY - r.top) / r.height) * 2 - 1 }
     wrap.addEventListener('mousemove', onMove)
 
-    let f = 0, raf = 0, active = 0, lastBeat = 0
+    let f = 0, raf = 0, active = 0, activeT = 0
     const frame = () => {
       f += 0.016
       mx += (tmx - mx) * 0.05; my += (tmy - my) * 0.05
       group.rotation.y = -0.25 + mx * 0.3
       group.rotation.x = 0.1 + my * 0.12
+
+      // el bloque activo cicla suave
+      activeT += 0.016
+      if (activeT > 1.5) { activeT = 0; active = (active + 1) % N }
 
       blocks.forEach((b, i) => {
         b.core.rotation.y += 0.02; b.core.rotation.x += 0.012
@@ -106,13 +118,14 @@ export default function BlockchainStrip() {
         b.gmat.opacity += ((on ? 0.7 : 0.5) - b.gmat.opacity) * 0.08
       })
 
-      for (const l of links) {
-        l.t += 0.006
-        if (l.t > 1) { l.t -= 1; active = (l.from + 1) % N; lastBeat = f }
-        const x0 = xOf(l.from) + SIZE / 2, x1 = xOf(l.from + 1) - SIZE / 2
-        l.packet.position.set(x0 + (x1 - x0) * l.t, Math.sin(f * 1.0 + l.from) * 0.06, 0)
+      // corriente fluida que atraviesa los bloques
+      for (const s of stream) {
+        s.t += 0.0034
+        if (s.t > 1) s.t -= 1
+        const x = xStart + (xEnd - xStart) * s.t
+        s.m.position.set(x, s.lane * 0.18 + Math.sin(f * 1.6 + s.t * 12) * 0.05, s.lane * 0.18 + Math.cos(f * 1.3 + s.t * 9) * 0.05)
+        s.mat.opacity = 0.95 * Math.sin(s.t * Math.PI)
       }
-      if (f - lastBeat > 1.6) { active = 0; lastBeat = f }
 
       renderer.render(scene, camera)
     }
