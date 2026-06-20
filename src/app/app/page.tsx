@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { GlobalSearch } from '@/components/Navbar'
-import { HowItWorksModal } from '@/components/HowItWorks'
-import BotIrisAvatar from '@/components/BotIrisAvatar'
+import { GlobalSearch } from '@/components/layout/Navbar'
+import { HowItWorksModal } from '@/components/ui/HowItWorks'
+import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
 import dynamic from 'next/dynamic'
 
