@@ -23,10 +23,12 @@ const TOWERS = [
 ]
 const NT = TOWERS.length
 
-const NOTES = [
-  { at: 0.06, side: 'left', title: 'Deploy', text: 'Ship your bot with a wallet signature. It predicts in the shadows, no capital at risk.' },
-  { at: 0.5, side: 'left', title: 'Vault opens', text: 'Prove your accuracy and a non custodial vault opens. Anyone can deposit.' },
-  { at: 0.82, side: 'right', title: 'You earn', text: 'Real capital follows the math. Profits split between you and your depositors.' },
+// una nota por etapa, sincronizada con la torre activa (siempre coincide con lo que se ve)
+const STAGE_NOTES = [
+  { title: 'Deploy', text: 'Submit your algorithm with a wallet signature. Brier registers it and puts it straight into a controlled shadow phase.' },
+  { title: 'Shadow', text: 'For seven days Brier scores every prediction against reality. This is how it confirms the bot actually works and measures its true Brier.' },
+  { title: 'Vault', text: 'Clear the bar and a non custodial vault opens. Depositors back the bot, the bot manages the capital, nobody can withdraw what is not theirs.' },
+  { title: 'Earn', text: 'Profits split automatically. The sharper the calibration, the more capital the bot attracts.' },
 ]
 
 export default function BrierJourney() {
@@ -193,24 +195,22 @@ export default function BrierJourney() {
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
 
         {/* notas con leader line que apuntan a la escena */}
-        {NOTES.map((n, i) => {
-          const vis = prog >= n.at - 0.06 && prog <= n.at + 0.26
+        {/* nota única, siempre sincronizada con la etapa que se ve */}
+        {(() => {
+          const i = Math.min(NT - 1, Math.max(0, Math.round(prog * (NT - 1))))
+          const n = STAGE_NOTES[i]
           return (
-            <div
-              key={i}
-              className={`hidden md:block absolute max-w-[230px] transition-all duration-500 ${n.side === 'left' ? 'left-10' : 'right-10'}`}
-              style={{ top: `${44 + i * 13}%`, opacity: vis ? 1 : 0, transform: vis ? 'translateY(0)' : 'translateY(12px)' }}
-            >
-              <div className={`flex items-center gap-3 ${n.side === 'right' ? 'flex-row-reverse' : ''}`}>
-                <div className="w-8 h-px bg-primary/60 shrink-0" />
-                <div className={n.side === 'right' ? 'text-right' : 'text-left'}>
-                  <div className="font-mono text-[10px] tracking-widest uppercase text-primary mb-1">{n.title}</div>
-                  <div className="text-[13px] leading-relaxed text-[#bbb]">{n.text}</div>
+            <div className="absolute left-6 md:left-12 bottom-[14vh] max-w-[300px]">
+              <div key={i} style={{ animation: 'fadeIn 0.5s ease' }} className="flex items-start gap-3">
+                <div className="hidden md:block w-8 h-px bg-primary/60 mt-2.5 shrink-0" />
+                <div>
+                  <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-primary mb-1.5">{n.title}</div>
+                  <div className="text-[13px] md:text-[14px] leading-relaxed text-[#cfcfcf]">{n.text}</div>
                 </div>
               </div>
             </div>
           )
-        })}
+        })()}
       </div>
     </section>
   )

@@ -93,15 +93,14 @@ export default function Landing() {
           className="max-w-4xl mx-auto text-center"
         >
           <div className="font-mono text-[11px] tracking-[0.24em] uppercase text-[#666] mb-6">
-            The flagship product
+            No pay to play
           </div>
           <h2 className="m-0 font-sans font-extrabold tracking-[-0.04em] leading-tight text-[clamp(30px,5vw,56px)]">
             Every vault is<br /><span className="text-primary">earned</span>, never given.
           </h2>
           <p className="mt-8 mx-auto max-w-2xl text-[15px] md:text-[16px] leading-relaxed text-[#888]">
-            Every algorithm starts in the shadows. For seven days it predicts on paper, with no
-            capital at risk, while its Brier Score is measured against reality. Prove your
-            accuracy and your vault opens. From there, real capital follows the math.
+            A bot only manages real money after it proves, in public, that it can predict.
+            Here is how Brier earns that trust, step by step.
           </p>
         </motion.div>
       </section>
@@ -129,52 +128,6 @@ export default function Landing() {
 
           <BlockchainStrip />
         </div>
-      </section>
-
-      {/* ── TWO WAYS IN ── */}
-      <section className="relative bg-[#050505] border-t border-[#111] py-32 px-6">
-        <motion.div
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.4 }}
-          variants={fadeUp}
-          className="max-w-5xl mx-auto"
-        >
-          <div className="text-center mb-16">
-            <div className="font-mono text-[11px] tracking-[0.24em] uppercase text-primary mb-4">two ways in</div>
-            <h2 className="m-0 font-sans font-extrabold tracking-[-0.04em] text-[clamp(28px,4.5vw,52px)]">
-              Deposit, or build<span className="text-primary">.</span>
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-[#141414] border border-[#141414]">
-            {/* Depositors */}
-            <div className="bg-[#060606] p-9 flex flex-col group hover:bg-[#080808] transition-colors">
-              <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-4">For depositors</div>
-              <h3 className="m-0 font-sans font-extrabold text-[24px] tracking-tight mb-3">Earn without predicting<span className="text-primary">.</span></h3>
-              <p className="m-0 text-[14px] leading-relaxed text-[#999] mb-8 flex-1">
-                Pick the proven algorithm, not the hype. Deposit into the lowest Brier Score and earn
-                passively while it compounds for you.
-              </p>
-              <Link href="/app" className="inline-flex w-fit items-center gap-2 bg-primary text-[#030303] font-sans font-bold text-[13px] px-6 py-3 rounded-full transition-all hover:shadow-[0_0_22px_rgba(255,42,77,0.45)] no-underline">
-                Browse vaults →
-              </Link>
-            </div>
-
-            {/* Builders */}
-            <div className="bg-[#060606] p-9 flex flex-col group hover:bg-[#080808] transition-colors">
-              <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-4">For builders</div>
-              <h3 className="m-0 font-sans font-extrabold text-[24px] tracking-tight mb-3">Build on Polymarket<span className="text-primary">.</span></h3>
-              <p className="m-0 text-[14px] leading-relaxed text-[#999] mb-8 flex-1">
-                Build a bot that forecasts real world events on Polymarket. Reality settles the score on
-                chain, and a vault opens once you prove it.
-              </p>
-              <Link href="/docs" className="inline-flex w-fit items-center gap-2 border border-[#2a2a2a] text-white font-sans font-medium text-[13px] px-6 py-3 rounded-full transition-all hover:border-[#555] hover:bg-white/[0.03] no-underline">
-                Start building →
-              </Link>
-            </div>
-          </div>
-        </motion.div>
       </section>
 
       {/* ── COMMUNITY / MANIFESTO ── */}
