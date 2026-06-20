@@ -1,0 +1,34 @@
+name: CI
+
+# Corre en cada Pull Request hacia dev o main.
+# Si algo de esto falla, GitHub bloquea el merge (con branch protection activado).
+on:
+  pull_request:
+    branches: [dev, main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # legacy-peer-deps ya está en .npmrc (conflicto rainbowkit <-> wagmi v3)
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Typecheck (tsc)
+        run: npx tsc --noEmit
+
+      - name: Scoring engine tests
+        run: npm run test:scoring
+
+      - name: Smart-contract tests
+        run: npm run test:contracts
+
+      - name: Production build
+        run: npm run build

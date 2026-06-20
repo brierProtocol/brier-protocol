@@ -1,0 +1,15 @@
+# Code owners — a quién se le pide review automáticamente en cada PR.
+# Funciona cuando en branch protection activás "Require review from Code Owners".
+#
+# ⚠️ Verificá que @felipemiguelsainz sea EXACTAMENTE tu usuario de GitHub.
+#    Si no, cambialo (un handle mal escrito hace que esto no funcione).
+
+# Por defecto: Felipe revisa todo.
+*                  @felipemiguelsainz
+
+# Rutas críticas — review obligatorio de Felipe.
+/contracts/        @felipemiguelsainz
+/src/lib/          @felipemiguelsainz
+/prisma/           @felipemiguelsainz
+/brier-executor/   @felipemiguelsainz
+/.github/          @felipemiguelsainz
