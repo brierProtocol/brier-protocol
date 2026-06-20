@@ -10,6 +10,7 @@ const PlanetAgentsBackground = dynamic(() => import('@/components/PlanetAgentsBa
 const BlockchainLoader = dynamic(() => import('@/components/BlockchainLoader'), { ssr: false })
 const BrierJourney = dynamic(() => import('@/components/BrierJourney'), { ssr: false })
 const BlockchainStrip = dynamic(() => import('@/components/BlockchainStrip'), { ssr: false })
+const CreateBotSection = dynamic(() => import('@/components/CreateBotSection'), { ssr: false })
 
 const fadeUp: any = {
   hidden: { opacity: 0, y: 28 },
@@ -175,6 +176,9 @@ export default function Landing() {
           </div>
         </motion.div>
       </section>
+
+      {/* ── CREATE A BOT (space CTA) ── */}
+      <CreateBotSection />
 
       {/* ── COMMUNITY / MANIFESTO ── */}
       <section className="relative py-40 px-6 border-t border-[#111]" style={{ background: 'radial-gradient(ellipse at center, rgba(255,42,77,0.04), #030303 70%)' }}>
