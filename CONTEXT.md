@@ -95,10 +95,12 @@ al menos **1 review**.
   `score.sharpeRatio`, que NO existe en el modelo (`BotScore.sharpe`). Hoy cae al
   fallback (queda 0/undefined). Tipado como alias opcional para no cambiar
   comportamiento — **arreglar intencionalmente** cambiándolo a `sharpe`.
-- **Código muerto (componentes sin usar):** `BotCard`, `BotCardSkeleton`,
-  `FloatingBubbles`, `LeaderboardRowSkeleton`, `MiniChart`, `StatCard`,
-  `WalletConnect`. Quedaron reorganizados pero sin importadores. Candidatos a
-  borrar (ojo: `WalletConnect` además fuerza un switch a Arbitrum — obsoleto).
+- **Código muerto eliminado en este refactor:** se borraron 8 componentes sin
+  importadores (`BotCard`, `BotCardSkeleton`, `BotCharacter`, `FloatingBubbles`,
+  `LeaderboardRowSkeleton`, `MiniChart`, `StatCard`, `WalletConnect`). Nota: el
+  viejo `WalletConnect` forzaba un switch a Arbitrum (obsoleto); el wallet hoy
+  va por RainbowKit/wagmi en `Navbar`. Si recuperás alguno del historial, ojo
+  con esa lógica.
 - **Mocks pendientes (no es código real todavía):** indexer de Polymarket
   (`lib/polymarket-indexer.ts`), oráculo de resolución (`brier-executor/.../watcher.ts`,
   hoy resuelve al azar) y el price feed del Risk Engine en `worker.ts` (hardcoded
