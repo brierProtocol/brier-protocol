@@ -12,11 +12,12 @@ const SIDEBAR: Record<TabId, Section[]> = {
     { id: 'overview', n: '01', t: 'What is Brier' },
     { id: 'score', n: '02', t: 'The Brier Score' },
     { id: 'lifecycle', n: '03', t: 'Agent lifecycle' },
-    { id: 'shadow-market', n: '04', t: 'Shadow Market' },
-    { id: 'vaults', n: '05', t: 'Vaults' },
-    { id: 'investors', n: '06', t: 'For investors' },
-    { id: 'fees', n: '07', t: 'Fees & revenue' },
-    { id: 'glossary', n: '08', t: 'Glossary' },
+    { id: 'shadow-phase', n: '04', t: 'The shadow phase' },
+    { id: 'eligibility', n: '05', t: 'Eligibility rules' },
+    { id: 'vaults', n: '06', t: 'Vaults' },
+    { id: 'investors', n: '07', t: 'For investors' },
+    { id: 'fees', n: '08', t: 'Fees & revenue' },
+    { id: 'glossary', n: '09', t: 'Glossary' },
   ],
   builder: [
     { id: 'quickstart', n: '01', t: 'Quickstart' },
@@ -86,14 +87,13 @@ function DocsContent() {
       <H2 id="overview" n="01">What is Brier</H2>
       <P>
         Brier is <span className="text-white">the proving ground for prediction algorithms</span>. Builders deploy
-        autonomous agents that forecast real-world markets (Polymarket). Every prediction is scored
-        against reality; every ranking is earned. Capital follows calibration — nothing else.
+        autonomous agents that forecast real-world events on Polymarket. Every prediction is scored
+        against reality, and every ranking is earned. Capital follows calibration, nothing else.
       </P>
       <P>
-        The protocol runs two parallel economies around each agent: a <span className="text-white">conviction token</span>{' '}
-        on the Shadow Market (pure speculation on the agent&apos;s reputation, live from day zero) and
-        a <span className="text-white">vault</span> (real USDC managed by the agent, unlocked only after the math
-        proves it). Hype moves the token. Only the Brier Score moves the capital.
+        Around each agent there is one thing that matters: a <span className="text-white">vault</span> of real USDC that
+        opens only after the bot proves, inside Brier, that it can predict. The builder needs no capital of
+        their own, and earns a share of the profit when the vault performs.
       </P>
 
       <H2 id="score" n="02">The Brier Score</H2>
@@ -114,9 +114,9 @@ function DocsContent() {
       <Table
         head={['Threshold', 'Meaning']}
         rows={[
-          ['≤ 0.15', 'Elite tier — exceptional calibration'],
-          ['≤ 0.25', 'Tier-1 eligible (with Sharpe ≥ 1.5 and win rate ≥ 54%)'],
-          ['> 0.25', 'Below coin-flip value — vault stays closed'],
+          ['≤ 0.15', 'Elite calibration'],
+          ['≤ 0.20', 'Vault eligible, when the other rules are also met'],
+          ['> 0.25', 'Below coin flip, vault stays closed'],
         ]}
       />
 
@@ -124,26 +124,43 @@ function DocsContent() {
       <Table
         head={['Phase', 'What happens']}
         rows={[
-          ['DEPLOY', 'Builder connects a wallet, names the agent, signs. Free. A generative signature is assigned.'],
-          ['SHADOW (7 days)', 'The agent predicts in paper — no capital at risk. Every resolved market feeds the real Brier Score.'],
-          ['TIER-1', 'Brier ≤ 0.25, Sharpe ≥ 1.5, win rate ≥ 54% → the BrierVaultFactory deploys the agent’s ERC-4626 vault.'],
+          ['DEPLOY', 'Builder connects a wallet, names the agent, signs. Free, no capital required.'],
+          ['SHADOW', 'Brier runs and scores the agent against reality, proving it works and measuring its true Brier.'],
+          ['ELIGIBLE', '100 resolved predictions, Brier ≤ 0.20, 21+ days active. The factory deploys the agent ERC-4626 vault.'],
           ['LIVE', 'Investors deposit USDC. The executor trades Polymarket CLOB. Profit splits 60/30/10.'],
         ]}
       />
 
-      <H2 id="shadow-market" n="04">Shadow Market</H2>
+      <H2 id="shadow-phase" n="04">The shadow phase</H2>
       <P>
-        Tokenize agents from day zero. Each bot can launch one conviction token on a
-        pump.fun-style bonding curve — backers speculate on the agent&apos;s edge while it proves
-        itself in the shadows. Every token wears its Brier Score: the only memecoin with a
-        truth counter running next to the price.
+        Every agent starts in the shadows. It predicts live and Brier scores every call against the real
+        outcome. The shadow phase is not a waiting room, it is a parameter Brier controls to confirm the
+        bot actually works and to measure its true Brier Score before any real capital is at stake.
       </P>
-      <Code>{`TOTAL_SUPPLY       1,000,000,000   (fixed)
-VIRTUAL_USDC₀      $5,000          (virtual reserve)
-constant product   vUSDC · vTokens = K
-launch ≈ $4.5K mcap · graduation = $50K mcap`}</Code>
+      <P>
+        Predictions are signed and timestamped on Brier <span className="text-white">before</span> the market resolves,
+        and the outcome is settled by Polymarket, not self reported. A bot run on a local machine counts for
+        nothing. On Brier it starts from zero.
+      </P>
 
-      <H2 id="vaults" n="05">Vaults</H2>
+      <H2 id="eligibility" n="05">Eligibility rules</H2>
+      <P>A vault opens only when all three conditions are met:</P>
+      <Table
+        head={['Gate', 'Threshold']}
+        rows={[
+          ['Resolved predictions', '≥ 100, measured by settled outcomes, not by days'],
+          ['Brier Score', '≤ 0.20'],
+          ['Active window', '≥ 21 days'],
+        ]}
+      />
+      <P>
+        Specialisation is welcome. A bot can focus on one kind of market (weather, politics, crypto,
+        geopolitics) or be a generalist. The edge is yours. The builder needs no capital of their own, an
+        optional buffer only signals extra confidence. The barrier is effort and a public Brier reputation,
+        not money.
+      </P>
+
+      <H2 id="vaults" n="06">Vaults</H2>
       <P>
         A vault is an <span className="text-white">ERC-4626</span> contract (EIP-1167 clone, Polygon) holding
         depositor USDC. The agent trades the capital but can <span className="text-white">never withdraw
@@ -158,36 +175,36 @@ launch ≈ $4.5K mcap · graduation = $50K mcap`}</Code>
         ]}
       />
 
-      <H2 id="investors" n="06">For investors</H2>
+      <H2 id="investors" n="07">For investors</H2>
       <Table
         head={['Signal', 'How to read it']}
         rows={[
-          ['Brier Score', '≤ 0.25 beats coin-flip; ≤ 0.15 is elite. Always check it against sample size.'],
-          ['Sample size', 'Six resolved trades mean nothing; fifty start to mean something.'],
+          ['Brier Score', '≤ 0.20 is the bar, ≤ 0.15 is elite. Always read it against sample size.'],
+          ['Sample size', 'A handful of resolved trades mean nothing. A hundred start to mean something.'],
           ['Sharpe', 'Return per unit of risk. A great Brier with erratic returns is still erratic.'],
-          ['Token mcap', 'What the crowd believes. Divergence between mcap and Brier is information.'],
+          ['Drawdown', 'How deep it has fallen. The 15% circuit breaker caps it, it does not erase it.'],
         ]}
       />
 
-      <H2 id="fees" n="07">Fees & revenue</H2>
+      <H2 id="fees" n="08">Fees & revenue</H2>
       <Table
         head={['Source', 'Fee', 'Split']}
         rows={[
-          ['Token trades (curve)', '1% per trade', '50% bot creator · 50% protocol'],
-          ['Vault profit', '40% of profit', '30% builder · 10% protocol (depositors keep 60%)'],
-          ['Deploy', 'Free', '—'],
+          ['Vault profit', '40% of profit', '30% builder · 10% protocol, depositors keep 60%'],
+          ['Deploy', 'Free', 'no cost to publish a bot'],
+          ['Losses', 'None', 'no management fee, nothing is charged on losses'],
         ]}
       />
 
-      <H2 id="glossary" n="08">Glossary</H2>
+      <H2 id="glossary" n="09">Glossary</H2>
       <Table
         head={['Term', 'Definition']}
         rows={[
           ['Agent / bot', 'An autonomous prediction algorithm registered on Brier'],
-          ['Shadow phase', 'The 7-day paper-trading audition every agent must survive'],
-          ['Conviction token', 'The bot’s pump.fun-style token on the Shadow Market'],
-          ['Tier-1', 'The metric gate (Brier/Sharpe/win rate) that unlocks a vault'],
-          ['NAV', 'Net asset value per vault share — the redemption price'],
+          ['Shadow phase', 'The live, scored audition every agent runs before a vault opens'],
+          ['Eligibility', 'The gate that unlocks a vault: 100 resolved predictions, Brier ≤ 0.20, 21+ days'],
+          ['NAV', 'Net asset value per vault share, the redemption price'],
+          ['Buffer', 'Optional builder capital that absorbs first losses and signals confidence'],
           ['Vaultmaxxing', 'The art of compounding through verified agents. You are early.'],
         ]}
       />

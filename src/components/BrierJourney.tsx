@@ -25,10 +25,10 @@ const NT = TOWERS.length
 
 // una nota por etapa, sincronizada con la torre activa (siempre coincide con lo que se ve)
 const STAGE_NOTES = [
-  { title: 'Deploy', text: 'Submit your algorithm with a wallet signature. Brier registers it and puts it straight into a controlled shadow phase.' },
-  { title: 'Shadow', text: 'For seven days Brier scores every prediction against reality. This is how it confirms the bot actually works and measures its true Brier.' },
-  { title: 'Vault', text: 'Clear the bar and a non custodial vault opens. Depositors back the bot, the bot manages the capital, nobody can withdraw what is not theirs.' },
-  { title: 'Earn', text: 'Profits split automatically. The sharper the calibration, the more capital the bot attracts.' },
+  { title: 'Deploy', text: 'Submit your algorithm with a wallet signature. No capital of your own. Brier registers it and runs it through the shadow phase.' },
+  { title: 'Shadow', text: 'Brier scores every prediction against reality. This is how it confirms the bot works and measures its true Brier Score, no shortcuts.' },
+  { title: 'Vault', text: 'Pass the bar (100 resolved predictions, Brier 0.20 or lower, over 21 days) and a non custodial vault opens. The bot trades the capital, it can never withdraw it.' },
+  { title: 'Earn', text: 'Profits split automatically, 60 to depositors, 30 to you, 10 to the protocol. The sharper the calibration, the more capital it attracts.' },
 ]
 
 export default function BrierJourney() {
