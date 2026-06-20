@@ -10,7 +10,6 @@ const PlanetAgentsBackground = dynamic(() => import('@/components/PlanetAgentsBa
 const BlockchainLoader = dynamic(() => import('@/components/BlockchainLoader'), { ssr: false })
 const BrierJourney = dynamic(() => import('@/components/BrierJourney'), { ssr: false })
 const BlockchainStrip = dynamic(() => import('@/components/BlockchainStrip'), { ssr: false })
-const ProtocolPulse = dynamic(() => import('@/components/ProtocolPulse'), { ssr: false })
 
 const fadeUp: any = {
   hidden: { opacity: 0, y: 28 },
@@ -83,9 +82,6 @@ export default function Landing() {
           </div>
         </motion.div>
       </section>
-
-      {/* ── PROTOCOL PULSE (números reales + agente #1) ── */}
-      <ProtocolPulse />
 
       {/* ── FLAGSHIP ── */}
       <section className="relative bg-[#050505] border-t border-[#111] py-32 px-6">
