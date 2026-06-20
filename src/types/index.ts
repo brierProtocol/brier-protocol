@@ -49,10 +49,6 @@ export interface BotScore {
   maxDrawdown: number
   snapshotDate: string
   isLatest: boolean
-  // Legacy alias of `sharpe` — NOT populated by the API. Some list views read
-  // `score.sharpeRatio` (a typo) and fall back to `sharpe`; kept optional so
-  // that behavior compiles unchanged. See CONTEXT.md "Trampas conocidas".
-  sharpeRatio?: number
 }
 
 export interface VaultDeposit {

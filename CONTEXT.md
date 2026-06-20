@@ -91,10 +91,10 @@ al menos **1 review**.
 - **USDC tiene 6 decimales, NO 18.** Crítico en todo cálculo de monto. Ver
   `src/constants/contracts.ts` (`USDC_DECIMALS`).
 - **`next_dev.log`** ya está en `.gitignore` (además de `*.log`).
-- **Bug latente `sharpeRatio`:** `discover/page.tsx` y `leaderboard/page.tsx` leen
-  `score.sharpeRatio`, que NO existe en el modelo (`BotScore.sharpe`). Hoy cae al
-  fallback (queda 0/undefined). Tipado como alias opcional para no cambiar
-  comportamiento — **arreglar intencionalmente** cambiándolo a `sharpe`.
+- **`sharpeRatio` (corregido):** `discover` y `leaderboard` leían
+  `score.sharpeRatio`, que no existe en el modelo (`BotScore.sharpe`), por lo que
+  el Sharpe mostraba siempre 0. Ya apuntan a `score.sharpe`. Si ves el dato de
+  Sharpe "raro", es porque ahora sí muestra el valor real.
 - **Código muerto eliminado en este refactor:** se borraron 8 componentes sin
   importadores (`BotCard`, `BotCardSkeleton`, `BotCharacter`, `FloatingBubbles`,
   `LeaderboardRowSkeleton`, `MiniChart`, `StatCard`, `WalletConnect`). Nota: el

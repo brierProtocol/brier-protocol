@@ -165,7 +165,7 @@ export default function DiscoverPage() {
               const wr     = b.scores?.[0]?.winRate ?? b.winRate ?? 0
               const tvl    = getTvl(b)
               const yld    = getYield(b)
-              const sharpe = b.scores?.[0]?.sharpeRatio ?? b.sharpe ?? 0
+              const sharpe = b.scores?.[0]?.sharpe ?? b.sharpe ?? 0
               const st     = statusLabel(b.status || 'PAPER')
 
               return (

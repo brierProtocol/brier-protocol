@@ -160,7 +160,7 @@ export default function LeaderboardPage() {
                 const brier   = bot.scores?.[0]?.brierScore ?? bot.brierScore ?? 0
                 const wr      = bot.scores?.[0]?.winRate ?? bot.winRate ?? 0
                 const tvl     = bot.currentTVL ?? bot.tvl ?? 0
-                const sharpe  = bot.scores?.[0]?.sharpeRatio ?? 0
+                const sharpe  = bot.scores?.[0]?.sharpe ?? 0
                 const slug    = bot.slug || bot.id
                 const builderId = bot.walletAddress || bot.builder || 'anon'
                 const isTop3  = i < 3
