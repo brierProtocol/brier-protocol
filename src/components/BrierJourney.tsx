@@ -127,29 +127,31 @@ export default function BrierJourney() {
 
     const v = new THREE.Vector3()
     let f = 0, raf = 0
+    let displayCur = 0   // etapa mostrada, se asienta (lerp) en valores enteros: nunca a medias
     const frame = () => {
       f += 0.016
-      const p = progRef.current
+      // etapa objetivo discreta segun el scroll, y lerp suave hacia ella
+      const targetStage = Math.round(progRef.current * (NT - 1))
+      displayCur += (targetStage - displayCur) * 0.12
+      const activeStage = Math.round(displayCur)
 
       towers.forEach((t, i) => {
-        const start = (i / NT) * 0.8
-        const local = Math.min(1, Math.max(0, (p - start) / 0.22))
-        const h = Math.max(0.001, local * t.full)
-        t.mesh.scale.y += (h - t.mesh.scale.y) * 0.12
-        const lit = local > 0.55
-        t.mat.emissiveIntensity += ((lit ? 0.32 : 0.04) - t.mat.emissiveIntensity) * 0.1
-        t.mat.opacity += ((lit ? 1 : 0.5) - t.mat.opacity) * 0.1
-        t.edge.opacity += ((lit ? 0.65 : 0.16) - t.edge.opacity) * 0.1
-        t.capMat.emissiveIntensity += ((lit ? 0.65 : 0.08) - t.capMat.emissiveIntensity) * 0.1
+        const reached = displayCur >= i - 0.5
+        const h = reached ? t.full : 0.001
+        t.mesh.scale.y += (h - t.mesh.scale.y) * 0.14
+        const lit = activeStage === i
+        t.mat.emissiveIntensity += ((lit ? 0.34 : 0.04) - t.mat.emissiveIntensity) * 0.12
+        t.mat.opacity += ((reached ? (lit ? 1 : 0.7) : 0.4) - t.mat.opacity) * 0.12
+        t.edge.opacity += ((lit ? 0.7 : reached ? 0.3 : 0.14) - t.edge.opacity) * 0.12
+        t.capMat.emissiveIntensity += ((lit ? 0.7 : 0.08) - t.capMat.emissiveIntensity) * 0.12
         t.cap.position.set(t.gx, t.mesh.scale.y + 0.07, 0)
         t.cap.visible = t.mesh.scale.y > 0.1
-        // label a media altura, al frente de la torre (no choca con el título)
         t.sprite.position.set(t.gx, t.mesh.scale.y * 0.5 + 0.2, 0.75)
-        ;(t.sprite.material as THREE.SpriteMaterial).opacity += ((local > 0.6 ? 1 : 0) - (t.sprite.material as THREE.SpriteMaterial).opacity) * 0.1
+        ;(t.sprite.material as THREE.SpriteMaterial).opacity += ((reached ? 1 : 0) - (t.sprite.material as THREE.SpriteMaterial).opacity) * 0.12
       })
 
-      const fi = p * (NT - 1)
-      const a = Math.floor(fi), b = Math.min(NT - 1, a + 1), tt = fi - a
+      // estrella aterriza en la etapa activa (sigue displayCur, asentado)
+      const a = Math.floor(displayCur), b = Math.min(NT - 1, a + 1), tt = displayCur - a
       const sx = towers[a].gx + (towers[b].gx - towers[a].gx) * tt
       const sy = Math.max(towers[a].mesh.scale.y, towers[b].mesh.scale.y) + 0.9 + Math.sin(f * 2) * 0.1
       star.position.set(sx, sy, 0)
