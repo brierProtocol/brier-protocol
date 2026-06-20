@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/db/prisma'
 
 // POST /api/bots/[slug]/paper-trade — shadow-phase ingestion.
 // The bot's brain (e.g. ADAN) reports each paper bet here; the ResolutionWatcher

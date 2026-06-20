@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { HowItWorksDeck } from '@/components/HowItWorks'
+import { HowItWorksDeck } from '@/components/ui/HowItWorks'
 
 export default function HowItWorksPage() {
   return (

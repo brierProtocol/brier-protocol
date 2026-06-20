@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { validateEnv } from './env'
+import { validateEnv } from '../env'
 
 validateEnv()
 

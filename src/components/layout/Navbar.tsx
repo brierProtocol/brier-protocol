@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAccount } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { motion, AnimatePresence } from 'framer-motion'
-import BotIrisAvatar from './BotIrisAvatar'
+import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
 
 interface Notification {
@@ -123,9 +123,13 @@ function NotificationBell({ address }: { address: string }) {
   )
 }
 
+// Shapes match the `select` in /api/search.
+type SearchBot = { id: string; name: string; slug: string; status: string; tier: string; pfpUrl: string | null }
+type SearchUser = { walletAddress: string; name: string | null; handle: string | null; pfpUrl: string | null }
+
 export function GlobalSearch({ isLarge = false }: { isLarge?: boolean } = {}) {
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<{bots: any[], users: any[]}>({bots: [], users: []})
+  const [results, setResults] = useState<{ bots: SearchBot[]; users: SearchUser[] }>({ bots: [], users: [] })
   const [open, setOpen] = useState(false)
   const router = useRouter()
   const searchRef = useRef<HTMLDivElement>(null)

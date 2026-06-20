@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import BotIrisAvatar from '@/components/BotIrisAvatar'
+import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye, makerEye } from '@/lib/botIdentity'
 import { motion } from 'framer-motion'
+import type { BotListItem } from '@/types'
 
 type SortKey = 'brier' | 'yield' | 'tvl' | 'new'
 type MarketKey = 'all' | 'crypto' | 'politics' | 'sports'
@@ -31,7 +32,7 @@ function statusLabel(s: string) {
   return { text: 'PAPER', color: '#555' }
 }
 
-function matchesMarket(bot: any, market: MarketKey): boolean {
+function matchesMarket(bot: BotListItem, market: MarketKey): boolean {
   if (market === 'all') return true
   const m = [bot.market, ...(bot.markets || [])].join(' ').toLowerCase()
   if (market === 'crypto')   return m.includes('crypto') || m.includes('btc') || m.includes('eth') || m.includes('solana')
@@ -45,7 +46,7 @@ export default function DiscoverPage() {
   const [activeSort, setActiveSort]   = useState<SortKey>('brier')
   const [activeMarket, setActiveMarket] = useState<MarketKey>('all')
   const [search, setSearch]           = useState('')
-  const [botsData, setBotsData]       = useState<any[]>([])
+  const [botsData, setBotsData]       = useState<BotListItem[]>([])
   const [loading, setLoading]         = useState(true)
 
   useEffect(() => {
@@ -56,10 +57,10 @@ export default function DiscoverPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const getBrier    = (b: any) => b.scores?.[0]?.brierScore ?? b.brierScore ?? 0
-  const getTvl      = (b: any) => b.currentTVL ?? b.tvl ?? 0
-  const getYield    = (b: any) => b.monthlyYield ?? 0
-  const getCreated  = (b: any) => new Date(b.createdAt || 0).getTime()
+  const getBrier    = (b: BotListItem) => b.scores?.[0]?.brierScore ?? b.brierScore ?? 0
+  const getTvl      = (b: BotListItem) => b.currentTVL ?? b.tvl ?? 0
+  const getYield    = (b: BotListItem) => b.monthlyYield ?? 0
+  const getCreated  = (b: BotListItem) => new Date(b.createdAt || 0).getTime()
 
   const filtered = botsData
     .filter(b => matchesMarket(b, activeMarket))
@@ -164,7 +165,7 @@ export default function DiscoverPage() {
               const wr     = b.scores?.[0]?.winRate ?? b.winRate ?? 0
               const tvl    = getTvl(b)
               const yld    = getYield(b)
-              const sharpe = b.scores?.[0]?.sharpeRatio ?? b.sharpe ?? 0
+              const sharpe = b.scores?.[0]?.sharpe ?? b.sharpe ?? 0
               const st     = statusLabel(b.status || 'PAPER')
 
               return (

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Toaster } from "react-hot-toast";
-import Navbar from "@/components/Navbar";
+import Navbar from "@/components/layout/Navbar";
 import AmbientDots from "@/components/AmbientDots";
 import { Providers } from "@/lib/providers";
 import "./globals.css";

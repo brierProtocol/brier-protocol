@@ -30,6 +30,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 *.log
+next_dev.log   # next dev server log (also covered by *.log)
 
 # hardhat build artifacts
 /artifacts_contracts/build-info

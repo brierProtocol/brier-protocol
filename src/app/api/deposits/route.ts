@@ -1,21 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db/prisma';
 import { ethers } from 'ethers';
 import { notifyDeposit } from '@/lib/notifications';
+import { DEPOSIT_RPC_URL as RPC_URL, USDC_ADDRESS_ENV, USDC_DECIMALS } from '@/constants/contracts';
 
-// RPC de la cadena donde viven los vaults. Por defecto Polygon Amoy (testnet).
-// Para producción definir NEXT_PUBLIC_DEPOSIT_RPC_URL apuntando a Polygon mainnet.
-const RPC_URL =
-  process.env.NEXT_PUBLIC_DEPOSIT_RPC_URL ||
-  process.env.NEXT_PUBLIC_AMOY_RPC_URL ||
-  'https://rpc-amoy.polygon.technology';
-
-// Dirección del contrato USDC esperado. Si se define, SOLO se aceptan transferencias
-// de ese token (evita que alguien deposite un ERC20 falso e infle el TVL).
-const USDC_ADDRESS = process.env.NEXT_PUBLIC_USDC_ADDRESS?.toLowerCase();
-
-// USDC tiene 6 decimales.
-const USDC_DECIMALS = 6;
+// Direccion del contrato USDC esperado. Si se define (USDC_ADDRESS_ENV), SOLO se aceptan
+// transferencias de ese token (evita depositar un ERC20 falso e inflar el TVL).
+// undefined => validacion de token deshabilitada.
+const USDC_ADDRESS = USDC_ADDRESS_ENV?.toLowerCase();
 
 // ERC20 Transfer Event Signature
 const TRANSFER_EVENT_SIG = ethers.id('Transfer(address,address,uint256)');

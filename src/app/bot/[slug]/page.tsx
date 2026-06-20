@@ -3,66 +3,14 @@
 import { use, useState, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import BotIrisAvatar from '@/components/BotIrisAvatar'
+import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye, makerEye } from '@/lib/botIdentity'
-import CandleChart, { type Tick } from '@/components/CandleChart'
+import CandleChart, { type Tick } from '@/components/ui/CandleChart'
 import { useAccount } from 'wagmi'
 import { ethers } from 'ethers'
 import { motion } from 'framer-motion'
-
-function useCountUp(target: number, duration = 1200) {
-  const [value, setValue] = useState(0)
-  useEffect(() => {
-    if (!target) return
-    let start = 0
-    const step = target / (duration / 16)
-    const timer = setInterval(() => {
-      start += step
-      if (start >= target) { setValue(target); clearInterval(timer) }
-      else setValue(Math.floor(start))
-    }, 16)
-    return () => clearInterval(timer)
-  }, [target, duration])
-  return value
-}
-
-// ── Anonymous poster identity: deterministic ID + hue from wallet ──
-function posterId(wallet: string): { id: string; hue: number } {
-  let h = 0
-  for (let i = 0; i < wallet.length; i++) h = (Math.imul(h, 31) + wallet.charCodeAt(i)) | 0
-  const id = Math.abs(h).toString(36).padStart(6, '0').slice(0, 6).toUpperCase()
-  return { id, hue: Math.abs(h) % 360 }
-}
-
-// ── Thread text renderer: greentext + >>quotelinks ──
-function PostBody({ text, onQuoteClick }: { text: string; onQuoteClick: (n: number) => void }) {
-  const lines = text.split('\n')
-  return (
-    <div className="post-text">
-      {lines.map((line, li) => {
-        const parts = line.split(/(>>\d{1,5})/g)
-        const isGreen = line.trimStart().startsWith('>') && !line.trimStart().startsWith('>>')
-        return (
-          <div key={li} className={isGreen ? 'greentext' : undefined}>
-            {parts.map((p, pi) => {
-              const m = p.match(/^>>(\d{1,5})$/)
-              if (m) {
-                const n = parseInt(m[1], 10)
-                return (
-                  <a key={pi} className="quotelink" onClick={() => onQuoteClick(n)}>
-                    {p}
-                  </a>
-                )
-              }
-              return <span key={pi}>{p}</span>
-            })}
-            {line === '' ? ' ' : ''}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
+import { useCountUp } from '@/hooks/useCountUp'
+import { posterId, PostBody } from '@/components/bot/PostBody'
 
 function VaultCapacityBar({ current, cap }: { current: number; cap: number }) {
   const percentage = Math.min((current / cap) * 100, 100)
@@ -151,14 +99,14 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     const amt = parseFloat(depositAmt) || 0
     if (amt <= 0) return alert("Please enter a valid deposit amount")
 
-    if (typeof window === 'undefined' || !(window as any).ethereum) {
+    if (typeof window === 'undefined' || !window.ethereum) {
       alert("No Web3 Wallet detected! Please install MetaMask to interact with Brier vaults.")
       return
     }
 
     setDepositing(true)
     try {
-      const provider = new ethers.BrowserProvider((window as any).ethereum)
+      const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
       if (!bot.vaultAddress) {
         alert("This bot does not have a vault address configured yet. Deposits are not available.")
@@ -311,7 +259,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const addPost = async () => {
     if (!postText.trim()) return
     let activeAddress = (isConnected && address) ? address : null
-    if (!activeAddress && typeof window !== 'undefined' && (window as any).ethereum?.selectedAddress) activeAddress = (window as any).ethereum.selectedAddress
+    if (!activeAddress && typeof window !== 'undefined' && window.ethereum?.selectedAddress) activeAddress = window.ethereum.selectedAddress as `0x${string}`
     const userWallet = activeAddress || 'anon_' + Math.random().toString(36).substring(2, 6)
 
     const res = await fetch('/api/comments', {

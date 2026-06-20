@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db/prisma';
 import { ethers } from 'ethers';
 
-// Misma cadena/RPC y token que los depósitos.
-const RPC_URL =
-  process.env.NEXT_PUBLIC_DEPOSIT_RPC_URL ||
-  process.env.NEXT_PUBLIC_AMOY_RPC_URL ||
-  'https://rpc-amoy.polygon.technology';
-const USDC_ADDRESS = process.env.NEXT_PUBLIC_USDC_ADDRESS?.toLowerCase();
-const USDC_DECIMALS = 6;
+import { DEPOSIT_RPC_URL as RPC_URL, USDC_ADDRESS_ENV, USDC_DECIMALS } from '@/constants/contracts';
+
+// Misma cadena/RPC y token que los depositos.
+const USDC_ADDRESS = USDC_ADDRESS_ENV?.toLowerCase();
 const TRANSFER_EVENT_SIG = ethers.id('Transfer(address,address,uint256)');
 
 /**

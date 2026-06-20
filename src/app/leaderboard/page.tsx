@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import BotIrisAvatar from '@/components/BotIrisAvatar'
+import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
+import type { BotListItem } from '@/types'
 
 const RANK_STYLES = [
   { badge: '#FFD700', glow: 'rgba(255,215,0,0.15)', label: 'GOLD',   border: 'rgba(255,215,0,0.2)' },
@@ -13,7 +14,7 @@ const RANK_STYLES = [
 ]
 
 export default function LeaderboardPage() {
-  const [botsData, setBotsData] = useState<any[]>([])
+  const [botsData, setBotsData] = useState<BotListItem[]>([])
   const [loading, setLoading]   = useState(true)
 
   useEffect(() => {
@@ -159,7 +160,7 @@ export default function LeaderboardPage() {
                 const brier   = bot.scores?.[0]?.brierScore ?? bot.brierScore ?? 0
                 const wr      = bot.scores?.[0]?.winRate ?? bot.winRate ?? 0
                 const tvl     = bot.currentTVL ?? bot.tvl ?? 0
-                const sharpe  = bot.scores?.[0]?.sharpeRatio ?? 0
+                const sharpe  = bot.scores?.[0]?.sharpe ?? 0
                 const slug    = bot.slug || bot.id
                 const builderId = bot.walletAddress || bot.builder || 'anon'
                 const isTop3  = i < 3

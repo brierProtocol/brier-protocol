@@ -8,6 +8,8 @@
  * 1.0 = Perfectly Wrong
  */
 
+import type { PrismaClient } from '@prisma/client'
+
 export type PredictionLog = {
   marketId: string;
   forecastProbability: number; // e.g., 0.65 (65%)
@@ -24,6 +26,18 @@ export type ResolvedTrade = {
 /**
  * Computes the full metric set for a bot from its RESOLVED trades.
  * Pure function — no I/O — so it is fully unit-testable.
+ *
+ * Metrics:
+ *  - brierScore  : mean squared error of P(win) vs outcome. 0 = perfect,
+ *                  0.25 = coin flip, 1 = always wrong. The core "edge" measure.
+ *  - winRate     : fraction of resolved trades that won (0..1).
+ *  - sharpe      : risk-adjusted return = mean/stdev of per-trade returns,
+ *                  scaled by √n. Higher = more consistent edge.
+ *  - maxDrawdown : worst peak-to-trough drop of the equity curve (negative %).
+ *  - totalVolume : USDC risked across resolved trades.
+ *
+ * Per-trade return model: a share bought at price p pays 1 on win
+ * (return = (1 - p) / p) and 0 on loss (return = -1).
  */
 export function computeBotMetrics(trades: ResolvedTrade[]): {
   brierScore: number
@@ -123,7 +137,7 @@ export function validateVaultEligibility(
  * Recalculates a bot's Brier score using ONLY fully resolved markets.
  * Never includes pending predictions.
  */
-export async function recalculateBotScore(botId: string, prismaClient: any) {
+export async function recalculateBotScore(botId: string, prismaClient: PrismaClient) {
   const resolvedTrades = await prismaClient.tradeEvent.findMany({
     where: { 
       botId: botId,
@@ -133,7 +147,7 @@ export async function recalculateBotScore(botId: string, prismaClient: any) {
 
   if (resolvedTrades.length === 0) return 0.25;
 
-  const predictions: PredictionLog[] = resolvedTrades.map((t: any) => ({
+  const predictions: PredictionLog[] = resolvedTrades.map((t) => ({
     marketId: t.marketId,
     forecastProbability: t.entryPrice || 0.5,
     actualOutcome: t.outcome === 'WIN' ? 1 : 0

@@ -1,4 +1,5 @@
 import { ethers } from 'ethers'
+import { USDC_ADDRESS as USDC, CTF_EXCHANGE_ADDRESS as CTF_EXCHANGE } from '@/constants/contracts'
 
 // Minimal ABI for the on-chain factory.
 const FACTORY_ABI = [
@@ -6,9 +7,6 @@ const FACTORY_ABI = [
   'event VaultDeployed(string botId, address vaultAddress)',
 ]
 
-// Polygon mainnet defaults (overridable via env for Amoy/test).
-const USDC = process.env.NEXT_PUBLIC_USDC_ADDRESS || '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'
-const CTF_EXCHANGE = process.env.POLYMARKET_CTF_EXCHANGE || '0x4bFB41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E'
 
 type BotForVault = {
   id: string
@@ -22,8 +20,12 @@ type BotForVault = {
  * Deploys a per-bot clone vault via BrierVaultFactory and returns its address.
  *
  * Gated on configuration: requires VAULT_FACTORY_ADDRESS + a funded
- * DEPLOYER/EXECUTOR key. If not configured, returns null so the caller can still
- * promote the bot and wire the vault later (e.g. on testnet before mainnet keys).
+ * DEPLOYER/EXECUTOR key + an RPC URL. If not configured, returns null so the
+ * caller can still promote the bot and wire the vault later (e.g. on testnet
+ * before mainnet keys).
+ *
+ * NEVER THROWS: returns null on missing config OR on an on-chain failure (both
+ * logged). A deploy hiccup must not roll back the bot's DB promotion.
  */
 export async function createVaultForBot(bot: BotForVault): Promise<string | null> {
   const factoryAddress = process.env.VAULT_FACTORY_ADDRESS || process.env.NEXT_PUBLIC_VAULT_FACTORY_ADDRESS
