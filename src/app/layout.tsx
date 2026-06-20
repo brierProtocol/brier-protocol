@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Toaster } from "react-hot-toast";
 import Navbar from "@/components/Navbar";
+import AmbientDots from "@/components/AmbientDots";
 import { Providers } from "@/lib/providers";
 import "./globals.css";
 
@@ -46,6 +47,7 @@ export default function RootLayout({
         }}
       >
         <Providers>
+          <AmbientDots />
           <Navbar />
           <main className="flex-1 relative z-10">{children}</main>
           <Toaster
