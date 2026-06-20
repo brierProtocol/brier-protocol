@@ -289,7 +289,6 @@ export default function Navbar() {
   if (pathname.startsWith('/docs')) return null
 
   const navLinks = [
-    { href: '/launchpad',    label: 'SHADOW_MARKET' },
     { href: '/leaderboard',  label: 'LEADERBOARD'  },
     { href: '/discover',     label: 'DISCOVER'     },
     { href: '/list-bot',     label: 'DEPLOY_BOT'   },
