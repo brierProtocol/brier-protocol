@@ -1,159 +1,98 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import * as THREE from 'three'
+import { useEffect, useState } from 'react'
 
 /**
- * Cadena de bloques 3D para "Everything is on-chain", a otro nivel: bloques grandes
- * encadenados (Deploy, Shadow, Vault, Earn) con wireframe, hash flotante y paquetes de
- * datos fluyendo de uno al siguiente como una blockchain pasando estado hacia Brier.
- * Paleta: negro / blanco / rojo #ff2a4d. Three.js (npm), { ssr: false }.
+ * Everything is on-chain: un block explorer real. Cada bloque muestra un hecho verificable
+ * encadenado al anterior por su hash (Prediction -> Resolution -> Score -> Vault).
+ * Profundidad 3D con CSS perspective, bloque activo que recorre la cadena, paquetes de datos
+ * que fluyen entre bloques. Legible y premium. Inglés, Inter/JetBrains Mono, sin guiones.
  */
 
-const RED = 0xff2a4d
-const WHITE = 0xffffff
-
 const BLOCKS = [
-  { tag: 'SCORE', title: 'Brier Score', body: 'Every prediction scored against the real outcome, recomputed and stored on chain.' },
-  { tag: 'WIN', title: 'Win Rate', body: 'How often the bot is right, settled by reality and not by any claim.' },
-  { tag: 'TRADES', title: 'Every Trade', body: 'Each paper and live call is logged and resolved against the oracle.' },
-  { tag: 'NAV', title: 'Vault NAV', body: 'Deposits, redemptions, and profit splits, fully transparent on chain.' },
+  {
+    n: '418', kind: 'PREDICTION', hash: '0x4a1f9c', prev: '0x9c2e07',
+    rows: [['event', 'BTC > $100k'], ['forecast', '0.62'], ['stake', 'paper']],
+  },
+  {
+    n: '419', kind: 'RESOLUTION', hash: '0x1b7d44', prev: '0x4a1f9c',
+    rows: [['outcome', 'YES'], ['result', 'WIN'], ['oracle', 'Polymarket']],
+  },
+  {
+    n: '420', kind: 'SCORE', hash: '0xe05a18', prev: '0x1b7d44',
+    rows: [['brier', '0.149'], ['win rate', '67%'], ['method', 'proper']],
+  },
+  {
+    n: '421', kind: 'VAULT', hash: '0x7d3bb2', prev: '0xe05a18',
+    rows: [['deposit', 'settled'], ['nav', 'updated'], ['split', '60/30/10']],
+  },
 ]
 const N = BLOCKS.length
 
 export default function BlockchainStrip() {
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [active, setActive] = useState(0)
 
   useEffect(() => {
-    const wrap = wrapRef.current
-    const canvas = canvasRef.current
-    if (!wrap || !canvas) return
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-    let cw = wrap.clientWidth, ch = wrap.clientHeight
-    const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(38, cw / ch, 0.1, 100)
-    camera.position.set(0, 1.2, 9.5)
-    camera.lookAt(0, 0, 0)
-
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
-    renderer.setClearColor(0x000000, 0)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    renderer.setSize(cw, ch, false)
-
-    scene.add(new THREE.AmbientLight(0xffffff, 0.5))
-    const p = new THREE.PointLight(RED, 1.3); p.position.set(2, 3, 5); scene.add(p)
-
-    const group = new THREE.Group()
-    scene.add(group)
-
-    const SPAN = 9.2
-    const xOf = (i: number) => -SPAN / 2 + (SPAN / (N - 1)) * i
-    const SIZE = 1.7
-
-    function makeHash(text: string) {
-      const c = document.createElement('canvas'); c.width = 256; c.height = 64
-      const x = c.getContext('2d')!
-      x.fillStyle = '#ff2a4d'; x.font = '700 30px "JetBrains Mono", monospace'
-      x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, 128, 36)
-      const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t
-    }
-
-    interface Blk { core: THREE.Mesh; wire: THREE.LineSegments; mat: THREE.MeshStandardMaterial; inner: THREE.Mesh; sprite: THREE.Sprite; x: number }
-    const blocks: Blk[] = []
-    for (let i = 0; i < N; i++) {
-      const x = xOf(i)
-      const geo = new THREE.BoxGeometry(SIZE, SIZE, SIZE)
-      const mat = new THREE.MeshStandardMaterial({ color: 0x0b0b10, emissive: RED, emissiveIntensity: 0.06, metalness: 0.45, roughness: 0.5, transparent: true, opacity: 0.9 })
-      const core = new THREE.Mesh(geo, mat); core.position.set(x, 0, 0); group.add(core)
-      const wire = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: i % 2 ? RED : WHITE, transparent: true, opacity: 0.6 }))
-      core.add(wire)
-      // núcleo interno (da profundidad / "datos dentro")
-      const inner = new THREE.Mesh(new THREE.IcosahedronGeometry(SIZE * 0.28, 0), new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0.5, wireframe: true }))
-      core.add(inner)
-      // hash flotante encima
-      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeHash(`0x${(i + 1).toString(16).padStart(2, '0')}a${i}f`), transparent: true, depthTest: false }))
-      sprite.scale.set(1.6, 0.4, 1); sprite.position.set(x, SIZE * 0.95, 0); group.add(sprite)
-      blocks.push({ core, wire, mat, inner, sprite, x })
-    }
-
-    interface Link { line: THREE.Line; packet: THREE.Mesh; t: number; from: number }
-    const links: Link[] = []
-    for (let i = 0; i < N - 1; i++) {
-      const x0 = xOf(i) + SIZE / 2, x1 = xOf(i + 1) - SIZE / 2
-      const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x0, 0, 0), new THREE.Vector3(x1, 0, 0)])
-      group.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: RED, transparent: true, opacity: 0.3 })))
-      const packet = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 12), new THREE.MeshBasicMaterial({ color: RED }))
-      group.add(packet)
-      links.push({ line: null as any, packet, t: i * 0.25, from: i })
-    }
-
-    let tmx = 0, tmy = 0, mx = 0, my = 0
-    const onMove = (e: MouseEvent) => { const r = wrap.getBoundingClientRect(); tmx = ((e.clientX - r.left) / r.width) * 2 - 1; tmy = ((e.clientY - r.top) / r.height) * 2 - 1 }
-    wrap.addEventListener('mousemove', onMove)
-
-    let f = 0, raf = 0, active = 0, lastBeat = 0
-    const frame = () => {
-      f += 0.016
-      mx += (tmx - mx) * 0.05; my += (tmy - my) * 0.05
-      group.rotation.y = -0.3 + mx * 0.25
-      group.rotation.x = 0.14 + my * 0.12
-
-      blocks.forEach((b, i) => {
-        b.core.rotation.y += 0.003
-        b.inner.rotation.y -= 0.01; b.inner.rotation.x += 0.008
-        b.core.position.y = Math.sin(f * 1.0 + i) * 0.06
-        b.sprite.position.y = SIZE * 0.95 + Math.sin(f * 1.0 + i) * 0.06
-        const on = i === active
-        b.mat.emissiveIntensity += ((on ? 0.55 : 0.06) - b.mat.emissiveIntensity) * 0.08
-        ;(b.wire.material as THREE.LineBasicMaterial).opacity += ((on ? 1 : 0.55) - (b.wire.material as THREE.LineBasicMaterial).opacity) * 0.08
-        b.core.scale.setScalar(on ? 1.06 : 1)
-      })
-
-      for (const l of links) {
-        l.t += 0.006
-        if (l.t > 1) { l.t -= 1; active = (l.from + 1) % N; lastBeat = f }
-        const x0 = xOf(l.from) + SIZE / 2, x1 = xOf(l.from + 1) - SIZE / 2
-        l.packet.position.set(x0 + (x1 - x0) * l.t, Math.sin(f * 1.0 + l.from) * 0.06, 0)
-      }
-      if (f - lastBeat > 1.6) { active = 0; lastBeat = f }
-
-      renderer.render(scene, camera)
-    }
-    const loop = () => { raf = requestAnimationFrame(loop); frame() }
-    if (reduceMotion) frame(); else loop()
-
-    const onResize = () => { cw = wrap.clientWidth; ch = wrap.clientHeight; camera.aspect = cw / ch; camera.updateProjectionMatrix(); renderer.setSize(cw, ch, false); if (reduceMotion) frame() }
-    window.addEventListener('resize', onResize)
-
-    return () => {
-      cancelAnimationFrame(raf)
-      wrap.removeEventListener('mousemove', onMove)
-      window.removeEventListener('resize', onResize)
-      scene.traverse((obj) => {
-        const o = obj as THREE.Mesh
-        if (o.geometry) o.geometry.dispose()
-        const mat = (o as THREE.Mesh).material
-        if (mat) { if (Array.isArray(mat)) mat.forEach((m) => m.dispose()); else mat.dispose() }
-      })
-      renderer.dispose()
-    }
+    const id = setInterval(() => setActive((a) => (a + 1) % N), 1700)
+    return () => clearInterval(id)
   }, [])
 
   return (
     <div>
-      <div ref={wrapRef} className="relative w-full" style={{ height: 'clamp(300px, 42vw, 480px)' }}>
-        <canvas ref={canvasRef} className="block w-full h-full" />
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-[#141414] border border-[#141414] mt-8">
-        {BLOCKS.map((b) => (
-          <div key={b.tag} className="bg-[#060606] p-6 hover:bg-[#080808] transition-colors">
-            <div className="font-mono text-[10px] text-primary tracking-widest mb-2">{b.tag}</div>
-            <h3 className="m-0 font-sans font-bold text-[18px] tracking-tight mb-2">{b.title}</h3>
-            <p className="m-0 text-[13px] leading-relaxed text-[#888]">{b.body}</p>
+      <style>{`
+        @keyframes brierPkt { 0%{left:2%;opacity:0} 12%{opacity:1} 88%{opacity:1} 100%{left:98%;opacity:0} }
+        .brier-chain { perspective: 1500px; }
+        .brier-blk { transform: rotateY(-12deg) rotateX(3deg); transform-style: preserve-3d; transition: transform .5s cubic-bezier(.16,1,.3,1), border-color .4s, box-shadow .4s; }
+        .brier-blk:hover { transform: rotateY(-4deg) translateZ(28px); }
+        .brier-blk.on { transform: rotateY(-6deg) translateZ(34px); border-color: rgba(255,42,77,.55); box-shadow: 0 0 44px rgba(255,42,77,.18), inset 0 0 0 1px rgba(255,42,77,.25); }
+      `}</style>
+
+      <div className="brier-chain flex items-stretch justify-center gap-0 overflow-x-auto pb-4 px-2">
+        {BLOCKS.map((b, i) => (
+          <div key={b.n} className="flex items-center shrink-0">
+            {/* bloque */}
+            <div className={`brier-blk relative w-[208px] bg-gradient-to-b from-[#0c0c11] to-[#070709] border border-[#1e1e26] ${active === i ? 'on' : ''}`}>
+              {/* corner ticks */}
+              <span className="absolute top-0 left-0 w-2.5 h-2.5 border-t border-l border-primary/50" />
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 border-b border-r border-primary/50" />
+
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#17171d]">
+                <span className="font-mono text-[12px] font-bold text-white">BLOCK #{b.n}</span>
+                <span className={`font-mono text-[8px] tracking-widest ${active === i ? 'text-primary' : 'text-[#555]'}`}>{active === i ? 'LIVE' : 'SEALED'}</span>
+              </div>
+
+              <div className="px-4 py-3 font-mono text-[10px] tracking-[0.18em] text-primary mb-1">{b.kind}</div>
+
+              <div className="px-4 pb-3 space-y-1.5">
+                {b.rows.map(([k, v]) => (
+                  <div key={k} className="flex justify-between text-[11px] font-mono">
+                    <span className="text-[#666]">{k}</span>
+                    <span className="text-[#e8e8e8]">{v}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="px-4 py-2.5 border-t border-[#17171d] font-mono text-[9px] leading-relaxed">
+                <div className="text-[#777]">hash <span className="text-primary">{b.hash}</span></div>
+                <div className="text-[#444]">prev {b.prev}</div>
+              </div>
+            </div>
+
+            {/* conector con paquete que fluye */}
+            {i < N - 1 && (
+              <div className="relative w-10 md:w-16 h-px bg-[#222] mx-1 shrink-0">
+                <span
+                  className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-primary shadow-[0_0_10px_rgba(255,42,77,0.8)]"
+                  style={{ animation: `brierPkt 1.7s linear infinite`, animationDelay: `${i * 0.4}s` }}
+                />
+              </div>
+            )}
           </div>
         ))}
+      </div>
+
+      <div className="text-center mt-6 font-mono text-[10px] text-[#555] tracking-wider">
+        every block links to the last by its hash, immutable and public
       </div>
     </div>
   )
