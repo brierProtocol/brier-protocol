@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
 import { botEye, makerEye } from '@/lib/botIdentity'
-import TokenPanel from '@/components/TokenPanel'
 import CandleChart, { type Tick } from '@/components/CandleChart'
 import { useAccount } from 'wagmi'
 import { ethers } from 'ethers'
@@ -732,9 +731,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 )}
               </div>
             </div>
-
-            {/* CONVICTION TOKEN */}
-            <TokenPanel slug={slug} isOwner={!!isOwner} botColor={bot.color || '#ff2a4d'} />
 
             {/* VAULT */}
             <div className="panel">

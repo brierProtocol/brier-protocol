@@ -33,7 +33,6 @@ const itemVariants: any = {
 
 export default function Home() {
   const [topBots, setTopBots] = useState<any[]>([])
-  const [tokensByBot, setTokensByBot] = useState<Record<string, any>>({})
   const [protocolStats, setProtocolStats] = useState({ bots: 0, tvl: 0, live: 0 })
   const [howOpen, setHowOpen] = useState(false)
 
@@ -56,15 +55,6 @@ export default function Home() {
           setProtocolStats({ bots: data.length, tvl, live })
         })
         .catch(console.error)
-      fetch('/api/tokens')
-        .then(res => res.json())
-        .then(toks => {
-          if (!Array.isArray(toks)) return
-          const map: Record<string, any> = {}
-          toks.forEach((t: any) => { map[t.botId] = t; if (t.slug) map[t.slug] = t })
-          setTokensByBot(map)
-        })
-        .catch(() => { })
     }
     load()
     const iv = setInterval(load, 20_000) // keep the board breathing
@@ -114,8 +104,8 @@ export default function Home() {
               The proving ground for prediction algorithms
             </div>
             <div className="mt-6 max-w-xl text-[14px] leading-relaxed text-[#888]">
-              Algorithms forecast real-world markets. Every prediction is scored, every
-              ranking is earned. Capital follows calibration — nothing else.
+              Algorithms forecast real world events on Polymarket. Every prediction is scored,
+              every ranking is earned. Capital follows calibration, nothing else.
             </div>
           </motion.div>
 
@@ -125,9 +115,9 @@ export default function Home() {
               Protocol Rules
             </div>
             <div className="text-sm text-[#777] leading-relaxed max-w-2xl font-sans">
-              1. Algorithms must survive the 7-day sandbox phase — no exceptions.<br/>
-              2. Entities ranked strictly by <span className="text-white font-semibold">Brier Score</span> (lower = superior).<br/>
-              3. Vaults open for Tier-1 nodes only. Depositors yield. Builders harvest performance fees.
+              1. Algorithms must prove themselves in the shadow phase, no exceptions.<br/>
+              2. Entities ranked strictly by <span className="text-white font-semibold">Brier Score</span> (lower is better).<br/>
+              3. Vaults open at 100 resolved predictions, Brier 0.20 or lower, 21+ days. Depositors yield, builders earn performance.
             </div>
           </motion.div>
 
@@ -182,7 +172,7 @@ export default function Home() {
                 Deploy your prediction algorithm. Prove your Brier Score on-chain.
               </div>
               <div className="text-xs text-[#444] mb-6 font-mono">
-                7-day shadow → T1 eligible → vault opens → attract capital.
+                shadow phase → 100 resolved · Brier ≤ 0.20 · 21d → vault opens.
               </div>
               <div className="flex items-center justify-between">
                 <Link href="/docs" className="inline-block bg-transparent border border-primary/50 text-primary px-5 py-2 font-mono font-bold text-xs transition-all hover:bg-primary/10 hover:border-primary hover:shadow-[0_0_12px_rgba(255,42,77,0.3)]">
@@ -201,7 +191,6 @@ export default function Home() {
             const cBrier = champ.scores?.[0]?.brierScore ?? champ.brierScore ?? 0
             const cWr = champ.scores?.[0]?.winRate ?? champ.winRate ?? 0
             const cTvl = champ.currentTVL ?? champ.tvl ?? 0
-            const cTok = tokensByBot[champ.id] || tokensByBot[champ.slug]
             const cLive = ['live', 'LIVE', 'VAULT_ELIGIBLE_T1', 'VAULT_ELIGIBLE_T2'].includes(champ.status || '')
             return (
               <motion.div variants={itemVariants} className="mb-12">
@@ -236,7 +225,7 @@ export default function Home() {
                         by {champ.maker?.handle ? `@${champ.maker.handle}` : (champ.maker?.name || `${(champ.walletAddress || 'anon').substring(0, 6)}…`)}
                       </div>
                       <div className="text-[13px] text-[#888] font-sans mt-3 max-w-md leading-relaxed">
-                        {champ.tagline || 'Survived the shadow. The math holds — for now.'}
+                        {champ.tagline || 'Survived the shadow. The math holds, for now.'}
                       </div>
                     </div>
                     <div className="flex gap-8 flex-wrap">
@@ -244,7 +233,6 @@ export default function Home() {
                         ['BRIER', cBrier > 0 ? cBrier.toFixed(3) : 'AWAITING', cBrier > 0 && cBrier <= 0.25 ? '#00d4aa' : '#fff'],
                         ['WIN RATE', cWr > 0 ? `${(cWr * 100).toFixed(0)}%` : '—', '#fff'],
                         ['VAULT TVL', cTvl > 0 ? `$${(cTvl / 1000).toFixed(1)}K` : '—', '#fff'],
-                        [cTok ? `$${cTok.ticker}` : 'TOKEN', cTok ? `MCAP $${cTok.marketCap >= 1000 ? (cTok.marketCap / 1000).toFixed(1) + 'K' : cTok.marketCap.toFixed(0)}` : 'not launched', cTok ? '#c8ff00' : '#444'],
                       ].map(([l, v, c]) => (
                         <div key={l as string}>
                           <div className="text-[9px] font-mono text-[#555] tracking-widest">{l}</div>
@@ -291,7 +279,6 @@ export default function Home() {
                   const wr = bot.scores?.[0]?.winRate ?? bot.winRate ?? 0
                   const tvl = bot.currentTVL ?? bot.tvl ?? 0
                   const isLive = ['live', 'LIVE', 'VAULT_ELIGIBLE_T1', 'VAULT_ELIGIBLE_T2'].includes(bot.status || '')
-                  const tok = tokensByBot[bot.id] || tokensByBot[bot.slug]
                   const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32']
                   const rankColor = rankColors[i] || '#333'
                   return (
@@ -334,7 +321,7 @@ export default function Home() {
                         </div>
 
                         {/* vitals */}
-                        <div className="grid grid-cols-2 gap-px bg-[#141414] border-t border-[#141414] mt-3.5">
+                        <div className="grid grid-cols-3 gap-px bg-[#141414] border-t border-[#141414] mt-3.5">
                           <div className="bg-[#0a0a0a] px-3 py-2">
                             <div className="text-[8px] font-mono text-[#555] tracking-widest">BRIER</div>
                             <div className={`font-mono font-bold text-[13px] ${brier > 0 && brier <= 0.25 ? 'text-[#00d4aa]' : 'text-white'}`}>
@@ -348,14 +335,6 @@ export default function Home() {
                           <div className="bg-[#0a0a0a] px-3 py-2">
                             <div className="text-[8px] font-mono text-[#555] tracking-widest">VAULT TVL</div>
                             <div className="font-mono font-bold text-[13px] text-white">{tvl > 0 ? `$${(tvl / 1000).toFixed(1)}K` : '—'}</div>
-                          </div>
-                          <div className="bg-[#0a0a0a] px-3 py-2">
-                            <div className="text-[8px] font-mono tracking-widest" style={{ color: tok ? '#c8ff00' : '#555' }}>{tok ? `$${tok.ticker}` : 'TOKEN'}</div>
-                            <div className="font-mono font-bold text-[13px]" style={{ color: tok ? '#c8ff00' : '#333' }}>
-                              {tok
-                                ? <><span className="text-[#555] text-[9px] font-medium mr-1">MCAP</span>${tok.marketCap >= 1000 ? (tok.marketCap / 1000).toFixed(1) + 'K' : tok.marketCap.toFixed(0)}</>
-                                : 'not launched'}
-                            </div>
                           </div>
                         </div>
                       </Link>
