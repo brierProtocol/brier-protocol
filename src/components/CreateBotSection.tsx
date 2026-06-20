@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import Link from 'next/link'
 
 /**
  * CTA final para builders: "Create a bot. Sharpen its edge. Open a vault."
@@ -89,14 +88,6 @@ export default function CreateBotSection() {
           No capital of your own. Just an edge on Polymarket, proven in the open. The sharper your
           calibration, the more capital your vault attracts.
         </p>
-        <div className="mt-11 flex items-center justify-center gap-4 flex-wrap">
-          <Link href="/docs" className="inline-flex items-center gap-2 bg-primary text-[#030303] font-sans font-bold text-[15px] px-9 py-4 rounded-full transition-all hover:shadow-[0_0_28px_rgba(255,42,77,0.5)] no-underline">
-            Start building
-          </Link>
-          <Link href="/list-bot" className="inline-flex items-center gap-2 border border-[#2a2a2a] text-white font-sans font-medium text-[15px] px-8 py-4 rounded-full transition-all hover:border-[#555] hover:bg-white/[0.03] no-underline">
-            Deploy a bot
-          </Link>
-        </div>
       </div>
     </section>
   )

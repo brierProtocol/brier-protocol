@@ -14,7 +14,7 @@ const RED = 0xff2a4d
 const REDL = 0xff5570
 const WHITE = 0xffffff
 
-const STAGES = ['prediction', 'resolution', 'score', 'vault']
+const STAGES = ['prediction', 'resolution', 'brier score', 'settlement']
 const N = STAGES.length
 
 export default function BlockchainStrip() {
@@ -29,9 +29,9 @@ export default function BlockchainStrip() {
 
     let cw = wrap.clientWidth, ch = wrap.clientHeight
     const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(40, cw / ch, 0.1, 100)
-    camera.position.set(2.4, 2.0, 9)
-    camera.lookAt(0, -0.1, 0)
+    const camera = new THREE.PerspectiveCamera(38, cw / ch, 0.1, 100)
+    camera.position.set(0.4, 0.9, 10)
+    camera.lookAt(0, -0.05, 0)
 
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
     renderer.setClearColor(0x000000, 0)
@@ -99,8 +99,8 @@ export default function BlockchainStrip() {
     const frame = () => {
       f += 0.016
       mx += (tmx - mx) * 0.05; my += (tmy - my) * 0.05
-      group.rotation.y = -0.25 + mx * 0.3
-      group.rotation.x = 0.1 + my * 0.12
+      group.rotation.y = -0.06 + mx * 0.18
+      group.rotation.x = 0.05 + my * 0.1
 
       // el bloque activo cicla suave
       activeT += 0.016
@@ -154,12 +154,15 @@ export default function BlockchainStrip() {
       <div ref={wrapRef} className="relative w-full" style={{ height: 'clamp(320px, 44vw, 520px)' }}>
         <canvas ref={canvasRef} className="block w-full h-full" />
       </div>
-      {/* leyenda mínima de etapas */}
-      <div className="flex items-center justify-center gap-3 md:gap-6 mt-6 font-mono text-[10px] md:text-[11px] tracking-[0.18em] uppercase text-[#777]">
+      {/* stepper de etapas, elevado */}
+      <div className="flex items-center justify-center gap-2 md:gap-4 mt-8 flex-wrap">
         {STAGES.map((s, i) => (
-          <div key={s} className="flex items-center gap-3 md:gap-6">
-            <span>{s}</span>
-            {i < N - 1 && <span className="text-primary/50">→</span>}
+          <div key={s} className="flex items-center gap-2 md:gap-4">
+            <div className="flex items-center gap-2.5 border border-[#1c1c22] bg-[#080809] px-3.5 py-2 rounded-full">
+              <span className="font-mono text-[9px] text-primary tabular-nums">{String(i + 1).padStart(2, '0')}</span>
+              <span className="font-mono text-[10px] md:text-[11px] tracking-[0.16em] uppercase text-[#aaa]">{s}</span>
+            </div>
+            {i < N - 1 && <span className="text-primary/40 text-[11px]">→</span>}
           </div>
         ))}
       </div>
