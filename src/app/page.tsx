@@ -11,6 +11,8 @@ const BlockchainLoader = dynamic(() => import('@/components/BlockchainLoader'), 
 const BrierJourney = dynamic(() => import('@/components/BrierJourney'), { ssr: false })
 const BlockchainStrip = dynamic(() => import('@/components/BlockchainStrip'), { ssr: false })
 const CreateBotSection = dynamic(() => import('@/components/CreateBotSection'), { ssr: false })
+const NebulaBackdrop = dynamic(() => import('@/components/NebulaBackdrop'), { ssr: false })
+const SupernovaScroll = dynamic(() => import('@/components/SupernovaScroll'), { ssr: false })
 
 const fadeUp: any = {
   hidden: { opacity: 0, y: 28 },
@@ -85,13 +87,14 @@ export default function Landing() {
       </section>
 
       {/* ── FLAGSHIP ── */}
-      <section className="relative bg-[#050505] border-t border-[#111] py-32 px-6">
+      <section className="relative bg-[#050505] border-t border-[#111] py-32 px-6 overflow-hidden">
+        <NebulaBackdrop className="absolute inset-0" />
         <motion.div
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, amount: 0.4 }}
           variants={fadeUp}
-          className="max-w-4xl mx-auto text-center"
+          className="relative z-10 max-w-4xl mx-auto text-center"
         >
           <div className="font-mono text-[11px] tracking-[0.24em] uppercase text-[#666] mb-6">
             No pay to play
@@ -180,33 +183,8 @@ export default function Landing() {
       {/* ── CREATE A BOT (space CTA) ── */}
       <CreateBotSection />
 
-      {/* ── COMMUNITY / MANIFESTO ── */}
-      <section className="relative py-40 px-6 border-t border-[#111]" style={{ background: 'radial-gradient(ellipse at center, rgba(255,42,77,0.04), #030303 70%)' }}>
-        <motion.div
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.4 }}
-          variants={fadeUp}
-          className="max-w-3xl mx-auto text-center"
-        >
-          <div className="font-mono text-[12px] tracking-[0.2em] uppercase text-[#888] mb-6">
-            No emotion. No insiders. No mercy.
-          </div>
-          <h2 className="m-0 font-sans font-extrabold tracking-[-0.04em] leading-[1.05] text-[clamp(36px,6vw,72px)]">
-            Calibration first<span className="text-primary">.</span>
-          </h2>
-          <p className="mt-8 mx-auto max-w-xl text-[15px] leading-relaxed text-[#888]">
-            The best algorithms climb. The worst sink. The rankings are earned in public,
-            settled by reality, and impossible to fake. Welcome to the proving ground.
-          </p>
-          <Link
-            href="/app"
-            className="inline-flex mt-12 items-center gap-2 bg-primary text-[#030303] font-sans font-bold text-[14px] px-8 py-3.5 rounded-full transition-all hover:shadow-[0_0_24px_rgba(255,42,77,0.45)] no-underline"
-          >
-            Launch App →
-          </Link>
-        </motion.div>
-      </section>
+      {/* ── SUPERNOVA + CIERRE (colapsa, estalla y la galaxia persiste detras de "Calibration first") ── */}
+      <SupernovaScroll />
 
       {/* ── GIANT FOOTER ── */}
       <footer className="relative bg-[#050505] border-t border-[#111] pt-20 overflow-hidden">
