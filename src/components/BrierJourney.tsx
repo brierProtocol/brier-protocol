@@ -33,10 +33,22 @@ const STAGE_NOTES = [
   { title: 'Earn', text: 'Profits split automatically: 60 to depositors, 30 to you, 10 to the protocol. Better calibration attracts more capital.' },
 ]
 
+// la nota de cada etapa aparece en un lado distinto alrededor de la estructura
+// (no siempre en la misma esquina); la leader line nace del borde interior de la nota
+type Side = 'left' | 'right'
+const NOTE_POS: { side: Side; style: React.CSSProperties }[] = [
+  { side: 'left', style: { left: '5%', top: '56%' } },   // Deploy   abajo izquierda
+  { side: 'left', style: { left: '5%', top: '24%' } },   // Shadow   arriba izquierda
+  { side: 'right', style: { right: '5%', top: '24%' } }, // Brier    arriba derecha
+  { side: 'right', style: { right: '5%', top: '48%' } }, // Vault    derecha
+  { side: 'right', style: { right: '6%', top: '66%' } }, // Earn     abajo derecha
+]
+
 export default function BrierJourney() {
   const sectionRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const noteRef = useRef<HTMLDivElement>(null)
+  const titleRef = useRef<HTMLSpanElement>(null)
   const lineRef = useRef<SVGLineElement>(null)
   const dotRef = useRef<SVGCircleElement>(null)
   const progRef = useRef(0)
@@ -157,11 +169,15 @@ export default function BrierJourney() {
       const px = (projV.x * 0.5 + 0.5) * W
       const py = (-projV.y * 0.5 + 0.5) * H
       if (dotRef.current) { dotRef.current.setAttribute('cx', String(px)); dotRef.current.setAttribute('cy', String(py)) }
-      if (lineRef.current && noteRef.current) {
-        const nr = noteRef.current.getBoundingClientRect()
+
+      // la leader line nace de la palabra subrayada (su linea roja) y va al pilar activo
+      const anchor = titleRef.current ?? noteRef.current
+      if (lineRef.current && anchor) {
+        const nr = anchor.getBoundingClientRect()
         const cr = canvas.getBoundingClientRect()
-        const ax = nr.right - cr.left
-        const ay = nr.top - cr.top + 14
+        const sideRight = NOTE_POS[activeStage]?.side === 'right'
+        const ax = (sideRight ? nr.left : nr.right) - cr.left  // extremo del subrayado que mira al pilar
+        const ay = nr.bottom - cr.top                          // borde inferior = la linea del subrayado
         lineRef.current.setAttribute('x1', String(ax)); lineRef.current.setAttribute('y1', String(ay))
         lineRef.current.setAttribute('x2', String(px)); lineRef.current.setAttribute('y2', String(py))
       }
@@ -193,7 +209,9 @@ export default function BrierJourney() {
     }
   }, [])
 
+  // nota + posicion de la etapa activa (lado alterno alrededor de la estructura)
   const note = STAGE_NOTES[stage]
+  const pos = NOTE_POS[stage] ?? NOTE_POS[0]
 
   return (
     <section ref={sectionRef} className="relative bg-[#040404] border-t border-[#111]" style={{ height: '440vh' }}>
@@ -213,10 +231,22 @@ export default function BrierJourney() {
           <circle ref={dotRef} cx="0" cy="0" r="3" fill="#ff2a4d" />
         </svg>
 
-        {/* descripcion, conectada por la leader line al pilar activo */}
-        <div ref={noteRef} className="absolute left-6 md:left-12 bottom-[16vh] max-w-[290px] z-20">
+        {/* descripcion: aparece en un lado distinto por etapa, conectada por leader line al pilar */}
+        <div
+          ref={noteRef}
+          className={`absolute max-w-[270px] z-20 transition-all duration-500 ease-out ${pos.side === 'right' ? 'text-right' : 'text-left'}`}
+          style={pos.style}
+        >
           <div key={`n-${stage}`} style={{ animation: 'fadeIn 0.5s ease' }}>
-            <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-primary mb-1.5">{note.title}</div>
+            <div className="mb-3">
+              <span
+                ref={titleRef}
+                className="inline-block font-mono text-[12px] tracking-[0.22em] uppercase text-primary pb-1.5 border-b-2 border-primary"
+                style={{ filter: 'drop-shadow(0 0 6px rgba(255,42,77,0.7))' }}
+              >
+                {note.title}
+              </span>
+            </div>
             <div className="text-[13px] md:text-[14px] leading-relaxed text-[#cfcfcf]">{note.text}</div>
           </div>
         </div>
