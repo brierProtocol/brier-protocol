@@ -247,10 +247,11 @@ function LandingNav() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  // Landing nav stays informational only. The single way "into the product" is the
+  // Launch App CTA, so Stats/Ecosystem no longer compete with it.
   const links = [
-    { href: '/leaderboard', label: 'Stats' },
+    { href: '/how-it-works', label: 'How it works' },
     { href: '/docs', label: 'Docs' },
-    { href: '/discover', label: 'Ecosystem' },
   ]
 
   return (
@@ -293,19 +294,18 @@ export default function Navbar() {
   if (pathname.startsWith('/docs')) return null
 
   const navLinks = [
-    { href: '/leaderboard',  label: 'LEADERBOARD'  },
-    { href: '/discover',     label: 'DISCOVER'     },
-    { href: '/list-bot',     label: 'DEPLOY_BOT'   },
-    { href: '/dashboard',    label: 'DASHBOARD'    },
+    { href: '/leaderboard', label: 'Leaderboard' },
+    { href: '/discover',    label: 'Discover'    },
+    { href: '/list-bot',    label: 'Deploy Bot'  },
+    { href: '/dashboard',   label: 'Dashboard'   },
   ]
 
   return (
     <nav className="sticky top-0 z-50 bg-[rgba(3,3,3,0.95)] backdrop-blur-md border-b border-[#1a1a1a] h-14 flex items-center px-6">
-      <Link href="/" className="no-underline mr-8 flex items-baseline gap-2 group">
-        <span className="font-sans font-extrabold text-white text-[17px] tracking-[-0.03em] leading-none">
+      <Link href="/" className="no-underline mr-8 flex items-baseline group">
+        <span className="font-sans font-extrabold text-white text-[19px] tracking-[-0.03em] leading-none">
           Brier<span className="text-primary group-hover:drop-shadow-[0_0_8px_rgba(255,42,77,0.8)] transition-all">.</span>
         </span>
-        <span className="hidden lg:inline font-mono text-[8px] text-[#444] tracking-[0.2em] uppercase">Protocol</span>
       </Link>
 
       {/* Desktop links */}
@@ -314,13 +314,16 @@ export default function Navbar() {
           <Link
             key={link.href}
             href={link.href}
-            className={`font-sans text-[11px] no-underline px-3 py-[6px] tracking-wide transition-colors font-medium ${
+            className={`relative font-sans text-[13px] no-underline px-3.5 py-1.5 rounded-md transition-all ${
               pathname === link.href
-                ? 'text-white border-b-2 border-primary bg-transparent'
-                : 'text-[#888] bg-transparent border-b-2 border-transparent hover:text-white'
+                ? 'text-white font-semibold bg-white/[0.04]'
+                : 'text-[#999] font-medium hover:text-white hover:bg-white/[0.03]'
             }`}
           >
             {link.label}
+            {pathname === link.href && (
+              <span className="absolute left-3.5 right-3.5 -bottom-[1px] h-[2px] bg-primary shadow-[0_0_8px_rgba(255,42,77,0.6)]" />
+            )}
           </Link>
         ))}
       </div>
@@ -348,35 +351,36 @@ export default function Navbar() {
             const ready = mounted && authenticationStatus !== 'loading'
             const connected = ready && account && chain && (!authenticationStatus || authenticationStatus === 'authenticated')
 
-            const btnBase = "border-none font-mono text-[11px] font-bold px-3 py-1 cursor-pointer tracking-widest"
+            const btnBase = "font-sans text-[12px] font-semibold px-4 py-2 cursor-pointer rounded-full transition-all"
 
             return (
               <div {...(!ready && { 'aria-hidden': true, style: { opacity: 0, pointerEvents: 'none' } })}>
                 {(() => {
                   if (!connected) {
                     return (
-                      <button onClick={openConnectModal} type="button" className={`${btnBase} bg-primary text-[#030303] shadow-[0_0_10px_rgba(255,42,77,0.2)] hover:shadow-[0_0_15px_rgba(255,42,77,0.4)] transition-all`}>
-                        [CONNECT_WALLET]
+                      <button onClick={openConnectModal} type="button" className={`${btnBase} bg-primary text-[#030303] shadow-[0_0_14px_rgba(255,42,77,0.25)] hover:shadow-[0_0_22px_rgba(255,42,77,0.5)]`}>
+                        Connect Wallet
                       </button>
                     )
                   }
                   if (chain.unsupported) {
                     return (
-                      <button onClick={openChainModal} type="button" className={`${btnBase} bg-primary text-[#030303]`}>
-                        [WRONG_NETWORK]
+                      <button onClick={openChainModal} type="button" className={`${btnBase} bg-primary text-[#030303] shadow-[0_0_14px_rgba(255,42,77,0.4)]`}>
+                        Wrong network
                       </button>
                     )
                   }
                   return (
                     <div className="flex items-center gap-2">
                       <NotificationBell address={account.address} />
-                      <Link href={`/maker/${account.address}`} className={`${btnBase} bg-[#110508] border border-primary text-primary hover:bg-primary hover:text-[#030303] transition-colors no-underline flex items-center`}>
-                        [PROFILE]
+                      <Link href={`/maker/${account.address}`} className="font-sans text-[12px] font-semibold px-4 py-2 rounded-full border border-[#222] text-[#ccc] hover:text-white hover:border-[#444] transition-all no-underline hidden sm:flex items-center">
+                        Profile
                       </Link>
-                      <button onClick={openChainModal} type="button" className={`${btnBase} bg-[#0a0a0a] text-[#EFEFEF] border border-[#222] hover:text-white hover:border-[#444] transition-colors`}>
+                      <button onClick={openChainModal} type="button" className="font-sans text-[12px] font-medium px-3.5 py-2 rounded-full bg-white/[0.03] text-[#bbb] border border-[#222] hover:text-white hover:border-[#444] transition-all hidden md:inline-flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#00d4aa]" />
                         {chain.name}
                       </button>
-                      <button onClick={openAccountModal} type="button" className={`${btnBase} bg-[#0a0a0a] text-white border border-primary shadow-[0_0_5px_rgba(255,42,77,0.2)] hover:bg-[#111]`}>
+                      <button onClick={openAccountModal} type="button" className={`${btnBase} bg-[#0d0d0d] text-white border border-primary/60 hover:bg-[#140609] hover:border-primary`}>
                         {account.displayName}
                       </button>
                     </div>
@@ -404,7 +408,7 @@ export default function Navbar() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileOpen(false)}
-                className={`font-mono text-xs no-underline py-3 border-b border-[#111] tracking-widest transition-colors ${
+                className={`font-sans text-[14px] font-medium no-underline py-3 border-b border-[#111] transition-colors ${
                   pathname === link.href ? 'text-primary' : 'text-[#999] hover:text-white'
                 }`}
               >

@@ -3,255 +3,263 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { GlobalSearch } from '@/components/layout/Navbar'
+import dynamic from 'next/dynamic'
 import { HowItWorksModal } from '@/components/ui/HowItWorks'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
-import dynamic from 'next/dynamic'
+import { shadowProgress, ShadowProgress, SHADOW_RESOLVED_TARGET, SHADOW_DAYS_TARGET } from '@/lib/botProgress'
 
 const PlanetAgentsBackground = dynamic(() => import('@/components/PlanetAgentsBackground'), { ssr: false })
 
-const TICKER_EVENTS = [
-  '> ALGO_DELTA executed LONG on BTC-USD/DEC26 @ 0.62 confidence',
-  '> SENTINEL_v2 closed SHORT — PnL +$840 — Brier 0.183',
-  '> ORACLE_NODE entered 7-day shadow phase',
-  '> VAULT_T1 [Nexus-9] TVL crossed $120K',
-  '> ALGO_PRIME resolved YES — scored 0.041 Brier loss',
-  '> NEW_BOT [Meridian] registered — @meridian',
-  '> VAULT_T2 [BlackBox] opened for deposits',
-  '> SENTINEL_v2 WIN_STREAK reached 14',
+// True protocol statements only. The feed never fabricates PnL or TVL.
+const PROTOCOL_FACTS = [
+  'Proving ground online. Shadow phase open for new algorithms.',
+  'Eligibility: 100 resolved predictions, Brier 0.20 or lower, 21 days live.',
+  'Capital follows calibration. No pay to play, no insiders.',
+  'Vaults are non custodial. Operators trade the capital, never withdraw it.',
 ]
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.12 } },
+const HOW_STEPS = [
+  { n: '01', title: 'Connect', body: 'Wallet in, claim your @handle. That becomes your on-chain identity.' },
+  { n: '02', title: 'Publish your bot', body: 'Submit the algorithm that forecasts real world events on Polymarket.' },
+  { n: '03', title: 'Let it train', body: 'Shadow phase. It predicts in public and builds a Brier Score reality scores.' },
+  { n: '04', title: 'Open a vault', body: '100 resolved, Brier 0.20 or lower, 21 days. The vault opens, capital follows.' },
+]
+
+const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } }
+const itemVariants: any = { hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0, transition: { ease: 'easeOut', duration: 0.45 } } }
+
+// ── reusable readiness blocks ──────────────────────────────────────────────
+
+function Gate({ label, value, pass }: { label: string; value: string; pass: boolean }) {
+  return (
+    <div className="bg-[#0a0a0a] px-3 py-2">
+      <div className="text-[8px] font-mono text-[#555] tracking-widest mb-0.5">{label}</div>
+      <div className={`font-mono font-bold text-[13px] ${pass ? 'text-[#00d4aa]' : 'text-white'}`}>{value}</div>
+    </div>
+  )
 }
-const itemVariants: any = {
-  hidden: { opacity: 0, y: 18 },
-  show: { opacity: 1, y: 0, transition: { ease: 'easeOut', duration: 0.45 } },
+
+function ReadinessBar({ p }: { p: ShadowProgress }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[9px] font-mono text-[#666] tracking-widest">SHADOW READINESS</span>
+        <span className="text-[9px] font-mono text-primary font-bold">{Math.round(p.pct * 100)}%</span>
+      </div>
+      <div className="h-1.5 bg-[#030303] border border-[#1a1a1a] overflow-hidden mb-3">
+        <motion.div className="h-full bg-primary" initial={{ width: 0 }} animate={{ width: `${p.pct * 100}%` }} transition={{ duration: 0.8, ease: 'easeOut' }} />
+      </div>
+      <div className="grid grid-cols-3 gap-px bg-[#141414] border border-[#141414]">
+        <Gate label="RESOLVED" value={`${p.resolved}/${SHADOW_RESOLVED_TARGET}`} pass={p.resolvedPass} />
+        <Gate label="DAYS" value={`${p.days}/${SHADOW_DAYS_TARGET}`} pass={p.daysPass} />
+        <Gate label="BRIER" value={p.brier !== null ? p.brier.toFixed(3) : 'BUILDING'} pass={p.brierPass} />
+      </div>
+    </div>
+  )
+}
+
+function LiveVitals({ p }: { p: ShadowProgress }) {
+  return (
+    <div className="grid grid-cols-3 gap-px bg-[#141414] border border-[#141414]">
+      <Gate label="BRIER" value={p.brier !== null ? p.brier.toFixed(3) : '—'} pass={p.brierPass} />
+      <Gate label="WIN RATE" value={p.winRate !== null && p.winRate > 0 ? `${(p.winRate * 100).toFixed(0)}%` : '—'} pass={false} />
+      <Gate label="VAULT TVL" value={p.tvl > 0 ? `$${(p.tvl / 1000).toFixed(1)}K` : '—'} pass={false} />
+    </div>
+  )
 }
 
 export default function Home() {
-  const [topBots, setTopBots] = useState<any[]>([])
-  const [protocolStats, setProtocolStats] = useState({ bots: 0, tvl: 0, live: 0 })
+  const [bots, setBots] = useState<any[]>([])
   const [howOpen, setHowOpen] = useState(false)
 
   useEffect(() => {
     const load = () => {
       fetch('/api/bots')
-        .then(res => res.json())
-        .then(data => {
+        .then((r) => r.json())
+        .then((data) => {
           if (!Array.isArray(data)) return
-          const sorted = data.sort((a: any, b: any) => {
-            const brierA = a.scores?.[0]?.brierScore ?? a.brierScore ?? 1
-            const brierB = b.scores?.[0]?.brierScore ?? b.brierScore ?? 1
-            return brierA - brierB
+          const sorted = [...data].sort((a: any, b: any) => {
+            const ba = a.scores?.[0]?.brierScore ?? a.brierScore ?? 1
+            const bb = b.scores?.[0]?.brierScore ?? b.brierScore ?? 1
+            return ba - bb
           })
-          setTopBots(sorted.slice(0, 6))
-          const live = data.filter((b: any) =>
-            ['live', 'LIVE', 'VAULT_ELIGIBLE_T1', 'VAULT_ELIGIBLE_T2'].includes(b.status || '')
-          ).length
-          const tvl = data.reduce((acc: number, b: any) => acc + (b.currentTVL ?? b.tvl ?? 0), 0)
-          setProtocolStats({ bots: data.length, tvl, live })
+          setBots(sorted)
         })
         .catch(console.error)
     }
     load()
-    const iv = setInterval(load, 20_000) // keep the board breathing
+    const iv = setInterval(load, 20_000)
     return () => clearInterval(iv)
   }, [])
 
-  const tickerLine = TICKER_EVENTS.join('     //     ')
+  const topBots = bots.slice(0, 6)
+
+  // Honest feed: events derived from REAL registered bots + true protocol facts.
+  const feedEvents = bots.slice(0, 8).map((b) => {
+    const p = shadowProgress(b)
+    if (p.live) return `${b.name} is live. Vault open at NAV.`
+    if (p.resolved > 0) return `${b.name} in shadow phase. ${p.resolved}/${SHADOW_RESOLVED_TARGET} predictions resolved.`
+    return `${b.name} registered. Day ${p.days} of shadow.`
+  })
+  const feed = (feedEvents.length ? [...feedEvents, ...PROTOCOL_FACTS] : PROTOCOL_FACTS).join('      ///      ')
 
   return (
     <div className="min-h-screen text-white font-sans">
-
       <PlanetAgentsBackground className="fixed inset-0 -z-10 pointer-events-none" />
 
-      {/* ── PROTOCOL STATS BAR ── */}
-      <div className="border-b border-[#1a1a1a] bg-[#050505]">
-        <div className="max-w-[1000px] mx-auto px-12 py-2 flex gap-6 flex-wrap">
-          <div className="stat-pill">ALGORITHMS <span>{protocolStats.bots || '—'}</span></div>
-          <div className="stat-pill">TOTAL_TVL <span>${protocolStats.tvl > 0 ? (protocolStats.tvl / 1000).toFixed(0) + 'K' : '—'}</span></div>
-          <div className="stat-pill">LIVE_NODES <span>{protocolStats.live || '—'}</span></div>
+      {/* ── SYSTEM STATUS (honest facts, no fabricated numbers) ── */}
+      <div className="border-b border-[#1a1a1a] bg-[#050505]/90 backdrop-blur-sm">
+        <div className="max-w-[1100px] mx-auto px-6 md:px-12 py-2.5 flex items-center gap-x-5 gap-y-1 flex-wrap text-[10px] font-mono tracking-wider">
+          <span className="inline-flex items-center gap-2 text-[#00d4aa]">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00d4aa] opacity-60" />
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#00d4aa]" />
+            </span>
+            PROVING GROUND ONLINE
+          </span>
+          <span className="text-[#333]">·</span>
+          <span className="text-[#777]">NETWORK <span className="text-[#bbb]">POLYGON</span></span>
+          <span className="text-[#333]">·</span>
+          <span className="text-[#777]">SHADOW PHASE <span className="text-primary font-bold">OPEN</span></span>
+          <span className="text-[#333]">·</span>
+          <span className="text-[#777]">VAULTS <span className="text-[#bbb]">NON-CUSTODIAL</span></span>
         </div>
       </div>
 
-      {/* ── TICKER ── */}
+      {/* ── LIVE FEED (real events + protocol facts) ── */}
       <div className="border-b border-[#111] overflow-hidden bg-[#030303]">
-        <div
-          className="whitespace-nowrap text-[11px] font-mono text-[#333] py-1.5"
-          style={{ animation: 'scroll-left 40s linear infinite' }}
-        >
-          {tickerLine}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{tickerLine}
+        <div className="whitespace-nowrap text-[11px] font-mono text-[#555] py-1.5" style={{ animation: 'scroll-left 48s linear infinite' }}>
+          {feed}&nbsp;&nbsp;&nbsp;&nbsp;{feed}
         </div>
       </div>
 
-      <div className="p-12">
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className="max-w-[1000px] mx-auto"
-        >
+      <div className="px-6 md:px-12 py-12">
+        <motion.div variants={containerVariants} initial="hidden" animate="show" className="max-w-[1100px] mx-auto">
 
-          {/* ── WORDMARK ── */}
-          <motion.div variants={itemVariants} className="mb-12">
+          {/* ── HERO ── */}
+          <motion.div variants={itemVariants} className="mb-16">
             <h1 className="m-0 text-white font-sans font-extrabold tracking-[-0.04em] leading-none text-[clamp(40px,6vw,72px)]">
               Brier<span className="text-primary">.</span>
             </h1>
             <div className="mt-3 text-[#666] font-mono text-[11px] tracking-[0.22em] uppercase">
               The proving ground for prediction algorithms
             </div>
-            <div className="mt-6 max-w-xl text-[14px] leading-relaxed text-[#888]">
-              Algorithms forecast real world events on Polymarket. Every prediction is scored,
-              every ranking is earned. Capital follows calibration, nothing else.
+            <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-[#999]">
+              Algorithms forecast real world events on Polymarket. Every prediction is scored against
+              reality. Capital follows calibration, nothing else.
+            </p>
+          </motion.div>
+
+          {/* ── HOW IT WORKS (centered, steps in view) ── */}
+          <motion.div variants={itemVariants} className="mb-16">
+            <div className="text-center mb-8">
+              <div className="font-mono text-[10px] text-primary tracking-[0.28em] uppercase mb-3">How it works</div>
+              <h2 className="m-0 font-sans font-extrabold tracking-[-0.03em] text-[clamp(24px,3.6vw,40px)]">
+                From algorithm to open vault<span className="text-primary">.</span>
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-[#141414] border border-[#141414]">
+              {HOW_STEPS.map((s, idx) => (
+                <div key={s.n} className="bg-[#070707] p-6 group hover:bg-[#0a0a0a] transition-colors">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="font-mono text-[12px] font-bold text-primary">{s.n}</span>
+                    <span className="h-px flex-1 bg-[#1a1a1a] group-hover:bg-primary/30 transition-colors" />
+                    {idx < HOW_STEPS.length - 1 && <span className="font-mono text-[#333] text-xs">→</span>}
+                  </div>
+                  <div className="font-sans font-bold text-[15px] text-white mb-2 tracking-tight">{s.title}</div>
+                  <div className="text-[12px] text-[#888] leading-relaxed">{s.body}</div>
+                </div>
+              ))}
+            </div>
+            <div className="text-center mt-7">
+              <button
+                onClick={() => setHowOpen(true)}
+                className="group inline-flex items-center gap-3 border border-[#1a1a1a] hover:border-primary/50 bg-[#0a0a0a] hover:bg-[#0d0d0d] px-6 py-3 transition-all cursor-pointer"
+              >
+                <span className="flex items-center justify-center w-6 h-6 border border-primary/40 text-primary text-[10px] group-hover:bg-primary group-hover:text-[#030303] transition-all">▶</span>
+                <span className="font-sans font-semibold text-[13px] text-white tracking-tight">See the full walkthrough</span>
+              </button>
             </div>
           </motion.div>
 
-          {/* ── MOTD ── */}
-          <motion.div variants={itemVariants} className="mb-12 border-l-2 border-primary/30 pl-6 py-1">
-            <div className="text-white font-mono text-xs tracking-widest uppercase mb-2 text-primary">
-              Protocol Rules
+          {/* ── TWO PATHS ── */}
+          <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-20">
+            {/* Depositor */}
+            <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-8 transition-all relative group hover:border-primary/30 hover:shadow-[0_0_40px_rgba(255,42,77,0.06)]">
+              <div className="font-mono text-[10px] text-[#555] tracking-[0.2em] uppercase mb-4">For depositors</div>
+              <div className="text-white font-sans font-extrabold text-[20px] tracking-tight mb-2">Back the proven, not the hype.</div>
+              <p className="text-[13px] text-[#888] leading-relaxed mb-7">
+                Pick the lowest Brier Score and deposit. Your capital compounds with an algorithm that
+                already proved it can predict. Redeem anytime at NAV.
+              </p>
+              <Link href="/discover" className="inline-flex items-center gap-2 bg-primary text-[#030303] px-6 py-2.5 font-sans font-bold text-[13px] transition-all hover:shadow-[0_0_18px_rgba(255,42,77,0.5)] no-underline">
+                Browse vaults →
+              </Link>
             </div>
-            <div className="text-sm text-[#777] leading-relaxed max-w-2xl font-sans">
-              1. Algorithms must prove themselves in the shadow phase, no exceptions.<br/>
-              2. Entities ranked strictly by <span className="text-white font-semibold">Brier Score</span> (lower is better).<br/>
-              3. Vaults open at 100 resolved predictions, Brier 0.20 or lower, 21+ days. Depositors yield, builders earn performance.
-            </div>
-          </motion.div>
-
-          {/* ── SEARCH ── */}
-          <motion.div variants={itemVariants} className="mb-6">
-            <GlobalSearch isLarge={true} />
-          </motion.div>
-
-          {/* ── HOW IT WORKS TRIGGER ── */}
-          <motion.div variants={itemVariants} className="mb-12">
-            <button
-              onClick={() => setHowOpen(true)}
-              className="group inline-flex items-center gap-3 border border-[#1a1a1a] hover:border-primary/50 bg-[#0a0a0a] hover:bg-[#0d0d0d] px-5 py-3 transition-all cursor-pointer"
-            >
-              <span className="flex items-center justify-center w-6 h-6 border border-primary/40 text-primary text-[10px] group-hover:bg-primary group-hover:text-[#030303] transition-all">▶</span>
-              <span className="font-sans font-bold text-[14px] text-white tracking-tight">How it works<span className="text-primary">.</span></span>
-            </button>
-          </motion.div>
-
-          {/* ── CTA BOXES ── */}
-          <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
-
-            {/* Investor */}
-            <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-8 transition-all relative group hover:border-[#2a2a2a] hover:shadow-[0_0_30px_rgba(255,42,77,0.05)]">
-              <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-[#1a1a1a] group-hover:border-primary/40 transition-colors" />
-              <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-[#1a1a1a] group-hover:border-primary/40 transition-colors" />
-              <div className="text-2xl font-mono text-[#333] mb-4">[↓]</div>
-              <div className="text-white font-sans font-bold mb-2 text-base tracking-tight">Deposit into Vaults</div>
-              <div className="text-xs text-[#666] mb-1 font-mono">
-                Deploy capital into verified algorithmic prediction vaults.
-              </div>
-              <div className="text-xs text-[#444] mb-6 font-mono">
-                Zero emotion. Strict mathematics. Instant exit.
-              </div>
-              <div className="flex items-center justify-between">
-                <Link href="/discover" className="inline-block bg-primary text-[#030303] px-5 py-2 font-mono font-bold text-xs transition-all hover:bg-[#ff1438] hover:shadow-[0_0_12px_rgba(255,42,77,0.5)]">
-                  EXPLORE_CATALOG →
-                </Link>
-                <span className="text-[10px] text-[#333] font-mono">
-                  {protocolStats.live > 0 ? `${protocolStats.live} LIVE` : 'NO LIVE YET'}
-                </span>
-              </div>
-            </div>
-
             {/* Builder */}
-            <div className="bg-[#0a0a0a] border border-dashed border-[#1a1a1a] p-8 transition-all relative group hover:border-[#2a2a2a] hover:shadow-[0_0_30px_rgba(255,255,255,0.02)]">
-              <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-[#1a1a1a] group-hover:border-[#333] transition-colors" />
-              <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-[#1a1a1a] group-hover:border-[#333] transition-colors" />
-              <div className="text-2xl font-mono text-[#333] mb-4">[⬆]</div>
-              <div className="text-white font-sans font-bold mb-2 text-base tracking-tight">Start Building</div>
-              <div className="text-xs text-[#666] mb-1 font-mono">
-                Deploy your prediction algorithm. Prove your Brier Score on-chain.
-              </div>
-              <div className="text-xs text-[#444] mb-6 font-mono">
-                shadow phase → 100 resolved · Brier ≤ 0.20 · 21d → vault opens.
-              </div>
-              <div className="flex items-center justify-between">
-                <Link href="/docs" className="inline-block bg-transparent border border-primary/50 text-primary px-5 py-2 font-mono font-bold text-xs transition-all hover:bg-primary/10 hover:border-primary hover:shadow-[0_0_12px_rgba(255,42,77,0.3)]">
-                  READ THE DOCS →
-                </Link>
-                <span className="text-[10px] text-[#333] font-mono">
-                  {protocolStats.bots > 0 ? `${protocolStats.bots} REGISTERED` : 'BE FIRST'}
-                </span>
-              </div>
+            <div className="bg-[#0a0a0a] border border-dashed border-[#1f1f1f] p-8 transition-all relative group hover:border-[#333]">
+              <div className="font-mono text-[10px] text-[#555] tracking-[0.2em] uppercase mb-4">For builders</div>
+              <div className="text-white font-sans font-extrabold text-[20px] tracking-tight mb-2">No capital. Just an edge.</div>
+              <p className="text-[13px] text-[#888] leading-relaxed mb-7">
+                Deploy a bot, prove your Brier Score in the open, and a vault opens once you clear the
+                gate. The sharper your calibration, the more capital you attract.
+              </p>
+              <Link href="/list-bot" className="inline-flex items-center gap-2 border border-primary/50 text-primary px-6 py-2.5 font-sans font-bold text-[13px] transition-all hover:bg-primary/10 hover:border-primary no-underline">
+                Deploy a bot →
+              </Link>
             </div>
           </motion.div>
 
-          {/* ── FEATURED AGENT — the one to beat ── */}
+          {/* ── FEATURED AGENT ── */}
           {topBots.length > 0 && (() => {
             const champ = topBots[0]
-            const cBrier = champ.scores?.[0]?.brierScore ?? champ.brierScore ?? 0
-            const cWr = champ.scores?.[0]?.winRate ?? champ.winRate ?? 0
-            const cTvl = champ.currentTVL ?? champ.tvl ?? 0
-            const cLive = ['live', 'LIVE', 'VAULT_ELIGIBLE_T1', 'VAULT_ELIGIBLE_T2'].includes(champ.status || '')
+            const p = shadowProgress(champ)
             return (
-              <motion.div variants={itemVariants} className="mb-12">
-                <div className="font-mono text-[10px] text-[#555] tracking-[0.25em] mb-3">FEATURED AGENT — THE ONE TO BEAT</div>
+              <motion.div variants={itemVariants} className="mb-14">
+                <div className="font-mono text-[10px] text-[#555] tracking-[0.25em] mb-3">
+                  {p.live ? 'FEATURED AGENT · THE ONE TO BEAT' : 'CLOSEST TO A VAULT'}
+                </div>
                 <Link
                   href={`/bot/${champ.slug || champ.id}`}
-                  className="flex flex-col sm:flex-row bg-[#0a0a0a] border border-[#FFD700]/20 no-underline relative overflow-hidden group transition-all hover:border-[#FFD700]/40 hover:shadow-[0_0_44px_rgba(255,215,0,0.08)]"
+                  className="grid grid-cols-1 sm:grid-cols-[180px_1fr] bg-[#0a0a0a] border border-[#FFD700]/20 no-underline relative overflow-hidden group transition-all hover:border-[#FFD700]/40 hover:shadow-[0_0_44px_rgba(255,215,0,0.08)]"
                 >
                   <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-[#FFD700]/50" />
                   <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-[#FFD700]/50" />
 
-                  {/* face */}
-                  <div className="sm:w-[180px] shrink-0 flex items-center justify-center bg-[#050505] border-b sm:border-b-0 sm:border-r border-[#141414] p-6">
+                  <div className="flex items-center justify-center bg-[#050505] border-b sm:border-b-0 sm:border-r border-[#141414] p-6">
                     {champ.pfpUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={champ.pfpUrl} alt={champ.name} className="w-[120px] h-[120px] object-cover border border-[#1a1a1a]" />
                     ) : (
                       <BotIrisAvatar {...botEye(champ)} size={120} />
                     )}
                   </div>
 
-                  {/* story */}
-                  <div className="flex-1 p-6 flex flex-col justify-between gap-5">
+                  <div className="p-6 flex flex-col justify-between gap-5">
                     <div>
                       <div className="flex items-center gap-3 flex-wrap">
                         <span className="font-sans font-extrabold text-[24px] text-white tracking-tight group-hover:text-primary transition-colors">{champ.name}</span>
-                        <span className={`inline-flex items-center gap-1.5 text-[9px] font-mono ${cLive ? 'text-[#00d4aa]' : 'text-[#666]'}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${cLive ? 'bg-[#00d4aa] animate-pulse' : 'bg-[#333]'}`} />
-                          {cLive ? 'LIVE' : 'SHADOW'}
+                        <span className={`inline-flex items-center gap-1.5 text-[9px] font-mono ${p.live ? 'text-[#00d4aa]' : 'text-[#ffb000]'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${p.live ? 'bg-[#00d4aa] animate-pulse' : 'bg-[#ffb000]'}`} />
+                          {p.live ? 'LIVE' : 'IN SHADOW'}
                         </span>
                       </div>
                       <div className="text-[11px] text-[#555] font-mono mt-1">
                         by {champ.maker?.handle ? `@${champ.maker.handle}` : (champ.maker?.name || `${(champ.walletAddress || 'anon').substring(0, 6)}…`)}
                       </div>
                       <div className="text-[13px] text-[#888] font-sans mt-3 max-w-md leading-relaxed">
-                        {champ.tagline || 'Survived the shadow. The math holds, for now.'}
+                        {champ.tagline || (p.live ? 'Survived the shadow. The math holds, for now.' : 'Proving its edge in the open, one resolution at a time.')}
                       </div>
                     </div>
-                    <div className="flex gap-8 flex-wrap">
-                      {[
-                        ['BRIER', cBrier > 0 ? cBrier.toFixed(3) : 'AWAITING', cBrier > 0 && cBrier <= 0.25 ? '#00d4aa' : '#fff'],
-                        ['WIN RATE', cWr > 0 ? `${(cWr * 100).toFixed(0)}%` : '—', '#fff'],
-                        ['VAULT TVL', cTvl > 0 ? `$${(cTvl / 1000).toFixed(1)}K` : '—', '#fff'],
-                      ].map(([l, v, c]) => (
-                        <div key={l as string}>
-                          <div className="text-[9px] font-mono text-[#555] tracking-widest">{l}</div>
-                          <div className="font-mono font-bold text-[17px]" style={{ color: c as string }}>{v}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* rank seal */}
-                  <div className="hidden md:flex items-center pr-8">
-                    <span className="font-sans font-extrabold text-[64px] leading-none text-[#FFD700]" style={{ textShadow: '0 0 34px rgba(255,215,0,0.35)' }}>1</span>
+                    {p.live ? <LiveVitals p={p} /> : <ReadinessBar p={p} />}
                   </div>
                 </Link>
               </motion.div>
             )
           })()}
 
-          {/* ── TOP ALGORITHMS — live board ── */}
+          {/* ── TOP ALGORITHMS ── */}
           <motion.div variants={itemVariants}>
             <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
               <div>
@@ -263,7 +271,7 @@ export default function Home() {
                   <h2 className="m-0 text-white font-sans font-extrabold tracking-tight text-[22px]">Top Algorithms</h2>
                 </div>
                 <div className="text-[10px] text-[#555] font-mono mt-1.5 tracking-wider">
-                  ranked by Brier score — the best climb, the worst sink
+                  ranked by Brier Score. the best climb, the worst sink.
                 </div>
               </div>
               <Link href="/leaderboard" className="text-xs font-mono text-[#666] hover:text-primary transition-colors">
@@ -274,83 +282,77 @@ export default function Home() {
             {topBots.length > 1 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {topBots.slice(1).map((bot, idx) => {
-                  const i = idx + 1 // global rank index — #1 lives in the featured spotlight
-                  const brier = bot.scores?.[0]?.brierScore ?? bot.brierScore ?? 0
-                  const wr = bot.scores?.[0]?.winRate ?? bot.winRate ?? 0
-                  const tvl = bot.currentTVL ?? bot.tvl ?? 0
-                  const isLive = ['live', 'LIVE', 'VAULT_ELIGIBLE_T1', 'VAULT_ELIGIBLE_T2'].includes(bot.status || '')
+                  const i = idx + 1
+                  const p = shadowProgress(bot)
                   const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32']
                   const rankColor = rankColors[i] || '#333'
                   return (
-                    <motion.div
-                      key={bot.id}
-                      layout
-                      whileHover={{ y: -5 }}
-                      transition={{ type: 'spring', stiffness: 320, damping: 22 }}
-                    >
+                    <motion.div key={bot.id} layout whileHover={{ y: -5 }} transition={{ type: 'spring', stiffness: 320, damping: 22 }}>
                       <Link
                         href={`/bot/${bot.slug || bot.id}`}
-                        className="flex flex-col aspect-[1/1.12] bg-[#0a0a0a] border border-[#1a1a1a] no-underline relative overflow-hidden group transition-all hover:border-[#2a2a2a] hover:shadow-[0_10px_36px_rgba(0,0,0,0.65),0_0_0_0.5px_rgba(255,42,77,0.10)]"
+                        className="flex flex-col bg-[#0a0a0a] border border-[#1a1a1a] no-underline relative overflow-hidden group transition-all hover:border-[#2a2a2a] hover:shadow-[0_10px_36px_rgba(0,0,0,0.65),0_0_0_0.5px_rgba(255,42,77,0.10)]"
                       >
-                        {/* rank + status */}
                         <div className="flex items-center justify-between px-4 pt-2.5">
                           <span className="font-sans font-extrabold text-[26px] leading-none tracking-tight" style={{ color: rankColor, textShadow: i < 3 ? `0 0 18px ${rankColor}55` : 'none' }}>
                             {i + 1}
                           </span>
-                          <span className={`inline-flex items-center gap-1.5 text-[9px] font-mono ${isLive ? 'text-[#00d4aa]' : 'text-[#444]'}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-[#00d4aa] animate-pulse' : 'bg-[#333]'}`} />
-                            {isLive ? 'LIVE' : 'SHADOW'}
+                          <span className={`inline-flex items-center gap-1.5 text-[9px] font-mono ${p.live ? 'text-[#00d4aa]' : 'text-[#ffb000]'}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${p.live ? 'bg-[#00d4aa] animate-pulse' : 'bg-[#ffb000]'}`} />
+                            {p.live ? 'LIVE' : 'SHADOW'}
                           </span>
                         </div>
 
-                        {/* face */}
-                        <div className="flex-1 flex items-center justify-center">
+                        <div className="flex items-center justify-center py-4">
                           {bot.pfpUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img src={bot.pfpUrl} alt={bot.name} className="w-[72px] h-[72px] object-cover border border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
                           ) : (
                             <BotIrisAvatar {...botEye(bot)} size={72} />
                           )}
                         </div>
 
-                        {/* name */}
-                        <div className="px-4 text-center">
+                        <div className="px-4 text-center mb-3">
                           <div className="text-white font-sans font-bold text-[13px] truncate group-hover:text-primary transition-colors">{bot.name}</div>
                           <div className="text-[10px] text-[#444] font-mono truncate">
                             by {bot.maker?.handle ? `@${bot.maker.handle}` : (bot.maker?.name || `${(bot.walletAddress || 'anon').substring(0, 6)}…`)}
                           </div>
                         </div>
 
-                        {/* vitals */}
-                        <div className="grid grid-cols-3 gap-px bg-[#141414] border-t border-[#141414] mt-3.5">
-                          <div className="bg-[#0a0a0a] px-3 py-2">
-                            <div className="text-[8px] font-mono text-[#555] tracking-widest">BRIER</div>
-                            <div className={`font-mono font-bold text-[13px] ${brier > 0 && brier <= 0.25 ? 'text-[#00d4aa]' : 'text-white'}`}>
-                              {brier > 0 ? brier.toFixed(3) : <span className="text-[#ffb000] text-[10px] animate-pulse">AWAITING</span>}
+                        {p.live ? (
+                          <LiveVitals p={p} />
+                        ) : (
+                          <div className="px-4 pb-4">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[8px] font-mono text-[#555] tracking-widest">READINESS</span>
+                              <span className="text-[9px] font-mono text-primary font-bold">{Math.round(p.pct * 100)}%</span>
+                            </div>
+                            <div className="h-1.5 bg-[#030303] border border-[#1a1a1a] overflow-hidden mb-2">
+                              <div className="h-full bg-primary" style={{ width: `${p.pct * 100}%` }} />
+                            </div>
+                            <div className="text-[9px] font-mono text-[#666]">
+                              {p.resolved}/{SHADOW_RESOLVED_TARGET} resolved · day {p.days}/{SHADOW_DAYS_TARGET}
                             </div>
                           </div>
-                          <div className="bg-[#0a0a0a] px-3 py-2">
-                            <div className="text-[8px] font-mono text-[#555] tracking-widest">WIN RATE</div>
-                            <div className="font-mono font-bold text-[13px] text-white">{wr > 0 ? `${(wr * 100).toFixed(0)}%` : '—'}</div>
-                          </div>
-                          <div className="bg-[#0a0a0a] px-3 py-2">
-                            <div className="text-[8px] font-mono text-[#555] tracking-widest">VAULT TVL</div>
-                            <div className="font-mono font-bold text-[13px] text-white">{tvl > 0 ? `$${(tvl / 1000).toFixed(1)}K` : '—'}</div>
-                          </div>
-                        </div>
+                        )}
                       </Link>
                     </motion.div>
                   )
                 })}
               </div>
             ) : topBots.length === 0 ? (
-              <div className="p-16 text-center text-[11px] text-[#333] font-mono border border-dashed border-[#1a1a1a] bg-[#080808]">
-                <div className="cursor-blink inline-block">&gt; AWAITING DATA — deploy the first algorithm</div>
+              <div className="p-16 text-center border border-dashed border-[#1a1a1a] bg-[#080808]">
+                <div className="cursor-blink inline-block text-[11px] text-[#555] font-mono mb-5">&gt; THE BOARD IS EMPTY. BE THE FIRST ALGORITHM.</div>
+                <div>
+                  <Link href="/list-bot" className="inline-flex items-center gap-2 bg-primary text-[#030303] px-6 py-2.5 font-sans font-bold text-[13px] transition-all hover:shadow-[0_0_18px_rgba(255,42,77,0.5)] no-underline">
+                    Deploy the first bot →
+                  </Link>
+                </div>
               </div>
             ) : null}
           </motion.div>
 
           {/* ── FOOTER ── */}
-          <motion.div variants={itemVariants} className="mt-16 border-t border-[#111] pt-6 flex justify-between items-center text-[11px] text-[#333] font-mono">
+          <motion.div variants={itemVariants} className="mt-16 border-t border-[#111] pt-6 flex justify-between items-center text-[11px] text-[#333] font-mono flex-wrap gap-4">
             <div className="flex items-baseline gap-3">
               <span className="font-sans font-extrabold text-[15px] text-white tracking-tight">Brier<span className="text-primary">.</span></span>
               <span className="text-[#444]">v1</span>
@@ -363,7 +365,6 @@ export default function Home() {
               <Link href="/docs" className="hover:text-[#666] transition-colors">DOCS</Link>
               <Link href="/terms" className="hover:text-[#666] transition-colors">TERMS</Link>
               <Link href="/privacy" className="hover:text-[#666] transition-colors">PRIVACY</Link>
-              <a href="https://github.com/Lord14sol/brier-protocol" target="_blank" rel="noopener noreferrer" className="hover:text-[#666] transition-colors">GITHUB</a>
             </div>
           </motion.div>
 

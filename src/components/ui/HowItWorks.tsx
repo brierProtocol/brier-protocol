@@ -51,26 +51,6 @@ function StatsPreview() {
   )
 }
 
-function LeaderboardPreview() {
-  const rows = [
-    { rank: 1, name: 'ADAN-PRED', brier: '0.082', c: '#FFD700' },
-    { rank: 2, name: 'Alpha Quant', brier: '0.140', c: '#C0C0C0' },
-    { rank: 3, name: 'Beta Arb', brier: '0.210', c: '#CD7F32' },
-  ]
-  return (
-    <div className="bg-[#0a0a0a] border border-[#1a1a1a] divide-y divide-[#111] w-full rounded overflow-hidden">
-      {rows.map((r) => (
-        <div key={r.rank} className="flex items-center gap-3 px-4 py-3">
-          <span className="font-mono font-bold text-sm w-6" style={{ color: r.c }}>{String(r.rank).padStart(2, '0')}</span>
-          <span className="flex-1 text-xs font-mono text-white">{r.name}</span>
-          <span className="text-[9px] font-mono text-[#555]">BRIER</span>
-          <span className="text-xs font-mono font-bold text-white">{r.brier}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 function ConnectPreview() {
   return (
     <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-6 w-full rounded flex items-center gap-4">
@@ -80,6 +60,34 @@ function ConnectPreview() {
         <div className="text-primary font-mono text-xs">@your-handle</div>
       </div>
       <div className="font-mono text-[10px] px-3 py-2 border border-primary text-primary">[CONNECT]</div>
+    </div>
+  )
+}
+
+function GatePreview() {
+  const gates = [
+    { label: 'RESOLVED', value: '100', sub: 'predictions' },
+    { label: 'BRIER', value: '0.20', sub: 'or lower' },
+    { label: 'LIVE', value: '21', sub: 'days' },
+  ]
+  return (
+    <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-5 w-full rounded">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-[10px] font-mono text-[#666] tracking-widest">VAULT GATE</span>
+        <span className="text-[8px] font-mono px-1.5 py-0.5 text-[#00d4aa]" style={{ background: '#00d4aa14', border: '0.5px solid #00d4aa44' }}>ALL CLEARED</span>
+      </div>
+      <div className="grid grid-cols-3 gap-px bg-[#1a1a1a] border border-[#1a1a1a]">
+        {gates.map((g) => (
+          <div key={g.label} className="bg-[#0a0a0a] p-3">
+            <div className="text-[8px] font-mono text-[#555] tracking-widest mb-1">{g.label}</div>
+            <div className="font-mono font-bold text-xl text-[#00d4aa]">{g.value}</div>
+            <div className="text-[8px] font-mono text-[#555]">{g.sub}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex items-center gap-2 text-[10px] font-mono text-[#888]">
+        <span className="text-[#00d4aa]">→</span> ERC-4626 vault opens. Capital can flow in.
+      </div>
     </div>
   )
 }
@@ -148,17 +156,17 @@ type Slide = {
 
 const SLIDES: Slide[] = [
   { tag: 'STEP 01', title: 'Connect', accent: '#ff2a4d', preview: <ConnectPreview />,
-    body: 'Connect your wallet and claim a unique @handle. This becomes your on-chain identity — how investors find, track and back you.' },
-  { tag: 'STEP 02', title: 'Discover', accent: '#c8ff00', preview: <DiscoverPreview />,
-    body: 'Every bot gets a generative signature, unique to its name — or its builder uploads a custom face. Browse the catalog of live prediction algorithms.' },
-  { tag: 'STEP 03', title: 'Check the stats', accent: '#00d4aa', preview: <StatsPreview />,
-    body: 'Open any bot to read its real metrics — Brier Score, Win Rate, Sharpe, drawdown — all derived from on-chain resolutions.' },
-  { tag: 'STEP 04', title: 'Leaderboard', accent: '#FFD700', preview: <LeaderboardPreview />,
-    body: 'Algorithms ranked strictly by Brier Score — lower is sharper. Gold, silver, bronze. Math decides, not marketing.' },
-  { tag: 'STEP 05', title: 'Deploy & earn', accent: '#3B82F6', preview: <FeePreview />,
-    body: 'Submit your own bot → 7-day shadow phase → Tier-1 opens your vault. On profit you keep 30%, the protocol 10%, depositors grow.' },
+    body: 'Connect your wallet and claim a unique @handle. That becomes your on-chain identity, how depositors find, track and back you.' },
+  { tag: 'STEP 02', title: 'Publish your bot', accent: '#c8ff00', preview: <DiscoverPreview />,
+    body: 'Submit the algorithm that forecasts real world events on Polymarket. It gets a generative signature unique to its name and joins the catalog.' },
+  { tag: 'STEP 03', title: 'Let it train', accent: '#00d4aa', preview: <StatsPreview />,
+    body: 'Shadow phase. Your bot predicts in public and reality scores every call. Brier Score, win rate, Sharpe and drawdown, all earned on-chain.' },
+  { tag: 'STEP 04', title: 'Open a vault', accent: '#FFD700', preview: <GatePreview />,
+    body: 'Clear the gate: 100 resolved predictions, Brier 0.20 or lower, 21 days live. Your ERC-4626 vault opens and capital can finally flow in.' },
+  { tag: 'STEP 05', title: 'Earn the split', accent: '#3B82F6', preview: <FeePreview />,
+    body: 'No management fee, performance only. On profit you keep 30%, depositors take 60%, the protocol 10%. You never touch their principal.' },
   { tag: 'STEP 06', title: 'Instant exit', accent: '#ff2a4d', preview: <ExitPreview />,
-    body: 'Investors redeem shares anytime — principal + profit in one transaction, 1:1 at current NAV. No lockups. Non-custodial throughout.' },
+    body: 'Depositors redeem anytime, principal plus profit in one transaction at current NAV. No lockups. Non custodial from start to finish.' },
 ]
 
 // ─────────────────────────────────────────────────────────────
