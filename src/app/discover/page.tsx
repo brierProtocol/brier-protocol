@@ -56,8 +56,8 @@ function botCategory(b: BotListItem): string | null {
   return null
 }
 
-// Display state per bot, from the shared honest phase ladder: a bot that has
-// not traded reads IDLE, not a flattering SHADOW. Same logic as the live feed.
+// Display state per bot, from the shared phase ladder (new / shadow / live).
+// Same source of truth as the live feed, so a bot reads identically everywhere.
 function deriveTag(b: BotListItem): { tag: string; color: string } {
   const { tag, color } = phaseMeta(shadowProgress(b))
   return { tag, color }

@@ -6,7 +6,6 @@ import { notFound } from 'next/navigation'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import MakerAvatar from '@/components/MakerAvatar'
 import { botEye } from '@/lib/botIdentity'
-import CandleChart, { type Tick } from '@/components/ui/CandleChart'
 import { useAccount } from 'wagmi'
 import { ethers } from 'ethers'
 import { motion } from 'framer-motion'
@@ -19,19 +18,36 @@ import {
 
 interface Post {
   id: string; wallet: string; text: string; createdAt: string;
-  user?: { name: string | null; pfpUrl: string | null } | null
+  user?: { handle?: string | null; name?: string | null; pfpUrl?: string | null } | null
 }
 
 const fmtUSD = (n: number) =>
   n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `$${(n / 1000).toFixed(1)}K` : `$${Math.round(n).toLocaleString()}`
-
 const shortWallet = (w: string) => `${w.slice(0, 6)}…${w.slice(-4)}`
+const personLabel = (u?: Post['user'], wallet = '') =>
+  u?.handle ? `@${u.handle}` : (u?.name && !u.name.startsWith('User_') ? u.name : shortWallet(wallet))
 
 // txHash for a Polymarket fill is encoded in externalTradeId as `${hash}-${asset}`
 function txOf(t: any): string | null {
-  const ext = t.externalTradeId || ''
-  const hash = String(ext).split('-')[0]
+  const hash = String(t.externalTradeId || '').split('-')[0]
   return hash.startsWith('0x') && hash.length >= 40 ? hash : null
+}
+
+// Smooth trend line (not candles): a clean area sparkline of the vault NAV.
+function Sparkline({ values }: { values: number[] }) {
+  if (values.length < 2) return null
+  const w = 200, h = 44
+  const min = Math.min(...values), max = Math.max(...values), range = max - min || 1
+  const pts = values.map((v, i) => [(i / (values.length - 1)) * w, h - ((v - min) / range) * (h - 4) - 2])
+  const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')
+  const up = values[values.length - 1] >= values[0]
+  const col = up ? '#00d4aa' : '#ff5570'
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-11" preserveAspectRatio="none" aria-hidden="true">
+      <path d={`${d} L${w},${h} L0,${h} Z`} fill={col} fillOpacity="0.10" />
+      <path d={d} fill="none" stroke={col} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+    </svg>
+  )
 }
 
 export default function BotProfilePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -95,21 +111,15 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
 
   const toggleHeart = async () => {
     if (!isConnected || !address) return showToast('Connect your wallet to like.')
-    const res = await fetch('/api/hearts', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: address, botId: bot.id }),
-    })
+    const res = await fetch('/api/hearts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: address, botId: bot.id }) })
     if (res.ok) { const d = await res.json(); setHearted(d.status === 'hearted'); setHearts(h => d.status === 'hearted' ? h + 1 : Math.max(0, h - 1)) }
   }
 
   const addPost = async () => {
     if (!postText.trim()) return
     if (!isConnected || !address) return showToast('Connect your wallet to comment.')
-    const res = await fetch('/api/comments', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ botId: bot.id, wallet: address, text: postText.trim() }),
-    })
-    if (res.ok) { const c = await res.json(); setPosts([{ ...c, user: { name: null, pfpUrl: null } }, ...posts]); setPostText('') }
+    const res = await fetch('/api/comments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ botId: bot.id, wallet: address, text: postText.trim() }) })
+    if (res.ok) { const c = await res.json(); setPosts([{ ...c, user: null }, ...posts]); setPostText('') }
     else showToast('Could not post comment.')
   }
 
@@ -117,15 +127,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     if (!address) return
     setSavingBot(true)
     try {
-      const res = await fetch(`/api/bots/${slug}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: address, name: editName, tagline: editTagline, description: editDesc, pfpUrl: editPfp }),
-      })
-      if (res.ok) {
-        const u = await res.json()
-        setBot({ ...bot, name: u.name, tagline: u.tagline, description: u.description, pfpUrl: u.pfpUrl })
-        setIsEditing(false); showToast('Profile updated.')
-      } else { const e = await res.json(); showToast(e.error || 'Update failed.') }
+      const res = await fetch(`/api/bots/${slug}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: address, name: editName, tagline: editTagline, description: editDesc, pfpUrl: editPfp }) })
+      if (res.ok) { const u = await res.json(); setBot({ ...bot, name: u.name, tagline: u.tagline, description: u.description, pfpUrl: u.pfpUrl }); setIsEditing(false); showToast('Profile updated.') }
+      else { const e = await res.json(); showToast(e.error || 'Update failed.') }
     } catch (e: any) { showToast(e.message) }
     setSavingBot(false)
   }
@@ -145,20 +149,17 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
       const usdc = new ethers.Contract(usdcAddr, ['function approve(address spender, uint256 amount) external returns (bool)', 'function decimals() external view returns (uint8)'], signer)
       const decimals = await usdc.decimals().catch(() => 6)
       const txAmount = ethers.parseUnits(depositAmt, decimals)
-      showToast('Step 1/2 — approving USDC…')
-      await (await usdc.approve(bot.vaultAddress, txAmount)).wait()
-      showToast('Step 2/2 — depositing…')
-      const dep = await vault.deposit(txAmount, address); await dep.wait()
+      showToast('Step 1/2 — approving USDC…'); await (await usdc.approve(bot.vaultAddress, txAmount)).wait()
+      showToast('Step 2/2 — depositing…'); const dep = await vault.deposit(txAmount, address); await dep.wait()
       showToast('Deposit confirmed.')
       await fetch('/api/deposits', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ botId: bot.id, depositorWallet: address, amountUsdc: amt, mode: 'CONSERVATIVE', txHash: dep.hash }) })
     } catch (err: any) { showToast('Transaction failed: ' + (err.reason || err.message || 'error')) }
     finally { setDepositing(false) }
   }
 
-  const navTicks: Tick[] = useMemo(() => {
+  const navValues: number[] = useMemo(() => {
     const snaps = bot?.pnlSnapshots || []
-    if (snaps.length < 2) return []
-    return snaps.map((s: any) => ({ t: new Date(s.date).getTime(), v: s.cumulativePnl ?? s.pnlUsd }))
+    return snaps.map((s: any) => s.cumulativePnl ?? s.pnlUsd).filter((v: any) => typeof v === 'number')
   }, [bot])
 
   if (loading) return <div className="min-h-screen bg-[#030303] text-[#666] grid place-items-center font-sans text-sm">Loading…</div>
@@ -180,21 +181,25 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
 
   const wins = trades.filter(t => t.outcome === 'WIN').length
   const losses = trades.filter(t => t.outcome === 'LOSS').length
-  const roi = navTicks.length > 1 && navTicks[0].v ? ((navTicks[navTicks.length - 1].v - navTicks[0].v) / Math.abs(navTicks[0].v)) * 100 : null
+  const navDelta = navValues.length > 1
+    ? ((navValues[navValues.length - 1] - navValues[0]) / (Math.abs(navValues[0]) || 1)) * 100
+    : (bot.sharePrice ? (bot.sharePrice - 1) * 100 : 0)
+  const roi = navValues.length > 1 && navValues[0] ? navDelta : null
 
   const criteria = [
     { label: 'Resolved predictions', val: `${sp.resolved} / ${SHADOW_RESOLVED_TARGET}`, ok: sp.resolvedPass, pct: Math.min(1, sp.resolved / SHADOW_RESOLVED_TARGET) },
     { label: 'Brier score', val: sp.brier != null ? `${sp.brier.toFixed(3)} · ≤ ${SHADOW_BRIER_TARGET.toFixed(2)}` : `— · ≤ ${SHADOW_BRIER_TARGET.toFixed(2)}`, ok: sp.brierPass, pct: sp.brier == null ? 0 : Math.min(1, Math.max(0, (0.4 - sp.brier) / (0.4 - SHADOW_BRIER_TARGET))) },
     { label: 'Days live', val: `${sp.days} / ${SHADOW_DAYS_TARGET}`, ok: sp.daysPass, pct: Math.min(1, sp.days / SHADOW_DAYS_TARGET) },
   ]
+  const clearedCount = criteria.filter(c => c.ok).length
 
   const stats = [
     { k: 'Win rate', v: bot.winRate != null ? `${(bot.winRate * 100).toFixed(1)}%` : '—' },
-    { k: 'Sharpe', v: bot.sharpe != null ? bot.sharpe.toFixed(2) : '—' },
     { k: 'ROI', v: roi != null ? `${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%` : '—' },
     { k: 'Max drawdown', v: bot.maxDrawdown != null ? `-${(Math.abs(bot.maxDrawdown) * 100).toFixed(1)}%` : '—' },
     { k: 'Resolved', v: bot.totalTrades ? bot.totalTrades.toLocaleString() : '—' },
     { k: 'Volume', v: bot.totalVolume != null ? fmtUSD(bot.totalVolume) : '—' },
+    { k: 'Sharpe', v: bot.sharpe != null ? bot.sharpe.toFixed(2) : '—' },
   ]
 
   const Panel = ({ children, className = '' }: { children: React.ReactNode; className?: string }) =>
@@ -238,9 +243,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 {bot.builder && (
                   <Link href={`/maker/${bot.builder}`} className="inline-flex items-center gap-2 group no-underline rounded-full border border-[#161616] hover:border-[#2a2a2a] bg-[#070707] pl-1 pr-3 py-1 transition-colors">
                     <MakerAvatar address={bot.builder} pfpUrl={bot.maker?.pfpUrl} size={20} />
-                    <span className="font-sans text-[12px] text-[#999] group-hover:text-white transition-colors">
-                      {bot.maker?.handle ? `@${bot.maker.handle}` : bot.maker?.name || shortWallet(bot.builder)}
-                    </span>
+                    <span className="font-sans text-[12px] text-[#999] group-hover:text-white transition-colors">{personLabel(bot.maker, bot.builder)}</span>
                   </Link>
                 )}
                 {bot.categories?.slice(0, 4).map((c: string) => (
@@ -259,7 +262,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
 
         {bot.description && <p className="text-[14px] leading-relaxed text-[#9a9a9a] mb-8 max-w-3xl whitespace-pre-wrap">{bot.description}</p>}
 
-        {/* editor (owner) */}
         {isOwner && isEditing && (
           <Panel className="mb-8 p-5">
             <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-4">Edit profile</div>
@@ -271,23 +273,81 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               <label className="block sm:col-span-2"><span className="text-[12px] text-[#bbb] font-semibold">Bio</span>
                 <textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} className="mt-1.5 w-full h-24 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50 resize-y" /></label>
             </div>
-            <button onClick={handleSaveBot} disabled={savingBot} className="mt-4 rounded-full bg-primary text-[#030303] font-bold text-[13px] px-6 py-2.5 disabled:opacity-50 hover:shadow-[0_0_18px_rgba(255,42,77,0.4)] transition-all">
-              {savingBot ? 'Saving…' : 'Save changes'}
-            </button>
+            <button onClick={handleSaveBot} disabled={savingBot} className="mt-4 rounded-full bg-primary text-[#030303] font-bold text-[13px] px-6 py-2.5 disabled:opacity-50 hover:shadow-[0_0_18px_rgba(255,42,77,0.4)] transition-all">{savingBot ? 'Saving…' : 'Save changes'}</button>
           </Panel>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5 items-start">
           {/* LEFT */}
           <div className="flex flex-col gap-5 min-w-0">
-            {/* performance */}
-            <Panel>
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#141414]">
-                <span className="font-sans font-bold text-[14px]">Performance</span>
-                <span className="font-mono text-[10px] tracking-widest text-[#00d4aa] inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#00d4aa] animate-pulse" />vault NAV</span>
+
+            {/* ── BIG VAULT (cosmic) ── */}
+            <div className="relative rounded-2xl border border-[#1a1a1a] bg-[#070708] overflow-hidden">
+              <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(120% 90% at 50% -10%, rgba(255,42,77,0.12), transparent 55%)' }} />
+              <div className="absolute inset-0 pointer-events-none opacity-60" style={{ backgroundImage: 'radial-gradient(1px 1px at 20% 30%, #fff3 50%, transparent), radial-gradient(1px 1px at 70% 20%, #fff2 50%, transparent), radial-gradient(1px 1px at 85% 60%, #fff3 50%, transparent), radial-gradient(1px 1px at 40% 75%, #fff2 50%, transparent), radial-gradient(1px 1px at 55% 45%, #ff2a4d44 50%, transparent)' }} />
+              <div className="relative p-6">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-[#888]">Vault</span>
+                  <span className="inline-flex items-center gap-1.5 font-mono text-[10px] tracking-widest" style={{ color: sp.live ? '#00d4aa' : '#888' }}>
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: sp.live ? '#00d4aa' : '#444' }} />
+                    {sp.live ? 'OPEN' : 'LOCKED'}
+                  </span>
+                </div>
+
+                {sp.live ? (
+                  <>
+                    <div className="flex items-end gap-3 flex-wrap">
+                      <span className="font-sans font-extrabold tracking-[-0.03em] text-[clamp(38px,7vw,56px)] leading-none text-white tabular-nums">{fmtUSD(animatedTVL)}</span>
+                      <span className={`inline-flex items-center gap-1 font-mono text-[14px] font-bold mb-1 ${navDelta >= 0 ? 'text-[#00d4aa]' : 'text-[#ff5570]'}`}>
+                        {navDelta >= 0 ? '▲' : '▼'} {Math.abs(navDelta).toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="text-[12px] text-[#777] mt-1">total value in the vault · {fmtUSD(vaultCap)} cap</div>
+                    <div className="mt-3"><Sparkline values={navValues} /></div>
+                    <div className="h-2 rounded-full bg-[#0e0e0e] overflow-hidden mt-3">
+                      <motion.div className="h-full rounded-full" style={{ background: 'linear-gradient(90deg,#240a12,#ff2a4d)' }} initial={{ width: 0 }} animate={{ width: `${Math.min(100, (animatedTVL / vaultCap) * 100)}%` }} transition={{ duration: 1, ease: 'easeOut' }} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-end gap-3">
+                      <span className="font-sans font-extrabold tracking-[-0.03em] text-[clamp(38px,7vw,56px)] leading-none text-[#3a3a3a] tabular-nums">$0</span>
+                      <span className="font-mono text-[12px] text-[#666] mb-2">secured</span>
+                    </div>
+                    <div className="text-[12px] text-[#888] mt-2 leading-relaxed max-w-md">
+                      No outside capital at risk yet. The vault unlocks once the bot clears the shadow gate. Track its progress on the right.
+                    </div>
+                  </>
+                )}
+
+                {/* split — every vault, always visible */}
+                <div className="grid grid-cols-3 gap-px bg-[#161616] border border-[#161616] rounded-lg overflow-hidden mt-5">
+                  {[['Depositors', '60%'], ['Builder', '30%'], ['Protocol', '10%']].map(([k, v]) => (
+                    <div key={k} className="bg-[#070708] px-3 py-2.5 text-center">
+                      <div className="font-mono font-bold text-[15px] text-white">{v}</div>
+                      <div className="text-[8px] font-mono text-[#666] tracking-widest uppercase mt-0.5">{k}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* deposit — only when open */}
+                {sp.live && (
+                  <div className="mt-4">
+                    {animatedTVL >= vaultCap ? (
+                      <div className="rounded-lg border border-primary/30 p-2.5 text-center font-mono text-[11px] text-primary tracking-widest">CAPACITY REACHED</div>
+                    ) : !isConnected ? (
+                      <div className="text-[12px] text-[#666]">Connect your wallet to deposit.</div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <input type="number" value={depositAmt} onChange={e => setDepositAmt(e.target.value)} placeholder="Amount in USDC"
+                          className="flex-1 min-w-0 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2.5 text-[13px] text-white outline-none focus:border-primary/50 placeholder:text-[#555]" />
+                        <button onClick={handleDeposit} disabled={depositing} className="rounded-lg bg-primary text-[#030303] font-bold text-[13px] px-6 disabled:opacity-50 hover:shadow-[0_0_16px_rgba(255,42,77,0.4)] transition-all">{depositing ? '…' : 'Deposit'}</button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <CandleChart ticks={navTicks} height={300} emptyLabel="No NAV history yet" />
-            </Panel>
+            </div>
 
             {/* order book / trade history */}
             <Panel>
@@ -305,30 +365,21 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                   <table className="w-full border-collapse text-left">
                     <thead className="sticky top-0 bg-[#080809] z-10">
                       <tr className="text-[#555] font-mono text-[9px] tracking-widest border-b border-[#141414]">
-                        <th className="px-5 py-2.5 font-medium">TIME</th>
-                        <th className="px-3 py-2.5 font-medium">MARKET</th>
-                        <th className="px-3 py-2.5 font-medium">SIDE</th>
-                        <th className="px-3 py-2.5 font-medium text-right">ENTRY</th>
-                        <th className="px-3 py-2.5 font-medium text-right">SIZE</th>
-                        <th className="px-5 py-2.5 font-medium text-right">RESULT</th>
+                        <th className="px-5 py-2.5 font-medium">TIME</th><th className="px-3 py-2.5 font-medium">MARKET</th><th className="px-3 py-2.5 font-medium">SIDE</th>
+                        <th className="px-3 py-2.5 font-medium text-right">ENTRY</th><th className="px-3 py-2.5 font-medium text-right">SIZE</th><th className="px-5 py-2.5 font-medium text-right">RESULT</th>
                       </tr>
                     </thead>
                     <tbody>
                       {trades.map((t, i) => {
-                        const tx = txOf(t)
-                        const yes = t.side === 'YES' || t.side === 'LONG'
+                        const tx = txOf(t); const yes = t.side === 'YES' || t.side === 'LONG'
                         return (
                           <tr key={t.id || i} className="border-b border-[#101010] hover:bg-[#0b0b0b] transition-colors">
                             <td className="px-5 py-2.5 font-mono text-[10px] text-[#555] whitespace-nowrap tabular-nums">{new Date(t.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td>
-                            <td className="px-3 py-2.5 text-[12px] text-[#bbb] max-w-[240px] truncate">
-                              {tx ? <a href={`https://polygonscan.com/tx/${tx}`} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors no-underline inline-flex items-center gap-1">{t.marketTitle}<span className="text-[#444] text-[9px]">↗</span></a> : t.marketTitle}
-                            </td>
+                            <td className="px-3 py-2.5 text-[12px] text-[#bbb] max-w-[240px] truncate">{tx ? <a href={`https://polygonscan.com/tx/${tx}`} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors no-underline inline-flex items-center gap-1">{t.marketTitle}<span className="text-[#444] text-[9px]">↗</span></a> : t.marketTitle}</td>
                             <td className="px-3 py-2.5"><span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ color: yes ? '#00d4aa' : '#ff5570', background: yes ? '#00d4aa14' : '#ff557014' }}>{t.side}</span></td>
                             <td className="px-3 py-2.5 font-mono text-[11px] text-[#aaa] text-right tabular-nums">{((t.entryPrice ?? 0) * 100).toFixed(0)}¢</td>
                             <td className="px-3 py-2.5 font-mono text-[11px] text-[#aaa] text-right tabular-nums">{t.amount != null ? fmtUSD(t.amount) : '—'}</td>
-                            <td className="px-5 py-2.5 text-right font-mono text-[9px] font-bold">
-                              {t.outcome === 'PENDING' ? <span className="text-[#C9A84C]">PENDING</span> : t.outcome === 'WIN' ? <span className="text-[#00d4aa]">WIN</span> : <span className="text-[#ff5570]">LOSS</span>}
-                            </td>
+                            <td className="px-5 py-2.5 text-right font-mono text-[9px] font-bold">{t.outcome === 'PENDING' ? <span className="text-[#C9A84C]">PENDING</span> : t.outcome === 'WIN' ? <span className="text-[#00d4aa]">WIN</span> : <span className="text-[#ff5570]">LOSS</span>}</td>
                           </tr>
                         )
                       })}
@@ -344,25 +395,17 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 <span className="font-sans font-bold text-[14px]">Discussion</span>
                 <span className="font-mono text-[11px] text-[#888]">{posts.length} comments</span>
               </div>
-
-              {/* composer */}
               <div className="px-5 py-4 border-b border-[#141414] bg-[#060607]">
                 {isConnected && address ? (
                   <div className="flex gap-3">
                     <MakerAvatar address={address} size={34} />
                     <div className="flex-1">
-                      <textarea value={postText} onChange={e => setPostText(e.target.value)} placeholder="Share your read on this bot…"
-                        className="w-full h-16 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50 resize-y placeholder:text-[#555]" />
-                      <div className="flex justify-end mt-2">
-                        <button onClick={addPost} disabled={!postText.trim()} className="rounded-full bg-primary text-[#030303] font-bold text-[12px] px-5 py-2 disabled:opacity-30 hover:shadow-[0_0_14px_rgba(255,42,77,0.4)] transition-all">Comment</button>
-                      </div>
+                      <textarea value={postText} onChange={e => setPostText(e.target.value)} placeholder="Share your read on this bot…" className="w-full h-16 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50 resize-y placeholder:text-[#555]" />
+                      <div className="flex justify-end mt-2"><button onClick={addPost} disabled={!postText.trim()} className="rounded-full bg-primary text-[#030303] font-bold text-[12px] px-5 py-2 disabled:opacity-30 hover:shadow-[0_0_14px_rgba(255,42,77,0.4)] transition-all">Comment</button></div>
                     </div>
                   </div>
-                ) : (
-                  <div className="text-[13px] text-[#777]">Connect your wallet to join the discussion.</div>
-                )}
+                ) : <div className="text-[13px] text-[#777]">Connect your wallet to join the discussion.</div>}
               </div>
-
               {posts.length === 0 ? (
                 <div className="px-5 py-10 text-center text-[13px] text-[#555]">No comments yet. Be the first.</div>
               ) : (
@@ -372,7 +415,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                       <MakerAvatar address={p.wallet} pfpUrl={p.user?.pfpUrl} size={34} />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[13px] font-semibold text-white">{p.user?.name || shortWallet(p.wallet)}</span>
+                          <span className="text-[13px] font-semibold text-white">{personLabel(p.user, p.wallet)}</span>
                           <span className="font-mono text-[10px] text-[#555] tabular-nums">{new Date(p.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                         </div>
                         <div className="text-[13px] text-[#ccc] leading-relaxed"><PostBody text={p.text} onQuoteClick={() => {}} /></div>
@@ -407,78 +450,33 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               )}
             </Panel>
 
-            {/* eligibility */}
+            {/* eligibility — interactive */}
             <Panel className="p-5">
-              <div className="flex items-center justify-between mb-4">
-                <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">Vault eligibility</span>
-                <span className="font-mono text-[10px] font-bold" style={{ color: sp.eligible ? '#00d4aa' : '#C9A84C' }}>
-                  {sp.live ? 'VAULT OPEN' : sp.eligible ? 'ELIGIBLE' : `${criteria.filter(c => c.ok).length}/3`}
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-sans font-bold text-[15px] tracking-tight">Vault eligibility</span>
+                <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ color: sp.live ? '#00d4aa' : sp.eligible ? '#00d4aa' : '#C9A84C', background: sp.live || sp.eligible ? '#00d4aa14' : '#C9A84C14' }}>
+                  {sp.live ? 'OPEN' : sp.eligible ? 'ELIGIBLE' : 'SHADOW PHASE'}
                 </span>
               </div>
-              <div className="flex flex-col gap-3.5">
-                {criteria.map(c => (
-                  <div key={c.label}>
-                    <div className="flex items-center justify-between text-[12px] mb-1.5">
-                      <span className="text-[#bbb] inline-flex items-center gap-1.5">
-                        <span style={{ color: c.ok ? '#00d4aa' : '#444' }}>{c.ok ? '✓' : '○'}</span>{c.label}
+              <div className="text-[12px] text-[#777] mb-4 leading-relaxed">
+                {sp.live ? 'This bot cleared the gate. Its vault is open.' : `Proving in the open — ${clearedCount} of 3 cleared. The vault unlocks when all three are met.`}
+              </div>
+              <div className="flex flex-col gap-4">
+                {criteria.map((c, idx) => (
+                  <div key={c.label} className="group">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[13px] font-semibold inline-flex items-center gap-2" style={{ color: c.ok ? '#e8e8e8' : '#bbb' }}>
+                        <span className="grid place-items-center w-4 h-4 rounded-full text-[9px]" style={{ background: c.ok ? '#00d4aa' : '#1a1a1a', color: c.ok ? '#030303' : '#666' }}>{c.ok ? '✓' : idx + 1}</span>
+                        {c.label}
                       </span>
-                      <span className="font-mono text-[11px] tabular-nums" style={{ color: c.ok ? '#9a9a9a' : '#C9A84C' }}>{c.val}</span>
+                      <span className="font-mono text-[12px] tabular-nums" style={{ color: c.ok ? '#9a9a9a' : '#C9A84C' }}>{c.val}</span>
                     </div>
-                    <div className="h-1 rounded-full bg-[#0e0e0e] overflow-hidden">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${c.pct * 100}%`, background: c.ok ? '#00d4aa' : '#ff2a4d' }} />
+                    <div className="h-1.5 rounded-full bg-[#0e0e0e] overflow-hidden">
+                      <motion.div className="h-full rounded-full" style={{ background: c.ok ? '#00d4aa' : '#ff2a4d' }} initial={{ width: 0 }} animate={{ width: `${c.pct * 100}%` }} transition={{ duration: 0.9, ease: 'easeOut', delay: idx * 0.12 }} />
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="mt-4 text-[11px] leading-relaxed text-[#777]">
-                {sp.live ? 'Cleared the gate. The vault is open for deposits.'
-                  : sp.eligible ? 'Cleared the gate. The vault opens for deposits next.'
-                  : 'Proving in the open. The vault stays locked until all three are met.'}
-              </div>
-            </Panel>
-
-            {/* vault */}
-            <Panel className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">Vault</span>
-                {sp.live && <span className="font-mono text-[11px] text-white tabular-nums">{fmtUSD(animatedTVL)} pot</span>}
-              </div>
-
-              {!sp.live ? (
-                <div className="rounded-xl border border-dashed border-[#1f1f1f] p-4 text-center">
-                  <div className="text-[13px] font-semibold text-[#bbb] mb-1">Vault locked</div>
-                  <div className="text-[12px] text-[#666] leading-relaxed">No outside capital at risk yet. It opens once the bot clears the gate above. Builder keeps 30% of profits, depositors 60%, protocol 10%.</div>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-baseline justify-between mb-1">
-                    <span className="font-mono font-extrabold text-[26px] text-white tabular-nums">{fmtUSD(animatedTVL)}</span>
-                    <span className="font-mono text-[11px] text-[#777]">of {fmtUSD(vaultCap)} cap</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-[#0e0e0e] overflow-hidden mb-1.5">
-                    <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, (animatedTVL / vaultCap) * 100)}%`, background: 'linear-gradient(90deg,#240a12,#ff2a4d)' }} />
-                  </div>
-                  <div className="grid grid-cols-3 gap-px bg-[#141414] border border-[#141414] rounded-lg overflow-hidden my-3">
-                    {[['Depositors', '60%'], ['Builder', '30%'], ['Protocol', '10%']].map(([k, v]) => (
-                      <div key={k} className="bg-[#070707] px-2 py-2 text-center">
-                        <div className="font-mono font-bold text-[13px] text-white">{v}</div>
-                        <div className="text-[8px] font-mono text-[#555] tracking-widest uppercase mt-0.5">{k}</div>
-                      </div>
-                    ))}
-                  </div>
-                  {animatedTVL >= vaultCap ? (
-                    <div className="rounded-lg border border-primary/30 p-2.5 text-center font-mono text-[11px] text-primary tracking-widest">CAPACITY REACHED</div>
-                  ) : !isConnected ? (
-                    <div className="text-[12px] text-[#666]">Connect your wallet to deposit.</div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <input type="number" value={depositAmt} onChange={e => setDepositAmt(e.target.value)} placeholder="USDC"
-                        className="flex-1 min-w-0 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50 placeholder:text-[#555]" />
-                      <button onClick={handleDeposit} disabled={depositing} className="rounded-lg bg-primary text-[#030303] font-bold text-[12px] px-4 disabled:opacity-50 hover:shadow-[0_0_14px_rgba(255,42,77,0.4)] transition-all">{depositing ? '…' : 'Deposit'}</button>
-                    </div>
-                  )}
-                </>
-              )}
             </Panel>
           </div>
         </div>

@@ -65,7 +65,7 @@ export async function GET(request: Request) {
       where: { botId },
       orderBy: { createdAt: 'desc' },
       include: {
-        user: { select: { name: true, pfpUrl: true } }
+        user: { select: { handle: true, name: true, pfpUrl: true } }
       }
     })
     return NextResponse.json(comments)
