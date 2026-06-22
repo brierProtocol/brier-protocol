@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
@@ -337,7 +338,11 @@ export function HowItWorksModal({ open, onClose }: { open: boolean; onClose: () 
     return () => { document.body.style.overflow = '' }
   }, [open])
 
-  return (
+  // Rendered in a portal on <body> so it always centers in the viewport,
+  // escaping any transform/filter/stacking-context ancestor (and the navbar).
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -357,6 +362,7 @@ export function HowItWorksModal({ open, onClose }: { open: boolean; onClose: () 
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   )
 }
