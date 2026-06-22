@@ -144,6 +144,11 @@ export default function Home() {
             </div>
           </motion.div>
 
+          {/* ── SEARCH THE ARENA ── */}
+          <motion.div variants={itemVariants}>
+            <ArenaSearch />
+          </motion.div>
+
           {/* ── TOP OF THE HILL (the reigning #1) ── */}
           {topBots.length > 0 && (() => {
             const champ = topBots[0]
@@ -295,11 +300,6 @@ export default function Home() {
                 &gt; No challengers yet. The summit is wide open.
               </div>
             )}
-          </motion.div>
-
-          {/* ── SEARCH THE ARENA ── */}
-          <motion.div variants={itemVariants}>
-            <ArenaSearch />
           </motion.div>
 
           {/* ── FOOTER ── */}
