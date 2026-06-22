@@ -87,8 +87,8 @@ export default function ArenaSearch() {
                           onClick={() => go(`/bot/${b.slug}`)}
                           className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/[0.04] cursor-pointer transition-colors flex items-center gap-3 group"
                         >
-                          <span className="w-7 h-7 shrink-0 flex items-center justify-center rounded-full overflow-hidden border border-[#222] group-hover:border-[#3a3a3a] transition-colors">
-                            <BotIrisAvatar {...botEye(b as any)} size={28} />
+                          <span className="w-10 h-10 shrink-0 flex items-center justify-center rounded-[3px] overflow-hidden border border-[#2a2a2a] bg-[#050505] group-hover:border-primary/40 transition-colors">
+                            <BotIrisAvatar {...botEye(b as any)} size={40} />
                           </span>
                           <span className="flex-1 min-w-0">
                             <span className="block text-[13px] text-white font-sans font-semibold truncate group-hover:text-primary transition-colors">{b.name}</span>

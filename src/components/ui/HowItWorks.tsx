@@ -9,21 +9,40 @@ import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 // Live mini-previews built from the real product components
 // ─────────────────────────────────────────────────────────────
 
-function DiscoverPreview() {
-  const demo = [
-    { name: 'Alpha Quant', color: '#c8ff00', shape: 'round' as const },
-    { name: 'ADAN-PRED', color: '#4285f0', shape: 'aperture' as const },
-    { name: 'Beta Arb', color: '#00e5ff', shape: 'cat' as const },
+function PathsPreview() {
+  return (
+    <div className="grid grid-cols-2 gap-3 w-full">
+      <div className="bg-[#0a0a0a]/80 border border-[#1a1a1a] rounded p-4 backdrop-blur-sm">
+        <div className="text-[9px] font-mono text-[#666] tracking-widest mb-2">INVESTOR</div>
+        <div className="text-white font-sans font-bold text-[14px] mb-1.5">Deposit</div>
+        <div className="text-[11px] text-[#777] leading-relaxed">Back a proven vault. Earn as it compounds.</div>
+      </div>
+      <div className="bg-[#0a0a0a]/80 border border-dashed border-[#262626] rounded p-4 backdrop-blur-sm">
+        <div className="text-[9px] font-mono text-[#666] tracking-widest mb-2">BUILDER</div>
+        <div className="text-white font-sans font-bold text-[14px] mb-1.5">Deploy</div>
+        <div className="text-[11px] text-[#777] leading-relaxed">Ship a bot. Prove it. Open a vault.</div>
+      </div>
+    </div>
+  )
+}
+
+function CategoriesPreview() {
+  const cats = [
+    { label: 'Crypto', c: '#f7931a' },
+    { label: 'Politics', c: '#4285f0' },
+    { label: 'Sports', c: '#00d4aa' },
+    { label: 'Economics', c: '#c8ff00' },
+    { label: 'Culture', c: '#ff2a4d' },
   ]
   return (
-    <div className="grid grid-cols-3 gap-3 w-full">
-      {demo.map((d) => (
-        <div key={d.name} className="bg-[#0a0a0a]/80 border border-[#1a1a1a] flex flex-col items-center py-5 px-2 rounded backdrop-blur-sm">
-          <BotIrisAvatar avatarId={d.name.toLowerCase()} accentColor={d.color} shape={d.shape} size={52} />
-          <div className="text-[11px] font-mono text-white mt-3 truncate w-full text-center">{d.name}</div>
-          <div className="text-[9px] font-mono text-[#444]">@{d.name.toLowerCase().replace(/\s+/g, '-')}</div>
-        </div>
-      ))}
+    <div className="bg-[#0a0a0a]/80 border border-[#1a1a1a] p-5 w-full rounded backdrop-blur-sm">
+      <div className="text-[10px] font-mono text-[#666] tracking-widest mb-3">ANY POLYMARKET CATEGORY</div>
+      <div className="flex flex-wrap gap-2">
+        {cats.map((c) => (
+          <span key={c.label} className="text-[11px] font-sans font-medium px-3 py-1.5 rounded-full border" style={{ color: c.c, borderColor: `${c.c}40`, background: `${c.c}10` }}>{c.label}</span>
+        ))}
+      </div>
+      <div className="mt-4 text-[11px] text-[#777] leading-relaxed">Your bot forecasts real world events, scored on chain.</div>
     </div>
   )
 }
@@ -54,13 +73,21 @@ function StatsPreview() {
 
 function ConnectPreview() {
   return (
-    <div className="bg-[#0a0a0a]/80 border border-[#1a1a1a] p-6 w-full rounded flex items-center gap-4 backdrop-blur-sm">
-      <BotIrisAvatar avatarId="connect-demo" accentColor="#ff2a4d" shape="ring" size={52} />
-      <div className="flex-1">
-        <div className="h-2.5 w-28 bg-[#1a1a1a] rounded mb-2" />
-        <div className="text-primary font-mono text-xs">@your-handle</div>
+    <div className="bg-[#0a0a0a]/80 border border-[#1a1a1a] p-5 w-full rounded backdrop-blur-sm">
+      <div className="flex items-center gap-3 mb-4">
+        <BotIrisAvatar avatarId="connect-demo" accentColor="#ff2a4d" shape="ring" size={46} />
+        <div className="flex-1 min-w-0">
+          <div className="text-white font-sans font-semibold text-[14px] leading-tight">@your-handle</div>
+          <div className="text-[#666] font-mono text-[10px]">0x1f…a4d2</div>
+        </div>
+        <div className="font-mono text-[10px] px-2.5 py-1.5 border border-primary text-primary rounded">CONNECT</div>
       </div>
-      <div className="font-mono text-[10px] px-3 py-2 border border-primary text-primary">[CONNECT]</div>
+      <div className="text-[11px] text-[#888] leading-relaxed mb-3">Quant. Building edges on Polymarket.</div>
+      <div className="flex flex-wrap gap-2">
+        {['𝕏 connected', 'photo', 'bio'].map((t) => (
+          <span key={t} className="text-[10px] font-mono px-2 py-1 rounded bg-white/[0.04] border border-[#222] text-[#aaa]">{t}</span>
+        ))}
+      </div>
     </div>
   )
 }
@@ -114,30 +141,6 @@ function FeePreview() {
             <div className="text-[8px] font-mono text-[#555] tracking-widest">{p.label}</div>
           </div>
         ))}
-      </div>
-    </div>
-  )
-}
-
-function ExitPreview() {
-  return (
-    <div className="bg-[#0a0a0a]/80 border border-[#1a1a1a] p-6 w-full rounded backdrop-blur-sm">
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-[10px] font-mono text-[#666] tracking-widest">REDEEM</span>
-        <span className="text-[9px] font-mono text-[#C8FF00]">1:1 @ NAV · NO LOCKUP</span>
-      </div>
-      <div className="flex items-center justify-between font-mono">
-        <div>
-          <div className="text-[9px] text-[#555] tracking-widest">PRINCIPAL</div>
-          <div className="text-white font-bold text-lg">$6,000</div>
-        </div>
-        <span className="text-primary text-xl">+</span>
-        <div>
-          <div className="text-[9px] text-[#555] tracking-widest">PROFIT</div>
-          <div className="text-[#C8FF00] font-bold text-lg">$1,240</div>
-        </div>
-        <span className="text-[#444] text-xl">→</span>
-        <div className="px-3 py-2 bg-[#C8FF00] text-[#030303] text-xs font-bold">WALLET</div>
       </div>
     </div>
   )
@@ -218,17 +221,17 @@ type Slide = { title: string; body: string; accent: string; preview: React.React
 
 const SLIDES: Slide[] = [
   { title: 'Connect', accent: '#ff2a4d', preview: <ConnectPreview />,
-    body: 'Connect your wallet and claim a unique @handle. That becomes your on-chain identity, how depositors find and back you.' },
-  { title: 'Publish your bot', accent: '#c8ff00', preview: <DiscoverPreview />,
-    body: 'Submit the algorithm that forecasts real world events on Polymarket. It joins the catalog with a signature unique to its name.' },
+    body: 'Connect your wallet, it is your identity. Build your profile with a photo, your X and a short bio, so people can follow your work.' },
+  { title: 'Deposit or build', accent: '#42c8ff', preview: <PathsPreview />,
+    body: 'Two ways in. Back a proven vault as an investor, or deploy your own bot as a builder. Same arena, your call.' },
+  { title: 'Deploy a bot', accent: '#c8ff00', preview: <CategoriesPreview />,
+    body: 'Spin up a bot in any Polymarket category, from crypto to politics to sports. It forecasts real world events on chain.' },
   { title: 'Let it train', accent: '#00d4aa', preview: <StatsPreview />,
     body: 'Shadow phase. It predicts in public and reality scores every call. The Brier Score is earned, never claimed.' },
   { title: 'Open a vault', accent: '#FFD700', preview: <GatePreview />,
-    body: 'Clear the gate: 100 resolved predictions, Brier 0.20 or lower, 21 days live. Your ERC-4626 vault opens and capital can flow in.' },
-  { title: 'Earn the split', accent: '#3B82F6', preview: <FeePreview />,
-    body: 'Performance only, no management fee. On profit you keep 30%, depositors take 60%, the protocol 10%. You never touch their principal.' },
-  { title: 'Instant exit', accent: '#ff2a4d', preview: <ExitPreview />,
-    body: 'Depositors redeem anytime, principal plus profit in one transaction at NAV. No lockups. Non custodial from start to finish.' },
+    body: 'Clear the gate: 100 resolved predictions, Brier 0.20 or lower, 21 days live. Your vault opens and depositors can back you.' },
+  { title: 'Earn and exit', accent: '#3B82F6', preview: <FeePreview />,
+    body: 'On profit: 60% to depositors, 30% to you, 10% to the protocol. Depositors redeem anytime at NAV, non custodial throughout.' },
 ]
 
 const pad = (n: number) => String(n).padStart(2, '0')
