@@ -33,6 +33,10 @@ model Bot {
 
   // Polymarket categories this bot targets (e.g. ["crypto","politics"])
   categories      String[]      @default([])
+  // Categories DERIVED from the markets the wallet actually traded (on-chain
+  // truth). When present, the catalog trusts these over the declared ones.
+  verifiedCategories String[]   @default([])
+  lastIndexedAt   DateTime?
 
   walletAddress   String
   vaultAddress    String?
