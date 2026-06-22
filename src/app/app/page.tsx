@@ -53,11 +53,14 @@ function ReadinessBar({ p }: { p: ShadowProgress }) {
   )
 }
 
-function LiveVitals({ p }: { p: ShadowProgress }) {
+// Live stats. Brier is the identity; resolved (sample size) gives it credibility,
+// so it sits right next to it. Win rate only shows in the wide `full` layout.
+function LiveVitals({ p, full = false }: { p: ShadowProgress; full?: boolean }) {
   return (
-    <div className="grid grid-cols-3 gap-px bg-[#141414] border border-[#141414]">
+    <div className={`grid ${full ? 'grid-cols-4' : 'grid-cols-3'} gap-px bg-[#141414] border border-[#141414]`}>
       <Gate label="BRIER" value={p.brier !== null ? p.brier.toFixed(3) : '—'} pass={p.brierPass} />
-      <Gate label="WIN RATE" value={p.winRate !== null && p.winRate > 0 ? `${(p.winRate * 100).toFixed(0)}%` : '—'} pass={false} />
+      <Gate label="RESOLVED" value={p.resolved > 0 ? p.resolved.toLocaleString() : '—'} pass={false} />
+      {full && <Gate label="WIN RATE" value={p.winRate !== null && p.winRate > 0 ? `${(p.winRate * 100).toFixed(0)}%` : '—'} pass={false} />}
       <Gate label="VAULT TVL" value={p.tvl > 0 ? `$${(p.tvl / 1000).toFixed(1)}K` : '—'} pass={false} />
     </div>
   )
@@ -102,23 +105,30 @@ export default function Home() {
 
           {/* ── HERO: the arena (distinct from the landing pitch) ── */}
           <motion.div variants={itemVariants} className="mb-16">
-            <div className="font-mono text-[10px] text-primary tracking-[0.3em] uppercase mb-4">The arena</div>
-            <h1 className="m-0 font-sans font-extrabold tracking-[-0.03em] leading-[1.04] text-[clamp(30px,4.6vw,54px)]">
+            <div className="inline-flex items-center gap-2.5 mb-6 pl-2 pr-3.5 py-1 rounded-full border border-primary/25 bg-primary/[0.07]">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-70" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary" />
+              </span>
+              <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-[#ff6b82]">The arena</span>
+            </div>
+            <h1 className="m-0 font-sans font-extrabold tracking-[-0.035em] leading-[1.02] text-[clamp(34px,5.2vw,60px)]">
               One hill. Every algorithm<br className="hidden sm:block" /> climbing for the top<span className="text-primary">.</span>
             </h1>
-            <p className="mt-5 max-w-xl text-[14px] md:text-[15px] leading-relaxed text-[#999]">
+            <p className="mt-6 max-w-xl text-[15px] md:text-[16px] leading-relaxed text-[#c4c4c4]">
               Rankings settle by Brier Score, in public, against reality. Hold the summit or get
               overtaken. No pay to play, no insiders, just the climb.
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link href="/discover" className="inline-flex items-center gap-2 bg-primary text-[#030303] px-6 py-2.5 font-sans font-bold text-[13px] transition-all hover:shadow-[0_0_18px_rgba(255,42,77,0.5)] no-underline">
+            <div className="mt-9 flex flex-wrap items-center gap-3">
+              <Link href="/discover" className="inline-flex items-center gap-2 bg-primary text-[#030303] px-6 py-3 font-sans font-bold text-[13px] transition-all hover:shadow-[0_0_22px_rgba(255,42,77,0.55)] no-underline">
                 Browse vaults →
               </Link>
-              <Link href="/list-bot" className="inline-flex items-center gap-2 border border-[#2a2a2a] text-white px-6 py-2.5 font-sans font-semibold text-[13px] transition-all hover:border-[#555] hover:bg-white/[0.03] no-underline">
+              <Link href="/list-bot" className="inline-flex items-center gap-2 border border-[#2a2a2a] text-white px-6 py-3 font-sans font-semibold text-[13px] transition-all hover:border-[#555] hover:bg-white/[0.03] no-underline">
                 Deploy a bot →
               </Link>
-              <button onClick={() => setHowOpen(true)} className="inline-flex items-center gap-2 text-[#888] px-3 py-2.5 font-sans font-medium text-[13px] transition-colors hover:text-white cursor-pointer">
-                How it works<span className="text-primary">.</span>
+              <button onClick={() => setHowOpen(true)} className="group inline-flex items-center gap-2.5 pl-2 pr-5 py-2 rounded-full border border-white/10 bg-white/[0.02] text-white transition-all hover:border-primary/40 hover:bg-primary/[0.06] cursor-pointer">
+                <span className="flex items-center justify-center w-7 h-7 rounded-full border border-primary/50 text-primary text-[9px] group-hover:bg-primary group-hover:text-[#030303] transition-all">▶</span>
+                <span className="font-sans font-semibold text-[13px] tracking-tight">How it works<span className="text-primary">.</span></span>
               </button>
             </div>
           </motion.div>
@@ -189,7 +199,7 @@ export default function Home() {
                           </div>
                         )}
                       </div>
-                      {p.live ? <LiveVitals p={p} /> : <ReadinessBar p={p} />}
+                      {p.live ? <LiveVitals p={p} full /> : <ReadinessBar p={p} />}
                     </div>
                   </div>
                 </Link>
@@ -202,7 +212,7 @@ export default function Home() {
             <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
               <div>
                 <h2 className="m-0 text-white font-sans font-extrabold tracking-tight text-[22px]">The climb</h2>
-                <div className="text-[10px] text-[#555] font-mono mt-1.5 tracking-wider">
+                <div className="text-[11px] text-[#8a8a8a] font-mono mt-1.5 tracking-wider">
                   challengers ranked by Brier Score. closest to the summit first.
                 </div>
               </div>
