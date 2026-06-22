@@ -110,7 +110,7 @@ export function phaseMeta(p: ShadowProgress): { tag: string; color: string; metr
     case 'live':
       return { tag: 'LIVE', color: '#00d4aa', metric: p.brier !== null ? `BRIER ${p.brier.toFixed(3)}` : 'VAULT OPEN' }
     case 'shadow':
-      return { tag: 'SHADOW', color: '#ffb000', metric: `${p.resolved}/${SHADOW_RESOLVED_TARGET}` }
+      return { tag: 'SHADOW', color: '#8b7bff', metric: `${p.resolved}/${SHADOW_RESOLVED_TARGET}` }
     default:
       return { tag: 'NEW', color: '#ff2a4d', metric: `day ${p.days}` }
   }

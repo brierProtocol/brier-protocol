@@ -121,3 +121,13 @@ export function makerEye(address: string): { avatarId: string; accentColor: stri
   const seed = (address || 'anon').toLowerCase()
   return { avatarId: seed, accentColor: deriveAvatarColor(seed) }
 }
+
+// A deterministic, space-themed codename for a wallet — shown instead of a raw
+// 0x address whenever a person has no handle/name yet. Fits the alien universe
+// and reads like a real operator alias.
+const CODE_A = ['Nova', 'Void', 'Astra', 'Quasar', 'Orbit', 'Pulsar', 'Nebula', 'Comet', 'Vega', 'Lyra', 'Onyx', 'Helix', 'Echo', 'Halo', 'Zenith', 'Cygnus', 'Rigel', 'Atlas', 'Drift', 'Flux']
+const CODE_B = ['Walker', 'Runner', 'Seeker', 'Drifter', 'Warden', 'Pilot', 'Scout', 'Oracle', 'Hunter', 'Keeper', 'Rider', 'Vector', 'Specter', 'Prime', 'Wraith', 'Forge', 'Sage', 'Node', 'Ghost', 'Reaper']
+export function codename(seed: string): string {
+  const h = hash((seed || 'anon').toLowerCase())
+  return `${CODE_A[h % CODE_A.length]} ${CODE_B[(h >>> 9) % CODE_B.length]}`
+}
