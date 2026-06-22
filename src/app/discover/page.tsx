@@ -7,6 +7,7 @@ import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye, makerEye } from '@/lib/botIdentity'
 import { StatusMark } from '@/components/LiveFeedStrip'
 import { classifyMarket } from '@/lib/marketCategories'
+import { shadowProgress, phaseMeta } from '@/lib/botProgress'
 import { motion } from 'framer-motion'
 import type { BotListItem } from '@/types'
 
@@ -55,14 +56,11 @@ function botCategory(b: BotListItem): string | null {
   return null
 }
 
-// Display state per bot. LIVE / vault tiers read live; fresh bots (<= 7 days)
-// pop a NEW sticker; everything else is proving in the shadow phase.
+// Display state per bot, from the shared honest phase ladder: a bot that has
+// not traded reads IDLE, not a flattering SHADOW. Same logic as the live feed.
 function deriveTag(b: BotListItem): { tag: string; color: string } {
-  const s = (b.status || '').toUpperCase()
-  if (['LIVE', 'VAULT_ELIGIBLE_T1', 'VAULT_ELIGIBLE_T2'].includes(s)) return { tag: 'LIVE', color: '#00d4aa' }
-  const ageDays = (Date.now() - new Date(b.createdAt || 0).getTime()) / 86_400_000
-  if (ageDays <= 7) return { tag: 'NEW', color: '#ff2a4d' }
-  return { tag: 'SHADOW', color: '#ffb000' }
+  const { tag, color } = phaseMeta(shadowProgress(b))
+  return { tag, color }
 }
 
 export default function DiscoverPage() {

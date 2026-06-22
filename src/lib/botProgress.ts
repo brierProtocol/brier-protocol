@@ -5,6 +5,9 @@
 export const SHADOW_RESOLVED_TARGET = 100
 export const SHADOW_DAYS_TARGET = 21
 export const SHADOW_BRIER_TARGET = 0.2
+// A freshly deployed bot gets a short grace window to make its first trade
+// before we stop calling it "new" and start calling it idle.
+export const NEW_GRACE_DAYS = 3
 
 export interface BotLike {
   status?: string | null
@@ -15,7 +18,18 @@ export interface BotLike {
   scores?: Array<{ brierScore?: number; winRate?: number; totalTrades?: number } | null> | null
   brierScore?: number | null
   winRate?: number | null
+  // Total trades indexed on-chain (incl. unresolved). Distinguishes a bot that
+  // is trading-but-unresolved from one whose wallet has never traded.
+  tradesIndexed?: number | null
 }
+
+// The honest lifecycle of a bot, every road it can be on:
+//  new     — just deployed, still inside the grace window, no trades yet
+//  idle    — connected but the wallet has not traded (past the grace window)
+//  warming — trading on-chain, but nothing has resolved yet (no score)
+//  shadow  — has resolved trades, proving toward the vault gate
+//  live    — vault open / eligible
+export type BotPhase = 'new' | 'idle' | 'warming' | 'shadow' | 'live'
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
 
@@ -36,6 +50,8 @@ export interface ShadowProgress {
   daysPass: boolean
   brierPass: boolean
   eligible: boolean
+  phase: BotPhase
+  tradesIndexed: number
   /** Overall readiness toward opening a vault, 0..1. Live bots read 1. */
   pct: number
 }
@@ -62,6 +78,17 @@ export function shadowProgress(b: BotLike): ShadowProgress {
   const bP = brier === null ? 0 : clamp01((0.4 - brier) / (0.4 - SHADOW_BRIER_TARGET))
 
   const live = isBotLive(b)
+  // Total on-chain trades. Fall back to resolved when the caller did not load
+  // the count, so we never wrongly flag an active bot as idle.
+  const tradesIndexed = b.tradesIndexed ?? (resolved > 0 ? resolved : 0)
+
+  let phase: BotPhase
+  if (live) phase = 'live'
+  else if (resolved > 0) phase = 'shadow'
+  else if (tradesIndexed > 0) phase = 'warming'
+  else if (days > NEW_GRACE_DAYS) phase = 'idle'
+  else phase = 'new'
+
   return {
     live,
     resolved,
@@ -73,6 +100,26 @@ export function shadowProgress(b: BotLike): ShadowProgress {
     daysPass,
     brierPass,
     eligible: resolvedPass && daysPass && brierPass,
+    phase,
+    tradesIndexed,
     pct: live ? 1 : (rP + dP + bP) / 3,
+  }
+}
+
+// Single source of truth for how a phase reads in the UI: the pill label, its
+// colour, and an honest one-line metric. Used by the feed and the catalog so a
+// bot looks identical everywhere. No invented numbers.
+export function phaseMeta(p: ShadowProgress): { tag: string; color: string; metric: string } {
+  switch (p.phase) {
+    case 'live':
+      return { tag: 'LIVE', color: '#00d4aa', metric: p.brier !== null ? `BRIER ${p.brier.toFixed(3)}` : 'VAULT OPEN' }
+    case 'shadow':
+      return { tag: 'SHADOW', color: '#ffb000', metric: `${p.resolved}/${SHADOW_RESOLVED_TARGET}` }
+    case 'warming':
+      return { tag: 'WARMING', color: '#ffb000', metric: 'awaiting results' }
+    case 'idle':
+      return { tag: 'IDLE', color: '#6b6b6b', metric: 'no trades yet' }
+    default:
+      return { tag: 'NEW', color: '#ff2a4d', metric: `day ${p.days}` }
   }
 }
