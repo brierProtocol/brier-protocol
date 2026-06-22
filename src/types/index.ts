@@ -140,6 +140,7 @@ export interface BotListItem extends Bot {
   builder?: string
   market?: string
   markets?: string[]
+  tradesIndexed?: number
 }
 
 // Shape returned by GET /api/tokens (launchpad bonding-curve cards).

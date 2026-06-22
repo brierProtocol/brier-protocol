@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
-import { shadowProgress, SHADOW_RESOLVED_TARGET } from '@/lib/botProgress'
+import { shadowProgress, phaseMeta } from '@/lib/botProgress'
 
 // Editorial live feed. Each pill is a real registered bot with its true state.
 // No invented PnL, no invented TVL. Empty catalog renders an honest open call.
@@ -21,14 +21,9 @@ type Bot = {
   vaultOpen?: boolean | null
   currentTVL?: number | null
   scores?: any[]
+  tradesIndexed?: number | null
   maker?: { handle?: string | null; name?: string | null } | null
   walletAddress?: string
-}
-
-function meta(p: ReturnType<typeof shadowProgress>) {
-  if (p.live) return { tag: 'LIVE', color: '#00d4aa', metric: p.brier !== null ? `BRIER ${p.brier.toFixed(3)}` : 'VAULT OPEN' }
-  if (p.resolved > 0) return { tag: 'SHADOW', color: '#ffb000', metric: `${p.resolved}/${SHADOW_RESOLVED_TARGET}` }
-  return { tag: 'NEW', color: '#ff2a4d', metric: `DAY ${p.days}` }
 }
 
 // Status presentation. LIVE breathes with a clean minimal pulse, SHADOW is a
@@ -95,7 +90,7 @@ export default function LiveFeedStrip({ bots }: { bots: Bot[] }) {
         >
           {items.map((b, i) => {
             const p = shadowProgress(b as any)
-            const m = meta(p)
+            const m = phaseMeta(p)
             const maker = b.maker?.handle ? `@${b.maker.handle}` : (b.maker?.name || `${(b.walletAddress || 'anon').substring(0, 6)}…`)
             return (
               <Link

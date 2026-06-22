@@ -9,7 +9,10 @@ export async function GET(request: Request) {
         scores: {
           where: { isLatest: true },
           take: 1
-        }
+        },
+        // Total indexed trades (incl. unresolved) so the UI can tell a bot that
+        // is trading-but-unresolved from one whose wallet never traded.
+        _count: { select: { trades: true } }
       }
     });
 
@@ -19,7 +22,8 @@ export async function GET(request: Request) {
     const byWallet = new Map(users.map(u => [u.walletAddress.toLowerCase(), u]));
     const shaped = bots.map(b => {
       const u = byWallet.get(b.walletAddress?.toLowerCase() || '');
-      return { ...b, maker: u ? { handle: u.handle, name: u.name, pfpUrl: u.pfpUrl } : null };
+      const { _count, ...rest } = b;
+      return { ...rest, tradesIndexed: _count?.trades ?? 0, maker: u ? { handle: u.handle, name: u.name, pfpUrl: u.pfpUrl } : null };
     });
 
     return NextResponse.json(shaped);
