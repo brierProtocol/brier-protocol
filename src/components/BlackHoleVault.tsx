@@ -17,7 +17,7 @@ const ORANGE = 0xff6a3d
 const RIN = 0.95
 const ROUT = 2.0
 
-export default function BlackHoleVault({ heightClass = 'h-[clamp(440px,54vw,680px)]', cover = false }: { heightClass?: string; cover?: boolean }) {
+export default function BlackHoleVault({ heightClass = 'h-[clamp(440px,54vw,680px)]', cover = false, revealOnScroll = false }: { heightClass?: string; cover?: boolean; revealOnScroll?: boolean }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -156,7 +156,6 @@ export default function BlackHoleVault({ heightClass = 'h-[clamp(440px,54vw,680p
       lid.add(rib)
     })
     lid.position.set(0, bhh / 2, -bd / 2)
-    lid.rotation.x = -1.15
     body.add(lid)
 
     // resplandor del tesoro dentro de la boca + luz interior calida
@@ -192,6 +191,23 @@ export default function BlackHoleVault({ heightClass = 'h-[clamp(440px,54vw,680p
     const dep = new THREE.Points(depGeo, new THREE.PointsMaterial({ size: 0.07, vertexColors: true, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }))
     chest.add(dep)
 
+    // ── apertura controlada por scroll: el cofre llega CERRADO y se abre al bajar,
+    // revelando el agujero negro que vierte capital. op = 0 cerrado, 1 abierto ──
+    const OPEN_ROT = -1.15
+    const CLOSED_ROT = 0.34
+    const ease = (x: number) => 1 - Math.pow(1 - x, 3)
+    let openTarget = revealOnScroll && !reduceMotion ? 0 : 1
+    let openCur = openTarget
+    const onScroll = () => {
+      const r = wrap.getBoundingClientRect()
+      const vh = window.innerHeight || 1
+      // anclar la apertura al CUERPO del cofre: cerrado cuando entra por abajo,
+      // se abre a medida que sube hacia el centro de la pantalla
+      const center = r.top + r.height * 0.6
+      openTarget = Math.max(0, Math.min(1, (vh - center) / (vh * 0.55)))
+    }
+    if (revealOnScroll && !reduceMotion) { window.addEventListener('scroll', onScroll, { passive: true }); onScroll() }
+
     // ── loop ──
     let raf = 0, last = performance.now(), visible = true
     const tmp = new THREE.Vector3()
@@ -223,14 +239,29 @@ export default function BlackHoleVault({ heightClass = 'h-[clamp(440px,54vw,680p
       }
       depGeo.attributes.position.needsUpdate = true
 
-      poolMat.opacity = 0.5 + 0.18 * Math.sin(t * 2.2)
-      ;(photon.material as THREE.MeshBasicMaterial).opacity = 0.78 + 0.18 * Math.sin(t * 2.5)
+      // interpolar apertura. La tapa abre primero; recien despues el agujero
+      // negro EMERGE de chiquito desde dentro del cofre y sube a su lugar.
+      openCur += (openTarget - openCur) * 0.1
+      const op = ease(Math.max(0, Math.min(1, openCur)))
+      lid.rotation.x = CLOSED_ROT + (OPEN_ROT - CLOSED_ROT) * op
+      const bhE = ease(Math.max(0, Math.min(1, (op - 0.3) / 0.7)))
+      bh.visible = bhE > 0.01
+      bh.scale.setScalar(0.8 * bhE)
+      ;(disk.material as THREE.PointsMaterial).opacity = 0.85 * bhE
+      ;(halo.material as THREE.MeshBasicMaterial).opacity = 0.14 * bhE
+      ;(dep.material as THREE.PointsMaterial).opacity = 0.95 * bhE
+      glow.intensity = 1.4 * bhE
+      inner.intensity = 1.1 * op
+
+      poolMat.opacity = (0.5 + 0.18 * Math.sin(t * 2.2)) * op
+      ;(photon.material as THREE.MeshBasicMaterial).opacity = (0.78 + 0.18 * Math.sin(t * 2.5)) * bhE
       stars.rotation.y += dt * 0.01
 
       // flote suave; cofre y agujero se mueven juntos (simetria estable y posicion fija)
       const floatY = Math.sin(t * 0.8) * 0.05
       chest.position.y = floatY
-      bh.position.set(0, BH_Y + floatY, 0)
+      // sube desde dentro del cofre (mas abajo) hasta su orbita flotante segun emerge
+      bh.position.set(0, (BH_Y - 0.75) + 0.75 * bhE + floatY, 0)
       chest.rotation.y = Math.sin(t * 0.3) * 0.1
 
       // billboard del grupo: el agujero mira siempre de frente -> circulo perfecto y simetrico
@@ -240,7 +271,7 @@ export default function BlackHoleVault({ heightClass = 'h-[clamp(440px,54vw,680p
       renderer.render(scene, camera)
       if (visible && !reduceMotion) raf = requestAnimationFrame(frame)
     }
-    if (reduceMotion) renderer.render(scene, camera)
+    if (reduceMotion) { lid.rotation.x = OPEN_ROT; renderer.render(scene, camera) }
     else raf = requestAnimationFrame(frame)
 
     // pausa fuera de viewport
@@ -259,6 +290,7 @@ export default function BlackHoleVault({ heightClass = 'h-[clamp(440px,54vw,680p
 
     return () => {
       cancelAnimationFrame(raf); io.disconnect(); ro.disconnect()
+      if (revealOnScroll) window.removeEventListener('scroll', onScroll)
       scene.traverse((o) => {
         const m = o as THREE.Mesh
         if (m.geometry) m.geometry.dispose()

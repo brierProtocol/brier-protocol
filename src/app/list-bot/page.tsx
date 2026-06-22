@@ -53,10 +53,7 @@ export default function ListBotPage() {
   const [formData, setFormData] = useState({ name: '', description: '', market: 'Polymarket', categories: [] as string[] })
   const [verifying, setVerifying] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
-  const [secretKey, setSecretKey] = useState('')
   const [deployedSlug, setDeployedSlug] = useState('')
-  const [copiedKey, setCopiedKey] = useState(false)
-  const [copiedCmd, setCopiedCmd] = useState(false)
 
   const { isConnected, address } = useAccount()
   const { signMessageAsync } = useSignMessage()
@@ -70,7 +67,7 @@ export default function ListBotPage() {
     if (!address) { setErrorMsg('Wallet not connected.'); return }
     setVerifying(true)
     try {
-      const message = `I am registering the prediction bot ${formData.name || '[NAME]'} to Brier. Timestamp: ${Date.now()}`
+      const message = `I confirm this wallet trades for the Brier bot ${formData.name || '[NAME]'}. Timestamp: ${Date.now()}`
       try {
         await signMessageAsync({ message })
       } catch (signErr: any) {
@@ -85,10 +82,6 @@ export default function ListBotPage() {
       if (!res.ok) throw new Error(result.error || 'Registration failed. Please try again.')
 
       setDeployedSlug(result.slug)
-      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
-      let sk = 'sk_live_'
-      for (let i = 0; i < 32; i++) sk += chars[Math.floor(Math.random() * chars.length)]
-      setSecretKey(sk)
       setStep(3)
     } catch (err: any) {
       setErrorMsg(err?.message || 'An error occurred.')
@@ -110,6 +103,26 @@ export default function ListBotPage() {
             No capital of your own. Just an edge on Polymarket, proven in the open. Bring your algorithm and let it climb.
           </p>
 
+          {/* plain-language model, so nobody gets lost at "connect" */}
+          <div className="mt-8 rounded-2xl border border-[#161616] bg-[#070708] p-5">
+            <div className="font-mono text-[10px] tracking-[0.22em] uppercase text-[#777] mb-4">How it works</div>
+            <div className="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-3">
+              {[
+                { n: '1', t: 'Your bot trades on Polymarket', d: 'from a wallet it already controls' },
+                { n: '2', t: 'Connect that same wallet here', d: 'one signature proves it is yours' },
+                { n: '3', t: 'Brier scores it on-chain', d: 'no keys, no SDK, nothing to run' },
+              ].map((s) => (
+                <div key={s.n} className="flex-1 flex items-start gap-3">
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-primary/[0.12] border border-primary/40 text-primary font-mono text-[11px] flex items-center justify-center">{s.n}</span>
+                  <div>
+                    <div className="text-[13px] font-sans font-semibold text-white leading-snug">{s.t}</div>
+                    <div className="text-[12px] text-[#777] mt-0.5 leading-snug">{s.d}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* connect panel */}
           <div className="mt-10 rounded-2xl border border-[#1a1a1a] bg-gradient-to-b from-[#0b0b0c] to-[#080809] p-8 relative overflow-hidden">
             <div className="absolute inset-x-0 top-0 h-28 pointer-events-none" style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(255,42,77,0.10), transparent 70%)' }} />
@@ -118,9 +131,9 @@ export default function ListBotPage() {
                 <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(255,42,77,0.8)]" />
                 <span className="font-mono text-[11px] tracking-[0.22em] uppercase text-primary">Step 1 — Connect</span>
               </div>
-              <h2 className="m-0 font-sans font-bold text-[22px] tracking-tight">Connect your wallet to begin</h2>
+              <h2 className="m-0 font-sans font-bold text-[22px] tracking-tight">Connect your bot&apos;s trading wallet</h2>
               <p className="mt-3 max-w-md text-[14px] leading-relaxed text-[#8f8f8f]">
-                Your wallet is your builder identity. Every bot you deploy is bound to it, and that is how your share of the profits flows back to you. Non custodial, always.
+                Connect the wallet your bot trades with on Polymarket. It is your builder identity, the source of your track record, and how your share of the profits flows back to you. Non custodial, always.
               </p>
               <button
                 onClick={() => openConnectModal?.()}
@@ -134,9 +147,9 @@ export default function ListBotPage() {
           {/* what comes next */}
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
-              { n: '01', t: 'Name it', d: 'Give your bot a name and a short bio. Its signature art is born from the name.' },
-              { n: '02', t: 'Prove it', d: 'Shadow phase. It predicts in public and reality scores every call.' },
-              { n: '03', t: 'Open a vault', d: '100 resolved, Brier 0.20 or lower, 21 days live. Then capital can back you.' },
+              { n: '01', t: 'Name it', d: 'Name, bio and market categories. Its signature art is born from the name.' },
+              { n: '02', t: 'Connect it', d: 'Connect the wallet your bot trades with. One signature proves it is yours.' },
+              { n: '03', t: 'Open a vault', d: 'Brier watches it on Polymarket. 100 resolved, Brier 0.20, 21 days, then capital backs you.' },
             ].map((s) => (
               <div key={s.n} className="rounded-xl border border-[#161616] bg-[#070708] p-4">
                 <div className="font-mono text-[11px] text-primary mb-2">{s.n}</div>
@@ -153,7 +166,7 @@ export default function ListBotPage() {
   // ── stepper (connected) ─────────────────────────────────────────────────────
   const STEPS = [
     { n: 1, label: 'Identity' },
-    { n: 2, label: 'Sign' },
+    { n: 2, label: 'Prove' },
     { n: 3, label: 'Live' },
   ]
 
@@ -298,21 +311,25 @@ export default function ListBotPage() {
         {/* ── STEP 2: SIGN ── */}
         {step === 2 && (
           <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
-            <h2 className="m-0 font-sans font-extrabold text-[26px] tracking-tight">Sign to deploy<span className="text-primary">.</span></h2>
-            <p className="mt-2 mb-7 text-[14px] text-[#8f8f8f] max-w-md leading-relaxed">
-              One signature binds <strong className="text-white">{formData.name}</strong> to your wallet. Gas free, it only proves you own this identity. No funds move.
+            <h2 className="m-0 font-sans font-extrabold text-[26px] tracking-tight">Connect the trading wallet<span className="text-primary">.</span></h2>
+            <p className="mt-2 mb-7 text-[14px] text-[#8f8f8f] max-w-lg leading-relaxed">
+              This is the wallet <strong className="text-white">{formData.name}</strong> trades with on Polymarket. One signature proves it is yours. Gas free, no funds move. From here Brier watches it on-chain and scores every call.
             </p>
 
-            <div className="rounded-xl border border-[#1a1a1a] bg-[#060607] p-4 mb-6 flex items-center gap-3">
+            <div className="rounded-xl border border-[#1a1a1a] bg-[#060607] p-4 mb-4 flex items-center gap-3">
               <MakerAvatar address={address} size={36} />
               <div className="leading-tight">
-                <div className="text-[11px] font-sans text-[#8f8f8f]">Connected wallet</div>
+                <div className="text-[11px] font-sans text-[#8f8f8f]">Bot trading wallet</div>
                 <div className="font-mono text-[12px] text-white mt-0.5">{shortAddr}</div>
               </div>
               <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[10px] tracking-widest text-[#00d4aa]">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#00d4aa] shadow-[0_0_8px_#00d4aa]" />
-                LIVE
+                CONNECTED
               </span>
+            </div>
+
+            <div className="rounded-xl border border-[#161616] bg-[#070708] px-4 py-3 mb-6 text-[12px] text-[#8f8f8f] leading-relaxed">
+              Make sure your bot places its Polymarket orders from this exact wallet. Its on-chain trades are the only thing Brier scores. Wrong wallet means no track record.
             </div>
 
             {errorMsg && (
@@ -337,7 +354,7 @@ export default function ListBotPage() {
                     : 'bg-primary text-[#030303] shadow-[0_0_16px_rgba(255,42,77,0.4)] hover:shadow-[0_0_24px_rgba(255,42,77,0.55)] cursor-pointer'
                 }`}
               >
-                {verifying ? 'Awaiting signature…' : 'Sign & deploy →'}
+                {verifying ? 'Awaiting signature…' : 'Prove & deploy →'}
               </button>
             </div>
           </motion.div>
@@ -352,41 +369,21 @@ export default function ListBotPage() {
             </div>
             <h2 className="m-0 font-sans font-extrabold text-[26px] tracking-tight">{formData.name} is on the hill<span className="text-primary">.</span></h2>
             <p className="mt-2 mb-7 text-[14px] text-[#8f8f8f] leading-relaxed max-w-lg">
-              It enters the shadow phase now. Wire it up with the key below and it starts predicting in public.
+              No keys to paste, no SDK to wire. Brier is now watching your wallet on Polymarket. Just let your bot trade, every resolved market scores it in public.
             </p>
 
-            {/* secret key */}
-            <div className="rounded-xl border border-primary/30 bg-[#0c0406] p-5 mb-6">
-              <div className="flex items-center gap-2 mb-2">
+            {/* the watched wallet */}
+            <div className="rounded-xl border border-primary/25 bg-[#0c0406] p-5 mb-6">
+              <div className="flex items-center gap-2 mb-3">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                <span className="font-sans font-bold text-[12px] text-primary tracking-wide">Builder secret key</span>
+                <span className="font-sans font-bold text-[12px] text-primary tracking-wide">Now indexing this wallet</span>
               </div>
-              <p className="text-[12px] text-[#8f8f8f] mb-3 leading-relaxed">
-                Required for SDK auth. We never store it, you will only see it once. Keep it out of version control.
-              </p>
-              <div className="flex gap-2">
-                <input readOnly value={secretKey} className="flex-1 bg-[#1a0608] border border-primary/30 text-primary px-4 py-2.5 rounded-lg font-mono text-[12px] outline-none" />
-                <button
-                  onClick={() => { navigator.clipboard.writeText(secretKey); setCopiedKey(true); setTimeout(() => setCopiedKey(false), 1500) }}
-                  className="bg-primary text-[#030303] px-5 rounded-lg font-sans font-bold text-[12px] hover:shadow-[0_0_14px_rgba(255,42,77,0.5)] transition-all cursor-pointer"
-                >
-                  {copiedKey ? 'Copied' : 'Copy'}
-                </button>
-              </div>
-            </div>
-
-            {/* install */}
-            <div className="mb-6">
-              <div className="text-[12px] font-sans font-semibold text-[#bbb] mb-2">Quick install, run in your terminal</div>
-              <div className="bg-[#050505] border border-[#1a1a1a] rounded-lg p-4 flex items-center gap-3">
-                <span className="text-[#444] font-mono text-xs select-none">$</span>
-                <code className="flex-1 text-[#00d4aa] font-mono text-[12px] select-all break-all">{`BUILDER_SECRET_KEY=${secretKey} BOT_SLUG=${handle} yarn start`}</code>
-                <button
-                  onClick={() => { navigator.clipboard.writeText(`BUILDER_SECRET_KEY=${secretKey} BOT_SLUG=${handle} yarn start`); setCopiedCmd(true); setTimeout(() => setCopiedCmd(false), 1500) }}
-                  className="shrink-0 text-[10px] font-mono text-[#666] hover:text-primary transition-colors px-2 py-1 border border-[#1a1a1a] hover:border-primary/40 rounded"
-                >
-                  {copiedCmd ? 'COPIED' : 'COPY'}
-                </button>
+              <div className="flex items-center gap-3">
+                <MakerAvatar address={address} size={38} />
+                <div className="leading-tight">
+                  <div className="font-mono text-[13px] text-white">{shortAddr}</div>
+                  <div className="text-[11px] text-[#8f8f8f] mt-0.5">Trades it makes on Polymarket build its Brier Score</div>
+                </div>
               </div>
             </div>
 
@@ -394,8 +391,8 @@ export default function ListBotPage() {
             <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-8">
               <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-3">What happens next</div>
               <div className="flex flex-col gap-2.5 text-[13px] font-sans">
-                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Enters the <span className="text-white">shadow phase</span>: predicts in public, no capital at risk</div>
-                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Brier Score is earned from real on-chain resolutions</div>
+                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Enters the <span className="text-white">shadow phase</span>: trades in public, no outside capital at risk</div>
+                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Brier Score is read straight from your wallet&apos;s on-chain resolutions</div>
                 <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Vault gate: <span className="text-white">100 resolved · Brier 0.20 or lower · 21 days live</span></div>
                 <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Vault opens for deposits, you keep <span className="text-white">30% of the profits</span></div>
               </div>
@@ -415,7 +412,7 @@ export default function ListBotPage() {
 
       {/* footer note */}
       <div className="mt-6 text-[12px] text-[#666] leading-relaxed">
-        <span className="text-primary font-semibold">Note.</span> Your algorithm runs on your own hardware. Brier only indexes the trade signals you send through the SDK, your source code stays private.
+        <span className="text-primary font-semibold">Note.</span> Your algorithm runs on your own hardware. Brier only reads this wallet&apos;s public Polymarket activity on-chain to score it, your source code stays private.
       </div>
     </Shell>
   )

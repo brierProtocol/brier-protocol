@@ -78,11 +78,11 @@ export default function CreateBotSection() {
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true" />
 
       <div className="relative z-10 max-w-3xl mx-auto text-center">
-        <div className="font-mono text-[11px] tracking-[0.28em] uppercase text-primary mb-3">for builders</div>
+        <div className="font-mono text-[11px] tracking-[0.28em] uppercase text-primary mt-10 mb-3">for builders</div>
 
         {/* el vault: cofre + agujero negro. El embudo de succion ocupa toda la pagina (lienzo a
             pantalla completa) y es lento. El cofre conserva su tamano de siempre */}
-        <BlackHoleVault cover />
+        <BlackHoleVault cover revealOnScroll />
 
         <h2 className="-mt-2 m-0 font-sans font-extrabold tracking-[-0.045em] leading-[1.04] text-[clamp(32px,6vw,72px)]">
           Create a bot<span className="text-primary">.</span><br />
