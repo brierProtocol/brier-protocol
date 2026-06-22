@@ -23,13 +23,11 @@ export interface BotLike {
   tradesIndexed?: number | null
 }
 
-// The honest lifecycle of a bot, every road it can be on:
-//  new     — just deployed, still inside the grace window, no trades yet
-//  idle    — connected but the wallet has not traded (past the grace window)
-//  warming — trading on-chain, but nothing has resolved yet (no score)
-//  shadow  — has resolved trades, proving toward the vault gate
-//  live    — vault open / eligible
-export type BotPhase = 'new' | 'idle' | 'warming' | 'shadow' | 'live'
+// The honest lifecycle of a bot, kept deliberately simple:
+//  new    — just deployed, grace window, nothing on-chain yet
+//  shadow — proving in the open, vault still locked (the default pre-vault state)
+//  live   — vault open / eligible
+export type BotPhase = 'new' | 'shadow' | 'live'
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
 
@@ -84,10 +82,8 @@ export function shadowProgress(b: BotLike): ShadowProgress {
 
   let phase: BotPhase
   if (live) phase = 'live'
-  else if (resolved > 0) phase = 'shadow'
-  else if (tradesIndexed > 0) phase = 'warming'
-  else if (days > NEW_GRACE_DAYS) phase = 'idle'
-  else phase = 'new'
+  else if (resolved === 0 && tradesIndexed === 0 && days <= NEW_GRACE_DAYS) phase = 'new'
+  else phase = 'shadow'
 
   return {
     live,
@@ -115,10 +111,6 @@ export function phaseMeta(p: ShadowProgress): { tag: string; color: string; metr
       return { tag: 'LIVE', color: '#00d4aa', metric: p.brier !== null ? `BRIER ${p.brier.toFixed(3)}` : 'VAULT OPEN' }
     case 'shadow':
       return { tag: 'SHADOW', color: '#ffb000', metric: `${p.resolved}/${SHADOW_RESOLVED_TARGET}` }
-    case 'warming':
-      return { tag: 'WARMING', color: '#ffb000', metric: 'awaiting results' }
-    case 'idle':
-      return { tag: 'IDLE', color: '#6b6b6b', metric: 'no trades yet' }
     default:
       return { tag: 'NEW', color: '#ff2a4d', metric: `day ${p.days}` }
   }
