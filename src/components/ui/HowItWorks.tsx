@@ -118,9 +118,6 @@ function ConnectPreview() {
             <span className="text-white font-sans font-semibold text-[13px]">47</span>
             <span className="text-[#555] font-mono text-[8px] tracking-widest">FOLLOWING</span>
           </div>
-          <div className="ml-auto">
-            <span className="font-mono text-[8px] tracking-widest" style={{ color: '#ff2a4d' }}>● ACTIVE</span>
-          </div>
         </div>
       </div>
     </div>
