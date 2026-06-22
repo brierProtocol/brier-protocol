@@ -134,18 +134,18 @@ export default function Home() {
               <Link href="/discover" className="inline-flex items-center gap-2 bg-primary text-[#030303] px-6 py-3 font-sans font-bold text-[13px] transition-all hover:shadow-[0_0_22px_rgba(255,42,77,0.55)] no-underline">
                 Browse vaults →
               </Link>
-              <Link href="/list-bot" className="inline-flex items-center gap-2 border border-[#2a2a2a] text-white px-6 py-3 font-sans font-semibold text-[13px] transition-all hover:border-[#555] hover:bg-white/[0.03] no-underline">
+              <Link href="/list-bot" className="inline-flex items-center gap-2 border border-[#4a4a4a] bg-white/[0.04] text-white px-6 py-3 font-sans font-bold text-[13px] transition-all hover:border-[#6a6a6a] hover:bg-white/[0.08] no-underline">
                 Deploy a bot →
               </Link>
-              <button onClick={() => setHowOpen(true)} className="group inline-flex items-center gap-2.5 pl-2 pr-5 py-2 rounded-full border border-white/10 bg-white/[0.02] text-white transition-all hover:border-primary/40 hover:bg-primary/[0.06] cursor-pointer">
-                <span className="flex items-center justify-center w-7 h-7 rounded-full border border-primary/50 text-primary text-[9px] group-hover:bg-primary group-hover:text-[#030303] transition-all">▶</span>
-                <span className="font-sans font-semibold text-[13px] tracking-tight">How it works<span className="text-primary">.</span></span>
+              <button onClick={() => setHowOpen(true)} className="group inline-flex items-center gap-2.5 pl-2 pr-5 py-2.5 rounded-full border border-white/25 bg-white/[0.06] text-white transition-all hover:border-primary/60 hover:bg-primary/[0.10] cursor-pointer">
+                <span className="flex items-center justify-center w-7 h-7 rounded-full border border-primary/60 bg-primary/10 text-primary text-[9px] group-hover:bg-primary group-hover:text-[#030303] transition-all">▶</span>
+                <span className="font-sans font-bold text-[13px] tracking-tight">How it works<span className="text-primary">.</span></span>
               </button>
             </div>
           </motion.div>
 
           {/* ── SEARCH THE ARENA ── */}
-          <motion.div variants={itemVariants}>
+          <motion.div variants={itemVariants} className="mb-20">
             <ArenaSearch />
           </motion.div>
 
