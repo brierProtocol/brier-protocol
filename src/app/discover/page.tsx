@@ -5,49 +5,72 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye, makerEye } from '@/lib/botIdentity'
+import { StatusMark } from '@/components/LiveFeedStrip'
 import { motion } from 'framer-motion'
 import type { BotListItem } from '@/types'
 
-type SortKey = 'brier' | 'yield' | 'tvl' | 'new'
-type MarketKey = 'all' | 'crypto' | 'politics' | 'sports'
+type SortKey = 'brier' | 'new' | 'oldest' | 'tvl'
+type MarketKey = 'all' | 'politics' | 'crypto' | 'sports' | 'economy' | 'culture' | 'tech' | 'world'
 
-const SORT_OPTIONS = [
-  { id: 'brier',  label: 'Brier Score' },
-  { id: 'tvl',    label: 'TVL' },
+const SORT_OPTIONS: { id: SortKey; label: string }[] = [
+  { id: 'brier',  label: 'Best Brier' },
   { id: 'new',    label: 'Newest' },
-] as const
-
-const MARKET_TABS: { id: MarketKey; label: string }[] = [
-  { id: 'all',      label: 'ALL' },
-  { id: 'crypto',   label: 'CRYPTO' },
-  { id: 'politics', label: 'POLITICS' },
-  { id: 'sports',   label: 'SPORTS' },
+  { id: 'oldest', label: 'Oldest' },
+  { id: 'tvl',    label: 'Top TVL' },
 ]
 
-function statusLabel(s: string) {
-  if (['LIVE','live'].includes(s)) return { text: 'LIVE', color: '#C8FF00' }
-  if (s === 'VAULT_ELIGIBLE_T1') return { text: 'VAULT T1', color: '#3B82F6' }
-  if (s === 'VAULT_ELIGIBLE_T2') return { text: 'VAULT T2', color: '#D4AF37' }
-  if (s === 'SUSPENDED') return { text: 'SUSPENDED', color: '#FF3B3B' }
-  return { text: 'PAPER', color: '#555' }
-}
+// Every Polymarket category. Bots have no formal category field, so each is
+// inferred from its market mandate. White/red identity, 4chan-flat chips.
+const MARKET_TABS: { id: MarketKey; label: string }[] = [
+  { id: 'all',      label: 'All' },
+  { id: 'politics', label: 'Politics' },
+  { id: 'crypto',   label: 'Crypto' },
+  { id: 'sports',   label: 'Sports' },
+  { id: 'economy',  label: 'Economy' },
+  { id: 'culture',  label: 'Culture' },
+  { id: 'tech',     label: 'Tech' },
+  { id: 'world',    label: 'World' },
+]
 
 function matchesMarket(bot: BotListItem, market: MarketKey): boolean {
   if (market === 'all') return true
   const m = [bot.market, ...(bot.markets || [])].join(' ').toLowerCase()
-  if (market === 'crypto')   return m.includes('crypto') || m.includes('btc') || m.includes('eth') || m.includes('solana')
-  if (market === 'politics') return m.includes('polit') || m.includes('elect') || m.includes('president')
-  if (market === 'sports')   return m.includes('sport') || m.includes('nba') || m.includes('nfl') || m.includes('soccer')
-  return true
+  switch (market) {
+    case 'politics': return /polit|elect|president|senate|congress|vote|governor/.test(m)
+    case 'crypto':   return /crypto|btc|bitcoin|eth|ethereum|solana|\bsol\b|defi|token|altcoin/.test(m)
+    case 'sports':   return /sport|nba|nfl|soccer|football|mlb|nhl|ufc|tennis|\bf1\b|olympic/.test(m)
+    case 'economy':  return /econ|inflation|\bfed\b|rate|gdp|jobs|\bcpi\b|recession|tariff/.test(m)
+    case 'culture':  return /cultur|\bpop\b|celebr|movie|music|award|oscar|grammy|box office/.test(m)
+    case 'tech':     return /tech|\bai\b|science|space|nasa|spacex|\bgpt\b|openai|chip/.test(m)
+    case 'world':    return /world|geopol|\bwar\b|ukrain|china|russia|israel|global|nato/.test(m)
+    default:         return true
+  }
+}
+
+function botCategory(b: BotListItem): string | null {
+  for (const c of MARKET_TABS.slice(1)) {
+    if (matchesMarket(b, c.id)) return c.label
+  }
+  return null
+}
+
+// Display state per bot. LIVE / vault tiers read live; fresh bots (<= 7 days)
+// pop a NEW sticker; everything else is proving in the shadow phase.
+function deriveTag(b: BotListItem): { tag: string; color: string } {
+  const s = (b.status || '').toUpperCase()
+  if (['LIVE', 'VAULT_ELIGIBLE_T1', 'VAULT_ELIGIBLE_T2'].includes(s)) return { tag: 'LIVE', color: '#00d4aa' }
+  const ageDays = (Date.now() - new Date(b.createdAt || 0).getTime()) / 86_400_000
+  if (ageDays <= 7) return { tag: 'NEW', color: '#ff2a4d' }
+  return { tag: 'SHADOW', color: '#ffb000' }
 }
 
 export default function DiscoverPage() {
   const router = useRouter()
-  const [activeSort, setActiveSort]   = useState<SortKey>('brier')
+  const [activeSort, setActiveSort]     = useState<SortKey>('brier')
   const [activeMarket, setActiveMarket] = useState<MarketKey>('all')
-  const [search, setSearch]           = useState('')
-  const [botsData, setBotsData]       = useState<BotListItem[]>([])
-  const [loading, setLoading]         = useState(true)
+  const [search, setSearch]             = useState('')
+  const [botsData, setBotsData]         = useState<BotListItem[]>([])
+  const [loading, setLoading]           = useState(true)
 
   useEffect(() => {
     fetch('/api/bots')
@@ -57,10 +80,10 @@ export default function DiscoverPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const getBrier    = (b: BotListItem) => b.scores?.[0]?.brierScore ?? b.brierScore ?? 0
-  const getTvl      = (b: BotListItem) => b.currentTVL ?? b.tvl ?? 0
-  const getYield    = (b: BotListItem) => b.monthlyYield ?? 0
-  const getCreated  = (b: BotListItem) => new Date(b.createdAt || 0).getTime()
+  const getBrier   = (b: BotListItem) => b.scores?.[0]?.brierScore ?? b.brierScore ?? 0
+  const getTvl     = (b: BotListItem) => b.currentTVL ?? b.tvl ?? 0
+  const getCreated = (b: BotListItem) => new Date(b.createdAt || 0).getTime()
+  const brierSort  = (b: BotListItem) => { const v = getBrier(b); return v > 0 ? v : Infinity }
 
   const filtered = botsData
     .filter(b => matchesMarket(b, activeMarket))
@@ -71,192 +94,213 @@ export default function DiscoverPage() {
         b.name?.toLowerCase().includes(q) ||
         (b.slug || '').toLowerCase().includes(q) ||
         (b.description || '').toLowerCase().includes(q) ||
+        (b.maker?.handle || '').toLowerCase().includes(q) ||
         (b.walletAddress || '').toLowerCase().includes(q)
       )
     })
     .sort((a, b) => {
-      if (activeSort === 'brier') return getBrier(a) - getBrier(b)
-      if (activeSort === 'yield') return getYield(b) - getYield(a)
-      if (activeSort === 'tvl')   return getTvl(b) - getTvl(a)
-      if (activeSort === 'new')   return getCreated(b) - getCreated(a)
+      if (activeSort === 'brier')  return brierSort(a) - brierSort(b)
+      if (activeSort === 'new')    return getCreated(b) - getCreated(a)
+      if (activeSort === 'oldest') return getCreated(a) - getCreated(b)
+      if (activeSort === 'tvl')    return getTvl(b) - getTvl(a)
       return 0
     })
 
   return (
-    <div className="min-h-screen bg-[#030303] text-white">
+    <div className="min-h-screen bg-[#030303] text-white font-sans">
 
-      {/* HEADER */}
-      <div className="border-b border-[#1a1a1a] bg-[#050505] px-12 py-6">
-        <div className="max-w-[1200px] mx-auto flex justify-between items-end flex-wrap gap-6">
-          <div>
-            <h1 className="font-mono font-bold text-white text-xl tracking-tight mb-1">
-              DISCOVER_ALGORITHMS
-            </h1>
-            <p className="text-[#555] text-xs font-mono m-0">
-              {loading ? 'Loading...' : `${filtered.length} algorithm${filtered.length !== 1 ? 's' : ''} found`}
-            </p>
+      {/* ── HERO ── */}
+      <div className="px-6 md:px-12 pt-14 pb-9 border-b border-[#111]">
+        <div className="max-w-[1200px] mx-auto">
+          <div className="inline-flex items-center gap-3 mb-5">
+            <span className="h-px w-9 bg-gradient-to-r from-primary to-primary/0" />
+            <span className="font-mono text-[11px] tracking-[0.42em] uppercase text-[#a8a8a8]">The <span className="text-primary">catalog</span></span>
           </div>
-          <div className="flex gap-4 items-center">
-            <div className="relative">
-              <span className="absolute left-3 top-2.5 text-[#444] text-xs font-mono">⌕</span>
+          <div className="flex items-end justify-between gap-6 flex-wrap">
+            <div>
+              <h1 className="m-0 font-sans font-extrabold tracking-[-0.035em] leading-[1.0] text-[clamp(34px,4.8vw,56px)]">
+                Discover algorithms<span className="text-primary">.</span>
+              </h1>
+              <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-[#9a9a9a]">
+                Every bot scored in public against reality. Filter by market, sort by edge, back the sharpest.
+              </p>
+            </div>
+            {/* search */}
+            <div className="relative w-full sm:w-[330px]">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#666] pointer-events-none">
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.2-4.2" />
+                </svg>
+              </span>
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Search name, slug..."
-                className="bg-[#080808] border border-[#1a1a1a] text-white font-mono py-2 pr-3 pl-8 outline-none w-[240px] text-xs transition-colors focus:border-[#333] placeholder-[#333]"
+                placeholder="Search algorithms or operators…"
+                className="w-full bg-[#0a0a0a] border border-[#1f1f1f] text-white font-sans text-[14px] outline-none pl-11 pr-4 py-3 rounded-xl placeholder:text-[#555] transition-all focus:border-primary/50 focus:bg-[#0c0c0c] focus:shadow-[0_0_24px_rgba(255,42,77,0.08)] hover:border-[#2a2a2a]"
               />
             </div>
-            <Link href="/list-bot" className="text-primary text-xs font-mono font-bold tracking-widest hover:drop-shadow-[0_0_8px_rgba(255,42,77,0.5)] transition-all">
-              SUBMIT →
-            </Link>
           </div>
         </div>
       </div>
 
-      {/* MARKET TABS + SORT */}
-      <div className="border-b border-[#111] px-12 bg-[#030303]">
-        <div className="max-w-[1200px] mx-auto flex items-center justify-between py-3">
-          <div className="flex gap-1">
-            {MARKET_TABS.map(t => (
-              <button
-                key={t.id}
-                onClick={() => setActiveMarket(t.id)}
-                className={`mkt-tab ${activeMarket === t.id ? 'active' : ''}`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-1 items-center">
-            <span className="text-[#333] font-mono text-[10px] mr-2">SORT:</span>
-            {SORT_OPTIONS.map(s => (
-              <button
-                key={s.id}
-                onClick={() => setActiveSort(s.id as SortKey)}
-                className={`mkt-tab ${activeSort === s.id ? 'active' : ''}`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* GRID */}
-      <div className="max-w-[1200px] mx-auto px-12 py-10">
-        {loading ? (
-          <div className="text-center py-24 font-mono text-xs text-[#333]">
-            <div className="cursor-blink inline-block">&gt; SYNCHRONIZING_ONCHAIN_DATA</div>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-24 font-mono text-xs text-[#333]">
-            <div className="mb-4">&gt; NO_ALGORITHMS_FOUND</div>
-            <Link href="/list-bot" className="text-primary hover:underline">submit one →</Link>
-          </div>
-        ) : (
-          <motion.div
-            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
-            initial="hidden"
-            animate="show"
-            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05 } } }}
-          >
-            {filtered.map((b) => {
-              const brier  = getBrier(b)
-              const wr     = b.scores?.[0]?.winRate ?? b.winRate ?? 0
-              const tvl    = getTvl(b)
-              const yld    = getYield(b)
-              const sharpe = b.scores?.[0]?.sharpe ?? b.sharpe ?? 0
-              const st     = statusLabel(b.status || 'PAPER')
-
+      {/* ── FILTERS: categories + sort ── */}
+      <div className="px-6 md:px-12 py-4 border-b border-[#111] bg-[#040404]/80 sticky top-0 z-30 backdrop-blur-md">
+        <div className="max-w-[1200px] mx-auto flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            {MARKET_TABS.map(t => {
+              const active = activeMarket === t.id
               return (
-                <motion.div
-                  key={b.id}
-                  variants={{
-                    hidden: { opacity: 0, y: 16, scale: 0.97 },
-                    show:   { opacity: 1, y: 0, scale: 1, transition: { ease: [0.16,1,0.3,1], duration: 0.4 } },
-                  }}
-                  whileHover={{ y: -4 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                <button
+                  key={t.id}
+                  onClick={() => setActiveMarket(t.id)}
+                  className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold transition-all border ${
+                    active
+                      ? 'bg-primary text-[#030303] border-primary shadow-[0_0_14px_rgba(255,42,77,0.35)]'
+                      : 'bg-white/[0.03] text-[#9a9a9a] border-white/[0.07] hover:text-white hover:border-white/20'
+                  }`}
                 >
-                  <Link
-                    href={`/bot/${b.slug || b.id}`}
-                    className="flex flex-col bg-[#080808] border border-[#1a1a1a] no-underline group relative overflow-hidden transition-all hover:border-[#2a2a2a] hover:shadow-[0_4px_24px_rgba(0,0,0,0.6),0_0_0_0.5px_rgba(255,42,77,0.08)]"
-                  >
-                    {/* Corner brackets */}
-                    <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
-                    <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
-
-                    {/* Status bar */}
-                    <div className="flex items-center justify-between px-3 py-2 border-b border-[#111]">
-                      <span className="text-[11px] font-mono text-white font-semibold group-hover:text-primary transition-colors truncate pr-2">
-                        {b.name}
-                      </span>
-                      <span className="text-[9px] font-mono flex items-center gap-1 shrink-0" style={{ color: st.color }}>
-                        <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: st.color }} />
-                        {st.text}
-                      </span>
-                    </div>
-
-                    {/* Avatar */}
-                    <div className="flex justify-center items-center py-6 bg-[#050505] border-b border-[#111]">
-                      {b.pfpUrl ? (
-                        <img src={b.pfpUrl} alt={b.name} className="w-16 h-16 object-cover border border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
-                      ) : (
-                        <BotIrisAvatar {...botEye(b)} size={64} />
-                      )}
-                    </div>
-
-                    {/* Stats */}
-                    <div className="p-3 flex flex-col gap-2">
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {[
-                          { lbl: 'BRIER', val: brier.toFixed(3), good: brier <= 0.25 && brier > 0 },
-                          { lbl: 'WIN %', val: `${(wr * 100).toFixed(1)}%`, good: wr > 0.54 },
-                          { lbl: 'SHARPE', val: sharpe > 0 ? sharpe.toFixed(2) : '—', good: sharpe > 1.5 },
-                        ].map(({ lbl, val, good }) => (
-                          <div key={lbl} className="bg-[#060606] border border-[#111] p-2 flex flex-col gap-0.5">
-                            <span className="text-[9px] font-mono text-[#333] tracking-widest">{lbl}</span>
-                            <span className={`text-xs font-mono font-bold ${good ? 'text-[#C8FF00]' : 'text-white'}`}>{val}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="flex justify-between items-center text-[11px] font-mono pt-1 border-t border-[#111] mt-1">
-                        <span className="text-[#333]">VAULT TVL</span>
-                        <span className={`font-bold ${tvl > 0 ? 'text-white' : 'text-[#333]'}`}>
-                          {tvl > 0 ? `$${tvl.toLocaleString()}` : '—'}
-                        </span>
-                      </div>
-
-                      {yld > 0 && (
-                        <div className="flex justify-between items-center text-[11px] font-mono">
-                          <span className="text-[#333]">MTH YIELD</span>
-                          <span className="text-[#C8FF00] font-bold">+{yld}%</span>
-                        </div>
-                      )}
-
-                      {/* Maker attribution — clickable, navigates to the maker profile */}
-                      <span
-                        role="link"
-                        tabIndex={0}
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (b.walletAddress) router.push(`/maker/${b.walletAddress}`) }}
-                        onKeyDown={(e) => { if (e.key === 'Enter' && b.walletAddress) { e.preventDefault(); e.stopPropagation(); router.push(`/maker/${b.walletAddress}`) } }}
-                        className="flex items-center gap-1.5 text-[10px] font-mono text-[#444] truncate hover:text-primary transition-colors cursor-pointer w-fit"
-                      >
-                        <span className="rounded-full overflow-hidden shrink-0 inline-flex">
-                          {b.maker?.pfpUrl
-                            ? <img src={b.maker.pfpUrl} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
-                            : <BotIrisAvatar {...makerEye(b.walletAddress || 'anon')} size={14} />}
-                        </span>
-                        by {b.maker?.handle ? `@${b.maker.handle}` : (b.maker?.name || `${(b.walletAddress || 'anon').substring(0, 6)}…`)}
-                      </span>
-                    </div>
-                  </Link>
-                </motion.div>
+                  {t.label}
+                </button>
               )
             })}
-          </motion.div>
-        )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[10px] text-[#555] tracking-[0.18em] uppercase">Sort</span>
+            <div className="flex items-center gap-1 bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg p-1">
+              {SORT_OPTIONS.map(s => {
+                const active = activeSort === s.id
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => setActiveSort(s.id)}
+                    className={`px-3 py-1.5 rounded-md text-[11px] font-mono font-semibold transition-all ${
+                      active ? 'bg-primary text-[#030303]' : 'text-[#777] hover:text-white'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── GRID ── */}
+      <div className="px-6 md:px-12 py-10">
+        <div className="max-w-[1200px] mx-auto">
+          {loading ? (
+            <div className="text-center py-24 font-mono text-xs text-[#444]">
+              <div className="cursor-blink inline-block">&gt; synchronizing on-chain data</div>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-24">
+              <div className="font-mono text-xs text-[#555] mb-4">&gt; no algorithms match this filter</div>
+              <Link href="/list-bot" className="inline-flex items-center gap-2 bg-primary text-[#030303] px-5 py-2.5 font-sans font-bold text-[13px] no-underline transition-all hover:shadow-[0_0_18px_rgba(255,42,77,0.5)]">
+                Deploy a bot →
+              </Link>
+            </div>
+          ) : (
+            <motion.div
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+              initial="hidden"
+              animate="show"
+              variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05 } } }}
+            >
+              {filtered.map((b) => {
+                const brier  = getBrier(b)
+                const wr     = b.scores?.[0]?.winRate ?? b.winRate ?? 0
+                const tvl    = getTvl(b)
+                const sharpe = b.scores?.[0]?.sharpe ?? b.sharpe ?? 0
+                const st     = deriveTag(b)
+                const cat    = botCategory(b)
+
+                return (
+                  <motion.div
+                    key={b.id}
+                    variants={{
+                      hidden: { opacity: 0, y: 16, scale: 0.97 },
+                      show:   { opacity: 1, y: 0, scale: 1, transition: { ease: [0.16, 1, 0.3, 1], duration: 0.4 } },
+                    }}
+                    whileHover={{ y: -4 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                  >
+                    <Link
+                      href={`/bot/${b.slug || b.id}`}
+                      className="flex flex-col bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg no-underline group relative overflow-hidden transition-all hover:border-[#2c2c2c] hover:shadow-[0_14px_44px_rgba(0,0,0,0.6),0_0_0_0.5px_rgba(255,42,77,0.10)]"
+                    >
+                      {/* head: name + status */}
+                      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[#141414]">
+                        <span className="text-[13px] font-sans font-bold text-white group-hover:text-primary transition-colors truncate pr-2">
+                          {b.name}
+                        </span>
+                        <StatusMark tag={st.tag} color={st.color} />
+                      </div>
+
+                      {/* avatar (square, 4chan) */}
+                      <div className="relative flex justify-center py-6 bg-[#060606] border-b border-[#141414]">
+                        <span className="w-[76px] h-[76px] rounded-[5px] overflow-hidden border border-[#222] bg-[#050505] group-hover:border-primary/35 transition-colors flex items-center justify-center">
+                          {b.pfpUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={b.pfpUrl} alt={b.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <BotIrisAvatar {...botEye(b)} size={76} />
+                          )}
+                        </span>
+                      </div>
+
+                      {/* stats */}
+                      <div className="p-3.5 flex flex-col gap-2.5">
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { lbl: 'BRIER',  val: brier > 0 ? brier.toFixed(3) : '—', good: brier <= 0.25 && brier > 0 },
+                            { lbl: 'WIN %',  val: wr > 0 ? `${(wr * 100).toFixed(0)}%` : '—', good: wr > 0.54 },
+                            { lbl: 'SHARPE', val: sharpe > 0 ? sharpe.toFixed(2) : '—', good: sharpe > 1.5 },
+                          ].map(({ lbl, val, good }) => (
+                            <div key={lbl} className="bg-[#070707] border border-[#141414] rounded p-2 flex flex-col gap-0.5">
+                              <span className="text-[8px] font-mono text-[#555] tracking-widest">{lbl}</span>
+                              <span className={`text-[13px] font-mono font-bold ${good ? 'text-primary' : 'text-white'}`}>{val}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px] font-mono pt-0.5">
+                          <span className="text-[#555] tracking-widest">VAULT TVL</span>
+                          <span className={tvl > 0 ? 'text-white font-bold' : 'text-[#444]'}>
+                            {tvl > 0 ? `$${tvl.toLocaleString()}` : '—'}
+                          </span>
+                        </div>
+
+                        {/* footer: maker + category */}
+                        <div className="flex items-center justify-between gap-2 border-t border-[#141414] pt-2.5">
+                          <span
+                            role="link"
+                            tabIndex={0}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (b.walletAddress) router.push(`/maker/${b.walletAddress}`) }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && b.walletAddress) { e.preventDefault(); e.stopPropagation(); router.push(`/maker/${b.walletAddress}`) } }}
+                            className="flex items-center gap-1.5 text-[10px] font-mono text-[#555] truncate hover:text-primary transition-colors cursor-pointer min-w-0"
+                          >
+                            <span className="rounded-full overflow-hidden shrink-0 inline-flex">
+                              {b.maker?.pfpUrl
+                                ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={b.maker.pfpUrl} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                                : <BotIrisAvatar {...makerEye(b.walletAddress || 'anon')} size={14} />}
+                            </span>
+                            <span className="truncate">by {b.maker?.handle ? `@${b.maker.handle}` : (b.maker?.name || `${(b.walletAddress || 'anon').substring(0, 6)}…`)}</span>
+                          </span>
+                          {cat && (
+                            <span className="shrink-0 text-[9px] font-mono uppercase tracking-widest text-[#888] border border-[#1f1f1f] rounded px-1.5 py-0.5">
+                              {cat}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                )
+              })}
+            </motion.div>
+          )}
+        </div>
       </div>
     </div>
   )
