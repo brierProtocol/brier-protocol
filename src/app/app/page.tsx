@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
@@ -8,16 +8,9 @@ import { HowItWorksModal } from '@/components/ui/HowItWorks'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
 import { shadowProgress, ShadowProgress, SHADOW_RESOLVED_TARGET, SHADOW_DAYS_TARGET } from '@/lib/botProgress'
+import LiveFeedStrip from '@/components/LiveFeedStrip'
 
 const PlanetAgentsBackground = dynamic(() => import('@/components/PlanetAgentsBackground'), { ssr: false })
-
-// True protocol statements only. The feed never fabricates PnL or TVL.
-const PROTOCOL_FACTS = [
-  'Proving ground online. Shadow phase open for new algorithms.',
-  'Eligibility: 100 resolved predictions, Brier 0.20 or lower, 21 days live.',
-  'Capital follows calibration. No pay to play, no insiders.',
-  'Vaults are non custodial. Operators trade the capital, never withdraw it.',
-]
 
 const HOW_STEPS = [
   { n: '01', title: 'Connect', body: 'Wallet in, claim your @handle. That becomes your on-chain identity.' },
@@ -72,6 +65,13 @@ function LiveVitals({ p }: { p: ShadowProgress }) {
 export default function Home() {
   const [bots, setBots] = useState<any[]>([])
   const [howOpen, setHowOpen] = useState(false)
+  const howSectionRef = useRef<HTMLDivElement>(null)
+
+  const openHow = () => {
+    howSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    // wait for the scroll to settle before locking body overflow
+    setTimeout(() => setHowOpen(true), 320)
+  }
 
   useEffect(() => {
     const load = () => {
@@ -95,44 +95,12 @@ export default function Home() {
 
   const topBots = bots.slice(0, 6)
 
-  // Honest feed: events derived from REAL registered bots + true protocol facts.
-  const feedEvents = bots.slice(0, 8).map((b) => {
-    const p = shadowProgress(b)
-    if (p.live) return `${b.name} is live. Vault open at NAV.`
-    if (p.resolved > 0) return `${b.name} in shadow phase. ${p.resolved}/${SHADOW_RESOLVED_TARGET} predictions resolved.`
-    return `${b.name} registered. Day ${p.days} of shadow.`
-  })
-  const feed = (feedEvents.length ? [...feedEvents, ...PROTOCOL_FACTS] : PROTOCOL_FACTS).join('      ///      ')
-
   return (
     <div className="min-h-screen text-white font-sans">
       <PlanetAgentsBackground className="fixed inset-0 -z-10 pointer-events-none" />
 
-      {/* ── SYSTEM STATUS (honest facts, no fabricated numbers) ── */}
-      <div className="border-b border-[#1a1a1a] bg-[#050505]/90 backdrop-blur-sm">
-        <div className="max-w-[1100px] mx-auto px-6 md:px-12 py-2.5 flex items-center gap-x-5 gap-y-1 flex-wrap text-[10px] font-mono tracking-wider">
-          <span className="inline-flex items-center gap-2 text-[#00d4aa]">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00d4aa] opacity-60" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#00d4aa]" />
-            </span>
-            PROVING GROUND ONLINE
-          </span>
-          <span className="text-[#333]">·</span>
-          <span className="text-[#777]">NETWORK <span className="text-[#bbb]">POLYGON</span></span>
-          <span className="text-[#333]">·</span>
-          <span className="text-[#777]">SHADOW PHASE <span className="text-primary font-bold">OPEN</span></span>
-          <span className="text-[#333]">·</span>
-          <span className="text-[#777]">VAULTS <span className="text-[#bbb]">NON-CUSTODIAL</span></span>
-        </div>
-      </div>
-
-      {/* ── LIVE FEED (real events + protocol facts) ── */}
-      <div className="border-b border-[#111] overflow-hidden bg-[#030303]">
-        <div className="whitespace-nowrap text-[11px] font-mono text-[#555] py-1.5" style={{ animation: 'scroll-left 48s linear infinite' }}>
-          {feed}&nbsp;&nbsp;&nbsp;&nbsp;{feed}
-        </div>
-      </div>
+      {/* ── LIVE FEED (editorial, real bots only) ── */}
+      <LiveFeedStrip bots={bots.slice(0, 10)} />
 
       <div className="px-6 md:px-12 py-12">
         <motion.div variants={containerVariants} initial="hidden" animate="show" className="max-w-[1100px] mx-auto">
@@ -152,7 +120,7 @@ export default function Home() {
           </motion.div>
 
           {/* ── HOW IT WORKS (centered, steps in view) ── */}
-          <motion.div variants={itemVariants} className="mb-16">
+          <motion.div variants={itemVariants} className="mb-16" ref={howSectionRef}>
             <div className="text-center mb-8">
               <div className="font-mono text-[10px] text-primary tracking-[0.28em] uppercase mb-3">How it works</div>
               <h2 className="m-0 font-sans font-extrabold tracking-[-0.03em] text-[clamp(24px,3.6vw,40px)]">
@@ -174,11 +142,11 @@ export default function Home() {
             </div>
             <div className="text-center mt-7">
               <button
-                onClick={() => setHowOpen(true)}
+                onClick={openHow}
                 className="group inline-flex items-center gap-3 border border-[#1a1a1a] hover:border-primary/50 bg-[#0a0a0a] hover:bg-[#0d0d0d] px-6 py-3 transition-all cursor-pointer"
               >
                 <span className="flex items-center justify-center w-6 h-6 border border-primary/40 text-primary text-[10px] group-hover:bg-primary group-hover:text-[#030303] transition-all">▶</span>
-                <span className="font-sans font-semibold text-[13px] text-white tracking-tight">See the full walkthrough</span>
+                <span className="font-sans font-semibold text-[13px] text-white tracking-tight">How it works<span className="text-primary">.</span></span>
               </button>
             </div>
           </motion.div>
