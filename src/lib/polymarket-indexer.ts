@@ -1,4 +1,5 @@
 import { prisma } from './db/prisma'
+import { deriveVerifiedCategories } from './marketCategories'
 
 // Polymarket exposes a public Data API that returns a wallet's executed trades.
 // This is far more reliable than decoding raw CTF ERC-1155 transfers, and it's the
@@ -26,7 +27,13 @@ type PolyTrade = {
  */
 export async function indexPolymarketWallet(botId: string): Promise<boolean> {
   const conn = await prisma.polyConnection.findUnique({ where: { botId } })
-  const wallet = conn?.walletAddress?.toLowerCase()
+  // Fall back to the bot's own wallet so a freshly registered bot indexes even
+  // before a PolyConnection row exists.
+  let wallet = conn?.walletAddress?.toLowerCase()
+  if (!wallet) {
+    const bot = await prisma.bot.findUnique({ where: { id: botId }, select: { walletAddress: true } })
+    wallet = bot?.walletAddress?.toLowerCase()
+  }
   if (!wallet) return false
 
   let trades: PolyTrade[] = []
@@ -80,6 +87,39 @@ export async function indexPolymarketWallet(botId: string): Promise<boolean> {
 
   console.log(`[Indexer] ${wallet}: ${created.count} new trades indexed (of ${rows.length} fetched)`)
   return true
+}
+
+/**
+ * Recomputes a bot's VERIFIED categories from the markets its wallet actually
+ * traded (read from indexed TradeEvent rows). This is the anti-lie mechanism:
+ * the catalog can trust this over whatever the builder declared at deploy.
+ * Returns the derived category ids and stamps lastIndexedAt.
+ */
+export async function recomputeVerifiedCategories(botId: string): Promise<string[]> {
+  const trades = await prisma.tradeEvent.findMany({
+    where: { botId },
+    select: { marketTitle: true },
+    orderBy: { timestamp: 'desc' },
+    take: 500,
+  })
+  const categories = deriveVerifiedCategories(trades.map(t => t.marketTitle))
+  await prisma.bot.update({
+    where: { id: botId },
+    data: { verifiedCategories: categories, lastIndexedAt: new Date() },
+  }).catch(() => {})
+  return categories
+}
+
+/**
+ * Orchestrator: pull fresh on-chain trades from Polymarket, then recompute the
+ * verified categories from everything indexed so far. Safe to call on a trigger
+ * or from a cron. If the wallet has no on-chain activity yet, categories stay
+ * empty and the catalog falls back to the declared ones.
+ */
+export async function runBotIndex(botId: string): Promise<{ indexed: boolean; categories: string[] }> {
+  const indexed = await indexPolymarketWallet(botId)
+  const categories = await recomputeVerifiedCategories(botId)
+  return { indexed, categories }
 }
 
 /**

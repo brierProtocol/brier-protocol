@@ -88,6 +88,12 @@ export async function POST(req: NextRequest) {
       update: {}
     })
 
+    // Register the execution wallet so the indexer watches it on Polymarket.
+    // This is what turns the bot from a claim into something verified on-chain.
+    await prisma.polyConnection.create({
+      data: { botId: bot.id, walletAddress: finalWallet },
+    }).catch(() => {})
+
     // Token launch is a separate, owner-initiated step (POST /api/tokens)
     return NextResponse.json({
       ok: true,

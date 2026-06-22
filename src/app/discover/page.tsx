@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye, makerEye } from '@/lib/botIdentity'
 import { StatusMark } from '@/components/LiveFeedStrip'
+import { classifyMarket } from '@/lib/marketCategories'
 import { motion } from 'framer-motion'
 import type { BotListItem } from '@/types'
 
@@ -34,22 +35,17 @@ const MARKET_TABS: { id: MarketKey; label: string }[] = [
 
 function matchesMarket(bot: BotListItem, market: MarketKey): boolean {
   if (market === 'all') return true
-  // Fast path: use declared categories if the bot registered them
+  // Verified categories (derived on-chain by the indexer) win over everything.
+  if (Array.isArray(bot.verifiedCategories) && bot.verifiedCategories.length > 0) {
+    return bot.verifiedCategories.includes(market)
+  }
+  // Then the categories the builder declared at deploy.
   if (Array.isArray(bot.categories) && bot.categories.length > 0) {
     return bot.categories.includes(market)
   }
-  // Fallback: infer from free-text fields for legacy bots without categories
-  const m = [bot.market, ...(bot.markets || []), bot.description, bot.tagline].join(' ').toLowerCase()
-  switch (market) {
-    case 'politics': return /polit|elect|president|senate|congress|vote|governor/.test(m)
-    case 'crypto':   return /crypto|btc|bitcoin|eth|ethereum|solana|\bsol\b|defi|token|altcoin/.test(m)
-    case 'sports':   return /sport|nba|nfl|soccer|football|mlb|nhl|ufc|tennis|\bf1\b|olympic/.test(m)
-    case 'economy':  return /econ|inflation|\bfed\b|rate|gdp|jobs|\bcpi\b|recession|tariff/.test(m)
-    case 'culture':  return /cultur|\bpop\b|celebr|movie|music|award|oscar|grammy|box office/.test(m)
-    case 'tech':     return /tech|\bai\b|science|space|nasa|spacex|\bgpt\b|openai|chip/.test(m)
-    case 'world':    return /world|geopol|\bwar\b|ukrain|china|russia|israel|global|nato/.test(m)
-    default:         return true
-  }
+  // Last resort for legacy bots: infer from free-text fields.
+  const m = [bot.market, ...(bot.markets || []), bot.description, bot.tagline].join(' ')
+  return classifyMarket(m) === market
 }
 
 function botCategory(b: BotListItem): string | null {
