@@ -35,7 +35,7 @@ export default function BlackHoleVault({ heightClass = 'h-[clamp(440px,54vw,680p
     // FOV mas amplio + misma distancia => el cofre conserva su tamano de siempre; un paneo vertical
     // (camara y mira bajan juntas, sin cambiar el angulo) lo sube para dejar el titular limpio abajo
     const camera = new THREE.PerspectiveCamera(cover ? 50 : 42, W / H, 0.1, 100)
-    if (cover) { camera.position.set(0, 1.4, 7.4); camera.lookAt(0, -0.35, 0) }
+    if (cover) { camera.position.set(0, 1.3, 7.4); camera.lookAt(0, -0.18, 0) }
     else { camera.position.set(0, 1.45, 6.5); camera.lookAt(0, -0.1, 0) }
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
     renderer.setClearColor(0x000000, 0)
@@ -272,7 +272,7 @@ export default function BlackHoleVault({ heightClass = 'h-[clamp(440px,54vw,680p
   return (
     <div
       ref={wrapRef}
-      className={cover ? 'relative left-1/2 -translate-x-1/2 w-screen h-[66vh]' : `relative w-full ${heightClass}`}
+      className={cover ? 'relative left-1/2 -translate-x-1/2 w-screen h-[54vh]' : `relative w-full ${heightClass}`}
     >
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
     </div>
