@@ -31,6 +31,9 @@ model Bot {
   maxLeverage     Float         @default(1.0)
   // ---------------------------------------------
 
+  // Polymarket categories this bot targets (e.g. ["crypto","politics"])
+  categories      String[]      @default([])
+
   walletAddress   String
   vaultAddress    String?
   skinInGame      Float         @default(0)
