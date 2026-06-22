@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useAccount } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { motion, AnimatePresence } from 'framer-motion'
+import MakerAvatar from '@/components/MakerAvatar'
 
 interface Notification {
   id: string
@@ -252,17 +253,18 @@ export default function Navbar() {
                     )
                   }
                   return (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       <NotificationBell address={account.address} />
                       <Link href={`/maker/${account.address}`} className="font-sans text-[12px] font-semibold px-4 py-2 rounded-full border border-[#222] text-[#ccc] hover:text-white hover:border-[#444] transition-all no-underline hidden sm:flex items-center">
                         Profile
                       </Link>
-                      <button onClick={openChainModal} type="button" className="font-sans text-[12px] font-medium px-3.5 py-2 rounded-full bg-white/[0.03] text-[#bbb] border border-[#222] hover:text-white hover:border-[#444] transition-all hidden md:inline-flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#00d4aa]" />
-                        {chain.name}
-                      </button>
-                      <button onClick={openAccountModal} type="button" className={`${btnBase} bg-[#0d0d0d] text-white border border-primary/60 hover:bg-[#140609] hover:border-primary`}>
-                        {account.displayName}
+                      <button
+                        onClick={openAccountModal}
+                        type="button"
+                        aria-label="Account"
+                        className="rounded-[9px] p-[3px] bg-[#0d0d0d] border border-[#222] hover:border-primary/60 transition-all cursor-pointer flex items-center"
+                      >
+                        <MakerAvatar address={account.address} size={28} />
                       </button>
                     </div>
                   )
