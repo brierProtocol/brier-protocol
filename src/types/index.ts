@@ -33,6 +33,7 @@ export interface Bot {
   vaultOpen: boolean
   strategyType: string
   categories: string[]
+  verifiedCategories?: string[]
   createdAt: string
   updatedAt: string
   scores?: BotScore[]
