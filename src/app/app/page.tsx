@@ -9,6 +9,7 @@ import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
 import { shadowProgress, ShadowProgress, SHADOW_RESOLVED_TARGET, SHADOW_DAYS_TARGET } from '@/lib/botProgress'
 import LiveFeedStrip from '@/components/LiveFeedStrip'
+import ArenaSearch from '@/components/ArenaSearch'
 
 const PlanetAgentsBackground = dynamic(() => import('@/components/PlanetAgentsBackground'), { ssr: false })
 
@@ -24,6 +25,20 @@ function CrownIcon({ className = '' }: { className?: string }) {
 }
 
 // ── reusable stat blocks ───────────────────────────────────────────────────
+
+// Sober status pill. Tinted background, solid dot, no attention-grabbing ping.
+function StatusPill({ live }: { live: boolean }) {
+  const c = live ? '#00d4aa' : '#ffb000'
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-mono font-semibold tracking-[0.15em]"
+      style={{ color: c, background: `${c}14`, border: `0.5px solid ${c}3a` }}
+    >
+      <span className="w-1 h-1 rounded-full" style={{ background: c }} />
+      {live ? 'LIVE' : 'SHADOW'}
+    </span>
+  )
+}
 
 function Gate({ label, value, pass }: { label: string; value: string; pass: boolean }) {
   return (
@@ -59,7 +74,7 @@ function LiveVitals({ p, full = false }: { p: ShadowProgress; full?: boolean }) 
   return (
     <div className={`grid ${full ? 'grid-cols-4' : 'grid-cols-3'} gap-px bg-[#141414] border border-[#141414]`}>
       <Gate label="BRIER" value={p.brier !== null ? p.brier.toFixed(3) : '—'} pass={p.brierPass} />
-      <Gate label="RESOLVED" value={p.resolved > 0 ? p.resolved.toLocaleString() : '—'} pass={false} />
+      <Gate label="PREDICTIONS" value={p.resolved > 0 ? p.resolved.toLocaleString() : '—'} pass={false} />
       {full && <Gate label="WIN RATE" value={p.winRate !== null && p.winRate > 0 ? `${(p.winRate * 100).toFixed(0)}%` : '—'} pass={false} />}
       <Gate label="VAULT TVL" value={p.tvl > 0 ? `$${(p.tvl / 1000).toFixed(1)}K` : '—'} pass={false} />
     </div>
@@ -91,7 +106,6 @@ export default function Home() {
   }, [])
 
   const topBots = bots.slice(0, 6)
-  const challengers = Math.max(0, bots.length - 1)
 
   return (
     <div className="min-h-screen text-white font-sans">
@@ -105,12 +119,9 @@ export default function Home() {
 
           {/* ── HERO: the arena (distinct from the landing pitch) ── */}
           <motion.div variants={itemVariants} className="mb-16">
-            <div className="inline-flex items-center gap-2.5 mb-6 pl-2 pr-3.5 py-1 rounded-full border border-primary/25 bg-primary/[0.07]">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-70" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary" />
-              </span>
-              <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-[#ff6b82]">The arena</span>
+            <div className="inline-flex items-center gap-3 mb-6">
+              <span className="h-px w-9 bg-gradient-to-r from-primary to-primary/0" />
+              <span className="font-mono text-[11px] tracking-[0.42em] uppercase text-[#a8a8a8]">The <span className="text-primary">arena</span></span>
             </div>
             <h1 className="m-0 font-sans font-extrabold tracking-[-0.035em] leading-[1.02] text-[clamp(34px,5.2vw,60px)]">
               One hill. Every algorithm<br className="hidden sm:block" /> climbing for the top<span className="text-primary">.</span>
@@ -182,10 +193,7 @@ export default function Home() {
                       <div>
                         <div className="flex items-center gap-3 flex-wrap">
                           <span className="font-sans font-extrabold text-[26px] text-white tracking-tight group-hover:text-primary transition-colors">{champ.name}</span>
-                          <span className={`inline-flex items-center gap-1.5 text-[9px] font-mono ${p.live ? 'text-[#00d4aa]' : 'text-[#ffb000]'}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${p.live ? 'bg-[#00d4aa] animate-pulse' : 'bg-[#ffb000]'}`} />
-                            {p.live ? 'LIVE' : 'IN SHADOW'}
-                          </span>
+                          <StatusPill live={p.live} />
                         </div>
                         <div className="text-[11px] text-[#666] font-mono mt-1">
                           by {champ.maker?.handle ? `@${champ.maker.handle}` : (champ.maker?.name || `${(champ.walletAddress || 'anon').substring(0, 6)}…`)}
@@ -193,11 +201,6 @@ export default function Home() {
                         <div className="text-[13px] text-[#999] font-sans mt-3 max-w-md leading-relaxed">
                           {champ.tagline || (p.live ? 'It holds the summit. Lowest Brier on the board.' : 'Leading the climb, one resolution at a time.')}
                         </div>
-                        {challengers > 0 && (
-                          <div className="mt-3 font-mono text-[10px] text-[#FFD700]/70 tracking-wide">
-                            {p.live ? `Defending the summit against ${challengers} ${challengers === 1 ? 'challenger' : 'challengers'}.` : `${challengers} ${challengers === 1 ? 'challenger' : 'challengers'} behind on the climb.`}
-                          </div>
-                        )}
                       </div>
                       {p.live ? <LiveVitals p={p} full /> : <ReadinessBar p={p} />}
                     </div>
@@ -212,8 +215,8 @@ export default function Home() {
             <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
               <div>
                 <h2 className="m-0 text-white font-sans font-extrabold tracking-tight text-[22px]">The climb</h2>
-                <div className="text-[11px] text-[#8a8a8a] font-mono mt-1.5 tracking-wider">
-                  challengers ranked by Brier Score. closest to the summit first.
+                <div className="text-[13px] text-[#9a9a9a] font-sans mt-1.5">
+                  Ranked by Brier Score. The lower the score, the closer to the summit.
                 </div>
               </div>
               <Link href="/leaderboard" className="text-xs font-mono text-[#666] hover:text-primary transition-colors">
@@ -238,10 +241,7 @@ export default function Home() {
                           <span className="font-sans font-extrabold text-[26px] leading-none tracking-tight" style={{ color: rankColor, textShadow: i < 3 ? `0 0 18px ${rankColor}55` : 'none' }}>
                             {i + 1}
                           </span>
-                          <span className={`inline-flex items-center gap-1.5 text-[9px] font-mono ${p.live ? 'text-[#00d4aa]' : 'text-[#ffb000]'}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${p.live ? 'bg-[#00d4aa] animate-pulse' : 'bg-[#ffb000]'}`} />
-                            {p.live ? 'LIVE' : 'SHADOW'}
-                          </span>
+                          <StatusPill live={p.live} />
                         </div>
 
                         <div className="flex items-center justify-center py-4">
@@ -295,6 +295,11 @@ export default function Home() {
                 &gt; No challengers yet. The summit is wide open.
               </div>
             )}
+          </motion.div>
+
+          {/* ── SEARCH THE ARENA ── */}
+          <motion.div variants={itemVariants}>
+            <ArenaSearch />
           </motion.div>
 
           {/* ── FOOTER ── */}

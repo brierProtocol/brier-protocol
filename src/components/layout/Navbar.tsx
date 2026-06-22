@@ -184,7 +184,8 @@ export default function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 bg-[rgba(3,3,3,0.95)] backdrop-blur-md border-b border-[#1a1a1a] h-14 flex items-center px-6">
-      <Link href="/" className="no-underline mr-8 flex items-baseline group">
+      {/* Inside the product the wordmark returns to the app home, not the landing */}
+      <Link href="/app" className="no-underline mr-8 flex items-baseline group">
         <span className="font-sans font-extrabold text-white text-[19px] tracking-[-0.03em] leading-none">
           Brier<span className="text-primary group-hover:drop-shadow-[0_0_8px_rgba(255,42,77,0.8)] transition-all">.</span>
         </span>
