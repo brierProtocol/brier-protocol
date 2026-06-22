@@ -239,29 +239,31 @@ export default function BlackHoleVault({ heightClass = 'h-[clamp(440px,54vw,680p
       }
       depGeo.attributes.position.needsUpdate = true
 
-      // interpolar apertura. La tapa abre primero; recien despues el agujero
-      // negro EMERGE de chiquito desde dentro del cofre y sube a su lugar.
+      // dos fases sobre el recorrido. PRIMERA mitad: la tapa abre del todo.
+      // SEGUNDA mitad: con la tapa ya abierta, el agujero emerge de adentro y
+      // sube a su orbita. Asi la tapa nunca corta al agujero (no mas reloj de arena).
       openCur += (openTarget - openCur) * 0.1
       const op = ease(Math.max(0, Math.min(1, openCur)))
-      lid.rotation.x = CLOSED_ROT + (OPEN_ROT - CLOSED_ROT) * op
-      const bhE = ease(Math.max(0, Math.min(1, (op - 0.3) / 0.7)))
+      const lidP = ease(Math.max(0, Math.min(1, op / 0.5)))
+      lid.rotation.x = CLOSED_ROT + (OPEN_ROT - CLOSED_ROT) * lidP
+      const bhE = ease(Math.max(0, Math.min(1, (op - 0.5) / 0.5)))
       bh.visible = bhE > 0.01
       bh.scale.setScalar(0.8 * bhE)
       ;(disk.material as THREE.PointsMaterial).opacity = 0.85 * bhE
       ;(halo.material as THREE.MeshBasicMaterial).opacity = 0.14 * bhE
       ;(dep.material as THREE.PointsMaterial).opacity = 0.95 * bhE
       glow.intensity = 1.4 * bhE
-      inner.intensity = 1.1 * op
+      inner.intensity = 1.1 * lidP
 
-      poolMat.opacity = (0.5 + 0.18 * Math.sin(t * 2.2)) * op
+      poolMat.opacity = (0.5 + 0.18 * Math.sin(t * 2.2)) * lidP
       ;(photon.material as THREE.MeshBasicMaterial).opacity = (0.78 + 0.18 * Math.sin(t * 2.5)) * bhE
       stars.rotation.y += dt * 0.01
 
       // flote suave; cofre y agujero se mueven juntos (simetria estable y posicion fija)
       const floatY = Math.sin(t * 0.8) * 0.05
       chest.position.y = floatY
-      // sube desde dentro del cofre (mas abajo) hasta su orbita flotante segun emerge
-      bh.position.set(0, (BH_Y - 0.75) + 0.75 * bhE + floatY, 0)
+      // sube desde dentro de la boca (apenas sobre el borde) hasta su orbita flotante
+      bh.position.set(0, (BH_Y - 0.5) + 0.5 * bhE + floatY, 0)
       chest.rotation.y = Math.sin(t * 0.3) * 0.1
 
       // billboard del grupo: el agujero mira siempre de frente -> circulo perfecto y simetrico
