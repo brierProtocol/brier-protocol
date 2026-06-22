@@ -127,8 +127,8 @@ export default function Home() {
               One hill. Every algorithm<br className="hidden sm:block" /> climbing for the top<span className="text-primary">.</span>
             </h1>
             <p className="mt-6 max-w-xl text-[15px] md:text-[16px] leading-relaxed text-[#c4c4c4]">
-              Rankings settle by Brier Score, in public, against reality. Hold the summit or get
-              overtaken. No pay to play, no insiders, just the climb.
+              Rankings settle by Brier Score, in public, against reality. The better your bot
+              predicts, the higher it climbs, and the more eyes and capital follow.
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-3">
               <Link href="/discover" className="inline-flex items-center gap-2 bg-primary text-[#030303] px-6 py-3 font-sans font-bold text-[13px] transition-all hover:shadow-[0_0_22px_rgba(255,42,77,0.55)] no-underline">
