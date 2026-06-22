@@ -8,6 +8,16 @@ import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
 
+const CATEGORIES: { id: string; label: string }[] = [
+  { id: 'politics', label: 'Politics' },
+  { id: 'crypto',   label: 'Crypto'   },
+  { id: 'sports',   label: 'Sports'   },
+  { id: 'economy',  label: 'Economy'  },
+  { id: 'culture',  label: 'Culture'  },
+  { id: 'tech',     label: 'Tech'     },
+  { id: 'world',    label: 'World'    },
+]
+
 const INPUT_CLS =
   'w-full bg-[#0a0a0a] border border-[#1f1f1f] text-white font-sans text-[14px] outline-none px-4 py-3 rounded-xl placeholder:text-[#555] transition-all focus:border-primary/50 focus:bg-[#0c0c0c] focus:shadow-[0_0_24px_rgba(255,42,77,0.08)] hover:border-[#2a2a2a]'
 
@@ -39,7 +49,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 export default function ListBotPage() {
   const [step, setStep] = useState(1)
-  const [formData, setFormData] = useState({ name: '', description: '', market: 'Polymarket' })
+  const [formData, setFormData] = useState({ name: '', description: '', market: 'Polymarket', categories: [] as string[] })
   const [verifying, setVerifying] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [secretKey, setSecretKey] = useState('')
@@ -68,7 +78,7 @@ export default function ListBotPage() {
       const res = await fetch('/api/bots/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: formData.name, description: formData.description, market: formData.market, walletAddress: address }),
+        body: JSON.stringify({ name: formData.name, description: formData.description, market: formData.market, categories: formData.categories, walletAddress: address }),
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error || 'Registration failed. Please try again.')
@@ -223,6 +233,38 @@ export default function ListBotPage() {
                 </div>
                 <span className="text-[9px] font-mono uppercase tracking-widest text-[#666] border border-[#222] rounded px-2 py-1">Fixed</span>
               </div>
+            </div>
+
+            {/* category chips */}
+            <div className="mb-7">
+              <label className="block text-[12px] font-sans font-semibold text-[#bbb] mb-1.5">
+                Market categories <span className="text-[#555] font-normal">(select all that apply)</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {CATEGORIES.map(c => {
+                  const selected = formData.categories.includes(c.id)
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        const next = selected
+                          ? formData.categories.filter(x => x !== c.id)
+                          : [...formData.categories, c.id]
+                        setFormData({ ...formData, categories: next })
+                      }}
+                      className={`px-3.5 py-1.5 rounded-full font-mono text-[11px] tracking-[0.08em] uppercase border transition-all cursor-pointer ${
+                        selected
+                          ? 'border-primary/60 bg-primary/10 text-primary shadow-[0_0_10px_rgba(255,42,77,0.14)]'
+                          : 'border-[#1f1f1f] bg-[#060607] text-[#666] hover:border-[#333] hover:text-[#999]'
+                      }`}
+                    >
+                      {c.label}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="mt-2 text-[11px] text-[#555]">Routes your bot to the right audiences in the catalog.</div>
             </div>
 
             {/* signature art — generative from the name (do not change) */}

@@ -11,7 +11,7 @@ import { prisma } from '@/lib/db/prisma'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { name, description, market, walletAddress, color, eyeShape, pfpUrl } = body
+    const { name, description, market, walletAddress, color, eyeShape, pfpUrl, categories } = body
 
     // Optional uploaded PFP — data-URL or https URL, capped to ~300KB of text
     const chosenPfp = typeof pfpUrl === 'string'
@@ -27,6 +27,12 @@ export async function POST(req: NextRequest) {
     // Eye shape chosen at creation — validated against the allowed set
     const allowedShapes = ['round', 'aperture', 'cat', 'diamond', 'scanner', 'ring', 'star', 'triangle', 'cross', 'spiral', 'nova', 'void']
     const chosenShape = allowedShapes.includes(eyeShape) ? eyeShape : 'round'
+
+    // Validate categories against allowed set
+    const ALLOWED_CATEGORIES = ['politics', 'crypto', 'sports', 'economy', 'culture', 'tech', 'world']
+    const validCategories: string[] = Array.isArray(categories)
+      ? categories.filter((c: unknown) => typeof c === 'string' && ALLOWED_CATEGORIES.includes(c))
+      : []
 
     // Validation
     if (!name || name.length < 2) {
@@ -71,6 +77,7 @@ export async function POST(req: NextRequest) {
         tier: 'NONE',
         walletAddress: finalWallet,
         strategyType: market || 'Polymarket',
+        categories: validCategories,
       }
     })
 

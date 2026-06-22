@@ -32,6 +32,7 @@ export interface Bot {
   currentTVL: number
   vaultOpen: boolean
   strategyType: string
+  categories: string[]
   createdAt: string
   updatedAt: string
   scores?: BotScore[]

@@ -34,7 +34,12 @@ const MARKET_TABS: { id: MarketKey; label: string }[] = [
 
 function matchesMarket(bot: BotListItem, market: MarketKey): boolean {
   if (market === 'all') return true
-  const m = [bot.market, ...(bot.markets || [])].join(' ').toLowerCase()
+  // Fast path: use declared categories if the bot registered them
+  if (Array.isArray(bot.categories) && bot.categories.length > 0) {
+    return bot.categories.includes(market)
+  }
+  // Fallback: infer from free-text fields for legacy bots without categories
+  const m = [bot.market, ...(bot.markets || []), bot.description, bot.tagline].join(' ').toLowerCase()
   switch (market) {
     case 'politics': return /polit|elect|president|senate|congress|vote|governor/.test(m)
     case 'crypto':   return /crypto|btc|bitcoin|eth|ethereum|solana|\bsol\b|defi|token|altcoin/.test(m)
