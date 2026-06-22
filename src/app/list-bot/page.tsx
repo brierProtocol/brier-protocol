@@ -6,6 +6,7 @@ import { useAccount, useSignMessage } from 'wagmi'
 import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
+import MakerAvatar from '@/components/MakerAvatar'
 import { botEye } from '@/lib/botIdentity'
 
 const CATEGORIES: { id: string; label: string }[] = [
@@ -303,9 +304,15 @@ export default function ListBotPage() {
             </p>
 
             <div className="rounded-xl border border-[#1a1a1a] bg-[#060607] p-4 mb-6 flex items-center gap-3">
-              <span className="w-2 h-2 rounded-full bg-[#00d4aa] shadow-[0_0_8px_#00d4aa]" />
-              <span className="text-[12px] font-sans text-[#9a9a9a]">Connected wallet</span>
-              <span className="ml-auto font-mono text-[12px] text-white">{shortAddr}</span>
+              <MakerAvatar address={address} size={36} />
+              <div className="leading-tight">
+                <div className="text-[11px] font-sans text-[#8f8f8f]">Connected wallet</div>
+                <div className="font-mono text-[12px] text-white mt-0.5">{shortAddr}</div>
+              </div>
+              <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[10px] tracking-widest text-[#00d4aa]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00d4aa] shadow-[0_0_8px_#00d4aa]" />
+                LIVE
+              </span>
             </div>
 
             {errorMsg && (
