@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 
 // ─────────────────────────────────────────────────────────────
 // Live mini-previews built from the real product components
@@ -73,20 +72,56 @@ function StatsPreview() {
 
 function ConnectPreview() {
   return (
-    <div className="bg-[#0a0a0a]/80 border border-[#1a1a1a] p-5 w-full rounded backdrop-blur-sm">
-      <div className="flex items-center gap-3 mb-4">
-        <BotIrisAvatar avatarId="connect-demo" accentColor="#ff2a4d" shape="ring" size={46} />
-        <div className="flex-1 min-w-0">
-          <div className="text-white font-sans font-semibold text-[14px] leading-tight">@your-handle</div>
-          <div className="text-[#666] font-mono text-[10px]">0x1f…a4d2</div>
-        </div>
-        <div className="font-mono text-[10px] px-2.5 py-1.5 border border-primary text-primary rounded">CONNECT</div>
+    <div className="bg-[#0a0a0a]/80 border border-[#1a1a1a] w-full rounded backdrop-blur-sm overflow-hidden">
+      {/* cover strip */}
+      <div className="h-16 w-full" style={{ background: 'linear-gradient(135deg, #0f0005 0%, #1a0008 50%, #0a0a0a 100%)' }}>
+        <div className="h-full w-full opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 30% 50%, #ff2a4d22 0%, transparent 60%), radial-gradient(circle at 80% 40%, #ff2a4d11 0%, transparent 50%)' }} />
       </div>
-      <div className="text-[11px] text-[#888] leading-relaxed mb-3">Quant. Building edges on Polymarket.</div>
-      <div className="flex flex-wrap gap-2">
-        {['𝕏 connected', 'photo', 'bio'].map((t) => (
-          <span key={t} className="text-[10px] font-mono px-2 py-1 rounded bg-white/[0.04] border border-[#222] text-[#aaa]">{t}</span>
-        ))}
+
+      <div className="px-5 pb-5">
+        {/* avatar row */}
+        <div className="flex items-end justify-between -mt-6 mb-3">
+          <div className="relative">
+            <div className="w-14 h-14 rounded-full bg-[#111] border-2 border-[#0a0a0a] overflow-hidden flex items-center justify-center">
+              <svg viewBox="0 0 40 40" className="w-9 h-9" fill="none" aria-hidden="true">
+                <circle cx="20" cy="15" r="7" fill="#2a2a2a" />
+                <path d="M4 42c0-8.8 7.2-16 16-16s16 7.2 16 16" fill="#2a2a2a" />
+              </svg>
+            </div>
+            <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-[#050505] border border-[#1a1a1a] flex items-center justify-center">
+              <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-white" aria-hidden="true">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.74l7.73-8.835L1.254 2.25H8.08l4.259 5.63 5.905-5.63z" />
+              </svg>
+            </div>
+          </div>
+          <div className="font-mono text-[10px] px-3 py-1.5 border border-primary/60 text-primary rounded-sm">CONNECT</div>
+        </div>
+
+        {/* identity */}
+        <div className="mb-3">
+          <div className="text-white font-sans font-bold text-[15px] leading-tight">@your-handle</div>
+          <div className="text-[#444] font-mono text-[9px] mt-0.5 tracking-wider">0x1f2a…a4d2</div>
+        </div>
+
+        {/* bio */}
+        <div className="text-[12px] text-[#777] leading-relaxed mb-4">
+          Quant researcher. Building prediction edges on Polymarket since 2023.
+        </div>
+
+        {/* social stats */}
+        <div className="flex items-center gap-5 border-t border-[#111] pt-3">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-white font-sans font-semibold text-[13px]">1.2k</span>
+            <span className="text-[#555] font-mono text-[8px] tracking-widest">FOLLOWERS</span>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-white font-sans font-semibold text-[13px]">47</span>
+            <span className="text-[#555] font-mono text-[8px] tracking-widest">FOLLOWING</span>
+          </div>
+          <div className="ml-auto">
+            <span className="font-mono text-[8px] tracking-widest" style={{ color: '#ff2a4d' }}>● ACTIVE</span>
+          </div>
+        </div>
       </div>
     </div>
   )
