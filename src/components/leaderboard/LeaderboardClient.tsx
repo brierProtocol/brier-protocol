@@ -3,10 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar';
-import { botEye } from '@/lib/botIdentity';
+import { botEye, deriveAvatarColor } from '@/lib/botIdentity';
 import styles from './Leaderboard.module.css';
 
-const PALETTE = ['#FF2A4D', '#FF5570', '#ffffff', '#d63a54', '#ff8095'];
 const REVEAL_AT = 1050; // ms — el contenido se destapa cuando el swarm ya tapó la pantalla
 
 /* ---------- helpers de datos (/api/bots) ---------- */
@@ -62,14 +61,50 @@ function mulberry32(a: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-function makeSprite(seed: number, cell: number, color: string) {
-  const cols = 7, rows = 7, half = 4, rnd = mulberry32(seed);
-  const c = document.createElement('canvas');
-  c.width = cols * cell; c.height = rows * cell;
-  const x = c.getContext('2d')!;
-  for (let r = 0; r < rows; r++) for (let q = 0; q < half; q++) {
-    if (rnd() > 0.45) { x.fillStyle = color; x.fillRect(q * cell, r * cell, cell, cell); x.fillRect((cols - 1 - q) * cell, r * cell, cell, cell); }
+// FNV-1a hash so a seed maps to a distinct creature (same scheme as BotIrisAvatar)
+function hash(str: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995); h ^= h >>> 15;
+  return h >>> 0;
+}
+function lighten(hex: string, amt: number): string {
+  const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * amt).toString(16).padStart(2, '0');
+  return `#${mix(r)}${mix(g)}${mix(b)}`;
+}
+
+// A real bot avatar (the BotIrisAvatar pixel creature) rasterized into a sprite,
+// so the intro swarm is literally a cloud of distinct agents with their own
+// generative colors, not random noise. Mirrors the SVG creature algorithm.
+function makeSprite(seed: number, cell: number) {
+  const N = 10, half = 5;
+  const accent = deriveAvatarColor(String(seed));
+  const aLight = lighten(accent, 0.45);
+  const rnd = mulberry32(hash(String(seed)));
+  const on: boolean[][] = Array.from({ length: N }, () => Array(N).fill(false));
+  for (let y = 1; y < N - 1; y++) for (let x = 0; x < half; x++) {
+    const cx = (half - 1 - x) / half, cy = Math.abs(y - (N - 1) / 2) / ((N - 1) / 2);
+    if (rnd() < 0.78 - cx * 0.45 - cy * 0.28) { on[y][x] = true; on[y][N - 1 - x] = true; }
   }
+  const eyeRow = 2 + Math.floor(rnd() * 3);
+  const eyeCol = 1 + Math.floor(rnd() * (half - 2));
+  const ex1 = half - 1 - eyeCol, ex2 = N - 1 - ex1;
+  on[eyeRow][ex1] = true; on[eyeRow][ex2] = true;
+  if (eyeRow > 1) { on[eyeRow - 1][ex1] = true; on[eyeRow - 1][ex2] = true; }
+  const c = document.createElement('canvas');
+  c.width = N * cell; c.height = N * cell;
+  const g = c.getContext('2d')!;
+  g.imageSmoothingEnabled = false;
+  for (let y = 0; y < N; y++) for (let x = 0; x < half; x++) {
+    if (!on[y][x]) continue;
+    g.fillStyle = rnd() < 0.28 ? aLight : accent;
+    g.fillRect(x * cell, y * cell, cell, cell);
+    g.fillRect((N - 1 - x) * cell, y * cell, cell, cell);
+  }
+  g.fillStyle = '#050505';
+  g.fillRect(ex1 * cell + cell * 0.2, eyeRow * cell + cell * 0.2, cell * 0.6, cell * 0.6);
+  g.fillRect(ex2 * cell + cell * 0.2, eyeRow * cell + cell * 0.2, cell * 0.6, cell * 0.6);
   return c;
 }
 
@@ -111,10 +146,10 @@ export default function LeaderboardClient() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     const sprites: Sprite[] = [];
-    for (let i = 0; i < 150; i++) {
-      const cell = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < 160; i++) {
+      const cell = 2 + Math.floor(Math.random() * 2);
       sprites.push({
-        bmp: makeSprite((i * 9973 + 17) | 0, cell, PALETTE[(Math.random() * PALETTE.length) | 0]),
+        bmp: makeSprite((Math.random() * 1e9) | 0, cell),
         x: Math.random() * W, y: H + 10 + Math.random() * 420,
         vx: (Math.random() - 0.5) * 1.4, vy: -(5.0 + Math.random() * 5.6),
         rot: 0, vr: (Math.random() - 0.5) * 0.14, alpha: 1,
