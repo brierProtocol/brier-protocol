@@ -90,3 +90,9 @@
   .reveal{opacity:1;transform:none;transition:none}
   .heroFrame{opacity:1;transform:none}.liveDot{animation:none}
 }
+
+.rows{position:relative}
+.rowActive{box-shadow:inset 3px 0 0 var(--red);background:rgba(255,42,77,.05)}
+.rowRival{box-shadow:inset 3px 0 0 #00E5FF;background:rgba(0,229,255,.045)}
+.vsBadge{position:absolute;right:14px;z-index:20;transform:translateY(-50%);display:flex;align-items:center;gap:7px;pointer-events:none;white-space:nowrap;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.5px;color:#fff;background:rgba(8,8,10,.92);border:1px solid var(--bd2);border-radius:100px;padding:4px 11px}
+.vsMark{color:var(--red2)}.vsUp{color:var(--teal)}.vsDn{color:var(--mut)}.vsLead{color:var(--teal)}
