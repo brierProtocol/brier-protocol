@@ -198,6 +198,26 @@ export default function LeaderboardClient() {
   const champBrierBar = champBrier != null ? `${Math.round((1 - champBrier) * 100)}%` : '0%';
   const champWinBar = champWr != null ? `${Math.round(champWr * 100)}%` : '0%';
 
+  const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [vs, setVs] = useState<{a:number;b:number;top:number;leader:string;aName:string;bName:string;aLeads:boolean} | null>(null);
+  const metrics = rest.map((b) => ({ br: brierOf(b) ?? 1, wr: wrOf(b) ?? 0, sh: sharpeOf(b) ?? 0 }));
+  const closestRival = (i: number) => {
+    let best = -1, bd = Infinity;
+    for (let j = 0; j < metrics.length; j++) {
+      if (j === i) continue;
+      const d = Math.abs(metrics[i].wr - metrics[j].wr) * 3 + Math.abs(metrics[i].br - metrics[j].br) * 1.5 + Math.abs(metrics[i].sh - metrics[j].sh) / 50;
+      if (d < bd) { bd = d; best = j; }
+    }
+    return best;
+  };
+  const onRowHover = (i: number) => {
+    const j = closestRival(i); if (j < 0) return;
+    const ea = rowRefs.current[i], eb = rowRefs.current[j];
+    const top = ea && eb ? (ea.offsetTop + ea.offsetHeight/2 + eb.offsetTop + eb.offsetHeight/2)/2 : 0;
+    const aLeads = metrics[i].br <= metrics[j].br;
+    setVs({ a:i, b:j, top, leader: aLeads ? rest[i].name : rest[j].name, aName: rest[i].name, bName: rest[j].name, aLeads });
+  };
+
   return (
     <div ref={rootRef} className={`${styles.root} ${revealed ? styles.rootRevealed : ''}`}>
       <div className={styles.glow} />
@@ -248,7 +268,7 @@ export default function LeaderboardClient() {
         )}
 
         {/* rows */}
-        <div className={`${styles.rows} ${styles.reveal}`} style={{ transitionDelay: '.42s' }}>
+        <div className={`${styles.rows} ${styles.reveal}`} style={{ transitionDelay: '.42s' }} onMouseLeave={() => setVs(null)}>
           <div className={styles.rhead}>
             <span>#</span><span>Algorithm</span><span>Brier</span><span>Win rate</span><span>TVL</span><span>Trades</span><span>Lifetime</span><span>Sharpe</span>
           </div>
@@ -262,7 +282,7 @@ export default function LeaderboardClient() {
               const br = brierOf(b);
               const n = tradesOf(b);
               return (
-                <div key={b.id} className={styles.row} onClick={() => { window.location.href = `/bot/${slug}`; }}>
+                <div key={b.id} ref={(el) => { rowRefs.current[i] = el; }} className={`${styles.row} ${vs && vs.a === i ? styles.rowActive : ''} ${vs && vs.b === i ? styles.rowRival : ''}`} onMouseEnter={() => onRowHover(i)} onClick={() => { window.location.href = `/bot/${slug}`; }}>
                   <span className={styles.rk}>{i + 2}</span>
                   <span className={styles.algo}>
                     <span className={styles.rowFrame}><BotIrisAvatar {...botEye(b)} size={32} /></span>
@@ -280,6 +300,14 @@ export default function LeaderboardClient() {
                 </div>
               );
             })
+          )}
+          {vs && (
+            <div className={styles.vsBadge} style={{ top: vs.top }}>
+              <span className={vs.aLeads ? styles.vsUp : styles.vsDn}>{vs.aName}</span>
+              <span className={styles.vsMark}>VS</span>
+              <span className={vs.aLeads ? styles.vsDn : styles.vsUp}>{vs.bName}</span>
+              <span className={styles.vsLead}>· {vs.leader} leads</span>
+            </div>
           )}
         </div>
 
