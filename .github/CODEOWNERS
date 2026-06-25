@@ -5,11 +5,11 @@
 #    Si no, cambialo (un handle mal escrito hace que esto no funcione).
 
 # Por defecto: Felipe revisa todo.
-*                  @felipemiguelsainz
+*                       @felipemiguelsainz @b3njaminfuentes
 
 # Rutas críticas — review obligatorio de Felipe.
-/contracts/        @felipemiguelsainz
-/src/lib/          @felipemiguelsainz
-/prisma/           @felipemiguelsainz
-/brier-executor/   @felipemiguelsainz
-/.github/          @felipemiguelsainz
+/contracts/            @felipemiguelsainz @b3njaminfuentes
+/src/lib/               @felipemiguelsainz @b3njaminfuentes
+/prisma/                @felipemiguelsainz @b3njaminfuentes
+/brier-executor/        @felipemiguelsainz @b3njaminfuentes
+/.github/               @felipemiguelsainz @b3njaminfuentes
