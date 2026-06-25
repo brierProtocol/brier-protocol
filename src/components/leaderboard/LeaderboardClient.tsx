@@ -190,13 +190,17 @@ export default function LeaderboardClient() {
 
   const ranked = [...bots].sort((a, b) => (brierOf(a) ?? 1) - (brierOf(b) ?? 1));
   const champion = ranked[0];
-  const rest = ranked.slice(1);
+  const top5 = ranked.slice(0, 5);
+  const rest = ranked.slice(5);
 
   const champBrier = champion ? brierOf(champion) : null;
   const champWr = champion ? wrOf(champion) : null;
   const tier = tierOf(champBrier);
   const champBrierBar = champBrier != null ? `${Math.round((1 - champBrier) * 100)}%` : '0%';
   const champWinBar = champWr != null ? `${Math.round(champWr * 100)}%` : '0%';
+
+  const RANK_GEMS = ['oracle', 'prism', 'azure', 'ember', 'verdant'];
+  const rankClasses = [styles.r1, styles.r2, styles.r3, styles.r4, styles.r5];
 
   const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [vs, setVs] = useState<{a:number;b:number;top:number;leader:string;aName:string;bName:string;aLeads:boolean} | null>(null);
@@ -230,6 +234,71 @@ export default function LeaderboardClient() {
         <p className={`${styles.lead} ${styles.reveal}`} style={{ transitionDelay: '.15s' }}>
           Ranked strictly by <b>Brier Score</b>. Lower is superior. Every score derives from resolved trades. Nothing is self reported.
         </p>
+
+        {/* gem podium top 5 */}
+        {top5.length > 0 && (
+          <div className={`${styles.podium} ${styles.reveal}`} style={{ transitionDelay: '.20s' }}>
+            {top5.map((b, i) => {
+              const gem = RANK_GEMS[i];
+              const slug = b.slug || b.id;
+              const eye = botEye(b);
+              const wr = wrOf(b);
+              return (
+                <div
+                  key={b.id}
+                  className={`${styles.ptile} ${rankClasses[i] || ''}`}
+                  style={{ ['--tile-color' as string]: eye.accentColor }}
+                  onClick={() => { window.location.href = `/bot/${slug}`; }}
+                >
+                  {i === 0 && <span className={styles.podiumCrown}>♛</span>}
+                  <div className={styles.ptileAvatar}>
+                    <BotIrisAvatar {...eye} size={i === 0 ? 48 : 32} />
+                  </div>
+                  <div
+                    className={styles.gembadge}
+                    style={{ ['--gemsrc' as string]: `url(/gems/${gem}.png)` }}
+                  >
+                    <img src={`/gems/${gem}.png`} alt={gem} />
+                    <span className={styles.shine} />
+                  </div>
+                  <div className={styles.ptileLabel}>{gem.toUpperCase()}</div>
+                  <div className={styles.ptileName}>{b.name}</div>
+                  <div className={styles.ptileWr}>
+                    {wr != null ? `WR ${(wr * 100).toFixed(1)}%` : 'WR —'}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* roster */}
+        {ranked.length > 0 && (
+          <div className={`${styles.roster} ${styles.reveal}`} style={{ transitionDelay: '.24s' }}>
+            <div className={styles.rosterHead}>Select your fighter</div>
+            <div className={styles.rosterGrid}>
+              {ranked.map((b, i) => {
+                const eye = botEye(b);
+                const slug = b.slug || b.id;
+                return (
+                  <div
+                    key={b.id}
+                    className={`${styles.tile} ${i === 0 ? styles.boss : ''}`}
+                    style={{ ['--tile-color' as string]: eye.accentColor }}
+                    onClick={() => { window.location.href = `/bot/${slug}`; }}
+                  >
+                    {i === 0 && <span className={styles.crown}>♛</span>}
+                    <div className={styles.tileFrame}>
+                      <BotIrisAvatar {...eye} size={i === 0 ? 48 : 28} />
+                    </div>
+                    <div className={styles.tileName}>{b.name}</div>
+                    <div className={styles.tileRank}>#{i + 1}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* champion */}
         {champion && (
@@ -267,15 +336,21 @@ export default function LeaderboardClient() {
           </div>
         )}
 
-        {/* rows */}
+        {/* rows — rank 6+ */}
+        {!loading && rest.length === 0 ? (
+          <div className={`${styles.standingsMore} ${styles.reveal}`} style={{ transitionDelay: '.42s' }}>
+            more bots coming soon
+          </div>
+        ) : (
         <div className={`${styles.rows} ${styles.reveal}`} style={{ transitionDelay: '.42s' }} onMouseLeave={() => setVs(null)}>
+          {!loading && rest.length > 0 && (
+            <div className={styles.standingsHead}>The standings</div>
+          )}
           <div className={styles.rhead}>
             <span>#</span><span>Algorithm</span><span>Brier</span><span>Win rate</span><span>TVL</span><span>Trades</span><span>Lifetime</span><span>Sharpe</span>
           </div>
           {loading ? (
             <div className={styles.empty}>&gt; syncing on-chain data…</div>
-          ) : rest.length === 0 ? (
-            <div className={styles.empty}>&gt; no challengers yet. be the next to deploy.</div>
           ) : (
             rest.map((b, i) => {
               const slug = b.slug || b.id;
@@ -283,7 +358,7 @@ export default function LeaderboardClient() {
               const n = tradesOf(b);
               return (
                 <div key={b.id} ref={(el) => { rowRefs.current[i] = el; }} className={`${styles.row} ${vs && vs.a === i ? styles.rowActive : ''} ${vs && vs.b === i ? styles.rowRival : ''}`} onMouseEnter={() => onRowHover(i)} onClick={() => { window.location.href = `/bot/${slug}`; }}>
-                  <span className={styles.rk}>{i + 2}</span>
+                  <span className={styles.rk}>{i + 6}</span>
                   <span className={styles.algo}>
                     <span className={styles.rowFrame}><BotIrisAvatar {...botEye(b)} size={32} /></span>
                     <span>
@@ -310,6 +385,7 @@ export default function LeaderboardClient() {
             </div>
           )}
         </div>
+        )}
 
         {/* explainer */}
         <div className={`${styles.exp} ${styles.reveal}`} style={{ transitionDelay: '.5s' }}>

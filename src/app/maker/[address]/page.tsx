@@ -1,465 +1,503 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, use, useMemo } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useAccount } from 'wagmi'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
-import { botEye, makerEye } from '@/lib/botIdentity'
+import MakerAvatar from '@/components/MakerAvatar'
+import ConnectXModal, { XLogo } from '@/components/profile/ConnectXModal'
+import { botEye } from '@/lib/botIdentity'
 import { useCountUp } from '@/hooks/useCountUp'
 
-// ── Maker avatar — a robotic "eye" matching the bot aesthetic ──
-function UserIdenticon({ id, size = 100, customUrl }: { id: string, size?: number, customUrl?: string | null }) {
-  const eye = makerEye(id)
-  if (customUrl) {
-    return (
-      <div className="overflow-hidden rounded-full border-2 shrink-0" style={{ width: size, height: size, borderColor: eye.accentColor }}>
-        <img src={customUrl} alt="PFP" className="w-full h-full object-cover" />
-      </div>
-    )
-  }
-  return (
-    <div className="shrink-0 rounded-full" style={{ width: size, height: size, boxShadow: `0 0 24px ${eye.accentColor}33` }}>
-      <BotIrisAvatar {...eye} size={size} />
-    </div>
-  )
-}
+const POS = '#c8ff00', VIOLET = '#8b7bff', CRIMSON = '#ff2a4d'
 
-// ── Animated Stat Card ──
-function StatCard({ label, value, suffix = '', prefix = '', decimals = 0, color = 'text-white', delay = 0 }:
-  { label: string, value: number, suffix?: string, prefix?: string, decimals?: number, color?: string, delay?: number }) {
-  // round=false + 1000ms preserves the original decimal stat-card animation.
+type Person = { walletAddress: string; name?: string | null; handle?: string | null; pfpUrl?: string | null }
+
+const shortAddr = (a = '') => a ? `${a.slice(0, 6)}…${a.slice(-4)}` : 'anon'
+const personLabel = (u?: Person | null) =>
+  u?.handle ? `@${u.handle}` : (u?.name && !u.name.startsWith('User_') ? u.name : shortAddr(u?.walletAddress))
+const fmtUSD = (n: number) => n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `$${(n / 1000).toFixed(1)}K` : `$${Math.round(n).toLocaleString()}`
+
+function StatCard({ label, value, prefix = '', suffix = '', decimals = 0, color = '#f0f0f4', delay = 0 }:
+  { label: string; value: number; prefix?: string; suffix?: string; decimals?: number; color?: string; delay?: number }) {
   const animated = useCountUp(value, 1000, false)
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.4 }}
-      className="flex-1 min-w-[140px] bg-[#080808] border border-[#1a1a1a] p-4 relative group hover:border-[#2a2a2a] transition-colors"
-    >
-      <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
-      <div className="text-[9px] text-[#444] font-mono tracking-widest uppercase mb-2">{label}</div>
-      <div className={`text-2xl font-mono font-bold tabular ${color}`}>
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay, duration: 0.4 }}
+      className="flex-1 min-w-[140px] rounded-xl border border-[#161620] bg-[#08080c] px-4 py-3.5">
+      <div className="text-[9px] text-[#4a4a54] font-mono tracking-[0.16em] uppercase mb-2">{label}</div>
+      <div className="font-sans font-black text-[24px] tracking-[-0.02em] tabular-nums" style={{ color }}>
         {prefix}{decimals > 0 ? animated.toFixed(decimals) : Math.floor(animated).toLocaleString()}{suffix}
       </div>
     </motion.div>
   )
 }
 
-export default function MakerProfilePage({ params }: { params: Promise<{ address: string }> }) {
-  const { address: makerAddress } = use(params)
+function PersonSquare({ u, size = 38, mutual = false, noLink = false }: { u: Person; size?: number; mutual?: boolean; noLink?: boolean }) {
+  const inner = (
+    <>
+      <MakerAvatar address={u.walletAddress} pfpUrl={u.pfpUrl} size={size} square />
+      {mutual && <span className="absolute -bottom-1 -right-1 w-3 h-3 rounded-[3px] grid place-items-center" style={{ background: POS }}><span className="text-[7px] text-black font-black leading-none">⇄</span></span>}
+    </>
+  )
+  // noLink: cuando va dentro de otro <Link> (fila clickeable) para no anidar <a> dentro de <a>.
+  if (noLink) return <span className="relative block shrink-0">{inner}</span>
+  return (
+    <Link href={`/maker/${u.walletAddress}`} title={personLabel(u)} className="relative block shrink-0 no-underline">
+      {inner}
+    </Link>
+  )
+}
 
-  const [activeUser, setActiveUser] = useState<string | null>(null)
+export default function MakerProfilePage({ params }: { params: Promise<{ address: string }> }) {
+  const { address: rawAddr } = use(params)
+  const makerAddress = rawAddr.toLowerCase()
+  const { address: connected } = useAccount()
+  const activeUser = connected?.toLowerCase() || null
+
   const [bots, setBots] = useState<any[]>([])
-  const [profile, setProfile] = useState<any>({ handle: '', name: '', bio: '', pfpUrl: '' })
-  const [followers, setFollowers] = useState(0)
-  const [following, setFollowing] = useState(0)
+  const [profile, setProfile] = useState<any>({ handle: '', name: '', bio: '', pfpUrl: '', xHandle: null })
+  const [portfolio, setPortfolio] = useState<any>({ portfolioValue: 0, totalDeposited: 0, totalEarned: 0, activePositions: 0, allocations: [] })
+  const [followersList, setFollowersList] = useState<Person[]>([])
+  const [followingList, setFollowingList] = useState<Person[]>([])
+  const [viewerFollowing, setViewerFollowing] = useState<Set<string>>(new Set())
+  const [followed, setFollowed] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<'portfolio' | 'bots'>('portfolio')
+  const [socialModal, setSocialModal] = useState<null | 'followers' | 'following'>(null)
+  const [copied, setCopied] = useState(false)
+  const [xOpen, setXOpen] = useState(false)
+
   const [isEditing, setIsEditing] = useState(false)
   const [editHandle, setEditHandle] = useState('')
   const [editName, setEditName] = useState('')
   const [editBio, setEditBio] = useState('')
   const [editPfp, setEditPfp] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [followed, setFollowed] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [toast, setToast] = useState('')
+
+  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(''), 3500) }
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.ethereum) {
-      const getAddr = async () => {
-        try {
-          const accounts = await window.ethereum!.request({ method: 'eth_accounts' })
-          if (accounts.length > 0) setActiveUser(accounts[0].toLowerCase())
-        } catch (e) {}
-      }
-      getAddr()
-      ;window.ethereum.on('accountsChanged', (accounts: string[]) => {
-        if (accounts.length > 0) setActiveUser(accounts[0].toLowerCase())
-        else setActiveUser(null)
-      })
-    }
-
-    const fetchData = async () => {
+    let alive = true
+    const load = async () => {
       try {
-        const [userRes, botsRes] = await Promise.all([
-          fetch(`/api/users?address=${makerAddress.toLowerCase()}`),
-          fetch('/api/bots')
+        const [uRes, fRes, botsRes, dRes] = await Promise.all([
+          fetch(`/api/users?address=${makerAddress}`),
+          fetch(`/api/follows?address=${makerAddress}${activeUser ? `&viewerId=${activeUser}` : ''}`),
+          fetch('/api/bots'),
+          fetch(`/api/dashboard?address=${makerAddress}`),
         ])
-        if (userRes.ok) {
-          const u = await userRes.json()
-          setProfile(u.user)
-          setFollowers(u.followersCount)
-          setFollowing(u.followingCount)
-          if (u.user?.followers?.some((f: any) => f.followerId.toLowerCase() === activeUser)) {
-            setFollowed(true)
-          }
+        if (!alive) return
+        if (uRes.ok) { const u = await uRes.json(); setProfile(u.user || {}) }
+        if (fRes.ok) {
+          const f = await fRes.json()
+          setFollowersList(f.followers || [])
+          setFollowingList(f.following || [])
+          setFollowed(!!f.isFollowing)
         }
         if (botsRes.ok) {
-          const allBots = await botsRes.json()
-          if (Array.isArray(allBots)) {
-            const created = allBots.filter((b: any) =>
-              (b.walletAddress || b.builder)?.toLowerCase() === makerAddress.toLowerCase()
-            )
-            setBots(created)
-          }
+          const all = await botsRes.json()
+          if (Array.isArray(all)) setBots(all.filter((b: any) => (b.walletAddress || b.builder)?.toLowerCase() === makerAddress))
         }
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
+        if (dRes.ok) {
+          const d = await dRes.json()
+          setPortfolio({ portfolioValue: d.portfolioValue || 0, totalDeposited: d.totalDeposited || 0, totalEarned: d.totalEarned || 0, activePositions: d.activePositions || 0, allocations: d.allocations || [] })
+          setTab((d.allocations?.length ? 'portfolio' : 'bots'))
+        }
+      } catch (e) { console.error(e) } finally { if (alive) setLoading(false) }
     }
-    fetchData()
+    load()
+    return () => { alive = false }
   }, [makerAddress, activeUser])
+
+  // viewer's following set powers the "followed by people you follow" proof
+  useEffect(() => {
+    if (!activeUser || activeUser === makerAddress) { setViewerFollowing(new Set()); return }
+    fetch(`/api/follows?address=${activeUser}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.following) setViewerFollowing(new Set(d.following.map((u: Person) => u.walletAddress?.toLowerCase()))) })
+      .catch(() => {})
+  }, [activeUser, makerAddress])
+
+  const isOwner = activeUser === makerAddress
+  const profileFollowingSet = useMemo(() => new Set(followingList.map(u => u.walletAddress?.toLowerCase())), [followingList])
+  const mutualFollowers = useMemo(
+    () => followersList.filter(u => viewerFollowing.has(u.walletAddress?.toLowerCase())),
+    [followersList, viewerFollowing]
+  )
+
+  const totalTVL = bots.reduce((s, b) => s + (b.currentTVL || b.tvl || 0), 0)
+  const botsWithBrier = bots.filter(b => b.scores?.[0]?.brierScore || b.brierScore)
+  const avgBrier = botsWithBrier.length ? botsWithBrier.reduce((s, b) => s + (b.scores?.[0]?.brierScore || b.brierScore), 0) / botsWithBrier.length : 0
+
+  let tier = { t: 'NOVICE', c: '#6a6a72' }
+  if (bots.length >= 3 && totalTVL >= 10000 && avgBrier > 0 && avgBrier < 0.23) tier = { t: 'MASTER QUANT', c: CRIMSON }
+  else if (bots.length >= 1 && totalTVL >= 1000) tier = { t: 'ALPHA', c: POS }
+  else if (bots.length >= 1) tier = { t: 'OPERATOR', c: VIOLET }
+
+  const joined = profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null
+
+  // Identity: lead with a real name/handle; otherwise the short address IS the headline
+  // (so we don't print "Anonymous operator" + the same 0x… twice).
+  const hasName = !!(profile?.name && !profile.name.startsWith('User_'))
+  const displayName = hasName ? profile.name : (profile?.handle ? `@${profile.handle}` : shortAddr(makerAddress))
+
+  const toggleFollow = async () => {
+    if (!activeUser) return showToast('Connect your wallet to follow.')
+    const prev = followed, prevList = followersList
+    const next = !followed
+    setFollowed(next)
+    setFollowersList(l => next
+      ? [{ walletAddress: activeUser }, ...l]
+      : l.filter(u => u.walletAddress?.toLowerCase() !== activeUser))
+    try {
+      const res = await fetch('/api/follows', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ followerId: activeUser, followingId: makerAddress }) })
+      if (!res.ok) throw new Error()
+      const d = await res.json()
+      setFollowed(d.status === 'followed')
+    } catch { setFollowed(prev); setFollowersList(prevList); showToast('Could not update follow. Try again.') }
+  }
+
+  const saveX = async (handle: string | null) => {
+    if (!activeUser) return
+    const res = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: activeUser, xHandle: handle }) })
+    if (res.ok) { const u = await res.json(); setProfile(u); showToast(handle ? 'X linked.' : 'X unlinked.') }
+    else showToast('Could not link X.')
+  }
 
   const handleSaveProfile = async () => {
     if (!activeUser) return
     setSaving(true)
     try {
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: activeUser, handle: editHandle, name: editName, bio: editBio, pfpUrl: editPfp })
-      })
-      if (res.ok) {
-        const updated = await res.json()
-        setProfile(updated)
-        setIsEditing(false)
-      } else {
-        const err = await res.json()
-        alert("Save failed! Error: " + (err.error || res.statusText))
-      }
-    } catch (e: any) {
-      alert("Network error: " + e.message)
-    }
-    setSaving(false)
-  }
-
-  const toggleFollow = async () => {
-    if (!activeUser) { alert("Connect your wallet first."); return }
-    const res = await fetch('/api/follows', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ followerId: activeUser, followingId: makerAddress.toLowerCase() })
-    })
-    if (res.ok) {
-      const data = await res.json()
-      setFollowed(data.status === 'followed')
-      setFollowers(f => data.status === 'followed' ? f + 1 : f - 1)
-    }
+      const res = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: activeUser, handle: editHandle, name: editName, bio: editBio, pfpUrl: editPfp }) })
+      if (res.ok) { const u = await res.json(); setProfile(u); setIsEditing(false); showToast('Profile updated.') }
+      else { const e = await res.json(); showToast(e.error || 'Save failed.') }
+    } catch (e: any) { showToast(e.message) } finally { setSaving(false) }
   }
 
   const handlePfpUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0]; if (!file) return
     const reader = new FileReader()
-    reader.onload = (event) => {
+    reader.onload = (ev) => {
       const img = new Image()
       img.onload = () => {
-        const canvas = document.createElement('canvas')
-        const SIZE = 200
-        canvas.width = SIZE; canvas.height = SIZE
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-        const scale = Math.max(SIZE / img.width, SIZE / img.height)
-        const x = (SIZE - img.width * scale) / 2
-        const y = (SIZE - img.height * scale) / 2
-        ctx.drawImage(img, x, y, img.width * scale, img.height * scale)
+        const canvas = document.createElement('canvas'); const S = 200
+        canvas.width = S; canvas.height = S
+        const ctx = canvas.getContext('2d'); if (!ctx) return
+        const scale = Math.max(S / img.width, S / img.height)
+        ctx.drawImage(img, (S - img.width * scale) / 2, (S - img.height * scale) / 2, img.width * scale, img.height * scale)
         setEditPfp(canvas.toDataURL('image/jpeg', 0.8))
       }
-      img.src = event.target?.result as string
+      img.src = ev.target?.result as string
     }
     reader.readAsDataURL(file)
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#030303] text-[#e8e8e8] flex flex-col items-center justify-center font-mono">
-        <div className="text-sm text-[#888] cursor-blink">&gt; Resolving on-chain identity</div>
-        <div className="mt-2 text-xs text-[#444]">Querying {makerAddress.substring(0, 12)}...</div>
-      </div>
-    )
-  }
+  if (loading) return <div className="min-h-screen bg-[#030303] grid place-items-center text-[#666] font-sans text-sm">Resolving identity…</div>
 
-  const isOwner = activeUser === makerAddress.toLowerCase()
-  const totalTVL = bots.reduce((sum, b) => sum + (b.currentTVL || b.tvl || 0), 0)
-  const botsWithBrier = bots.filter(b => b.scores?.[0]?.brierScore || b.brierScore)
-  const avgBrier = botsWithBrier.length > 0
-    ? botsWithBrier.reduce((sum, b) => sum + (b.scores?.[0]?.brierScore || b.brierScore), 0) / botsWithBrier.length
-    : 0
-
-  // Maker Tier
-  let makerTier = 'NOVICE_NODE'
-  let tierColor = '#555'
-  if (bots.length >= 3 && totalTVL >= 10000 && avgBrier < 0.23) { makerTier = 'MASTER_QUANT'; tierColor = '#ff2a4d' }
-  else if (bots.length >= 1 && totalTVL >= 1000) { makerTier = 'ALPHA_NODE'; tierColor = '#C8FF00' }
-  else if (bots.length >= 1) { makerTier = 'TIER_1_QUANT'; tierColor = '#8a2b3e' }
-
-  // Heatmap
-  const generateHeatmap = () => {
-    const days = 91
-    const map = new Array(days).fill(0)
-    bots.forEach((b, idx) => {
-      const dayIndex = 90 - (idx * 7)
-      if (dayIndex >= 0 && dayIndex < 91) {
-        map[dayIndex] = 4
-        if (dayIndex + 1 < 91) map[dayIndex + 1] = 2
-        if (dayIndex + 2 < 91) map[dayIndex + 2] = 1
-      }
-    })
-    return map
-  }
-  const heatmapData = generateHeatmap()
-  const heatColors = ['#0a0a0a', '#1a0508', '#400814', '#8a2b3e', '#ff2a4d']
-
-  const generateLogs = () => {
-    const logs: string[] = []
-    bots.forEach((b, idx) => {
-      const time = Date.now() - (idx * 7 * 86400000)
-      const d = new Date(time)
-      const timeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-      const tvl = b.currentTVL || b.tvl || 0
-      if (tvl > 0) logs.push(`[SYS] ${timeStr}: Vault influx +${tvl.toLocaleString()} USDC for [${b.name.toUpperCase()}]`)
-      logs.push(`[SYS] ${timeStr}: Algorithm deployed [${b.name.toUpperCase()}]`)
-    })
-    return logs
-  }
-  const systemLogs = generateLogs()
+  const xHandle: string | null = profile?.xHandle || null
 
   return (
-    <div className="min-h-screen bg-[#030303] text-[#e8e8e8]">
+    <div className="min-h-screen bg-[#030303] font-sans text-[#e8e8e8]">
+      <div className="max-w-[1040px] mx-auto px-6 pt-6 pb-20">
 
-      {/* ═══ HERO ═══ */}
-      <div className="border-b border-[#1a1a1a] bg-[#050505]">
-        <div className="max-w-[1000px] mx-auto px-8 pt-6 pb-8">
+        {/* top bar */}
+        <div className="flex items-center justify-between mb-6 text-[12px]">
+          <Link href="/discover" className="text-[#777] hover:text-white transition-colors no-underline">← The catalog</Link>
+          <Link href="/leaderboard" className="text-[#777] hover:text-white transition-colors no-underline">Rankings →</Link>
+        </div>
 
-          {/* Top nav */}
-          <div className="flex justify-between items-center mb-8 text-xs font-mono">
-            <Link href="/discover" className="text-[#444] hover:text-white transition-colors no-underline">&lt; RETURN_TO_CATALOG</Link>
-            <Link href="/leaderboard" className="text-primary hover:drop-shadow-[0_0_8px_rgba(255,42,77,0.5)] transition-all no-underline font-bold">[RANKINGS]</Link>
-          </div>
-
-          {/* Identity */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="flex gap-6 items-start flex-wrap">
-            <div className="relative">
-              <UserIdenticon id={makerAddress} size={132} customUrl={profile?.pfpUrl} />
-              <div className="absolute -bottom-2 -right-2 px-2 py-0.5 font-mono text-[9px] font-bold border bg-[#030303]" style={{ color: tierColor, borderColor: tierColor }}>
-                {makerTier}
-              </div>
-            </div>
-
-            <div className="flex-1 min-w-[280px] flex flex-col gap-3 bg-[#080808] border border-[#1a1a1a] p-5">
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-2xl font-bold text-white tracking-tight drop-shadow-[0_0_10px_rgba(255,42,77,0.2)]">
-                  {profile?.name ? profile.name.toUpperCase() : 'ANONYMOUS_NODE'}
-                </span>
-                {profile?.handle && <span className="text-primary font-mono text-sm">@{profile.handle}</span>}
-              </div>
-
-              {/* Wallet + social */}
-              <div className="flex items-center gap-3 flex-wrap text-xs font-mono">
-                <span className="text-[#444]">WALLET</span>
-                <span
-                  title="Click to copy"
-                  className="text-white bg-[#110508] px-2 py-1 cursor-copy select-all transition-colors border"
-                  style={{ borderColor: copied ? '#ff2a4d' : '#1a1a1a' }}
-                  onClick={() => { navigator.clipboard.writeText(makerAddress); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
-                >
-                  {makerAddress.substring(0, 10)}...{makerAddress.substring(makerAddress.length - 6)}
-                  {copied && <span className="text-primary ml-2">[COPIED]</span>}
-                </span>
-                <span className="text-[#222]">|</span>
-                <span className="text-[#666]">FOLLOWERS <span className="text-white font-bold">{followers}</span></span>
-                <span className="text-[#666]">FOLLOWING <span className="text-white font-bold">{following}</span></span>
-              </div>
-
-              {/* Bio */}
-              {!isEditing && (
-                <div className="text-xs text-[#888] leading-relaxed border-l-2 border-[#1a1a1a] pl-4 mt-1">
-                  {profile?.bio
-                    ? profile.bio.split('\n').map((line: string, j: number) => (
-                        <span key={j}>{line.startsWith('>') ? <span className="text-primary">{line}</span> : line}<br /></span>
-                      ))
-                    : <span className="italic text-[#444]">// No thesis provided.</span>}
+        {/* ── HERO ── */}
+        <div className="rounded-2xl border border-[#161620] bg-[#08080c] overflow-hidden">
+          <div className="h-20 bg-[radial-gradient(120%_140%_at_20%_-30%,#1a0810_0%,#0a0a0e_60%)] border-b border-[#13131b]" />
+          <div className="px-6 pb-6">
+            <div className="flex items-end justify-between flex-wrap gap-4 -mt-10">
+              <div className="flex items-end gap-4">
+                <div className="relative">
+                  <div className="rounded-xl overflow-hidden ring-4 ring-[#08080c]">
+                    <MakerAvatar address={makerAddress} pfpUrl={profile?.pfpUrl} size={88} square />
+                  </div>
+                  <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-[4px] font-mono text-[8px] font-bold tracking-[0.12em] whitespace-nowrap"
+                    style={{ color: tier.c, background: '#08080c', border: `1px solid ${tier.c}55` }}>{tier.t}</span>
                 </div>
-              )}
+              </div>
 
-              {/* Action */}
-              <div className="mt-2">
+              <div className="flex items-center gap-2">
                 {isOwner ? (
-                  <button
-                    onClick={() => { setIsEditing(!isEditing); setEditHandle(profile?.handle || ''); setEditName(profile?.name || ''); setEditBio(profile?.bio || ''); setEditPfp(profile?.pfpUrl || '') }}
-                    className={`font-mono text-xs font-bold px-4 py-2 border transition-all ${isEditing ? 'bg-transparent text-primary border-primary' : 'bg-primary text-[#030303] border-primary shadow-[0_0_12px_rgba(255,42,77,0.4)]'}`}
-                  >
-                    {isEditing ? '[CANCEL_EDIT]' : '[EDIT_PROFILE]'}
-                  </button>
+                  <>
+                    <button onClick={() => setXOpen(true)} className="inline-flex items-center gap-2 rounded-full border border-[#262630] px-4 py-2 text-[12px] font-semibold text-[#ddd] hover:border-[#3a3a44] hover:text-white transition-colors">
+                      <XLogo size={13} /> {xHandle ? 'Manage X' : 'Connect X'}
+                    </button>
+                    <button onClick={() => { setIsEditing(v => !v); setEditHandle(profile?.handle || ''); setEditName(profile?.name || ''); setEditBio(profile?.bio || ''); setEditPfp(profile?.pfpUrl || '') }}
+                      className="rounded-full bg-primary text-[#030303] font-bold text-[12px] px-5 py-2 hover:shadow-[0_0_16px_rgba(255,42,77,0.4)] transition-all">
+                      {isEditing ? 'Close' : 'Edit profile'}
+                    </button>
+                  </>
                 ) : (
-                  <button
-                    onClick={toggleFollow}
-                    className={`font-mono text-xs font-bold px-4 py-2 border transition-all ${followed ? 'bg-[#110508] text-primary border-primary' : 'bg-transparent text-white border-[#1a1a1a] hover:border-white'}`}
-                  >
-                    {followed ? '[FOLLOWING]' : '[FOLLOW]'}
+                  <button onClick={toggleFollow}
+                    className={`rounded-full font-bold text-[12px] px-6 py-2 transition-all ${followed ? 'border border-[#262630] text-[#ddd] hover:border-[#ff5570] hover:text-[#ff5570]' : 'bg-primary text-[#030303] hover:shadow-[0_0_16px_rgba(255,42,77,0.4)]'}`}>
+                    {followed ? 'Following' : 'Follow'}
                   </button>
                 )}
               </div>
             </div>
-          </motion.div>
 
-          {/* Edit panel */}
-          {isEditing && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-6 bg-[#080405] border border-dashed border-primary/50 p-6 overflow-hidden">
-              <div className="text-xs text-primary font-mono mb-5">&gt; SYS_PROMPT: Update on-chain identity. Bio supports &gt;redtext.</div>
+            {/* identity */}
+            <div className="mt-4">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="font-black text-[26px] tracking-[-0.03em] text-white m-0 leading-none">{displayName}</h1>
+                {profile?.handle && hasName && <span className="font-mono text-[13px] text-[#8a8a94]">@{profile.handle}</span>}
+                {xHandle && (
+                  <a href={`https://x.com/${xHandle}`} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[#262630] px-2.5 py-1 text-[11px] text-[#ddd] hover:border-[#3a3a44] hover:text-white no-underline transition-colors">
+                    <XLogo size={11} /> {xHandle}
+                  </a>
+                )}
+              </div>
 
-              <div className="mb-5">
-                <label className="text-[10px] text-[#666] font-mono uppercase tracking-widest block mb-2">&gt; PROFILE_IMAGE_UPLOAD</label>
-                <input type="file" accept="image/*" onChange={handlePfpUpload}
-                  className="w-full bg-[#110508] border border-[#1a1a1a] text-white p-2 font-mono text-xs outline-none" />
-                {editPfp && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <img src={editPfp} alt="Preview" className="w-12 h-12 object-cover border border-primary" />
-                    <span className="text-xs text-primary font-mono">[IMG_READY]</span>
+              {/* address + joined — the 0x… appears once. If it's already the headline, we only
+                  render a copy affordance (no second identical 0x… under the name). */}
+              <div className="flex items-center gap-3 mt-2.5 flex-wrap text-[12px]">
+                <button onClick={() => { navigator.clipboard.writeText(makerAddress); setCopied(true); setTimeout(() => setCopied(false), 1800) }}
+                  title="Copy wallet address"
+                  className="inline-flex items-center gap-1.5 font-mono text-[11px] text-[#6a6a74] hover:text-white transition-colors">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+                  {(hasName || profile?.handle) ? shortAddr(makerAddress) : 'Copy address'} {copied && <span className="text-primary">copied</span>}
+                </button>
+                {joined && <span className="font-mono text-[11px] text-[#5a5a64]">joined {joined}</span>}
+              </div>
+
+              {/* follow counts open a modal (not a bottom tab) */}
+              <div className="flex items-center gap-5 mt-3.5 flex-wrap">
+                <button onClick={() => setSocialModal('followers')} className="group inline-flex items-baseline gap-1.5">
+                  <span className="font-sans font-bold text-[15px] text-white tabular-nums">{followersList.length}</span>
+                  <span className="text-[12px] text-[#7a7a84] group-hover:text-white transition-colors">followers</span>
+                </button>
+                <button onClick={() => setSocialModal('following')} className="group inline-flex items-baseline gap-1.5">
+                  <span className="font-sans font-bold text-[15px] text-white tabular-nums">{followingList.length}</span>
+                  <span className="text-[12px] text-[#7a7a84] group-hover:text-white transition-colors">following</span>
+                </button>
+
+                {mutualFollowers.length > 0 && (
+                  <div className="inline-flex items-center gap-2">
+                    <div className="flex -space-x-2">
+                      {mutualFollowers.slice(0, 3).map(u => (
+                        <span key={u.walletAddress} className="ring-2 ring-[#08080c] rounded-[5px]"><MakerAvatar address={u.walletAddress} pfpUrl={u.pfpUrl} size={20} square /></span>
+                      ))}
+                    </div>
+                    <span className="text-[11px] text-[#7a7a84]">
+                      Followed by {personLabel(mutualFollowers[0])}{mutualFollowers.length > 1 ? ` +${mutualFollowers.length - 1} you follow` : ' you follow'}
+                    </span>
                   </div>
                 )}
               </div>
 
-              <div className="flex gap-4 flex-wrap">
-                <div className="flex-1 min-w-[200px] mb-5">
-                  <label className="text-[10px] text-primary font-mono uppercase tracking-widest block mb-2">&gt; UNIQUE_HANDLE (@)</label>
-                  <input placeholder="sys_handle" value={editHandle} onChange={e => setEditHandle(e.target.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase())}
-                    className="w-full bg-[#110508] border border-primary text-white p-2 font-mono text-xs outline-none shadow-[0_0_5px_rgba(255,42,77,0.2)]" />
-                  <div className="text-[10px] text-[#444] mt-1 font-mono">Alphanumeric and underscores only.</div>
-                </div>
-                <div className="flex-1 min-w-[200px] mb-5">
-                  <label className="text-[10px] text-primary font-mono uppercase tracking-widest block mb-2">&gt; DISPLAY_NAME</label>
-                  <input placeholder="sys_alias" value={editName} onChange={e => setEditName(e.target.value)}
-                    className="w-full bg-[#110508] border border-primary text-white p-2 font-mono text-xs outline-none shadow-[0_0_5px_rgba(255,42,77,0.2)]" />
-                </div>
-              </div>
-
-              <div className="mb-5">
-                <label className="text-[10px] text-[#666] font-mono uppercase tracking-widest block mb-2">&gt; BIO_THESIS</label>
-                <textarea placeholder="> Describe your trading thesis..." value={editBio} onChange={e => setEditBio(e.target.value)}
-                  className="w-full h-28 bg-[#110508] border border-[#1a1a1a] text-white p-2 font-mono text-xs outline-none resize-y" />
-              </div>
-
-              <button onClick={handleSaveProfile} disabled={saving}
-                className="bg-primary text-[#030303] font-mono font-bold text-xs px-6 py-2 transition-all hover:shadow-[0_0_15px_rgba(255,42,77,0.4)] disabled:opacity-50">
-                {saving ? '[SAVING...]' : '[COMMIT_CHANGES]'}
-              </button>
-            </motion.div>
-          )}
-
-          {/* Stat cards */}
-          <div className="flex gap-3 mt-8 flex-wrap">
-            <StatCard label="BOTS_DEPLOYED" value={bots.length} color="text-primary" delay={0.1} />
-            <StatCard label="AVG_BRIER" value={avgBrier} decimals={3} color={avgBrier > 0 && avgBrier <= 0.25 ? 'text-[#C8FF00]' : 'text-white'} delay={0.15} />
-            <StatCard label="TOTAL_CAPITAL" value={totalTVL} prefix="$" color="text-white" delay={0.2} />
-            <StatCard label="FOLLOWERS" value={followers} color="text-white" delay={0.25} />
-          </div>
-
-          {/* Heatmap */}
-          <div className="mt-6">
-            <div className="text-[10px] text-[#444] font-mono mb-2 tracking-widest">&gt; HISTORICAL_ACTIVITY [90D]</div>
-            <div className="bg-[#080808] border border-[#1a1a1a] p-4 overflow-x-auto">
-              <div className="grid gap-1 w-fit" style={{ gridTemplateRows: 'repeat(7, 11px)', gridAutoFlow: 'column' }}>
-                {heatmapData.map((intensity, i) => (
-                  <div key={i} title={`Day -${91 - i}`} className="w-[11px] h-[11px] transition-transform hover:scale-150 cursor-crosshair" style={{ background: heatColors[intensity] }} />
-                ))}
-              </div>
-            </div>
-            <div className="flex justify-end items-center gap-1 mt-2 text-[10px] text-[#444] font-mono">
-              <span>Less</span>
-              {heatColors.map(c => <div key={c} className="w-[9px] h-[9px]" style={{ background: c }} />)}
-              <span>More</span>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      {/* ═══ BODY ═══ */}
-      <div className="max-w-[1000px] mx-auto px-8 py-10">
-
-        {/* Bots */}
-        <div className="mb-12">
-          <div className="flex items-center justify-between border-b border-[#1a1a1a] pb-3 mb-6">
-            <div className="text-primary font-mono text-sm font-bold tracking-widest">
-              &gt; ALGORITHMS_DEPLOYED <span className="text-[#444] font-normal">[{bots.length} ACTIVE]</span>
-            </div>
-          </div>
-
-          {bots.length === 0 ? (
-            <div className="border border-dashed border-[#1a1a1a] bg-[#080808] py-16 text-center">
-              <div className="text-[#444] text-xs font-mono mb-5">&gt; NO_ALGORITHMS_DETECTED</div>
-              {isOwner && (
-                <Link href="/list-bot" className="inline-block bg-[#110508] border border-primary text-primary px-6 py-2 no-underline font-mono text-xs font-bold hover:bg-primary hover:text-[#030303] transition-colors">
-                  [SUBMIT_ALGORITHM]
-                </Link>
+              {/* bio */}
+              {profile?.bio && !isEditing && (
+                <p className="text-[13px] text-[#a6a6b0] leading-relaxed mt-4 max-w-2xl whitespace-pre-wrap">{profile.bio}</p>
               )}
             </div>
-          ) : (
-            <motion.div
-              className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}
-              initial="hidden" animate="show"
-              variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
-            >
-              {bots.map((b) => {
-                const brier = b.scores?.[0]?.brierScore ?? b.brierScore ?? 0
-                const wr = b.scores?.[0]?.winRate ?? b.winRate ?? 0
-                const tvl = b.currentTVL ?? b.tvl ?? 0
-                const isLive = (b.status || '').toLowerCase() === 'live' || (b.status || '').toLowerCase().includes('eligible')
-                return (
-                  <motion.div key={b.id} variants={{ hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0, transition: { ease: [0.16, 1, 0.3, 1], duration: 0.4 } } }} whileHover={{ y: -4 }}>
-                    <Link href={`/bot/${b.slug || b.id}`} className="flex flex-col bg-[#080808] border border-[#1a1a1a] no-underline group relative overflow-hidden transition-all hover:border-[#2a2a2a] hover:shadow-[0_4px_24px_rgba(0,0,0,0.6),0_0_0_0.5px_rgba(255,42,77,0.08)]">
-                      <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
-                      <div className="flex items-center justify-between px-3 py-2 border-b border-[#111]">
-                        <span className="text-[11px] font-mono text-white font-semibold group-hover:text-primary transition-colors truncate pr-2">{b.name}</span>
-                        <span className="text-[9px] font-mono flex items-center gap-1 shrink-0" style={{ color: isLive ? '#C8FF00' : '#555' }}>
-                          <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: isLive ? '#C8FF00' : '#555' }} />
-                          {isLive ? 'LIVE' : 'PAPER'}
-                        </span>
-                      </div>
-                      <div className="flex justify-center items-center py-6 bg-[#050505] border-b border-[#111]">
-                        {b.pfpUrl ? (
-                          <img src={b.pfpUrl} alt={b.name} className="w-16 h-16 object-cover border border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
-                        ) : (
-                          <BotIrisAvatar {...botEye(b)} size={64} />
-                        )}
-                      </div>
-                      <div className="p-3 flex flex-col gap-1.5 text-[11px] font-mono">
-                        <div className="flex justify-between"><span className="text-[#444]">BRIER</span><span className={`font-bold ${brier > 0 && brier <= 0.25 ? 'text-[#C8FF00]' : 'text-white'}`}>{brier.toFixed(3)}</span></div>
-                        <div className="flex justify-between"><span className="text-[#444]">WIN %</span><span className="text-white">{(wr * 100).toFixed(1)}%</span></div>
-                        <div className="flex justify-between border-t border-[#111] pt-1.5 mt-1"><span className="text-[#444]">VAULT TVL</span><span className="text-primary font-bold">${tvl.toLocaleString()}</span></div>
-                      </div>
-                    </Link>
-                  </motion.div>
-                )
-              })}
-            </motion.div>
-          )}
+          </div>
         </div>
 
-        {/* Activity log */}
-        <div>
-          <div className="flex items-center justify-between border-b border-[#1a1a1a] pb-3 mb-6">
-            <div className="text-primary font-mono text-sm font-bold tracking-widest">&gt; SYSTEM_ACTIVITY_LOG</div>
-          </div>
-          <div className="border border-[#1a1a1a] bg-[#080808] p-5 font-mono text-[11px] h-[200px] overflow-y-auto">
-            {systemLogs.length === 0 ? (
-              <div className="text-[#444] italic text-center mt-12">&gt; NO_SYSTEM_ACTIVITY_FOUND</div>
+        {/* edit panel */}
+        <AnimatePresence>
+          {isEditing && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+              <div className="mt-4 rounded-2xl border border-[#161620] bg-[#08080c] p-5">
+                <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#5a5a64] mb-4">Edit profile</div>
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="rounded-xl overflow-hidden border border-[#1f1f28]"><MakerAvatar address={makerAddress} pfpUrl={editPfp || profile?.pfpUrl} size={64} square /></div>
+                  <label className="flex-1">
+                    <span className="text-[11px] text-[#8a8a94] font-semibold">Profile photo</span>
+                    <input type="file" accept="image/*" onChange={handlePfpUpload} className="mt-1.5 w-full text-[12px] text-[#aaa] file:mr-3 file:rounded-full file:border-0 file:bg-[#1a1a22] file:px-3 file:py-1.5 file:text-[#ddd] file:text-[11px] file:font-semibold" />
+                  </label>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <label className="block"><span className="text-[12px] text-[#bbb] font-semibold">Display name</span><input value={editName} onChange={e => setEditName(e.target.value)} className="mt-1.5 w-full bg-[#0a0a0c] border border-[#1f1f28] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50" /></label>
+                  <label className="block"><span className="text-[12px] text-[#bbb] font-semibold">Handle</span>
+                    <div className="mt-1.5 flex items-center bg-[#0a0a0c] border border-[#1f1f28] rounded-lg focus-within:border-primary/50">
+                      <span className="pl-3 text-[#5a5a64] text-[13px]">@</span>
+                      <input value={editHandle} onChange={e => setEditHandle(e.target.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase())} className="flex-1 bg-transparent px-2 py-2 text-[13px] text-white outline-none" />
+                    </div>
+                  </label>
+                  <label className="block sm:col-span-2"><span className="text-[12px] text-[#bbb] font-semibold">Bio</span><textarea value={editBio} onChange={e => setEditBio(e.target.value)} className="mt-1.5 w-full h-24 bg-[#0a0a0c] border border-[#1f1f28] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50 resize-y" /></label>
+                </div>
+                <button onClick={handleSaveProfile} disabled={saving} className="mt-4 rounded-full bg-primary text-[#030303] font-bold text-[13px] px-6 py-2.5 disabled:opacity-50 hover:shadow-[0_0_18px_rgba(255,42,77,0.4)] transition-all">{saving ? 'Saving…' : 'Save changes'}</button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* stats — this person AS A CAPITAL ALLOCATOR (depositor) first; maker stats live in the Algorithms tab.
+            "Followers" is intentionally NOT here: it already lives once, under the name. */}
+        <div className="flex gap-3 mt-4 flex-wrap">
+          <StatCard label="Portfolio value" value={portfolio.portfolioValue} prefix="$" color={CRIMSON} delay={0.05} />
+          <StatCard label="Capital deposited" value={portfolio.totalDeposited} prefix="$" delay={0.1} />
+          <StatCard label="Profit earned" value={portfolio.totalEarned} prefix="$" color={portfolio.totalEarned > 0 ? POS : '#f0f0f4'} delay={0.15} />
+          <StatCard label="Active vaults" value={portfolio.activePositions} delay={0.2} />
+        </div>
+
+        {/* tabs */}
+        <div className="flex items-center gap-1 mt-8 border-b border-[#161620]">
+          {([['portfolio', `Portfolio ${portfolio.allocations.length}`], ['bots', `Algorithms ${bots.length}`]] as const).map(([k, label]) => (
+            <button key={k} onClick={() => setTab(k)} className="relative px-4 py-2.5 text-[13px] font-semibold transition-colors" style={{ color: tab === k ? '#fff' : '#6a6a74' }}>
+              {label}
+              {tab === k && <motion.span layoutId="maker-tab" className="absolute left-0 right-0 -bottom-px h-0.5 bg-primary" />}
+            </button>
+          ))}
+        </div>
+
+        {/* tab content */}
+        <div className="mt-6">
+          {tab === 'portfolio' && (
+            portfolio.allocations.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[#1f1f28] bg-[#08080c] py-16 text-center">
+                <div className="text-[13px] text-[#6a6a74]">No capital allocated to any vault yet.</div>
+                <Link href="/discover" className="inline-block mt-4 rounded-full border border-[#262630] text-[#ddd] font-bold text-[12px] px-5 py-2 no-underline hover:border-[#3a3a44] hover:text-white transition-colors">Explore vaults</Link>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-[#161620] bg-[#08080c] overflow-hidden">
+                <div className="grid grid-cols-[1.7fr_1fr_1fr_0.8fr] gap-2 px-4 py-2.5 border-b border-[#13131b] text-[10px] font-mono uppercase tracking-[0.12em] text-[#5a5a64]">
+                  <span>Vault</span><span className="text-right">Deposited</span><span className="text-right">Profit</span><span className="text-right">Return</span>
+                </div>
+                {portfolio.allocations.map((a: any, i: number) => {
+                  const cap = a.vaultCap || 0
+                  const usedPct = cap > 0 ? Math.min(100, (a.currentTVL / cap) * 100) : null
+                  const capFull = usedPct != null && usedPct >= 100
+                  const capColor = usedPct == null ? '#5a5a64' : capFull ? CRIMSON : usedPct >= 85 ? '#f5a623' : POS
+                  return (
+                  <Link key={a.slug || i} href={`/bot/${a.slug || ''}`} className="grid grid-cols-[1.7fr_1fr_1fr_0.8fr] gap-2 px-4 py-3 items-center border-t border-[#13131b] no-underline hover:bg-[#0c0c12] transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="shrink-0 rounded-[9px] overflow-hidden ring-1 ring-[#1f1f28]">
+                        {a.pfpUrl ? <img src={a.pfpUrl} alt={a.bot} className="w-9 h-9 object-cover" /> : <BotIrisAvatar {...botEye({ slug: a.slug, id: a.id, name: a.bot, color: a.color, eyeShape: a.eyeShape })} size={36} />}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-bold text-white truncate">{a.bot}</div>
+                        {/* capacity bar: how full this vault is (currentTVL / declared cap) */}
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className="relative h-1 flex-1 max-w-[120px] rounded-full bg-[#15151d] overflow-hidden">
+                            <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${usedPct ?? 0}%`, background: capColor }} />
+                          </span>
+                          <span className="font-mono text-[9px]" style={{ color: capColor }}>{usedPct == null ? 'Open' : capFull ? 'Full' : `${Math.round(usedPct)}%`}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-right font-mono text-[13px] text-[#e8e8e8]">{fmtUSD(a.dep)}</span>
+                    <span className="text-right font-mono text-[13px] font-bold" style={{ color: a.prof > 0 ? POS : a.prof < 0 ? CRIMSON : '#e8e8e8' }}>{a.prof >= 0 ? '+' : ''}{fmtUSD(a.prof)}</span>
+                    <span className="text-right font-mono text-[12px]" style={{ color: a.pct > 0 ? POS : a.pct < 0 ? CRIMSON : '#8a8a94' }}>{a.pct >= 0 ? '+' : ''}{a.pct}%</span>
+                  </Link>
+                  )
+                })}
+              </div>
+            )
+          )}
+
+          {tab === 'bots' && (
+            bots.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[#1f1f28] bg-[#08080c] py-16 text-center">
+                <div className="text-[13px] text-[#6a6a74]">No algorithms deployed yet.</div>
+                {isOwner && <Link href="/list-bot" className="inline-block mt-4 rounded-full bg-primary text-[#030303] font-bold text-[12px] px-5 py-2 no-underline hover:shadow-[0_0_16px_rgba(255,42,77,0.4)] transition-all">Deploy a bot</Link>}
+              </div>
             ) : (
               <>
-                {systemLogs.map((log, i) => (
-                  <div key={i} className="mb-1.5 text-[#888]" style={{ opacity: Math.max(0.3, 1 - i * 0.08) }}>
-                    <span className="text-[#333]">&gt;</span> {log}
-                  </div>
-                ))}
-                <div className="text-[#444] italic mt-3 cursor-blink">&gt; _Awaiting new events</div>
+              <div className="flex items-center gap-6 mb-4 text-[12px]">
+                <span className="text-[#7a7a84]">Bots deployed <b className="text-white font-bold tabular-nums ml-1">{bots.length}</b></span>
+                {avgBrier > 0 && <span className="text-[#7a7a84]">Avg Brier <b className="font-bold tabular-nums ml-1" style={{ color: avgBrier <= 0.25 ? POS : '#f0f0f4' }}>{avgBrier.toFixed(3)}</b></span>}
+                <span className="text-[#7a7a84]">Capital managed <b className="text-white font-bold tabular-nums ml-1">{fmtUSD(totalTVL)}</b></span>
+              </div>
+              <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
+                {bots.map(b => {
+                  const brier = b.scores?.[0]?.brierScore ?? b.brierScore ?? null
+                  const tvl = b.currentTVL ?? b.tvl ?? 0
+                  const cap = b.vaultCap || 0
+                  const usedPct = cap > 0 ? Math.min(100, (tvl / cap) * 100) : null
+                  const capFull = usedPct != null && usedPct >= 100
+                  const capColor = usedPct == null ? '#5a5a64' : capFull ? CRIMSON : usedPct >= 85 ? '#f5a623' : POS
+                  return (
+                    <Link key={b.id} href={`/bot/${b.slug || b.id}`} className="group rounded-2xl border border-[#161620] bg-[#08080c] overflow-hidden no-underline hover:border-[#262630] transition-colors">
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-[#13131b]">
+                        <span className="font-sans font-bold text-[13px] text-white truncate pr-2 group-hover:text-primary transition-colors">{b.name}</span>
+                      </div>
+                      <div className="grid place-items-center py-6 bg-[#050507]">
+                        {b.pfpUrl ? <img src={b.pfpUrl} alt={b.name} className="w-16 h-16 object-cover rounded-lg" /> : <BotIrisAvatar {...botEye(b)} size={60} />}
+                      </div>
+                      <div className="px-4 py-3 flex flex-col gap-2 text-[12px] font-mono">
+                        <div className="flex justify-between"><span className="text-[#5a5a64]">Brier</span><span className="font-bold" style={{ color: brier != null && brier <= 0.25 ? POS : '#e8e8e8' }}>{brier != null ? brier.toFixed(3) : '—'}</span></div>
+                        <div className="flex justify-between border-t border-[#13131b] pt-2"><span className="text-[#5a5a64]">Vault TVL</span><span className="text-white font-bold">{fmtUSD(tvl)}</span></div>
+                        {/* capacity: how full the vault is vs its declared cap */}
+                        <div className="pt-1">
+                          <div className="flex justify-between mb-1"><span className="text-[#5a5a64]">Capacity</span><span className="font-bold" style={{ color: capColor }}>{usedPct == null ? 'Open' : capFull ? 'Full' : `${Math.round(usedPct)}%`}</span></div>
+                          <span className="relative block h-1 rounded-full bg-[#15151d] overflow-hidden">
+                            <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${usedPct ?? 0}%`, background: capColor }} />
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
               </>
-            )}
-          </div>
+            )
+          )}
         </div>
-
       </div>
+
+      {/* followers / following modal — opens from the counts under the name, not a bottom tab */}
+      <AnimatePresence>
+        {socialModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setSocialModal(null)}
+            className="fixed inset-0 z-50 grid place-items-center bg-black/70 backdrop-blur-sm p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-[440px] max-h-[78vh] flex flex-col rounded-2xl border border-[#1f1f28] bg-[#0a0a0f] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.6)]">
+              {/* segmented header: Followers | Following */}
+              <div className="flex items-center border-b border-[#161620]">
+                {(['followers', 'following'] as const).map(k => (
+                  <button key={k} onClick={() => setSocialModal(k)}
+                    className="relative flex-1 px-4 py-3 text-[13px] font-semibold capitalize transition-colors"
+                    style={{ color: socialModal === k ? '#fff' : '#6a6a74' }}>
+                    {k} <span className="tabular-nums text-[#7a7a84]">{k === 'followers' ? followersList.length : followingList.length}</span>
+                    {socialModal === k && <motion.span layoutId="social-modal-tab" className="absolute left-0 right-0 -bottom-px h-0.5 bg-primary" />}
+                  </button>
+                ))}
+                <button onClick={() => setSocialModal(null)} className="px-4 text-[#6a6a74] hover:text-white text-[18px] leading-none">×</button>
+              </div>
+              {(() => {
+                const list = socialModal === 'followers' ? followersList : followingList
+                if (list.length === 0) return <div className="py-16 text-center text-[13px] text-[#6a6a74]">{socialModal === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'}</div>
+                return (
+                  <div className="overflow-y-auto p-2">
+                    {list.map(u => {
+                      const isMutual = socialModal === 'followers' ? profileFollowingSet.has(u.walletAddress?.toLowerCase()) : followersList.some(f => f.walletAddress?.toLowerCase() === u.walletAddress?.toLowerCase())
+                      return (
+                        <Link key={u.walletAddress} href={`/maker/${u.walletAddress}`} onClick={() => setSocialModal(null)}
+                          className="flex items-center gap-3 rounded-xl px-3 py-2.5 no-underline hover:bg-[#13131b] transition-colors">
+                          <PersonSquare u={u} size={40} mutual={isMutual} noLink />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[13px] font-bold text-white truncate">{personLabel(u)}</div>
+                            <div className="font-mono text-[10px] text-[#5a5a64] truncate">{shortAddr(u.walletAddress)}</div>
+                          </div>
+                          {isMutual && <span className="font-mono text-[9px] font-bold tracking-[0.12em] px-2 py-0.5 rounded-[4px]" style={{ color: POS, background: `${POS}12`, border: `1px solid ${POS}33` }}>MUTUAL</span>}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <ConnectXModal open={xOpen} initial={xHandle} onClose={() => setXOpen(false)} onSave={saveX} />
+
+      {toast && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="fixed bottom-8 right-8 z-[9999] bg-[#0d0d0d] border border-primary/40 text-white text-[13px] px-4 py-2.5 rounded-xl shadow-[0_0_24px_rgba(255,42,77,0.25)]">{toast}</motion.div>
+      )}
     </div>
   )
 }

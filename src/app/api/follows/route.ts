@@ -99,17 +99,22 @@ export async function POST(request: Request) {
         }
       })
 
-      // Send Notification to followingId
-      await prisma.notification.create({
-        data: {
-          walletAddress: followingId,
-          type: 'FOLLOW',
-          title: 'NEW FOLLOWER',
-          message: `Wallet ${followerId.substring(0,6)}...${followerId.substring(followerId.length-4)} started following you.`
-        }
-      })
+      // Best-effort notification — a failure here must never break the follow.
+      try {
+        await prisma.notification.create({
+          data: {
+            walletAddress: followingId,
+            type: 'FOLLOW',
+            title: 'NEW FOLLOWER',
+            message: `Wallet ${followerId.substring(0,6)}...${followerId.substring(followerId.length-4)} started following you.`
+          }
+        })
+      } catch (notifyErr) {
+        console.error('Follow notification failed (follow still saved):', notifyErr)
+      }
 
-      return NextResponse.json({ status: 'followed' })
+      const followersCount = await prisma.follow.count({ where: { followingId } })
+      return NextResponse.json({ status: 'followed', followersCount })
     }
   } catch (error) {
     console.error('Follow error:', error)

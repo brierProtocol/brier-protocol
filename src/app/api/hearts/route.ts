@@ -59,7 +59,8 @@ export async function POST(request: Request) {
       await prisma.heart.delete({
         where: { id: existingHeart.id }
       })
-      return NextResponse.json({ status: 'unhearted' })
+      const count = await prisma.heart.count({ where: { botId } })
+      return NextResponse.json({ status: 'unhearted', count })
     } else {
       // Like
       await prisma.heart.create({
@@ -69,23 +70,26 @@ export async function POST(request: Request) {
         }
       })
 
-      // Send Notification to bot owner
-      const bot = await prisma.bot.findUnique({ where: { id: botId } })
-      if (bot && bot.walletAddress) {
-        // Don't notify if liking own bot
-        if (bot.walletAddress !== userId) {
+      // Notify the bot owner. This is best-effort: a notification failure must
+      // never break the like itself, so it runs in its own try/catch.
+      try {
+        const bot = await prisma.bot.findUnique({ where: { id: botId } })
+        if (bot && bot.walletAddress && bot.walletAddress !== userId) {
           await prisma.notification.create({
             data: {
               walletAddress: bot.walletAddress,
               type: 'LIKE',
               title: 'ALGORITHM LIKED',
-              message: `Wallet ${userId.substring(0,6)}... liked your bot [${bot.name}].`
+              message: `Wallet ${userId.substring(0, 6)}... liked your bot [${bot.name}].`
             }
           })
         }
+      } catch (notifyErr) {
+        console.error('Heart notification failed (like still saved):', notifyErr)
       }
 
-      return NextResponse.json({ status: 'hearted' })
+      const count = await prisma.heart.count({ where: { botId } })
+      return NextResponse.json({ status: 'hearted', count })
     }
   } catch (error) {
     console.error('Heart error:', error)

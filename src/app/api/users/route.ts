@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { walletAddress, handle, name, bio, pfpUrl } = await request.json();
+    const { walletAddress, handle, name, bio, pfpUrl, xHandle } = await request.json();
 
     if (!walletAddress) return NextResponse.json({ error: 'Missing walletAddress' }, { status: 400 });
 
@@ -41,10 +41,19 @@ export async function POST(request: Request) {
       }
     }
 
+    // Normalize an X handle: strip a leading @ or an x.com/twitter.com URL.
+    const cleanX = xHandle === undefined ? undefined
+      : (xHandle === null || xHandle === '')
+        ? null
+        : String(xHandle).trim().replace(/^https?:\/\/(www\.)?(x|twitter)\.com\//i, '').replace(/^@/, '').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 15)
+
+    // A manual link is never auto-verified; clearing it resets verification too.
+    const xData = cleanX === undefined ? {} : { xHandle: cleanX, xVerified: false }
+
     const user = await prisma.user.upsert({
       where: { walletAddress },
-      update: { handle, name, bio, pfpUrl },
-      create: { walletAddress, handle, name, bio, pfpUrl }
+      update: { handle, name, bio, pfpUrl, ...xData },
+      create: { walletAddress, handle, name, bio, pfpUrl, ...xData }
     });
 
     return NextResponse.json(user, { status: 200 });
