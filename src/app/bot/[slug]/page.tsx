@@ -56,6 +56,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const [depositing, setDepositing] = useState(false)
   const [toast, setToast] = useState('')
   const [showDefs, setShowDefs] = useState(false)
+  const [confettiBurst, setConfettiBurst] = useState(0)
 
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState('')
@@ -119,7 +120,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
       const liked = d.status === 'hearted'
       setHearted(liked)
       setHearts(h => liked ? h + 1 : Math.max(0, h - 1))
-      if (liked) setLikeFx(Date.now())
+      if (liked) { setLikeFx(Date.now()); setConfettiBurst(Date.now()) }
     }
   }
 
@@ -178,10 +179,10 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const eye = botEye({ slug, id: bot.id, name: bot.name, color: bot.color, eyeShape: bot.eyeShape })
   const b = bot.brierScore
   const grade = b == null ? null
-    : b <= 0.15 ? { t: 'ELITE', c: '#00d4aa' }
-    : b <= 0.25 ? { t: 'STRONG', c: '#37d67a' }
-    : b <= 0.40 ? { t: 'MODERATE', c: '#8b7bff' }
-    : { t: 'WEAK', c: '#ff5570' }
+    : b <= 0.15 ? { t: 'ORACLE', c: '#00d4aa' }
+    : b <= 0.25 ? { t: 'CALIBRATED', c: '#37d67a' }
+    : b <= 0.40 ? { t: 'LEARNING', c: '#8b7bff' }
+    : { t: 'NOISE', c: '#ff5570' }
 
   const wins = trades.filter(t => t.outcome === 'WIN').length
   const losses = trades.filter(t => t.outcome === 'LOSS').length
@@ -287,16 +288,34 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         {/* ── HERO ── */}
         <div className="flex items-start justify-between gap-6 flex-wrap mb-6">
           <div className="flex items-start gap-5 min-w-0">
-            <div className="rounded-xl overflow-hidden border border-[#1a1a1a] shrink-0">
-              {bot.pfpUrl
-                ? <img src={bot.pfpUrl} alt={bot.name} className="w-[64px] h-[64px] object-cover" />
-                : <BotIrisAvatar {...eye} size={64} />}
+            {/* bot avatar — free creature, no container, just glow */}
+            <div className="relative shrink-0">
+              {bot.pfpUrl ? (
+                <div className="rounded-xl overflow-hidden border border-[#1a1a1a]">
+                  <img src={bot.pfpUrl} alt={bot.name} className="w-[64px] h-[64px] object-cover" />
+                </div>
+              ) : (
+                <>
+                  <motion.div
+                    className="absolute rounded-full blur-2xl pointer-events-none"
+                    style={{ inset: '-16px', background: `radial-gradient(circle, ${eye.accentColor}50 0%, transparent 70%)` }}
+                    animate={{ opacity: [0.5, 0.85, 0.5] }}
+                    transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+                  />
+                  <BotIrisAvatar {...eye} size={64} />
+                </>
+              )}
             </div>
+
             <div className="min-w-0">
               {/* name + phase + grade */}
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h1 className="text-white font-extrabold text-[28px] tracking-[-0.03em] m-0 leading-none">{bot.name}</h1>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono font-bold tracking-[0.16em]" style={{ color: pm.color, background: `${pm.color}14`, border: `1px solid ${pm.color}3a` }}>
+                {/* phase badge — sharp terminal style */}
+                <span
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-mono font-bold tracking-[0.2em] rounded-[3px]"
+                  style={{ color: pm.color, background: `${pm.color}0e`, borderLeft: `2px solid ${pm.color}` }}
+                >
                   {pm.tag === 'SHADOW' && (
                     <span className="inline-flex gap-[2px]">
                       {[0, 1, 2].map(i => (
@@ -310,8 +329,12 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                   )}
                   {pm.tag}
                 </span>
+                {/* grade badge — text-only, no pill */}
                 {grade && (
-                  <span className="px-2 py-1 rounded-md text-[10px] font-mono tracking-[0.16em]" style={{ color: grade.c, background: `${grade.c}12`, border: `1px solid ${grade.c}3a` }}>
+                  <span
+                    className="text-[9px] font-mono font-bold tracking-[0.22em] border-b pb-px"
+                    style={{ color: grade.c, borderColor: `${grade.c}66` }}
+                  >
                     {grade.t}
                   </span>
                 )}
@@ -354,17 +377,34 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             </div>
           </div>
 
-          {/* like with burst */}
+          {/* like + confetti */}
           <div className="relative shrink-0">
             <button onClick={toggleHeart} className={`flex items-center gap-2.5 px-5 py-3 rounded-xl border transition-all cursor-pointer ${hearted ? 'border-primary bg-primary/10 text-primary' : 'border-[#1a1a1a] bg-[#070707] text-[#888] hover:border-primary/50 hover:text-primary'}`}>
               <motion.span key={hearted ? 'on' : 'off'} initial={{ scale: 0.6 }} animate={{ scale: hearted ? [1.4, 1] : 1 }} transition={{ duration: 0.35 }} className="text-lg leading-none">{hearted ? '♥' : '♡'}</motion.span>
               <span className="font-mono font-bold text-lg tabular-nums leading-none">{hearts}</span>
             </button>
             <AnimatePresence>
-              {likeFx > 0 && [...Array(5)].map((_, i) => (
+              {confettiBurst > 0 && (['#ff2a4d','#00d4aa','#8b7bff','#ffd400','#ffffff','#ff5ccd','#4285f0','#eaff00'] as const).flatMap((color, ci) =>
+                [0, 1, 2].map((j) => {
+                  const angle = ((ci * 3 + j) / 24) * Math.PI * 2
+                  const dist = 48 + j * 22
+                  return (
+                    <motion.span
+                      key={`cf-${confettiBurst}-${ci}-${j}`}
+                      className="absolute pointer-events-none"
+                      style={{ width: 5 + (j % 3) * 2, height: 4 + (ci % 2) * 3, background: color, borderRadius: ci % 3 === 0 ? '50%' : '1px', left: '50%', top: '50%' }}
+                      initial={{ opacity: 1, x: -3, y: -3, rotate: 0, scale: 1 }}
+                      animate={{ opacity: 0, x: Math.cos(angle) * dist, y: Math.sin(angle) * dist - 28, rotate: 200 * (ci % 2 ? 1 : -1), scale: 0.2 }}
+                      transition={{ duration: 0.75 + j * 0.08, ease: 'easeOut' }}
+                      onAnimationComplete={() => { if (ci === 7 && j === 2) setConfettiBurst(0) }}
+                    />
+                  )
+                })
+              )}
+              {likeFx > 0 && [...Array(4)].map((_, i) => (
                 <motion.span key={`${likeFx}-${i}`} className="absolute left-1/2 top-2 text-primary text-sm pointer-events-none"
-                  initial={{ opacity: 1, y: 0, x: 0 }} animate={{ opacity: 0, y: -46 - i * 6, x: (i - 2) * 14 }} transition={{ duration: 0.9, ease: 'easeOut' }}
-                  onAnimationComplete={() => { if (i === 4) setLikeFx(0) }}>♥</motion.span>
+                  initial={{ opacity: 1, y: 0, x: 0 }} animate={{ opacity: 0, y: -44 - i * 7, x: (i - 1.5) * 12 }} transition={{ duration: 0.85, ease: 'easeOut' }}
+                  onAnimationComplete={() => { if (i === 3) setLikeFx(0) }}>♥</motion.span>
               ))}
             </AnimatePresence>
           </div>
@@ -389,7 +429,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           <div className="flex flex-col gap-5 min-w-0">
 
             {/* signal — live connection visual */}
-            <BotUplink eye={eye} status={uplink} lastFill={lastFill} />
+            <BotUplink eye={eye} status={uplink} lastFill={lastFill} resolved={sp.resolved} />
 
             {/* performance chart */}
             <BotPnlChart
@@ -437,10 +477,10 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               )}
             </Panel>
 
-            {/* discussion */}
+            {/* intel / discussion */}
             <Panel>
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#141414]">
-                <span className="font-sans font-bold text-[14px]">Discussion</span>
+                <span className="font-sans font-bold text-[14px]">Intel</span>
                 <span className="font-mono text-[11px] text-[#888]">{posts.length} comments</span>
               </div>
               <div className="px-5 py-4 border-b border-[#141414] bg-[#060607]">
@@ -448,7 +488,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                   <div className="flex gap-3">
                     <MakerAvatar address={address} size={34} />
                     <div className="flex-1">
-                      <textarea value={postText} onChange={e => setPostText(e.target.value)} placeholder="Share your read on this bot…" className="w-full h-16 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50 resize-y placeholder:text-[#555]" />
+                      <textarea value={postText} onChange={e => setPostText(e.target.value)} placeholder="Drop your read on this bot…" className="w-full h-16 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50 resize-y placeholder:text-[#555]" />
                       <div className="flex justify-end mt-2"><button onClick={addPost} disabled={!postText.trim()} className="rounded-full bg-primary text-[#030303] font-bold text-[12px] px-5 py-2 disabled:opacity-30 hover:shadow-[0_0_14px_rgba(255,42,77,0.4)] transition-all">Comment</button></div>
                     </div>
                   </div>
@@ -510,7 +550,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             {/* track record */}
             <Panel className="p-5">
               <div className="flex items-center justify-between mb-3">
-                <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">Track record</span>
+                <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">Proof of edge</span>
                 <button onClick={() => setShowDefs(v => !v)} className="font-mono text-[10px] text-[#666] hover:text-white transition-colors">{showDefs ? 'hide' : 'what do these mean?'}</button>
               </div>
               <div className="grid grid-cols-2 gap-px bg-[#141414] border border-[#141414] rounded-lg overflow-hidden">
