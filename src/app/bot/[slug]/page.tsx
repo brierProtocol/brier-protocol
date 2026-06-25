@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import MakerAvatar from '@/components/MakerAvatar'
 import BotUplink from '@/components/bot/BotUplink'
+import BotPerformance from '@/components/bot/BotPerformance'
 import VaultGlass from '@/components/bot/VaultGlass'
 import { botEye, codename } from '@/lib/botIdentity'
 import { useAccount } from 'wagmi'
@@ -27,6 +28,10 @@ const fmtUSD = (n: number) =>
   n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `$${(n / 1000).toFixed(1)}K` : `$${Math.round(n).toLocaleString()}`
 const personLabel = (u?: Post['user'], wallet = '') =>
   u?.handle ? `@${u.handle}` : (u?.name && !u.name.startsWith('User_') ? u.name : codename(wallet))
+const shortAddr = (addr: string) => addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : 'anon'
+const makerLabel = (maker: Post['user'] | null | undefined, wallet: string) =>
+  maker?.handle ? `@${maker.handle}` :
+  (maker?.name && !maker.name.startsWith('User_') ? maker.name : shortAddr(wallet))
 const relDay = (d?: string | Date | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
 
 function txOf(t: any): string | null {
@@ -50,7 +55,8 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const [likeFx, setLikeFx] = useState(0)
   const [depositing, setDepositing] = useState(false)
   const [toast, setToast] = useState('')
-  const [showDefs, setShowDefs] = useState(false)
+  const [activeStat, setActiveStat] = useState<string | null>(null)
+  const [confettiBurst, setConfettiBurst] = useState(0)
 
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState('')
@@ -63,7 +69,12 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const isOwner = !!(isConnected && address && bot && bot.builder?.toLowerCase() === address.toLowerCase())
 
   const animatedTVL = useCountUp(bot?.tvl || 0)
-  const vaultCap = bot?.vaultCap || 50000
+  // capDeclared = el cap real del maker (0 = Open / sin tope). vaultCap = fallback solo
+  // para el vaso visual (que no se rompa con 0). El gating y los labels usan el real.
+  const capDeclared = bot?.vaultCap || 0
+  const vaultCap = capDeclared || 50000
+  const isCapped = capDeclared > 0
+  const atCapacity = isCapped && animatedTVL >= capDeclared
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 4000) }
 
@@ -78,7 +89,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           pfpUrl: dbBot.pfpUrl, maker: dbBot.user || null,
           description: dbBot.description, status: dbBot.status || 'PAPER',
           color: dbBot.color, eyeShape: dbBot.eyeShape, createdAt: dbBot.createdAt,
-          vaultOpen: dbBot.vaultOpen, vaultAddress: dbBot.vaultAddress, vaultCap: dbBot.vaultCap || 50000,
+          vaultOpen: dbBot.vaultOpen, vaultAddress: dbBot.vaultAddress, vaultCap: dbBot.vaultCap ?? 0,
           tvl: dbBot.liveNav?.totalAssets ?? dbBot.currentTVL ?? 0,
           sharePrice: dbBot.liveNav?.sharePrice ?? 1,
           categories: dbBot.verifiedCategories?.length ? dbBot.verifiedCategories : (dbBot.categories || []),
@@ -108,13 +119,22 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
 
   const toggleHeart = async () => {
     if (!isConnected || !address) return showToast('Connect your wallet to like.')
-    const res = await fetch('/api/hearts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: address, botId: bot.id }) })
-    if (res.ok) {
+    // Optimistic flip so the button responds instantly.
+    const prevHearted = hearted, prevHearts = hearts
+    const nextHearted = !hearted
+    setHearted(nextHearted)
+    setHearts(h => nextHearted ? h + 1 : Math.max(0, h - 1))
+    if (nextHearted) { setLikeFx(Date.now()); setConfettiBurst(Date.now()) }
+    try {
+      const res = await fetch('/api/hearts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: address, botId: bot.id }) })
+      if (!res.ok) throw new Error('request failed')
       const d = await res.json()
-      const liked = d.status === 'hearted'
-      setHearted(liked)
-      setHearts(h => liked ? h + 1 : Math.max(0, h - 1))
-      if (liked) setLikeFx(Date.now())
+      setHearted(d.status === 'hearted')
+      if (typeof d.count === 'number') setHearts(d.count)
+    } catch {
+      // Roll back on failure.
+      setHearted(prevHearted); setHearts(prevHearts)
+      showToast('Could not save your like. Try again.')
     }
   }
 
@@ -173,21 +193,27 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const eye = botEye({ slug, id: bot.id, name: bot.name, color: bot.color, eyeShape: bot.eyeShape })
   const b = bot.brierScore
   const grade = b == null ? null
-    : b <= 0.15 ? { t: 'ELITE', c: '#00d4aa' }
-    : b <= 0.25 ? { t: 'STRONG', c: '#37d67a' }
-    : b <= 0.40 ? { t: 'MODERATE', c: '#8b7bff' }
-    : { t: 'WEAK', c: '#ff5570' }
+    : b <= 0.15 ? { t: 'ORACLE', c: '#c8ff00' }
+    : b <= 0.25 ? { t: 'CALIBRATED', c: '#eef0f6' }
+    : b <= 0.40 ? { t: 'LEARNING', c: '#8b7bff' }
+    : { t: 'NOISE', c: '#ff5570' }
 
   const wins = trades.filter(t => t.outcome === 'WIN').length
   const losses = trades.filter(t => t.outcome === 'LOSS').length
   const pending = trades.filter(t => t.outcome === 'PENDING').length
   const navValues: number[] = (bot.pnlSnapshots || []).map((s: any) => s.cumulativePnl ?? s.pnlUsd).filter((v: any) => typeof v === 'number')
-  const navDelta = navValues.length > 1 ? ((navValues[navValues.length - 1] - navValues[0]) / (Math.abs(navValues[0]) || 1)) * 100 : (bot.sharePrice ? (bot.sharePrice - 1) * 100 : 0)
-  const roi = navValues.length > 1 && navValues[0] ? navDelta : null
+  // Vault delta is NAV return (share price), not raw PnL — cumulative PnL starts
+  // at 0, so a percentage off it is meaningless. Fall back to PnL% only when the
+  // baseline is a real non-zero figure.
+  const navStart = navValues[0] ?? 0
+  const navDelta = bot.sharePrice && bot.sharePrice !== 1
+    ? (bot.sharePrice - 1) * 100
+    : (navValues.length > 1 && Math.abs(navStart) > 1 ? ((navValues[navValues.length - 1] - navStart) / Math.abs(navStart)) * 100 : 0)
+  const roi = bot.sharePrice && bot.sharePrice !== 1 ? navDelta : null
   const uplink = bot.tradesIndexed > 0 ? 'live' : 'awaiting'
   const lastFill = trades.length ? relDay(trades[0].timestamp) : null
 
-  const VIOLET = '#8b7bff', TEAL = '#00d4aa'
+  const VIOLET = '#8b7bff', TEAL = '#c8ff00'
   const criteria = [
     { label: 'Resolved predictions', val: `${sp.resolved} / ${SHADOW_RESOLVED_TARGET}`, ok: sp.resolvedPass, pct: Math.min(1, sp.resolved / SHADOW_RESOLVED_TARGET) },
     { label: 'Brier score', val: sp.brier != null ? `${sp.brier.toFixed(3)} · ≤ ${SHADOW_BRIER_TARGET.toFixed(2)}` : `≤ ${SHADOW_BRIER_TARGET.toFixed(2)}`, ok: sp.brierPass, pct: sp.brier == null ? 0 : Math.min(1, Math.max(0, (0.4 - sp.brier) / (0.4 - SHADOW_BRIER_TARGET))) },
@@ -212,7 +238,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
       <div className="max-w-[1180px] mx-auto px-6 pt-6 pb-20">
 
         {/* top bar */}
-        <div className="flex items-center justify-between mb-8 text-[12px]">
+        <div className="flex items-center justify-between mb-6 text-[12px]">
           <Link href="/discover" className="text-[#777] hover:text-white transition-colors no-underline">← The catalog</Link>
           {isOwner && (
             <button onClick={() => setIsEditing(v => !v)} className="font-sans text-[12px] font-semibold px-3.5 py-1.5 rounded-full border border-[#222] text-[#ccc] hover:border-[#444] hover:text-white transition-all">
@@ -221,53 +247,182 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           )}
         </div>
 
-        {/* hero */}
+        {/* ── VAULT (full width, first thing you see) ── */}
+        <div className="rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden mb-6">
+          <div className="flex flex-col sm:flex-row items-stretch">
+            <div className="sm:w-[280px] shrink-0 p-5 sm:border-r border-b sm:border-b-0 border-[#141414]">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-[#888]">Vault</span>
+                {sp.live && (
+                  <span className={`font-mono text-[11px] font-bold ${navDelta >= 0 ? 'text-[#c8ff00]' : 'text-[#ff5570]'}`}>
+                    {navDelta >= 0 ? '▲' : '▼'} {Math.abs(navDelta).toFixed(1)}%
+                  </span>
+                )}
+              </div>
+              <VaultGlass tvl={animatedTVL} cap={vaultCap} live={sp.live} />
+            </div>
+            <div className="flex-1 p-6 flex flex-col justify-between min-w-0">
+              <div>
+                <div className="font-mono text-[10px] tracking-[0.24em] uppercase text-[#5a5a64] mb-2">
+                  {sp.live ? 'Total assets secured' : 'Vault status'}
+                </div>
+                <div className="font-sans font-black text-[clamp(30px,4.5vw,52px)] leading-[0.92] tabular-nums text-white tracking-[-0.045em]">
+                  {sp.live ? fmtUSD(animatedTVL) : 'Shadow phase'}
+                </div>
+                <div className="font-mono text-[12px] mt-2.5 tracking-wide" style={{ color: sp.live ? '#6a6a74' : VIOLET }}>
+                  {sp.live
+                    ? (isCapped ? `of ${fmtUSD(capDeclared)} capacity` : 'Open capacity · finding the ceiling')
+                    : `Vault unlocks after the shadow gate. ${sp.resolved}/${SHADOW_RESOLVED_TARGET} resolved`}
+                </div>
+              </div>
+              <div className="mt-5 grid grid-cols-3 gap-4 border-t border-[#141420] pt-4">
+                {[
+                  { k: 'Capacity', v: isCapped ? fmtUSD(capDeclared) : 'Open' },
+                  { k: 'Profit split', v: '60 / 30 / 10' },
+                  { k: sp.live ? 'Phase' : 'Progress', v: sp.live ? 'LIVE' : `${Math.round(sp.pct * 100)}%` },
+                ].map(m => (
+                  <div key={m.k}>
+                    <div className="font-mono text-[9px] text-[#48484f] tracking-[0.14em] uppercase mb-1">{m.k}</div>
+                    <div className="font-sans font-bold text-[15px] text-white tabular-nums tracking-tight">{m.v}</div>
+                  </div>
+                ))}
+              </div>
+              {sp.live && (
+                <div className="mt-4">
+                  {atCapacity ? (
+                    <div className="rounded-lg border border-primary/30 p-2.5 text-center font-mono text-[11px] text-primary tracking-widest">AT CAPACITY · DEPOSITS CLOSED</div>
+                  ) : !isConnected ? (
+                    <div className="text-[12px] text-[#666]">Connect your wallet to deposit.</div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input type="number" value={depositAmt} onChange={e => setDepositAmt(e.target.value)} placeholder="USDC" className="flex-1 min-w-0 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2.5 text-[13px] text-white outline-none focus:border-primary/50 placeholder:text-[#555]" />
+                      <button onClick={handleDeposit} disabled={depositing} className="rounded-lg bg-primary text-[#030303] font-bold text-[13px] px-5 disabled:opacity-50 hover:shadow-[0_0_16px_rgba(255,42,77,0.4)] transition-all">{depositing ? '…' : 'Deposit'}</button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── HERO ── */}
         <div className="flex items-start justify-between gap-6 flex-wrap mb-6">
           <div className="flex items-start gap-5 min-w-0">
-            <div className="rounded-xl overflow-hidden border border-[#1a1a1a] shrink-0">
-              {bot.pfpUrl ? <img src={bot.pfpUrl} alt={bot.name} className="w-16 h-16 object-cover" /> : <BotIrisAvatar {...eye} size={64} />}
+            {/* bot avatar — free creature, no container, just glow */}
+            <div className="relative shrink-0">
+              {bot.pfpUrl ? (
+                <div className="rounded-xl overflow-hidden border border-[#1a1a1a]">
+                  <img src={bot.pfpUrl} alt={bot.name} className="w-[64px] h-[64px] object-cover" />
+                </div>
+              ) : (
+                <>
+                  <motion.div
+                    className="absolute rounded-full blur-2xl pointer-events-none"
+                    style={{ inset: '-16px', background: `radial-gradient(circle, ${eye.accentColor}50 0%, transparent 70%)` }}
+                    animate={{ opacity: [0.5, 0.85, 0.5] }}
+                    transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+                  />
+                  <BotIrisAvatar {...eye} size={64} />
+                </>
+              )}
             </div>
+
             <div className="min-w-0">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-white font-extrabold text-[28px] tracking-[-0.03em] m-0 leading-none">{bot.name}</h1>
-                {/* phase badge — pip changes per phase */}
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono font-bold tracking-[0.16em]" style={{ color: pm.color, background: `${pm.color}14`, border: `1px solid ${pm.color}3a` }}>
-                  {pm.tag === 'LIVE' ? (
-                    <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping" style={{ background: pm.color }} /><span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ background: pm.color }} /></span>
-                  ) : pm.tag === 'SHADOW' ? (
-                    <span className="inline-flex gap-[2px]">{[0, 1, 2].map(i => <motion.span key={i} className="w-[3px] h-[10px] rounded-sm" style={{ background: pm.color }} animate={{ opacity: [0.25, 1, 0.25] }} transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.18 }} />)}</span>
-                  ) : <span className="w-1.5 h-1.5" style={{ background: pm.color }} />}
+              {/* name + phase + grade */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-white font-black text-[34px] tracking-[-0.04em] m-0 leading-[0.95]">{bot.name}</h1>
+                {/* phase badge — sharp terminal style */}
+                <span
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-mono font-bold tracking-[0.2em] rounded-[3px]"
+                  style={{ color: pm.color, background: `${pm.color}0e`, borderLeft: `2px solid ${pm.color}` }}
+                >
+                  {pm.tag === 'SHADOW' && (
+                    <span className="inline-flex gap-[2px]">
+                      {[0, 1, 2].map(i => (
+                        <motion.span key={i} className="w-[3px] h-[10px] rounded-sm" style={{ background: pm.color }}
+                          animate={{ opacity: [0.25, 1, 0.25] }} transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.18 }} />
+                      ))}
+                    </span>
+                  )}
+                  {pm.tag === 'NEW' && (
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: pm.color }} />
+                  )}
                   {pm.tag}
                 </span>
-                {grade && <span className="px-2 py-1 rounded-md text-[10px] font-mono tracking-[0.16em]" style={{ color: grade.c, background: `${grade.c}12`, border: `1px solid ${grade.c}3a` }}>{grade.t}</span>}
-              </div>
-              {bot.tagline && <div className="text-[#888] text-[13px] mt-2">{bot.tagline}</div>}
-              <div className="flex items-center gap-2 mt-3 flex-wrap">
-                {bot.builder && (
-                  <Link href={`/maker/${bot.builder}`} className="inline-flex items-center gap-2 group no-underline rounded-full border border-[#161616] hover:border-[#2a2a2a] bg-[#070707] pl-1 pr-3 py-1 transition-colors">
-                    <MakerAvatar address={bot.builder} pfpUrl={bot.maker?.pfpUrl} size={20} />
-                    <span className="font-sans text-[12px] text-[#999] group-hover:text-white transition-colors">{personLabel(bot.maker, bot.builder)}</span>
-                  </Link>
+                {/* grade badge — text-only, no pill */}
+                {grade && (
+                  <span
+                    className="text-[9px] font-mono font-bold tracking-[0.22em] border-b pb-px"
+                    style={{ color: grade.c, borderColor: `${grade.c}66` }}
+                  >
+                    {grade.t}
+                  </span>
                 )}
-                {bot.categories?.slice(0, 4).map((c: string) => (
-                  <span key={c} className="font-mono text-[10px] uppercase tracking-widest text-[#777] border border-[#1a1a1a] rounded-full px-2.5 py-1">{c}</span>
+              </div>
+
+              {/* Brier score — headline metric, no repeated 'lower is better' */}
+              {b != null ? (
+                <div className="flex items-baseline gap-2 mt-3">
+                  <span className="font-sans font-black text-[40px] leading-none tracking-[-0.04em] tabular-nums" style={{ color: grade?.c || '#aaa' }}>
+                    {b.toFixed(3)}
+                  </span>
+                  <span className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-[#5a5a64]">brier</span>
+                </div>
+              ) : (
+                <div className="font-mono text-[12px] text-[#5a5a64] mt-3">Awaiting first resolved prediction</div>
+              )}
+
+              {bot.tagline && <div className="text-[#a6a6b0] text-[14px] mt-2.5 font-medium">{bot.tagline}</div>}
+
+              {/* builder + categories — square portrait, clickable name, no pill */}
+              <div className="flex items-center gap-3 mt-4 flex-wrap">
+                {bot.builder && (
+                  <span className="inline-flex items-center gap-2.5">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#48484f]">by</span>
+                    <MakerAvatar address={bot.builder} pfpUrl={bot.maker?.pfpUrl} size={24} square />
+                    <Link href={`/maker/${bot.builder}`} className="font-sans text-[13px] font-bold text-[#e4e4ea] hover:text-white no-underline border-b border-transparent hover:border-white/40 transition-colors">
+                      {makerLabel(bot.maker, bot.builder)}
+                    </Link>
+                  </span>
+                )}
+                {bot.categories?.slice(0, 3).map((c: string) => (
+                  <span key={c} className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#8a8a94] border border-[#1f1f28] rounded-[4px] px-2.5 py-1">{c}</span>
                 ))}
-                {bot.verified && <span className="font-mono text-[9px] uppercase tracking-widest text-[#00d4aa]/80">on-chain verified</span>}
+                {bot.verified && (
+                  <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-[#c8ff00]/90">on-chain verified</span>
+                )}
               </div>
             </div>
           </div>
 
-          {/* like with burst */}
+          {/* like + confetti */}
           <div className="relative shrink-0">
             <button onClick={toggleHeart} className={`flex items-center gap-2.5 px-5 py-3 rounded-xl border transition-all cursor-pointer ${hearted ? 'border-primary bg-primary/10 text-primary' : 'border-[#1a1a1a] bg-[#070707] text-[#888] hover:border-primary/50 hover:text-primary'}`}>
               <motion.span key={hearted ? 'on' : 'off'} initial={{ scale: 0.6 }} animate={{ scale: hearted ? [1.4, 1] : 1 }} transition={{ duration: 0.35 }} className="text-lg leading-none">{hearted ? '♥' : '♡'}</motion.span>
               <span className="font-mono font-bold text-lg tabular-nums leading-none">{hearts}</span>
             </button>
             <AnimatePresence>
-              {likeFx > 0 && [...Array(5)].map((_, i) => (
+              {confettiBurst > 0 && (['#ff2a4d','#c8ff00','#8b7bff','#ffd400','#ffffff','#ff5ccd','#4285f0','#eaff00'] as const).flatMap((color, ci) =>
+                [0, 1, 2].map((j) => {
+                  const angle = ((ci * 3 + j) / 24) * Math.PI * 2
+                  const dist = 48 + j * 22
+                  return (
+                    <motion.span
+                      key={`cf-${confettiBurst}-${ci}-${j}`}
+                      className="absolute pointer-events-none"
+                      style={{ width: 5 + (j % 3) * 2, height: 4 + (ci % 2) * 3, background: color, borderRadius: ci % 3 === 0 ? '50%' : '1px', left: '50%', top: '50%' }}
+                      initial={{ opacity: 1, x: -3, y: -3, rotate: 0, scale: 1 }}
+                      animate={{ opacity: 0, x: Math.cos(angle) * dist, y: Math.sin(angle) * dist - 28, rotate: 200 * (ci % 2 ? 1 : -1), scale: 0.2 }}
+                      transition={{ duration: 0.75 + j * 0.08, ease: 'easeOut' }}
+                      onAnimationComplete={() => { if (ci === 7 && j === 2) setConfettiBurst(0) }}
+                    />
+                  )
+                })
+              )}
+              {likeFx > 0 && [...Array(4)].map((_, i) => (
                 <motion.span key={`${likeFx}-${i}`} className="absolute left-1/2 top-2 text-primary text-sm pointer-events-none"
-                  initial={{ opacity: 1, y: 0, x: 0 }} animate={{ opacity: 0, y: -46 - i * 6, x: (i - 2) * 14 }} transition={{ duration: 0.9, ease: 'easeOut' }}
-                  onAnimationComplete={() => { if (i === 4) setLikeFx(0) }}>♥</motion.span>
+                  initial={{ opacity: 1, y: 0, x: 0 }} animate={{ opacity: 0, y: -44 - i * 7, x: (i - 1.5) * 12 }} transition={{ duration: 0.85, ease: 'easeOut' }}
+                  onAnimationComplete={() => { if (i === 3) setLikeFx(0) }}>♥</motion.span>
               ))}
             </AnimatePresence>
           </div>
@@ -291,17 +446,26 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           {/* LEFT */}
           <div className="flex flex-col gap-5 min-w-0">
 
-            {/* uplink — the live connection visual */}
-            <BotUplink eye={eye} status={uplink} lastFill={lastFill} />
+            {/* signal — live connection visual */}
+            <BotUplink eye={eye} status={uplink} lastFill={lastFill} resolved={sp.resolved} />
 
-            {/* trade history — visual */}
+            {/* performance — Liveline real-time-style P&L curve */}
+            <BotPerformance
+              snapshots={bot.pnlSnapshots}
+              winRate={bot.winRate}
+              sharpe={bot.sharpe}
+              maxDrawdown={bot.maxDrawdown}
+              totalTrades={bot.totalTrades}
+              live={sp.live}
+            />
+
+            {/* trade history */}
             <Panel>
               <div className="px-5 py-3.5 border-b border-[#141414]">
                 <div className="flex items-center justify-between mb-2.5">
                   <div><span className="font-sans font-bold text-[14px]">Trade history</span><span className="ml-2 font-mono text-[10px] text-[#555]">settled on-chain</span></div>
                   <span className="font-mono text-[11px] text-[#888] tabular-nums">{trades.length} fills</span>
                 </div>
-                {/* W/L/pending ratio bar */}
                 <div className="flex h-1.5 rounded-full overflow-hidden bg-[#0e0e0e]">
                   {wins > 0 && <div style={{ width: `${(wins / trades.length) * 100}%`, background: TEAL }} />}
                   {losses > 0 && <div style={{ width: `${(losses / trades.length) * 100}%`, background: '#ff5570' }} />}
@@ -332,36 +496,45 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               )}
             </Panel>
 
-            {/* discussion */}
+            {/* comments */}
             <Panel>
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#141414]">
-                <span className="font-sans font-bold text-[14px]">Discussion</span>
-                <span className="font-mono text-[11px] text-[#888]">{posts.length} comments</span>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-[#141414]">
+                <div className="flex items-baseline gap-2.5">
+                  <span className="font-sans font-bold text-[15px] tracking-tight">Comments</span>
+                  <span className="font-mono text-[11px] text-[#5a5a64] tabular-nums">{posts.length}</span>
+                </div>
+                <span className="font-mono text-[10px] text-[#48484f] tracking-wide">traders weigh in on this bot</span>
               </div>
-              <div className="px-5 py-4 border-b border-[#141414] bg-[#060607]">
+              <div className="px-5 py-4 border-b border-[#141414] bg-[#050507]">
                 {isConnected && address ? (
                   <div className="flex gap-3">
-                    <MakerAvatar address={address} size={34} />
+                    <MakerAvatar address={address} size={36} square />
                     <div className="flex-1">
-                      <textarea value={postText} onChange={e => setPostText(e.target.value)} placeholder="Share your read on this bot…" className="w-full h-16 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50 resize-y placeholder:text-[#555]" />
-                      <div className="flex justify-end mt-2"><button onClick={addPost} disabled={!postText.trim()} className="rounded-full bg-primary text-[#030303] font-bold text-[12px] px-5 py-2 disabled:opacity-30 hover:shadow-[0_0_14px_rgba(255,42,77,0.4)] transition-all">Comment</button></div>
+                      <textarea value={postText} onChange={e => setPostText(e.target.value)} maxLength={500} placeholder="Is this edge real? Share your read, cite the tape, call the top…" className="w-full h-[68px] bg-[#0a0a0c] border border-[#1f1f28] rounded-lg px-3.5 py-2.5 text-[13px] text-white outline-none focus:border-primary/50 resize-y placeholder:text-[#4a4a54] leading-relaxed" />
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="font-mono text-[10px] text-[#3f3f48]">{postText.length}/500 · markdown & {'>'}quotes</span>
+                        <button onClick={addPost} disabled={!postText.trim()} className="rounded-full bg-primary text-[#030303] font-bold text-[12px] px-5 py-2 disabled:opacity-30 hover:shadow-[0_0_14px_rgba(255,42,77,0.4)] transition-all">Post</button>
+                      </div>
                     </div>
                   </div>
-                ) : <div className="text-[13px] text-[#777]">Connect your wallet to join the discussion.</div>}
+                ) : <div className="text-[13px] text-[#8a8a94]">Connect your wallet to weigh in.</div>}
               </div>
               {posts.length === 0 ? (
-                <div className="px-5 py-10 text-center text-[13px] text-[#555]">No comments yet. Be the first.</div>
+                <div className="px-5 py-12 text-center">
+                  <div className="text-[13px] text-[#6a6a74]">No comments yet.</div>
+                  <div className="text-[11px] text-[#3f3f48] mt-1 font-mono">be the first to call it</div>
+                </div>
               ) : (
                 <div className="flex flex-col">
                   {posts.map((p, i) => (
-                    <div key={p.id || i} className="flex gap-3 px-5 py-4 border-b border-[#101010] last:border-b-0">
-                      <MakerAvatar address={p.wallet} pfpUrl={p.user?.pfpUrl} size={34} />
+                    <div key={p.id || i} className="flex gap-3 px-5 py-4 border-b border-[#101010] last:border-b-0 hover:bg-[#070709] transition-colors">
+                      <MakerAvatar address={p.wallet} pfpUrl={p.user?.pfpUrl} size={36} square />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[13px] font-semibold text-white">{personLabel(p.user, p.wallet)}</span>
-                          <span className="font-mono text-[10px] text-[#555] tabular-nums">{relDay(p.createdAt) || 'now'}</span>
+                          <span className="text-[13px] font-bold text-white">{personLabel(p.user, p.wallet)}</span>
+                          <span className="font-mono text-[10px] text-[#48484f] tabular-nums">{relDay(p.createdAt) || 'now'}</span>
                         </div>
-                        <div className="text-[13px] text-[#ccc] leading-relaxed"><PostBody text={p.text} onQuoteClick={() => {}} /></div>
+                        <div className="text-[13px] text-[#cfcfd6] leading-relaxed"><PostBody text={p.text} onQuoteClick={() => {}} /></div>
                       </div>
                     </div>
                   ))}
@@ -372,39 +545,18 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
 
           {/* RIGHT */}
           <div className="flex flex-col gap-5">
-            {/* VAULT — squid-game glass */}
-            <Panel className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-[#888]">Vault</span>
-                {sp.live && <span className={`inline-flex items-center gap-1 font-mono text-[11px] font-bold ${navDelta >= 0 ? 'text-[#00d4aa]' : 'text-[#ff5570]'}`}>{navDelta >= 0 ? '▲' : '▼'} {Math.abs(navDelta).toFixed(1)}%</span>}
-              </div>
-              <VaultGlass tvl={animatedTVL} cap={vaultCap} live={sp.live} />
-              <div className="mt-3 text-[10px] font-mono text-[#666] tracking-wide text-center">profit split · 60 depositors / 30 builder / 10 protocol</div>
-              {sp.live && (
-                <div className="mt-3">
-                  {animatedTVL >= vaultCap ? (
-                    <div className="rounded-lg border border-primary/30 p-2.5 text-center font-mono text-[11px] text-primary tracking-widest">CAPACITY REACHED</div>
-                  ) : !isConnected ? (
-                    <div className="text-[12px] text-[#666] text-center">Connect your wallet to deposit.</div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <input type="number" value={depositAmt} onChange={e => setDepositAmt(e.target.value)} placeholder="USDC" className="flex-1 min-w-0 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2.5 text-[13px] text-white outline-none focus:border-primary/50 placeholder:text-[#555]" />
-                      <button onClick={handleDeposit} disabled={depositing} className="rounded-lg bg-primary text-[#030303] font-bold text-[13px] px-5 disabled:opacity-50 hover:shadow-[0_0_16px_rgba(255,42,77,0.4)] transition-all">{depositing ? '…' : 'Deposit'}</button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </Panel>
 
             {/* eligibility */}
             <Panel className="p-5">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="font-sans font-bold text-[15px] tracking-tight">Vault eligibility</span>
-                <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ color: sp.live || sp.eligible ? TEAL : VIOLET, background: sp.live || sp.eligible ? `${TEAL}14` : `${VIOLET}14` }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-sans font-bold text-[16px] tracking-[-0.01em] text-white">Vault eligibility</span>
+                <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-[4px]" style={{ color: sp.live || sp.eligible ? TEAL : VIOLET, background: sp.live || sp.eligible ? `${TEAL}14` : `${VIOLET}14`, border: `1px solid ${sp.live || sp.eligible ? TEAL : VIOLET}33` }}>
                   {sp.live ? 'OPEN' : sp.eligible ? 'ELIGIBLE' : 'SHADOW PHASE'}
                 </span>
               </div>
-              <div className="text-[12px] text-[#777] mb-4 leading-relaxed">{sp.live ? 'This bot cleared the gate. Its vault is open.' : `Proving in the open — ${clearedCount} of 3 cleared. The vault unlocks when all three are met.`}</div>
+              <div className="text-[12px] text-[#8a8a94] mb-4 leading-relaxed">
+                {sp.live ? 'This bot cleared the gate. Its vault is open.' : `Proving in the open. ${clearedCount} of 3 cleared. The vault unlocks when all three are met.`}
+              </div>
               <div className="flex flex-col gap-4">
                 {criteria.map((c, idx) => (
                   <div key={c.label}>
@@ -423,36 +575,67 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               </div>
             </Panel>
 
-            {/* track record */}
+            {/* proof of edge */}
             <Panel className="p-5">
               <div className="flex items-center justify-between mb-3">
-                <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">Track record</span>
-                <button onClick={() => setShowDefs(v => !v)} className="font-mono text-[10px] text-[#666] hover:text-white transition-colors">{showDefs ? 'hide' : 'what do these mean?'}</button>
-              </div>
-              <div className="flex items-end justify-between mb-1">
-                <span className="text-[11px] font-mono text-[#777]">Brier score</span>
-                <span className="text-[9px] text-[#3a3a3a] font-mono">lower is better</span>
-              </div>
-              <div className="font-mono font-extrabold text-[34px] leading-none tabular-nums" style={{ color: grade?.c || '#fff' }}>{b != null ? b.toFixed(3) : <Empty />}</div>
-              <div className="text-[10px] text-[#555] font-mono mt-1.5">0 perfect · 0.25 coin flip · 1 always wrong</div>
-
-              <div className="grid grid-cols-2 gap-px bg-[#141414] border border-[#141414] rounded-lg overflow-hidden mt-4">
-                {stats.map(m => (
-                  <div key={m.k} className="bg-[#070707] px-3 py-2.5" title={m.info}>
-                    <div className="text-[#555] text-[9px] font-mono tracking-widest mb-1 uppercase">{m.k}</div>
-                    <div className="font-mono font-bold text-[14px] tabular-nums text-white">{m.v ?? <Empty />}</div>
-                  </div>
-                ))}
+                <span className="font-sans font-bold text-[16px] tracking-[-0.01em] text-white">Proof of edge</span>
+                <span className="font-mono text-[9px] text-[#3f3f48] tracking-[0.16em] uppercase">tap a stat</span>
               </div>
 
-              {showDefs && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-3 overflow-hidden">
-                  <div className="flex flex-col gap-2 border-t border-[#141414] pt-3">
-                    <div className="text-[11px] text-[#999] leading-relaxed"><span className="text-white font-semibold">Brier</span> — how calibrated its probabilities are. 0 perfect, 0.25 a coin flip, lower is better.</div>
-                    {stats.map(m => <div key={m.k} className="text-[11px] text-[#999] leading-relaxed"><span className="text-white font-semibold">{m.k}</span> — {m.info}</div>)}
-                  </div>
-                </motion.div>
-              )}
+              {/* featured Brier — this is where 'lower is better' lives now */}
+              <button
+                onClick={() => setActiveStat(s => s === 'Brier' ? null : 'Brier')}
+                className="w-full text-left rounded-lg border border-[#1a1a22] bg-[#08080c] px-4 py-3 mb-2.5 hover:border-[#2a2a34] transition-colors"
+              >
+                <div className="flex items-baseline justify-between">
+                  <span className="font-mono text-[9px] tracking-[0.18em] uppercase text-[#5a5a64]">Brier score</span>
+                  <span className="font-mono text-[9px] text-[#3f3f48]">lower is better</span>
+                </div>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="font-sans font-black text-[28px] leading-none tabular-nums" style={{ color: grade?.c || '#7a7a84' }}>{b != null ? b.toFixed(3) : '—'}</span>
+                  {grade && <span className="font-mono text-[10px] font-bold tracking-[0.16em]" style={{ color: grade.c }}>{grade.t}</span>}
+                </div>
+              </button>
+
+              {/* stat grid — each cell is interactive */}
+              <div className="grid grid-cols-2 gap-px bg-[#13131b] border border-[#13131b] rounded-lg overflow-hidden">
+                {stats.map(m => {
+                  const open = activeStat === m.k
+                  return (
+                    <button
+                      key={m.k}
+                      onClick={() => setActiveStat(s => s === m.k ? null : m.k)}
+                      className="bg-[#08080c] px-3.5 py-3 text-left hover:bg-[#0c0c12] transition-colors"
+                      style={open ? { background: '#10101a' } : undefined}
+                    >
+                      <div className="flex items-center gap-1 text-[#4a4a54] text-[9px] font-mono tracking-[0.14em] mb-1.5 uppercase">
+                        {m.k}<span className="text-[#2f2f38]">{open ? '−' : '?'}</span>
+                      </div>
+                      <div className="font-sans font-bold text-[15px] tabular-nums text-[#f0f0f4]">{m.v ?? <Empty />}</div>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* interactive definition reveal */}
+              <AnimatePresence mode="wait">
+                {activeStat && (
+                  <motion.div
+                    key={activeStat}
+                    initial={{ opacity: 0, y: -4, height: 0 }}
+                    animate={{ opacity: 1, y: 0, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-2.5 rounded-lg border-l-2 border-primary/50 bg-[#0a0a0e] px-3.5 py-2.5 text-[12px] text-[#b4b4be] leading-relaxed">
+                      <span className="text-white font-bold">{activeStat}</span>{' '}
+                      {activeStat === 'Brier'
+                        ? '— how calibrated its probabilities are. 0 is perfect, 0.25 is a coin flip, 1 is always wrong. Lower means sharper foresight.'
+                        : `— ${stats.find(s => s.k === activeStat)?.info}`}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {bot.totalTrades > 0 && bot.totalTrades < SHADOW_RESOLVED_TARGET && (
                 <div className="text-[11px] mt-3 leading-relaxed" style={{ color: VIOLET }}>Low sample. Brier needs {SHADOW_RESOLVED_TARGET} resolved predictions for confidence.</div>

@@ -11,7 +11,12 @@ import { prisma } from '@/lib/db/prisma'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { name, description, market, walletAddress, color, eyeShape, pfpUrl, categories } = body
+    const { name, description, market, walletAddress, color, eyeShape, pfpUrl, categories, vaultCap } = body
+
+    // Declared capacity: the max USDC this strategy can absorb. Parsed defensively
+    // (the form sends a string). Negative/NaN => 0 (uncapped / "Open").
+    const parsedCap = Number(vaultCap)
+    const declaredCap = Number.isFinite(parsedCap) && parsedCap > 0 ? parsedCap : 0
 
     // Optional uploaded PFP — data-URL or https URL, capped to ~300KB of text
     const chosenPfp = typeof pfpUrl === 'string'
@@ -78,6 +83,7 @@ export async function POST(req: NextRequest) {
         walletAddress: finalWallet,
         strategyType: market || 'Polymarket',
         categories: validCategories,
+        vaultCap: declaredCap,
       }
     })
 

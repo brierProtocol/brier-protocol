@@ -50,7 +50,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 export default function ListBotPage() {
   const [step, setStep] = useState(1)
-  const [formData, setFormData] = useState({ name: '', description: '', market: 'Polymarket', categories: [] as string[] })
+  const [formData, setFormData] = useState({ name: '', description: '', market: 'Polymarket', categories: [] as string[], vaultCap: '' })
   const [verifying, setVerifying] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [deployedSlug, setDeployedSlug] = useState('')
@@ -76,7 +76,7 @@ export default function ListBotPage() {
       const res = await fetch('/api/bots/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: formData.name, description: formData.description, market: formData.market, categories: formData.categories, walletAddress: address }),
+        body: JSON.stringify({ name: formData.name, description: formData.description, market: formData.market, categories: formData.categories, vaultCap: formData.vaultCap, walletAddress: address }),
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error || 'Registration failed. Please try again.')
@@ -279,6 +279,27 @@ export default function ListBotPage() {
                 })}
               </div>
               <div className="mt-2 text-[11px] text-[#555]">Routes your bot to the right audiences in the catalog.</div>
+            </div>
+
+            {/* vault capacity — the max USDC this strategy can absorb before its edge decays.
+                Empty = uncapped. When TVL reaches this, the vault stops taking new deposits. */}
+            <div className="mb-7">
+              <label className="block text-[12px] font-sans font-semibold text-[#bbb] mb-2">
+                Vault capacity <span className="text-[#555] font-normal">(USDC, optional)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#555] font-mono text-[13px]">$</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={1000}
+                  value={formData.vaultCap}
+                  onChange={e => setFormData({ ...formData, vaultCap: e.target.value })}
+                  placeholder="e.g. 250000"
+                  className={`${INPUT_CLS} pl-8`}
+                />
+              </div>
+              <div className="mt-2 text-[11px] text-[#555]">The most capital your edge can handle before slippage eats it. Past this, deposits close. Leave empty to stay open while you find the ceiling.</div>
             </div>
 
             {/* signature art — generative from the name (do not change) */}

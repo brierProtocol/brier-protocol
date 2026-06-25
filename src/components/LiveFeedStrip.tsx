@@ -40,13 +40,9 @@ export function StatusMark({ tag, color }: { tag: string; color: string }) {
       </span>
     )
   }
-  const live = tag === 'LIVE'
   return (
     <span className="inline-flex items-center gap-1.5 leading-none">
-      <span className="relative flex h-1.5 w-1.5">
-        {live && <span className="absolute inline-flex h-full w-full rounded-full opacity-40 animate-ping" style={{ background: color }} />}
-        <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ background: color }} />
-      </span>
+      <span className="inline-flex rounded-full h-1.5 w-1.5" style={{ background: color }} />
       <span className="font-mono text-[9px] font-bold tracking-[0.18em]" style={{ color }}>{tag}</span>
     </span>
   )

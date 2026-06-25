@@ -1,84 +1,212 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
+import { useRef } from 'react'
 import BotIrisAvatar from './BotIrisAvatar'
 
-/**
- * The bot's live uplink to Brier, drawn like a directed Space-Invaders signal:
- * the alien transmits data packets down a wire to the Brier core. Status is
- * inferred from on-chain activity (the truth) — we read the wallet, not the
- * builder's machine, so we frame it honestly.
- */
 export default function BotUplink({
-  eye, status, lastFill,
+  eye, status, lastFill, resolved,
 }: {
   eye: { avatarId: string; accentColor: string; shape?: any }
   status: 'live' | 'awaiting'
   lastFill?: string | null
+  resolved?: number
 }) {
   const live = status === 'live'
-  const accent = live ? '#00d4aa' : '#5a5a5a'
+  const accent = live ? '#c8ff00' : '#3a3a4a'
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const rawX = useMotionValue(0)
+  const rawY = useMotionValue(0)
+  const rotateY = useSpring(useTransform(rawX, [-150, 150], [-18, 18]), { stiffness: 80, damping: 14 })
+  const rotateX = useSpring(useTransform(rawY, [-80, 80], [12, -12]), { stiffness: 80, damping: 14 })
+
+  function onMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    const el = containerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    rawX.set(e.clientX - (rect.left + rect.width * 0.22))
+    rawY.set(e.clientY - (rect.top + rect.height * 0.5))
+  }
+  function onMouseLeave() { rawX.set(0); rawY.set(0) }
+
+  const metrics = [
+    { k: 'Status', v: live ? 'ONLINE' : 'OFFLINE', c: live ? '#c8ff00' : '#ff5570' },
+    { k: 'Signal', v: live ? 'ACTIVE' : 'SILENT', c: live ? '#c8ff00' : '#444' },
+    { k: 'Last trade', v: lastFill || 'never', c: '#ccc' },
+    { k: 'Resolved', v: resolved != null ? resolved.toLocaleString() : '0', c: '#8b7bff' },
+  ]
 
   return (
-    <div className="relative rounded-2xl border border-[#1a1a1a] bg-[#070708] overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none opacity-70" style={{ backgroundImage: 'radial-gradient(1px 1px at 15% 30%,#ffffff22 50%,transparent),radial-gradient(1px 1px at 80% 22%,#ffffff1a 50%,transparent),radial-gradient(1px 1px at 62% 70%,#ffffff22 50%,transparent),radial-gradient(1px 1px at 38% 82%,#ff2a4d33 50%,transparent)' }} />
+    <div
+      ref={containerRef}
+      onMouseMove={onMouseMove}
+      onMouseLeave={onMouseLeave}
+      className="relative rounded-2xl border border-[#141418] bg-[#040406] overflow-hidden"
+    >
+      {/* terminal dot grid */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage: 'radial-gradient(circle at 1px 1px, #ffffff07 1px, transparent 0)',
+        backgroundSize: '22px 22px',
+      }} />
+      {/* accent top line */}
+      <div className="absolute top-0 left-0 right-0 h-px" style={{
+        background: `linear-gradient(90deg, transparent 0%, ${accent}88 30%, ${accent}cc 50%, ${accent}88 70%, transparent 100%)`,
+      }} />
+
       <div className="relative p-5">
-        <div className="flex items-center justify-between mb-3">
-          <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-[#888]">Uplink</span>
-          <span className="inline-flex items-center gap-1.5 font-mono text-[10px] tracking-widest" style={{ color: accent }}>
-            <span className="relative flex h-2 w-2">
-              {live && <span className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping" style={{ background: accent }} />}
-              <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: accent }} />
+        {/* header */}
+        <div className="flex items-center justify-between mb-5">
+          <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-[#666]">Signal</span>
+          <div className="flex items-center gap-2">
+            {live && (
+              <motion.span
+                className="inline-block w-1.5 h-1.5 rounded-full"
+                style={{ background: accent }}
+                animate={{ opacity: [1, 0.3, 1] }}
+                transition={{ duration: 1.8, repeat: Infinity }}
+              />
+            )}
+            <span className="font-mono text-[10px] tracking-[0.16em]" style={{ color: accent }}>
+              {live ? 'TRANSMITTING' : 'NO SIGNAL'}
             </span>
-            {live ? 'TRANSMITTING' : 'NO SIGNAL'}
-          </span>
+          </div>
         </div>
 
-        <div className="relative flex items-center justify-between h-[92px] px-1">
-          {/* alien node */}
-          <div className="relative z-10 flex flex-col items-center gap-1.5" style={{ opacity: live ? 1 : 0.4 }}>
-            <div className="rounded-lg overflow-hidden border-2" style={{ borderColor: live ? `${accent}66` : '#222' }}>
-              <BotIrisAvatar {...eye} size={48} />
-            </div>
-            <span className="font-mono text-[8px] tracking-[0.2em] text-[#777]">ALIEN</span>
-          </div>
+        {/* visual stage */}
+        <div className="relative flex items-center gap-4 h-[152px]">
 
-          {/* wire */}
-          <div className="absolute left-[78px] right-[78px] top-[26px] h-px" style={live ? { background: `${accent}55` } : { borderTop: '1px dashed #242424' }}>
-            {live
-              ? [0, 1, 2, 3].map(i => (
-                  <motion.span key={i} className="absolute top-1/2 w-1.5 h-1.5 rounded-[1px]" style={{ background: accent, marginTop: -3, boxShadow: `0 0 6px ${accent}` }}
-                    initial={{ left: '0%', opacity: 0 }}
-                    animate={{ left: ['0%', '100%'], opacity: [0, 1, 1, 0] }}
-                    transition={{ duration: 1.6, repeat: Infinity, delay: i * 0.4, ease: 'linear' }} />
-                ))
-              : <span className="absolute left-1/2 -translate-x-1/2 -top-[7px] bg-[#070708] px-2 font-mono text-[8px] tracking-[0.2em] text-[#555]">link down</span>}
+          {/* bot creature — free, no border, floating */}
+          <motion.div
+            className="relative z-10 shrink-0 flex flex-col items-center"
+            style={{ rotateX, rotateY, transformPerspective: 900 }}
+          >
+            {/* halo */}
+            <div className="relative">
+              <motion.div
+                className="absolute rounded-full blur-2xl"
+                style={{
+                  inset: '-20px',
+                  background: `radial-gradient(circle, ${eye.accentColor}55 0%, transparent 70%)`,
+                }}
+                animate={{
+                  opacity: live ? [0.5, 0.9, 0.5] : [0.1, 0.2, 0.1],
+                  scale: live ? [0.85, 1.1, 0.85] : [0.7, 0.9, 0.7],
+                }}
+                transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+              />
+              <motion.div
+                animate={{ y: live ? [0, -5, 0] : 0 }}
+                transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <BotIrisAvatar {...eye} size={80} />
+              </motion.div>
+            </div>
+            <span className="font-mono text-[8px] tracking-[0.22em] text-[#3a3a4a] uppercase mt-2.5">Bot</span>
+          </motion.div>
+
+          {/* transmission channel */}
+          <div className="relative flex-1 h-full">
+            {/* scan grid lines in channel */}
+            <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+              {[25, 50, 75].map(y => (
+                <line key={y} x1="0" y1={`${y}%`} x2="100%" y2={`${y}%`}
+                  stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.04" strokeDasharray="4 10" />
+              ))}
+            </svg>
+
+            {/* main carrier wire */}
+            <div
+              className="absolute top-1/2 left-0 right-0 h-px -translate-y-1/2"
+              style={live
+                ? { background: `linear-gradient(90deg, ${accent}33, ${accent}bb, ${accent}33)` }
+                : { background: '#0e0e18', borderTop: '1px dashed #1a1a28' }}
+            >
+              {live && [0, 1, 2, 3, 4].map(i => (
+                <motion.span
+                  key={i}
+                  className="absolute top-1/2 -translate-y-1/2 rounded-[1px]"
+                  style={{
+                    width: 3 + (i % 3),
+                    height: 3 + (i % 3),
+                    background: accent,
+                    boxShadow: `0 0 10px ${accent}, 0 0 20px ${accent}66`,
+                  }}
+                  initial={{ left: '0%', opacity: 0 }}
+                  animate={{ left: ['0%', '100%'], opacity: [0, 1, 1, 0] }}
+                  transition={{ duration: 1.3, repeat: Infinity, delay: i * 0.26, ease: 'linear' }}
+                />
+              ))}
+            </div>
+
+            {/* secondary wires */}
+            {live && (
+              <>
+                {[['30%', 0.15, 1.9], ['70%', 0.55, 2.3]].map(([y, delay, dur], idx) => (
+                  <div key={idx} className="absolute left-0 right-0 h-px" style={{ top: y as string, background: `${accent}15` }}>
+                    <motion.span
+                      className="absolute top-1/2 -translate-y-1/2 rounded-full"
+                      style={{ width: 6, height: 2, background: `${accent}99` }}
+                      initial={{ left: '0%', opacity: 0 }}
+                      animate={{ left: ['0%', '100%'], opacity: [0, 0.9, 0] }}
+                      transition={{ duration: dur as number, repeat: Infinity, delay: delay as number, ease: 'linear' }}
+                    />
+                  </div>
+                ))}
+              </>
+            )}
+
+            {!live && (
+              <div className="absolute inset-0 grid place-items-center">
+                <span className="bg-[#040406] px-2.5 py-0.5 font-mono text-[9px] tracking-[0.22em] text-[#282832] border border-[#0f0f18] rounded-sm">
+                  NO CARRIER
+                </span>
+              </div>
+            )}
           </div>
 
           {/* brier core */}
-          <div className="relative z-10 flex flex-col items-center gap-1.5">
-            <div className="w-12 h-12 rounded-full grid place-items-center border-2 border-primary/30">
-              <motion.span className="rounded-full bg-primary" style={{ width: 18, height: 18 }}
-                animate={live ? { boxShadow: ['0 0 6px #ff2a4d', '0 0 18px #ff2a4d', '0 0 6px #ff2a4d'] } : {}}
-                transition={{ duration: 2, repeat: Infinity }} />
+          <div className="relative z-10 shrink-0 flex flex-col items-center gap-2.5">
+            <div className="relative w-16 h-16 grid place-items-center">
+              {/* rotating outer ring */}
+              <motion.div
+                className="absolute inset-0 rounded-full"
+                style={{ border: `1px solid #ff2a4d22`, borderTop: live ? '1px solid #ff2a4d66' : '1px solid #ff2a4d22' }}
+                animate={live ? { rotate: 360 } : {}}
+                transition={{ duration: 7, repeat: Infinity, ease: 'linear' }}
+              />
+              {/* second ring (counter) */}
+              <motion.div
+                className="absolute rounded-full"
+                style={{ inset: '5px', border: '1px dashed #ff2a4d18', borderRight: live ? '1px dashed #ff2a4d44' : '1px dashed #ff2a4d18' }}
+                animate={live ? { rotate: -360 } : {}}
+                transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
+              />
+              {/* core orb */}
+              <motion.div
+                className="w-5 h-5 rounded-full bg-primary"
+                animate={live ? {
+                  boxShadow: ['0 0 8px #ff2a4d55', '0 0 28px #ff2a4daa', '0 0 8px #ff2a4d55'],
+                } : { boxShadow: '0 0 4px #ff2a4d22' }}
+                transition={{ duration: 2.2, repeat: Infinity }}
+              />
             </div>
-            <span className="font-mono text-[8px] tracking-[0.2em] text-[#777]">BRIER</span>
+            <span className="font-mono text-[8px] tracking-[0.22em] text-[#3a3a4a] uppercase">Brier</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-px bg-[#161616] border border-[#161616] rounded-lg overflow-hidden mt-3">
-          {([
-            ['Node', live ? 'ONLINE' : 'OFFLINE', live ? '#00d4aa' : '#ff5570'],
-            ['Signal', live ? 'RECEIVING' : 'SILENT', live ? '#00d4aa' : '#777'],
-            ['Last fill', lastFill || 'never', '#e8e8e8'],
-          ] as [string, string, string][]).map(([k, v, c]) => (
-            <div key={k} className="bg-[#070708] px-3 py-2">
-              <div className="text-[8px] font-mono text-[#555] tracking-[0.18em] uppercase mb-0.5">{k}</div>
-              <div className="font-mono font-bold text-[12px] tabular-nums" style={{ color: c }}>{v}</div>
+        {/* metrics strip */}
+        <div className="grid grid-cols-4 gap-px bg-[#09090f] border border-[#09090f] rounded-lg overflow-hidden mt-5">
+          {metrics.map(m => (
+            <div key={m.k} className="bg-[#040406] px-3 py-2.5">
+              <div className="text-[8px] font-mono text-[#3a3a4a] tracking-[0.18em] uppercase mb-1">{m.k}</div>
+              <div className="font-mono font-bold text-[11px] tabular-nums" style={{ color: m.c }}>{m.v}</div>
             </div>
           ))}
         </div>
-        <div className="mt-2.5 text-[10px] text-[#555] leading-relaxed">Inferred from on-chain activity. Brier watches the wallet, not the machine.</div>
+        <div className="mt-3 text-[10px] text-[#333] font-mono leading-relaxed">
+          Inferred from on-chain activity. Brier tracks the wallet, not the machine.
+        </div>
       </div>
     </div>
   )

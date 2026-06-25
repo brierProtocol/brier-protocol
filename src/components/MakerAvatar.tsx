@@ -15,18 +15,22 @@ export default function MakerAvatar({
   pfpUrl,
   size = 32,
   className = '',
+  square = false,
 }: {
   address?: string | null
   pfpUrl?: string | null
   size?: number
   className?: string
+  /** Hard square: no rounded corners, no border ring — just the portrait. */
+  square?: boolean
 }) {
-  const radius = Math.round(size * 0.22)
+  const radius = square ? 0 : Math.round(size * 0.22)
+  const ring = square ? '' : 'border border-white/15'
 
   if (pfpUrl) {
     return (
       <span
-        className={`inline-block overflow-hidden border border-white/15 shrink-0 ${className}`}
+        className={`inline-block overflow-hidden shrink-0 ${ring} ${className}`}
         style={{ width: size, height: size, borderRadius: radius }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -39,7 +43,7 @@ export default function MakerAvatar({
 
   return (
     <span
-      className={`inline-flex items-center justify-center overflow-hidden shrink-0 border border-white/15 ${className}`}
+      className={`inline-flex items-center justify-center overflow-hidden shrink-0 ${ring} ${className}`}
       style={{
         width: size,
         height: size,

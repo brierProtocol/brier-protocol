@@ -107,8 +107,9 @@ export function shadowProgress(b: BotLike): ShadowProgress {
 // bot looks identical everywhere. No invented numbers.
 export function phaseMeta(p: ShadowProgress): { tag: string; color: string; metric: string } {
   switch (p.phase) {
+    // LIVE reads as clean platinum — premium and neutral, not the old teal.
     case 'live':
-      return { tag: 'LIVE', color: '#00d4aa', metric: p.brier !== null ? `BRIER ${p.brier.toFixed(3)}` : 'VAULT OPEN' }
+      return { tag: 'LIVE', color: '#eef0f6', metric: p.brier !== null ? `BRIER ${p.brier.toFixed(3)}` : 'VAULT OPEN' }
     case 'shadow':
       return { tag: 'SHADOW', color: '#8b7bff', metric: `${p.resolved}/${SHADOW_RESOLVED_TARGET}` }
     default:
