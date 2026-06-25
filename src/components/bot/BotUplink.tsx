@@ -13,7 +13,7 @@ export default function BotUplink({
   resolved?: number
 }) {
   const live = status === 'live'
-  const accent = live ? '#00d4aa' : '#3a3a4a'
+  const accent = live ? '#c8ff00' : '#3a3a4a'
   const containerRef = useRef<HTMLDivElement>(null)
 
   const rawX = useMotionValue(0)
@@ -31,8 +31,8 @@ export default function BotUplink({
   function onMouseLeave() { rawX.set(0); rawY.set(0) }
 
   const metrics = [
-    { k: 'Status', v: live ? 'ONLINE' : 'OFFLINE', c: live ? '#00d4aa' : '#ff5570' },
-    { k: 'Signal', v: live ? 'ACTIVE' : 'SILENT', c: live ? '#00d4aa' : '#444' },
+    { k: 'Status', v: live ? 'ONLINE' : 'OFFLINE', c: live ? '#c8ff00' : '#ff5570' },
+    { k: 'Signal', v: live ? 'ACTIVE' : 'SILENT', c: live ? '#c8ff00' : '#444' },
     { k: 'Last trade', v: lastFill || 'never', c: '#ccc' },
     { k: 'Resolved', v: resolved != null ? resolved.toLocaleString() : '0', c: '#8b7bff' },
   ]

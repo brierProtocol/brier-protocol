@@ -6,7 +6,7 @@ import { notFound } from 'next/navigation'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import MakerAvatar from '@/components/MakerAvatar'
 import BotUplink from '@/components/bot/BotUplink'
-import BotPnlChart from '@/components/bot/BotPnlChart'
+import BotPerformance from '@/components/bot/BotPerformance'
 import VaultGlass from '@/components/bot/VaultGlass'
 import { botEye, codename } from '@/lib/botIdentity'
 import { useAccount } from 'wagmi'
@@ -55,7 +55,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const [likeFx, setLikeFx] = useState(0)
   const [depositing, setDepositing] = useState(false)
   const [toast, setToast] = useState('')
-  const [showDefs, setShowDefs] = useState(false)
+  const [activeStat, setActiveStat] = useState<string | null>(null)
   const [confettiBurst, setConfettiBurst] = useState(0)
 
   const [isEditing, setIsEditing] = useState(false)
@@ -114,13 +114,22 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
 
   const toggleHeart = async () => {
     if (!isConnected || !address) return showToast('Connect your wallet to like.')
-    const res = await fetch('/api/hearts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: address, botId: bot.id }) })
-    if (res.ok) {
+    // Optimistic flip so the button responds instantly.
+    const prevHearted = hearted, prevHearts = hearts
+    const nextHearted = !hearted
+    setHearted(nextHearted)
+    setHearts(h => nextHearted ? h + 1 : Math.max(0, h - 1))
+    if (nextHearted) { setLikeFx(Date.now()); setConfettiBurst(Date.now()) }
+    try {
+      const res = await fetch('/api/hearts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: address, botId: bot.id }) })
+      if (!res.ok) throw new Error('request failed')
       const d = await res.json()
-      const liked = d.status === 'hearted'
-      setHearted(liked)
-      setHearts(h => liked ? h + 1 : Math.max(0, h - 1))
-      if (liked) { setLikeFx(Date.now()); setConfettiBurst(Date.now()) }
+      setHearted(d.status === 'hearted')
+      if (typeof d.count === 'number') setHearts(d.count)
+    } catch {
+      // Roll back on failure.
+      setHearted(prevHearted); setHearts(prevHearts)
+      showToast('Could not save your like. Try again.')
     }
   }
 
@@ -179,8 +188,8 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const eye = botEye({ slug, id: bot.id, name: bot.name, color: bot.color, eyeShape: bot.eyeShape })
   const b = bot.brierScore
   const grade = b == null ? null
-    : b <= 0.15 ? { t: 'ORACLE', c: '#00d4aa' }
-    : b <= 0.25 ? { t: 'CALIBRATED', c: '#37d67a' }
+    : b <= 0.15 ? { t: 'ORACLE', c: '#c8ff00' }
+    : b <= 0.25 ? { t: 'CALIBRATED', c: '#eef0f6' }
     : b <= 0.40 ? { t: 'LEARNING', c: '#8b7bff' }
     : { t: 'NOISE', c: '#ff5570' }
 
@@ -188,12 +197,18 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const losses = trades.filter(t => t.outcome === 'LOSS').length
   const pending = trades.filter(t => t.outcome === 'PENDING').length
   const navValues: number[] = (bot.pnlSnapshots || []).map((s: any) => s.cumulativePnl ?? s.pnlUsd).filter((v: any) => typeof v === 'number')
-  const navDelta = navValues.length > 1 ? ((navValues[navValues.length - 1] - navValues[0]) / (Math.abs(navValues[0]) || 1)) * 100 : (bot.sharePrice ? (bot.sharePrice - 1) * 100 : 0)
-  const roi = navValues.length > 1 && navValues[0] ? navDelta : null
+  // Vault delta is NAV return (share price), not raw PnL — cumulative PnL starts
+  // at 0, so a percentage off it is meaningless. Fall back to PnL% only when the
+  // baseline is a real non-zero figure.
+  const navStart = navValues[0] ?? 0
+  const navDelta = bot.sharePrice && bot.sharePrice !== 1
+    ? (bot.sharePrice - 1) * 100
+    : (navValues.length > 1 && Math.abs(navStart) > 1 ? ((navValues[navValues.length - 1] - navStart) / Math.abs(navStart)) * 100 : 0)
+  const roi = bot.sharePrice && bot.sharePrice !== 1 ? navDelta : null
   const uplink = bot.tradesIndexed > 0 ? 'live' : 'awaiting'
   const lastFill = trades.length ? relDay(trades[0].timestamp) : null
 
-  const VIOLET = '#8b7bff', TEAL = '#00d4aa'
+  const VIOLET = '#8b7bff', TEAL = '#c8ff00'
   const criteria = [
     { label: 'Resolved predictions', val: `${sp.resolved} / ${SHADOW_RESOLVED_TARGET}`, ok: sp.resolvedPass, pct: Math.min(1, sp.resolved / SHADOW_RESOLVED_TARGET) },
     { label: 'Brier score', val: sp.brier != null ? `${sp.brier.toFixed(3)} · ≤ ${SHADOW_BRIER_TARGET.toFixed(2)}` : `≤ ${SHADOW_BRIER_TARGET.toFixed(2)}`, ok: sp.brierPass, pct: sp.brier == null ? 0 : Math.min(1, Math.max(0, (0.4 - sp.brier) / (0.4 - SHADOW_BRIER_TARGET))) },
@@ -234,36 +249,36 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               <div className="flex items-center justify-between mb-3">
                 <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-[#888]">Vault</span>
                 {sp.live && (
-                  <span className={`font-mono text-[11px] font-bold ${navDelta >= 0 ? 'text-[#00d4aa]' : 'text-[#ff5570]'}`}>
+                  <span className={`font-mono text-[11px] font-bold ${navDelta >= 0 ? 'text-[#c8ff00]' : 'text-[#ff5570]'}`}>
                     {navDelta >= 0 ? '▲' : '▼'} {Math.abs(navDelta).toFixed(1)}%
                   </span>
                 )}
               </div>
               <VaultGlass tvl={animatedTVL} cap={vaultCap} live={sp.live} />
             </div>
-            <div className="flex-1 p-5 flex flex-col justify-between min-w-0">
+            <div className="flex-1 p-6 flex flex-col justify-between min-w-0">
               <div>
-                <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-1">
+                <div className="font-mono text-[10px] tracking-[0.24em] uppercase text-[#5a5a64] mb-2">
                   {sp.live ? 'Total assets secured' : 'Vault status'}
                 </div>
-                <div className="font-extrabold text-[clamp(26px,4vw,42px)] leading-none tabular-nums text-white tracking-[-0.03em]">
+                <div className="font-sans font-black text-[clamp(30px,4.5vw,52px)] leading-[0.92] tabular-nums text-white tracking-[-0.045em]">
                   {sp.live ? fmtUSD(animatedTVL) : 'Shadow phase'}
                 </div>
-                <div className="font-mono text-[12px] mt-1.5" style={{ color: sp.live ? '#666' : VIOLET }}>
+                <div className="font-mono text-[12px] mt-2.5 tracking-wide" style={{ color: sp.live ? '#6a6a74' : VIOLET }}>
                   {sp.live
                     ? `of ${fmtUSD(vaultCap)} capacity`
-                    : `Vault unlocks after the shadow gate — ${sp.resolved}/${SHADOW_RESOLVED_TARGET} resolved`}
+                    : `Vault unlocks after the shadow gate. ${sp.resolved}/${SHADOW_RESOLVED_TARGET} resolved`}
                 </div>
               </div>
-              <div className="mt-4 grid grid-cols-3 gap-4">
+              <div className="mt-5 grid grid-cols-3 gap-4 border-t border-[#141420] pt-4">
                 {[
                   { k: 'Capacity', v: fmtUSD(vaultCap) },
-                  { k: 'Split', v: '60 / 30 / 10' },
+                  { k: 'Profit split', v: '60 / 30 / 10' },
                   { k: sp.live ? 'Phase' : 'Progress', v: sp.live ? 'LIVE' : `${Math.round(sp.pct * 100)}%` },
                 ].map(m => (
                   <div key={m.k}>
-                    <div className="font-mono text-[9px] text-[#555] tracking-widest uppercase mb-0.5">{m.k}</div>
-                    <div className="font-mono font-bold text-[13px] text-white">{m.v}</div>
+                    <div className="font-mono text-[9px] text-[#48484f] tracking-[0.14em] uppercase mb-1">{m.k}</div>
+                    <div className="font-sans font-bold text-[15px] text-white tabular-nums tracking-tight">{m.v}</div>
                   </div>
                 ))}
               </div>
@@ -309,8 +324,8 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
 
             <div className="min-w-0">
               {/* name + phase + grade */}
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-white font-extrabold text-[28px] tracking-[-0.03em] m-0 leading-none">{bot.name}</h1>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-white font-black text-[34px] tracking-[-0.04em] m-0 leading-[0.95]">{bot.name}</h1>
                 {/* phase badge — sharp terminal style */}
                 <span
                   className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-mono font-bold tracking-[0.2em] rounded-[3px]"
@@ -340,38 +355,36 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 )}
               </div>
 
-              {/* Brier score — top of page, next to name */}
+              {/* Brier score — headline metric, no repeated 'lower is better' */}
               {b != null ? (
-                <div className="flex items-baseline gap-2.5 mt-2.5">
-                  <span className="font-mono font-extrabold text-[30px] leading-none tabular-nums" style={{ color: grade?.c || '#aaa' }}>
+                <div className="flex items-baseline gap-2 mt-3">
+                  <span className="font-sans font-black text-[40px] leading-none tracking-[-0.04em] tabular-nums" style={{ color: grade?.c || '#aaa' }}>
                     {b.toFixed(3)}
                   </span>
-                  <span className="font-mono text-[10px] text-[#555] tracking-[0.08em]">brier · lower is better</span>
+                  <span className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-[#5a5a64]">brier</span>
                 </div>
               ) : (
-                <div className="font-mono text-[12px] text-[#555] mt-2.5">No predictions resolved yet</div>
+                <div className="font-mono text-[12px] text-[#5a5a64] mt-3">Awaiting first resolved prediction</div>
               )}
 
-              {bot.tagline && <div className="text-[#888] text-[13px] mt-2">{bot.tagline}</div>}
+              {bot.tagline && <div className="text-[#a6a6b0] text-[14px] mt-2.5 font-medium">{bot.tagline}</div>}
 
-              {/* maker + categories */}
-              <div className="flex items-center gap-2 mt-3 flex-wrap">
+              {/* builder + categories — square portrait, clickable name, no pill */}
+              <div className="flex items-center gap-3 mt-4 flex-wrap">
                 {bot.builder && (
-                  <Link href={`/maker/${bot.builder}`} className="inline-flex items-center gap-2 group no-underline rounded-full border border-[#1e1e1e] hover:border-[#2a2a2a] bg-[#070707] pl-1.5 pr-3 py-1 transition-colors">
-                    <MakerAvatar address={bot.builder} pfpUrl={bot.maker?.pfpUrl} size={22} />
-                    <div className="flex flex-col leading-tight">
-                      <span className="font-mono text-[8px] text-[#555] tracking-[0.12em] uppercase">builder</span>
-                      <span className="font-sans text-[12px] font-semibold text-[#ccc] group-hover:text-white transition-colors">
-                        {makerLabel(bot.maker, bot.builder)}
-                      </span>
-                    </div>
-                  </Link>
+                  <span className="inline-flex items-center gap-2.5">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#48484f]">by</span>
+                    <MakerAvatar address={bot.builder} pfpUrl={bot.maker?.pfpUrl} size={24} square />
+                    <Link href={`/maker/${bot.builder}`} className="font-sans text-[13px] font-bold text-[#e4e4ea] hover:text-white no-underline border-b border-transparent hover:border-white/40 transition-colors">
+                      {makerLabel(bot.maker, bot.builder)}
+                    </Link>
+                  </span>
                 )}
                 {bot.categories?.slice(0, 3).map((c: string) => (
-                  <span key={c} className="font-mono text-[10px] uppercase tracking-widest text-[#777] border border-[#1a1a1a] rounded-full px-2.5 py-1">{c}</span>
+                  <span key={c} className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#8a8a94] border border-[#1f1f28] rounded-[4px] px-2.5 py-1">{c}</span>
                 ))}
                 {bot.verified && (
-                  <span className="font-mono text-[9px] uppercase tracking-widest text-[#00d4aa]/80">on-chain verified</span>
+                  <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-[#c8ff00]/90">on-chain verified</span>
                 )}
               </div>
             </div>
@@ -384,7 +397,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               <span className="font-mono font-bold text-lg tabular-nums leading-none">{hearts}</span>
             </button>
             <AnimatePresence>
-              {confettiBurst > 0 && (['#ff2a4d','#00d4aa','#8b7bff','#ffd400','#ffffff','#ff5ccd','#4285f0','#eaff00'] as const).flatMap((color, ci) =>
+              {confettiBurst > 0 && (['#ff2a4d','#c8ff00','#8b7bff','#ffd400','#ffffff','#ff5ccd','#4285f0','#eaff00'] as const).flatMap((color, ci) =>
                 [0, 1, 2].map((j) => {
                   const angle = ((ci * 3 + j) / 24) * Math.PI * 2
                   const dist = 48 + j * 22
@@ -431,13 +444,14 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             {/* signal — live connection visual */}
             <BotUplink eye={eye} status={uplink} lastFill={lastFill} resolved={sp.resolved} />
 
-            {/* performance chart */}
-            <BotPnlChart
+            {/* performance — Liveline real-time-style P&L curve */}
+            <BotPerformance
               snapshots={bot.pnlSnapshots}
               winRate={bot.winRate}
               sharpe={bot.sharpe}
               maxDrawdown={bot.maxDrawdown}
               totalTrades={bot.totalTrades}
+              live={sp.live}
             />
 
             {/* trade history */}
@@ -477,36 +491,45 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               )}
             </Panel>
 
-            {/* intel / discussion */}
+            {/* comments */}
             <Panel>
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#141414]">
-                <span className="font-sans font-bold text-[14px]">Intel</span>
-                <span className="font-mono text-[11px] text-[#888]">{posts.length} comments</span>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-[#141414]">
+                <div className="flex items-baseline gap-2.5">
+                  <span className="font-sans font-bold text-[15px] tracking-tight">Comments</span>
+                  <span className="font-mono text-[11px] text-[#5a5a64] tabular-nums">{posts.length}</span>
+                </div>
+                <span className="font-mono text-[10px] text-[#48484f] tracking-wide">traders weigh in on this bot</span>
               </div>
-              <div className="px-5 py-4 border-b border-[#141414] bg-[#060607]">
+              <div className="px-5 py-4 border-b border-[#141414] bg-[#050507]">
                 {isConnected && address ? (
                   <div className="flex gap-3">
-                    <MakerAvatar address={address} size={34} />
+                    <MakerAvatar address={address} size={36} square />
                     <div className="flex-1">
-                      <textarea value={postText} onChange={e => setPostText(e.target.value)} placeholder="Drop your read on this bot…" className="w-full h-16 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50 resize-y placeholder:text-[#555]" />
-                      <div className="flex justify-end mt-2"><button onClick={addPost} disabled={!postText.trim()} className="rounded-full bg-primary text-[#030303] font-bold text-[12px] px-5 py-2 disabled:opacity-30 hover:shadow-[0_0_14px_rgba(255,42,77,0.4)] transition-all">Comment</button></div>
+                      <textarea value={postText} onChange={e => setPostText(e.target.value)} maxLength={500} placeholder="Is this edge real? Share your read, cite the tape, call the top…" className="w-full h-[68px] bg-[#0a0a0c] border border-[#1f1f28] rounded-lg px-3.5 py-2.5 text-[13px] text-white outline-none focus:border-primary/50 resize-y placeholder:text-[#4a4a54] leading-relaxed" />
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="font-mono text-[10px] text-[#3f3f48]">{postText.length}/500 · markdown & {'>'}quotes</span>
+                        <button onClick={addPost} disabled={!postText.trim()} className="rounded-full bg-primary text-[#030303] font-bold text-[12px] px-5 py-2 disabled:opacity-30 hover:shadow-[0_0_14px_rgba(255,42,77,0.4)] transition-all">Post</button>
+                      </div>
                     </div>
                   </div>
-                ) : <div className="text-[13px] text-[#777]">Connect your wallet to join the discussion.</div>}
+                ) : <div className="text-[13px] text-[#8a8a94]">Connect your wallet to weigh in.</div>}
               </div>
               {posts.length === 0 ? (
-                <div className="px-5 py-10 text-center text-[13px] text-[#555]">No comments yet. Be the first.</div>
+                <div className="px-5 py-12 text-center">
+                  <div className="text-[13px] text-[#6a6a74]">No comments yet.</div>
+                  <div className="text-[11px] text-[#3f3f48] mt-1 font-mono">be the first to call it</div>
+                </div>
               ) : (
                 <div className="flex flex-col">
                   {posts.map((p, i) => (
-                    <div key={p.id || i} className="flex gap-3 px-5 py-4 border-b border-[#101010] last:border-b-0">
-                      <MakerAvatar address={p.wallet} pfpUrl={p.user?.pfpUrl} size={34} />
+                    <div key={p.id || i} className="flex gap-3 px-5 py-4 border-b border-[#101010] last:border-b-0 hover:bg-[#070709] transition-colors">
+                      <MakerAvatar address={p.wallet} pfpUrl={p.user?.pfpUrl} size={36} square />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[13px] font-semibold text-white">{personLabel(p.user, p.wallet)}</span>
-                          <span className="font-mono text-[10px] text-[#555] tabular-nums">{relDay(p.createdAt) || 'now'}</span>
+                          <span className="text-[13px] font-bold text-white">{personLabel(p.user, p.wallet)}</span>
+                          <span className="font-mono text-[10px] text-[#48484f] tabular-nums">{relDay(p.createdAt) || 'now'}</span>
                         </div>
-                        <div className="text-[13px] text-[#ccc] leading-relaxed"><PostBody text={p.text} onQuoteClick={() => {}} /></div>
+                        <div className="text-[13px] text-[#cfcfd6] leading-relaxed"><PostBody text={p.text} onQuoteClick={() => {}} /></div>
                       </div>
                     </div>
                   ))}
@@ -520,14 +543,14 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
 
             {/* eligibility */}
             <Panel className="p-5">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="font-sans font-bold text-[15px] tracking-tight">Vault eligibility</span>
-                <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ color: sp.live || sp.eligible ? TEAL : VIOLET, background: sp.live || sp.eligible ? `${TEAL}14` : `${VIOLET}14` }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-sans font-bold text-[16px] tracking-[-0.01em] text-white">Vault eligibility</span>
+                <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-[4px]" style={{ color: sp.live || sp.eligible ? TEAL : VIOLET, background: sp.live || sp.eligible ? `${TEAL}14` : `${VIOLET}14`, border: `1px solid ${sp.live || sp.eligible ? TEAL : VIOLET}33` }}>
                   {sp.live ? 'OPEN' : sp.eligible ? 'ELIGIBLE' : 'SHADOW PHASE'}
                 </span>
               </div>
-              <div className="text-[12px] text-[#777] mb-4 leading-relaxed">
-                {sp.live ? 'This bot cleared the gate. Its vault is open.' : `Proving in the open — ${clearedCount} of 3 cleared. The vault unlocks when all three are met.`}
+              <div className="text-[12px] text-[#8a8a94] mb-4 leading-relaxed">
+                {sp.live ? 'This bot cleared the gate. Its vault is open.' : `Proving in the open. ${clearedCount} of 3 cleared. The vault unlocks when all three are met.`}
               </div>
               <div className="flex flex-col gap-4">
                 {criteria.map((c, idx) => (
@@ -547,28 +570,68 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               </div>
             </Panel>
 
-            {/* track record */}
+            {/* proof of edge */}
             <Panel className="p-5">
               <div className="flex items-center justify-between mb-3">
-                <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">Proof of edge</span>
-                <button onClick={() => setShowDefs(v => !v)} className="font-mono text-[10px] text-[#666] hover:text-white transition-colors">{showDefs ? 'hide' : 'what do these mean?'}</button>
+                <span className="font-sans font-bold text-[16px] tracking-[-0.01em] text-white">Proof of edge</span>
+                <span className="font-mono text-[9px] text-[#3f3f48] tracking-[0.16em] uppercase">tap a stat</span>
               </div>
-              <div className="grid grid-cols-2 gap-px bg-[#141414] border border-[#141414] rounded-lg overflow-hidden">
-                {stats.map(m => (
-                  <div key={m.k} className="bg-[#070707] px-3 py-2.5" title={m.info}>
-                    <div className="text-[#555] text-[9px] font-mono tracking-widest mb-1 uppercase">{m.k}</div>
-                    <div className="font-mono font-bold text-[14px] tabular-nums text-white">{m.v ?? <Empty />}</div>
-                  </div>
-                ))}
+
+              {/* featured Brier — this is where 'lower is better' lives now */}
+              <button
+                onClick={() => setActiveStat(s => s === 'Brier' ? null : 'Brier')}
+                className="w-full text-left rounded-lg border border-[#1a1a22] bg-[#08080c] px-4 py-3 mb-2.5 hover:border-[#2a2a34] transition-colors"
+              >
+                <div className="flex items-baseline justify-between">
+                  <span className="font-mono text-[9px] tracking-[0.18em] uppercase text-[#5a5a64]">Brier score</span>
+                  <span className="font-mono text-[9px] text-[#3f3f48]">lower is better</span>
+                </div>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="font-sans font-black text-[28px] leading-none tabular-nums" style={{ color: grade?.c || '#7a7a84' }}>{b != null ? b.toFixed(3) : '—'}</span>
+                  {grade && <span className="font-mono text-[10px] font-bold tracking-[0.16em]" style={{ color: grade.c }}>{grade.t}</span>}
+                </div>
+              </button>
+
+              {/* stat grid — each cell is interactive */}
+              <div className="grid grid-cols-2 gap-px bg-[#13131b] border border-[#13131b] rounded-lg overflow-hidden">
+                {stats.map(m => {
+                  const open = activeStat === m.k
+                  return (
+                    <button
+                      key={m.k}
+                      onClick={() => setActiveStat(s => s === m.k ? null : m.k)}
+                      className="bg-[#08080c] px-3.5 py-3 text-left hover:bg-[#0c0c12] transition-colors"
+                      style={open ? { background: '#10101a' } : undefined}
+                    >
+                      <div className="flex items-center gap-1 text-[#4a4a54] text-[9px] font-mono tracking-[0.14em] mb-1.5 uppercase">
+                        {m.k}<span className="text-[#2f2f38]">{open ? '−' : '?'}</span>
+                      </div>
+                      <div className="font-sans font-bold text-[15px] tabular-nums text-[#f0f0f4]">{m.v ?? <Empty />}</div>
+                    </button>
+                  )
+                })}
               </div>
-              {showDefs && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-3 overflow-hidden">
-                  <div className="flex flex-col gap-2 border-t border-[#141414] pt-3">
-                    <div className="text-[11px] text-[#999] leading-relaxed"><span className="text-white font-semibold">Brier</span> — how calibrated its probabilities are. 0 perfect, 0.25 a coin flip, lower is better.</div>
-                    {stats.map(m => <div key={m.k} className="text-[11px] text-[#999] leading-relaxed"><span className="text-white font-semibold">{m.k}</span> — {m.info}</div>)}
-                  </div>
-                </motion.div>
-              )}
+
+              {/* interactive definition reveal */}
+              <AnimatePresence mode="wait">
+                {activeStat && (
+                  <motion.div
+                    key={activeStat}
+                    initial={{ opacity: 0, y: -4, height: 0 }}
+                    animate={{ opacity: 1, y: 0, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-2.5 rounded-lg border-l-2 border-primary/50 bg-[#0a0a0e] px-3.5 py-2.5 text-[12px] text-[#b4b4be] leading-relaxed">
+                      <span className="text-white font-bold">{activeStat}</span>{' '}
+                      {activeStat === 'Brier'
+                        ? '— how calibrated its probabilities are. 0 is perfect, 0.25 is a coin flip, 1 is always wrong. Lower means sharper foresight.'
+                        : `— ${stats.find(s => s.k === activeStat)?.info}`}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {bot.totalTrades > 0 && bot.totalTrades < SHADOW_RESOLVED_TARGET && (
                 <div className="text-[11px] mt-3 leading-relaxed" style={{ color: VIOLET }}>Low sample. Brier needs {SHADOW_RESOLVED_TARGET} resolved predictions for confidence.</div>
               )}
