@@ -8,7 +8,6 @@ import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import MakerAvatar from '@/components/MakerAvatar'
 import ConnectXModal, { XLogo } from '@/components/profile/ConnectXModal'
 import { botEye } from '@/lib/botIdentity'
-import { shadowProgress, phaseMeta } from '@/lib/botProgress'
 import { useCountUp } from '@/hooks/useCountUp'
 
 const POS = '#c8ff00', VIOLET = '#8b7bff', CRIMSON = '#ff2a4d'
@@ -34,11 +33,18 @@ function StatCard({ label, value, prefix = '', suffix = '', decimals = 0, color 
   )
 }
 
-function PersonSquare({ u, size = 38, mutual = false }: { u: Person; size?: number; mutual?: boolean }) {
-  return (
-    <Link href={`/maker/${u.walletAddress}`} title={personLabel(u)} className="relative block shrink-0 no-underline">
+function PersonSquare({ u, size = 38, mutual = false, noLink = false }: { u: Person; size?: number; mutual?: boolean; noLink?: boolean }) {
+  const inner = (
+    <>
       <MakerAvatar address={u.walletAddress} pfpUrl={u.pfpUrl} size={size} square />
       {mutual && <span className="absolute -bottom-1 -right-1 w-3 h-3 rounded-[3px] grid place-items-center" style={{ background: POS }}><span className="text-[7px] text-black font-black leading-none">⇄</span></span>}
+    </>
+  )
+  // noLink: cuando va dentro de otro <Link> (fila clickeable) para no anidar <a> dentro de <a>.
+  if (noLink) return <span className="relative block shrink-0">{inner}</span>
+  return (
+    <Link href={`/maker/${u.walletAddress}`} title={personLabel(u)} className="relative block shrink-0 no-underline">
+      {inner}
     </Link>
   )
 }
@@ -51,12 +57,14 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
 
   const [bots, setBots] = useState<any[]>([])
   const [profile, setProfile] = useState<any>({ handle: '', name: '', bio: '', pfpUrl: '', xHandle: null })
+  const [portfolio, setPortfolio] = useState<any>({ portfolioValue: 0, totalDeposited: 0, totalEarned: 0, activePositions: 0, allocations: [] })
   const [followersList, setFollowersList] = useState<Person[]>([])
   const [followingList, setFollowingList] = useState<Person[]>([])
   const [viewerFollowing, setViewerFollowing] = useState<Set<string>>(new Set())
   const [followed, setFollowed] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'bots' | 'followers' | 'following'>('bots')
+  const [tab, setTab] = useState<'portfolio' | 'bots'>('portfolio')
+  const [socialModal, setSocialModal] = useState<null | 'followers' | 'following'>(null)
   const [copied, setCopied] = useState(false)
   const [xOpen, setXOpen] = useState(false)
 
@@ -74,10 +82,11 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
     let alive = true
     const load = async () => {
       try {
-        const [uRes, fRes, botsRes] = await Promise.all([
+        const [uRes, fRes, botsRes, dRes] = await Promise.all([
           fetch(`/api/users?address=${makerAddress}`),
           fetch(`/api/follows?address=${makerAddress}${activeUser ? `&viewerId=${activeUser}` : ''}`),
           fetch('/api/bots'),
+          fetch(`/api/dashboard?address=${makerAddress}`),
         ])
         if (!alive) return
         if (uRes.ok) { const u = await uRes.json(); setProfile(u.user || {}) }
@@ -90,6 +99,11 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
         if (botsRes.ok) {
           const all = await botsRes.json()
           if (Array.isArray(all)) setBots(all.filter((b: any) => (b.walletAddress || b.builder)?.toLowerCase() === makerAddress))
+        }
+        if (dRes.ok) {
+          const d = await dRes.json()
+          setPortfolio({ portfolioValue: d.portfolioValue || 0, totalDeposited: d.totalDeposited || 0, totalEarned: d.totalEarned || 0, activePositions: d.activePositions || 0, allocations: d.allocations || [] })
+          setTab((d.allocations?.length ? 'portfolio' : 'bots'))
         }
       } catch (e) { console.error(e) } finally { if (alive) setLoading(false) }
     }
@@ -123,6 +137,11 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
   else if (bots.length >= 1) tier = { t: 'OPERATOR', c: VIOLET }
 
   const joined = profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null
+
+  // Identity: lead with a real name/handle; otherwise the short address IS the headline
+  // (so we don't print "Anonymous operator" + the same 0x… twice).
+  const hasName = !!(profile?.name && !profile.name.startsWith('User_'))
+  const displayName = hasName ? profile.name : (profile?.handle ? `@${profile.handle}` : shortAddr(makerAddress))
 
   const toggleFollow = async () => {
     if (!activeUser) return showToast('Connect your wallet to follow.')
@@ -227,10 +246,8 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
             {/* identity */}
             <div className="mt-4">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="font-black text-[26px] tracking-[-0.03em] text-white m-0 leading-none">
-                  {profile?.name && !profile.name.startsWith('User_') ? profile.name : 'Anonymous operator'}
-                </h1>
-                {profile?.handle && <span className="font-mono text-[13px] text-[#8a8a94]">@{profile.handle}</span>}
+                <h1 className="font-black text-[26px] tracking-[-0.03em] text-white m-0 leading-none">{displayName}</h1>
+                {profile?.handle && hasName && <span className="font-mono text-[13px] text-[#8a8a94]">@{profile.handle}</span>}
                 {xHandle && (
                   <a href={`https://x.com/${xHandle}`} target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 rounded-full border border-[#262630] px-2.5 py-1 text-[11px] text-[#ddd] hover:border-[#3a3a44] hover:text-white no-underline transition-colors">
@@ -239,21 +256,25 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
                 )}
               </div>
 
+              {/* address + joined — the 0x… appears once. If it's already the headline, we only
+                  render a copy affordance (no second identical 0x… under the name). */}
               <div className="flex items-center gap-3 mt-2.5 flex-wrap text-[12px]">
                 <button onClick={() => { navigator.clipboard.writeText(makerAddress); setCopied(true); setTimeout(() => setCopied(false), 1800) }}
-                  className="inline-flex items-center gap-1.5 font-mono text-[11px] text-[#8a8a94] hover:text-white transition-colors">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#3a3a44]" /> {shortAddr(makerAddress)} {copied && <span className="text-primary">copied</span>}
+                  title="Copy wallet address"
+                  className="inline-flex items-center gap-1.5 font-mono text-[11px] text-[#6a6a74] hover:text-white transition-colors">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+                  {(hasName || profile?.handle) ? shortAddr(makerAddress) : 'Copy address'} {copied && <span className="text-primary">copied</span>}
                 </button>
                 {joined && <span className="font-mono text-[11px] text-[#5a5a64]">joined {joined}</span>}
               </div>
 
-              {/* follow counts + mutual proof */}
+              {/* follow counts open a modal (not a bottom tab) */}
               <div className="flex items-center gap-5 mt-3.5 flex-wrap">
-                <button onClick={() => setTab('followers')} className="group inline-flex items-baseline gap-1.5">
+                <button onClick={() => setSocialModal('followers')} className="group inline-flex items-baseline gap-1.5">
                   <span className="font-sans font-bold text-[15px] text-white tabular-nums">{followersList.length}</span>
                   <span className="text-[12px] text-[#7a7a84] group-hover:text-white transition-colors">followers</span>
                 </button>
-                <button onClick={() => setTab('following')} className="group inline-flex items-baseline gap-1.5">
+                <button onClick={() => setSocialModal('following')} className="group inline-flex items-baseline gap-1.5">
                   <span className="font-sans font-bold text-[15px] text-white tabular-nums">{followingList.length}</span>
                   <span className="text-[12px] text-[#7a7a84] group-hover:text-white transition-colors">following</span>
                 </button>
@@ -309,17 +330,18 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
           )}
         </AnimatePresence>
 
-        {/* stats */}
+        {/* stats — this person AS A CAPITAL ALLOCATOR (depositor) first; maker stats live in the Algorithms tab.
+            "Followers" is intentionally NOT here: it already lives once, under the name. */}
         <div className="flex gap-3 mt-4 flex-wrap">
-          <StatCard label="Bots deployed" value={bots.length} color={CRIMSON} delay={0.05} />
-          <StatCard label="Avg Brier" value={avgBrier} decimals={3} color={avgBrier > 0 && avgBrier <= 0.25 ? POS : '#f0f0f4'} delay={0.1} />
-          <StatCard label="Capital secured" value={totalTVL} prefix="$" delay={0.15} />
-          <StatCard label="Followers" value={followersList.length} delay={0.2} />
+          <StatCard label="Portfolio value" value={portfolio.portfolioValue} prefix="$" color={CRIMSON} delay={0.05} />
+          <StatCard label="Capital deposited" value={portfolio.totalDeposited} prefix="$" delay={0.1} />
+          <StatCard label="Profit earned" value={portfolio.totalEarned} prefix="$" color={portfolio.totalEarned > 0 ? POS : '#f0f0f4'} delay={0.15} />
+          <StatCard label="Active vaults" value={portfolio.activePositions} delay={0.2} />
         </div>
 
         {/* tabs */}
         <div className="flex items-center gap-1 mt-8 border-b border-[#161620]">
-          {([['bots', `Algorithms ${bots.length}`], ['followers', `Followers ${followersList.length}`], ['following', `Following ${followingList.length}`]] as const).map(([k, label]) => (
+          {([['portfolio', `Portfolio ${portfolio.allocations.length}`], ['bots', `Algorithms ${bots.length}`]] as const).map(([k, label]) => (
             <button key={k} onClick={() => setTab(k)} className="relative px-4 py-2.5 text-[13px] font-semibold transition-colors" style={{ color: tab === k ? '#fff' : '#6a6a74' }}>
               {label}
               {tab === k && <motion.span layoutId="maker-tab" className="absolute left-0 right-0 -bottom-px h-0.5 bg-primary" />}
@@ -329,6 +351,49 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
 
         {/* tab content */}
         <div className="mt-6">
+          {tab === 'portfolio' && (
+            portfolio.allocations.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[#1f1f28] bg-[#08080c] py-16 text-center">
+                <div className="text-[13px] text-[#6a6a74]">No capital allocated to any vault yet.</div>
+                <Link href="/discover" className="inline-block mt-4 rounded-full border border-[#262630] text-[#ddd] font-bold text-[12px] px-5 py-2 no-underline hover:border-[#3a3a44] hover:text-white transition-colors">Explore vaults</Link>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-[#161620] bg-[#08080c] overflow-hidden">
+                <div className="grid grid-cols-[1.7fr_1fr_1fr_0.8fr] gap-2 px-4 py-2.5 border-b border-[#13131b] text-[10px] font-mono uppercase tracking-[0.12em] text-[#5a5a64]">
+                  <span>Vault</span><span className="text-right">Deposited</span><span className="text-right">Profit</span><span className="text-right">Return</span>
+                </div>
+                {portfolio.allocations.map((a: any, i: number) => {
+                  const cap = a.vaultCap || 0
+                  const usedPct = cap > 0 ? Math.min(100, (a.currentTVL / cap) * 100) : null
+                  const capFull = usedPct != null && usedPct >= 100
+                  const capColor = usedPct == null ? '#5a5a64' : capFull ? CRIMSON : usedPct >= 85 ? '#f5a623' : POS
+                  return (
+                  <Link key={a.slug || i} href={`/bot/${a.slug || ''}`} className="grid grid-cols-[1.7fr_1fr_1fr_0.8fr] gap-2 px-4 py-3 items-center border-t border-[#13131b] no-underline hover:bg-[#0c0c12] transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="shrink-0 rounded-[9px] overflow-hidden ring-1 ring-[#1f1f28]">
+                        {a.pfpUrl ? <img src={a.pfpUrl} alt={a.bot} className="w-9 h-9 object-cover" /> : <BotIrisAvatar {...botEye({ slug: a.slug, id: a.id, name: a.bot, color: a.color, eyeShape: a.eyeShape })} size={36} />}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-bold text-white truncate">{a.bot}</div>
+                        {/* capacity bar: how full this vault is (currentTVL / declared cap) */}
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className="relative h-1 flex-1 max-w-[120px] rounded-full bg-[#15151d] overflow-hidden">
+                            <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${usedPct ?? 0}%`, background: capColor }} />
+                          </span>
+                          <span className="font-mono text-[9px]" style={{ color: capColor }}>{usedPct == null ? 'Open' : capFull ? 'Full' : `${Math.round(usedPct)}%`}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-right font-mono text-[13px] text-[#e8e8e8]">{fmtUSD(a.dep)}</span>
+                    <span className="text-right font-mono text-[13px] font-bold" style={{ color: a.prof > 0 ? POS : a.prof < 0 ? CRIMSON : '#e8e8e8' }}>{a.prof >= 0 ? '+' : ''}{fmtUSD(a.prof)}</span>
+                    <span className="text-right font-mono text-[12px]" style={{ color: a.pct > 0 ? POS : a.pct < 0 ? CRIMSON : '#8a8a94' }}>{a.pct >= 0 ? '+' : ''}{a.pct}%</span>
+                  </Link>
+                  )
+                })}
+              </div>
+            )
+          )}
+
           {tab === 'bots' && (
             bots.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[#1f1f28] bg-[#08080c] py-16 text-center">
@@ -336,17 +401,24 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
                 {isOwner && <Link href="/list-bot" className="inline-block mt-4 rounded-full bg-primary text-[#030303] font-bold text-[12px] px-5 py-2 no-underline hover:shadow-[0_0_16px_rgba(255,42,77,0.4)] transition-all">Deploy a bot</Link>}
               </div>
             ) : (
+              <>
+              <div className="flex items-center gap-6 mb-4 text-[12px]">
+                <span className="text-[#7a7a84]">Bots deployed <b className="text-white font-bold tabular-nums ml-1">{bots.length}</b></span>
+                {avgBrier > 0 && <span className="text-[#7a7a84]">Avg Brier <b className="font-bold tabular-nums ml-1" style={{ color: avgBrier <= 0.25 ? POS : '#f0f0f4' }}>{avgBrier.toFixed(3)}</b></span>}
+                <span className="text-[#7a7a84]">Capital managed <b className="text-white font-bold tabular-nums ml-1">{fmtUSD(totalTVL)}</b></span>
+              </div>
               <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
                 {bots.map(b => {
-                  const sp = shadowProgress({ status: b.status, createdAt: b.createdAt, vaultOpen: b.vaultOpen, currentTVL: b.currentTVL ?? b.tvl, scores: b.scores, tradesIndexed: b._count?.trades })
-                  const pm = phaseMeta(sp)
                   const brier = b.scores?.[0]?.brierScore ?? b.brierScore ?? null
                   const tvl = b.currentTVL ?? b.tvl ?? 0
+                  const cap = b.vaultCap || 0
+                  const usedPct = cap > 0 ? Math.min(100, (tvl / cap) * 100) : null
+                  const capFull = usedPct != null && usedPct >= 100
+                  const capColor = usedPct == null ? '#5a5a64' : capFull ? CRIMSON : usedPct >= 85 ? '#f5a623' : POS
                   return (
                     <Link key={b.id} href={`/bot/${b.slug || b.id}`} className="group rounded-2xl border border-[#161620] bg-[#08080c] overflow-hidden no-underline hover:border-[#262630] transition-colors">
                       <div className="flex items-center justify-between px-4 py-3 border-b border-[#13131b]">
                         <span className="font-sans font-bold text-[13px] text-white truncate pr-2 group-hover:text-primary transition-colors">{b.name}</span>
-                        <span className="font-mono text-[9px] font-bold tracking-[0.14em]" style={{ color: pm.color }}>{pm.tag}</span>
                       </div>
                       <div className="grid place-items-center py-6 bg-[#050507]">
                         {b.pfpUrl ? <img src={b.pfpUrl} alt={b.name} className="w-16 h-16 object-cover rounded-lg" /> : <BotIrisAvatar {...botEye(b)} size={60} />}
@@ -354,37 +426,72 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
                       <div className="px-4 py-3 flex flex-col gap-2 text-[12px] font-mono">
                         <div className="flex justify-between"><span className="text-[#5a5a64]">Brier</span><span className="font-bold" style={{ color: brier != null && brier <= 0.25 ? POS : '#e8e8e8' }}>{brier != null ? brier.toFixed(3) : '—'}</span></div>
                         <div className="flex justify-between border-t border-[#13131b] pt-2"><span className="text-[#5a5a64]">Vault TVL</span><span className="text-white font-bold">{fmtUSD(tvl)}</span></div>
+                        {/* capacity: how full the vault is vs its declared cap */}
+                        <div className="pt-1">
+                          <div className="flex justify-between mb-1"><span className="text-[#5a5a64]">Capacity</span><span className="font-bold" style={{ color: capColor }}>{usedPct == null ? 'Open' : capFull ? 'Full' : `${Math.round(usedPct)}%`}</span></div>
+                          <span className="relative block h-1 rounded-full bg-[#15151d] overflow-hidden">
+                            <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${usedPct ?? 0}%`, background: capColor }} />
+                          </span>
+                        </div>
                       </div>
                     </Link>
                   )
                 })}
               </div>
+              </>
             )
           )}
-
-          {(tab === 'followers' || tab === 'following') && (() => {
-            const list = tab === 'followers' ? followersList : followingList
-            if (list.length === 0) return <div className="rounded-2xl border border-dashed border-[#1f1f28] bg-[#08080c] py-14 text-center text-[13px] text-[#6a6a74]">{tab === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'}</div>
-            return (
-              <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
-                {list.map(u => {
-                  const isMutual = tab === 'followers' ? profileFollowingSet.has(u.walletAddress?.toLowerCase()) : followersList.some(f => f.walletAddress?.toLowerCase() === u.walletAddress?.toLowerCase())
-                  return (
-                    <Link key={u.walletAddress} href={`/maker/${u.walletAddress}`} className="flex items-center gap-3 rounded-xl border border-[#161620] bg-[#08080c] px-3 py-2.5 no-underline hover:border-[#262630] transition-colors">
-                      <PersonSquare u={u} size={40} mutual={isMutual} />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-bold text-white truncate">{personLabel(u)}</div>
-                        <div className="font-mono text-[10px] text-[#5a5a64] truncate">{shortAddr(u.walletAddress)}</div>
-                      </div>
-                      {isMutual && <span className="font-mono text-[9px] font-bold tracking-[0.12em] px-2 py-0.5 rounded-[4px]" style={{ color: POS, background: `${POS}12`, border: `1px solid ${POS}33` }}>MUTUAL</span>}
-                    </Link>
-                  )
-                })}
-              </div>
-            )
-          })()}
         </div>
       </div>
+
+      {/* followers / following modal — opens from the counts under the name, not a bottom tab */}
+      <AnimatePresence>
+        {socialModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setSocialModal(null)}
+            className="fixed inset-0 z-50 grid place-items-center bg-black/70 backdrop-blur-sm p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-[440px] max-h-[78vh] flex flex-col rounded-2xl border border-[#1f1f28] bg-[#0a0a0f] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.6)]">
+              {/* segmented header: Followers | Following */}
+              <div className="flex items-center border-b border-[#161620]">
+                {(['followers', 'following'] as const).map(k => (
+                  <button key={k} onClick={() => setSocialModal(k)}
+                    className="relative flex-1 px-4 py-3 text-[13px] font-semibold capitalize transition-colors"
+                    style={{ color: socialModal === k ? '#fff' : '#6a6a74' }}>
+                    {k} <span className="tabular-nums text-[#7a7a84]">{k === 'followers' ? followersList.length : followingList.length}</span>
+                    {socialModal === k && <motion.span layoutId="social-modal-tab" className="absolute left-0 right-0 -bottom-px h-0.5 bg-primary" />}
+                  </button>
+                ))}
+                <button onClick={() => setSocialModal(null)} className="px-4 text-[#6a6a74] hover:text-white text-[18px] leading-none">×</button>
+              </div>
+              {(() => {
+                const list = socialModal === 'followers' ? followersList : followingList
+                if (list.length === 0) return <div className="py-16 text-center text-[13px] text-[#6a6a74]">{socialModal === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'}</div>
+                return (
+                  <div className="overflow-y-auto p-2">
+                    {list.map(u => {
+                      const isMutual = socialModal === 'followers' ? profileFollowingSet.has(u.walletAddress?.toLowerCase()) : followersList.some(f => f.walletAddress?.toLowerCase() === u.walletAddress?.toLowerCase())
+                      return (
+                        <Link key={u.walletAddress} href={`/maker/${u.walletAddress}`} onClick={() => setSocialModal(null)}
+                          className="flex items-center gap-3 rounded-xl px-3 py-2.5 no-underline hover:bg-[#13131b] transition-colors">
+                          <PersonSquare u={u} size={40} mutual={isMutual} noLink />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[13px] font-bold text-white truncate">{personLabel(u)}</div>
+                            <div className="font-mono text-[10px] text-[#5a5a64] truncate">{shortAddr(u.walletAddress)}</div>
+                          </div>
+                          {isMutual && <span className="font-mono text-[9px] font-bold tracking-[0.12em] px-2 py-0.5 rounded-[4px]" style={{ color: POS, background: `${POS}12`, border: `1px solid ${POS}33` }}>MUTUAL</span>}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <ConnectXModal open={xOpen} initial={xHandle} onClose={() => setXOpen(false)} onSave={saveX} />
 

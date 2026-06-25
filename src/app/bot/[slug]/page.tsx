@@ -69,7 +69,12 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const isOwner = !!(isConnected && address && bot && bot.builder?.toLowerCase() === address.toLowerCase())
 
   const animatedTVL = useCountUp(bot?.tvl || 0)
-  const vaultCap = bot?.vaultCap || 50000
+  // capDeclared = el cap real del maker (0 = Open / sin tope). vaultCap = fallback solo
+  // para el vaso visual (que no se rompa con 0). El gating y los labels usan el real.
+  const capDeclared = bot?.vaultCap || 0
+  const vaultCap = capDeclared || 50000
+  const isCapped = capDeclared > 0
+  const atCapacity = isCapped && animatedTVL >= capDeclared
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 4000) }
 
@@ -84,7 +89,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           pfpUrl: dbBot.pfpUrl, maker: dbBot.user || null,
           description: dbBot.description, status: dbBot.status || 'PAPER',
           color: dbBot.color, eyeShape: dbBot.eyeShape, createdAt: dbBot.createdAt,
-          vaultOpen: dbBot.vaultOpen, vaultAddress: dbBot.vaultAddress, vaultCap: dbBot.vaultCap || 50000,
+          vaultOpen: dbBot.vaultOpen, vaultAddress: dbBot.vaultAddress, vaultCap: dbBot.vaultCap ?? 0,
           tvl: dbBot.liveNav?.totalAssets ?? dbBot.currentTVL ?? 0,
           sharePrice: dbBot.liveNav?.sharePrice ?? 1,
           categories: dbBot.verifiedCategories?.length ? dbBot.verifiedCategories : (dbBot.categories || []),
@@ -266,13 +271,13 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 </div>
                 <div className="font-mono text-[12px] mt-2.5 tracking-wide" style={{ color: sp.live ? '#6a6a74' : VIOLET }}>
                   {sp.live
-                    ? `of ${fmtUSD(vaultCap)} capacity`
+                    ? (isCapped ? `of ${fmtUSD(capDeclared)} capacity` : 'Open capacity · finding the ceiling')
                     : `Vault unlocks after the shadow gate. ${sp.resolved}/${SHADOW_RESOLVED_TARGET} resolved`}
                 </div>
               </div>
               <div className="mt-5 grid grid-cols-3 gap-4 border-t border-[#141420] pt-4">
                 {[
-                  { k: 'Capacity', v: fmtUSD(vaultCap) },
+                  { k: 'Capacity', v: isCapped ? fmtUSD(capDeclared) : 'Open' },
                   { k: 'Profit split', v: '60 / 30 / 10' },
                   { k: sp.live ? 'Phase' : 'Progress', v: sp.live ? 'LIVE' : `${Math.round(sp.pct * 100)}%` },
                 ].map(m => (
@@ -284,8 +289,8 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               </div>
               {sp.live && (
                 <div className="mt-4">
-                  {animatedTVL >= vaultCap ? (
-                    <div className="rounded-lg border border-primary/30 p-2.5 text-center font-mono text-[11px] text-primary tracking-widest">CAPACITY REACHED</div>
+                  {atCapacity ? (
+                    <div className="rounded-lg border border-primary/30 p-2.5 text-center font-mono text-[11px] text-primary tracking-widest">AT CAPACITY · DEPOSITS CLOSED</div>
                   ) : !isConnected ? (
                     <div className="text-[12px] text-[#666]">Connect your wallet to deposit.</div>
                   ) : (

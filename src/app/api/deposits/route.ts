@@ -101,6 +101,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // CAPACITY: si el vault declaró un cap y ya está lleno, no se aceptan nuevos depósitos.
+    // Sobre-llenar un vault diluye el rendimiento de quienes ya entraron, así que se cierra.
+    if (bot.vaultCap && bot.vaultCap > 0 && bot.currentTVL >= bot.vaultCap) {
+      return NextResponse.json(
+        { error: 'This vault is at capacity and is not accepting new deposits.' },
+        { status: 409 }
+      );
+    }
+
     // 4. Guardar el depósito (con txHash para el anti-replay).
     let deposit;
     try {
