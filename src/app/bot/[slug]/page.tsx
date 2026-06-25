@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import MakerAvatar from '@/components/MakerAvatar'
 import BotUplink from '@/components/bot/BotUplink'
+import BotPnlChart from '@/components/bot/BotPnlChart'
 import VaultGlass from '@/components/bot/VaultGlass'
 import { botEye, codename } from '@/lib/botIdentity'
 import { useAccount } from 'wagmi'
@@ -27,6 +28,10 @@ const fmtUSD = (n: number) =>
   n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `$${(n / 1000).toFixed(1)}K` : `$${Math.round(n).toLocaleString()}`
 const personLabel = (u?: Post['user'], wallet = '') =>
   u?.handle ? `@${u.handle}` : (u?.name && !u.name.startsWith('User_') ? u.name : codename(wallet))
+const shortAddr = (addr: string) => addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : 'anon'
+const makerLabel = (maker: Post['user'] | null | undefined, wallet: string) =>
+  maker?.handle ? `@${maker.handle}` :
+  (maker?.name && !maker.name.startsWith('User_') ? maker.name : shortAddr(wallet))
 const relDay = (d?: string | Date | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
 
 function txOf(t: any): string | null {
@@ -212,7 +217,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
       <div className="max-w-[1180px] mx-auto px-6 pt-6 pb-20">
 
         {/* top bar */}
-        <div className="flex items-center justify-between mb-8 text-[12px]">
+        <div className="flex items-center justify-between mb-6 text-[12px]">
           <Link href="/discover" className="text-[#777] hover:text-white transition-colors no-underline">← The catalog</Link>
           {isOwner && (
             <button onClick={() => setIsEditing(v => !v)} className="font-sans text-[12px] font-semibold px-3.5 py-1.5 rounded-full border border-[#222] text-[#ccc] hover:border-[#444] hover:text-white transition-all">
@@ -221,38 +226,130 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           )}
         </div>
 
-        {/* hero */}
+        {/* ── VAULT (full width, first thing you see) ── */}
+        <div className="rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden mb-6">
+          <div className="flex flex-col sm:flex-row items-stretch">
+            <div className="sm:w-[280px] shrink-0 p-5 sm:border-r border-b sm:border-b-0 border-[#141414]">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-[#888]">Vault</span>
+                {sp.live && (
+                  <span className={`font-mono text-[11px] font-bold ${navDelta >= 0 ? 'text-[#00d4aa]' : 'text-[#ff5570]'}`}>
+                    {navDelta >= 0 ? '▲' : '▼'} {Math.abs(navDelta).toFixed(1)}%
+                  </span>
+                )}
+              </div>
+              <VaultGlass tvl={animatedTVL} cap={vaultCap} live={sp.live} />
+            </div>
+            <div className="flex-1 p-5 flex flex-col justify-between min-w-0">
+              <div>
+                <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-1">
+                  {sp.live ? 'Total assets secured' : 'Vault status'}
+                </div>
+                <div className="font-extrabold text-[clamp(26px,4vw,42px)] leading-none tabular-nums text-white tracking-[-0.03em]">
+                  {sp.live ? fmtUSD(animatedTVL) : 'Shadow phase'}
+                </div>
+                <div className="font-mono text-[12px] mt-1.5" style={{ color: sp.live ? '#666' : VIOLET }}>
+                  {sp.live
+                    ? `of ${fmtUSD(vaultCap)} capacity`
+                    : `Vault unlocks after the shadow gate — ${sp.resolved}/${SHADOW_RESOLVED_TARGET} resolved`}
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-4">
+                {[
+                  { k: 'Capacity', v: fmtUSD(vaultCap) },
+                  { k: 'Split', v: '60 / 30 / 10' },
+                  { k: sp.live ? 'Phase' : 'Progress', v: sp.live ? 'LIVE' : `${Math.round(sp.pct * 100)}%` },
+                ].map(m => (
+                  <div key={m.k}>
+                    <div className="font-mono text-[9px] text-[#555] tracking-widest uppercase mb-0.5">{m.k}</div>
+                    <div className="font-mono font-bold text-[13px] text-white">{m.v}</div>
+                  </div>
+                ))}
+              </div>
+              {sp.live && (
+                <div className="mt-4">
+                  {animatedTVL >= vaultCap ? (
+                    <div className="rounded-lg border border-primary/30 p-2.5 text-center font-mono text-[11px] text-primary tracking-widest">CAPACITY REACHED</div>
+                  ) : !isConnected ? (
+                    <div className="text-[12px] text-[#666]">Connect your wallet to deposit.</div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input type="number" value={depositAmt} onChange={e => setDepositAmt(e.target.value)} placeholder="USDC" className="flex-1 min-w-0 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2.5 text-[13px] text-white outline-none focus:border-primary/50 placeholder:text-[#555]" />
+                      <button onClick={handleDeposit} disabled={depositing} className="rounded-lg bg-primary text-[#030303] font-bold text-[13px] px-5 disabled:opacity-50 hover:shadow-[0_0_16px_rgba(255,42,77,0.4)] transition-all">{depositing ? '…' : 'Deposit'}</button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── HERO ── */}
         <div className="flex items-start justify-between gap-6 flex-wrap mb-6">
           <div className="flex items-start gap-5 min-w-0">
             <div className="rounded-xl overflow-hidden border border-[#1a1a1a] shrink-0">
-              {bot.pfpUrl ? <img src={bot.pfpUrl} alt={bot.name} className="w-16 h-16 object-cover" /> : <BotIrisAvatar {...eye} size={64} />}
+              {bot.pfpUrl
+                ? <img src={bot.pfpUrl} alt={bot.name} className="w-[64px] h-[64px] object-cover" />
+                : <BotIrisAvatar {...eye} size={64} />}
             </div>
             <div className="min-w-0">
+              {/* name + phase + grade */}
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h1 className="text-white font-extrabold text-[28px] tracking-[-0.03em] m-0 leading-none">{bot.name}</h1>
-                {/* phase badge — pip changes per phase */}
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono font-bold tracking-[0.16em]" style={{ color: pm.color, background: `${pm.color}14`, border: `1px solid ${pm.color}3a` }}>
-                  {pm.tag === 'LIVE' ? (
-                    <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping" style={{ background: pm.color }} /><span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ background: pm.color }} /></span>
-                  ) : pm.tag === 'SHADOW' ? (
-                    <span className="inline-flex gap-[2px]">{[0, 1, 2].map(i => <motion.span key={i} className="w-[3px] h-[10px] rounded-sm" style={{ background: pm.color }} animate={{ opacity: [0.25, 1, 0.25] }} transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.18 }} />)}</span>
-                  ) : <span className="w-1.5 h-1.5" style={{ background: pm.color }} />}
+                  {pm.tag === 'SHADOW' && (
+                    <span className="inline-flex gap-[2px]">
+                      {[0, 1, 2].map(i => (
+                        <motion.span key={i} className="w-[3px] h-[10px] rounded-sm" style={{ background: pm.color }}
+                          animate={{ opacity: [0.25, 1, 0.25] }} transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.18 }} />
+                      ))}
+                    </span>
+                  )}
+                  {pm.tag === 'NEW' && (
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: pm.color }} />
+                  )}
                   {pm.tag}
                 </span>
-                {grade && <span className="px-2 py-1 rounded-md text-[10px] font-mono tracking-[0.16em]" style={{ color: grade.c, background: `${grade.c}12`, border: `1px solid ${grade.c}3a` }}>{grade.t}</span>}
+                {grade && (
+                  <span className="px-2 py-1 rounded-md text-[10px] font-mono tracking-[0.16em]" style={{ color: grade.c, background: `${grade.c}12`, border: `1px solid ${grade.c}3a` }}>
+                    {grade.t}
+                  </span>
+                )}
               </div>
+
+              {/* Brier score — top of page, next to name */}
+              {b != null ? (
+                <div className="flex items-baseline gap-2.5 mt-2.5">
+                  <span className="font-mono font-extrabold text-[30px] leading-none tabular-nums" style={{ color: grade?.c || '#aaa' }}>
+                    {b.toFixed(3)}
+                  </span>
+                  <span className="font-mono text-[10px] text-[#555] tracking-[0.08em]">brier · lower is better</span>
+                </div>
+              ) : (
+                <div className="font-mono text-[12px] text-[#555] mt-2.5">No predictions resolved yet</div>
+              )}
+
               {bot.tagline && <div className="text-[#888] text-[13px] mt-2">{bot.tagline}</div>}
+
+              {/* maker + categories */}
               <div className="flex items-center gap-2 mt-3 flex-wrap">
                 {bot.builder && (
-                  <Link href={`/maker/${bot.builder}`} className="inline-flex items-center gap-2 group no-underline rounded-full border border-[#161616] hover:border-[#2a2a2a] bg-[#070707] pl-1 pr-3 py-1 transition-colors">
-                    <MakerAvatar address={bot.builder} pfpUrl={bot.maker?.pfpUrl} size={20} />
-                    <span className="font-sans text-[12px] text-[#999] group-hover:text-white transition-colors">{personLabel(bot.maker, bot.builder)}</span>
+                  <Link href={`/maker/${bot.builder}`} className="inline-flex items-center gap-2 group no-underline rounded-full border border-[#1e1e1e] hover:border-[#2a2a2a] bg-[#070707] pl-1.5 pr-3 py-1 transition-colors">
+                    <MakerAvatar address={bot.builder} pfpUrl={bot.maker?.pfpUrl} size={22} />
+                    <div className="flex flex-col leading-tight">
+                      <span className="font-mono text-[8px] text-[#555] tracking-[0.12em] uppercase">builder</span>
+                      <span className="font-sans text-[12px] font-semibold text-[#ccc] group-hover:text-white transition-colors">
+                        {makerLabel(bot.maker, bot.builder)}
+                      </span>
+                    </div>
                   </Link>
                 )}
-                {bot.categories?.slice(0, 4).map((c: string) => (
+                {bot.categories?.slice(0, 3).map((c: string) => (
                   <span key={c} className="font-mono text-[10px] uppercase tracking-widest text-[#777] border border-[#1a1a1a] rounded-full px-2.5 py-1">{c}</span>
                 ))}
-                {bot.verified && <span className="font-mono text-[9px] uppercase tracking-widest text-[#00d4aa]/80">on-chain verified</span>}
+                {bot.verified && (
+                  <span className="font-mono text-[9px] uppercase tracking-widest text-[#00d4aa]/80">on-chain verified</span>
+                )}
               </div>
             </div>
           </div>
@@ -291,17 +388,25 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           {/* LEFT */}
           <div className="flex flex-col gap-5 min-w-0">
 
-            {/* uplink — the live connection visual */}
+            {/* signal — live connection visual */}
             <BotUplink eye={eye} status={uplink} lastFill={lastFill} />
 
-            {/* trade history — visual */}
+            {/* performance chart */}
+            <BotPnlChart
+              snapshots={bot.pnlSnapshots}
+              winRate={bot.winRate}
+              sharpe={bot.sharpe}
+              maxDrawdown={bot.maxDrawdown}
+              totalTrades={bot.totalTrades}
+            />
+
+            {/* trade history */}
             <Panel>
               <div className="px-5 py-3.5 border-b border-[#141414]">
                 <div className="flex items-center justify-between mb-2.5">
                   <div><span className="font-sans font-bold text-[14px]">Trade history</span><span className="ml-2 font-mono text-[10px] text-[#555]">settled on-chain</span></div>
                   <span className="font-mono text-[11px] text-[#888] tabular-nums">{trades.length} fills</span>
                 </div>
-                {/* W/L/pending ratio bar */}
                 <div className="flex h-1.5 rounded-full overflow-hidden bg-[#0e0e0e]">
                   {wins > 0 && <div style={{ width: `${(wins / trades.length) * 100}%`, background: TEAL }} />}
                   {losses > 0 && <div style={{ width: `${(losses / trades.length) * 100}%`, background: '#ff5570' }} />}
@@ -372,29 +477,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
 
           {/* RIGHT */}
           <div className="flex flex-col gap-5">
-            {/* VAULT — squid-game glass */}
-            <Panel className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-[#888]">Vault</span>
-                {sp.live && <span className={`inline-flex items-center gap-1 font-mono text-[11px] font-bold ${navDelta >= 0 ? 'text-[#00d4aa]' : 'text-[#ff5570]'}`}>{navDelta >= 0 ? '▲' : '▼'} {Math.abs(navDelta).toFixed(1)}%</span>}
-              </div>
-              <VaultGlass tvl={animatedTVL} cap={vaultCap} live={sp.live} />
-              <div className="mt-3 text-[10px] font-mono text-[#666] tracking-wide text-center">profit split · 60 depositors / 30 builder / 10 protocol</div>
-              {sp.live && (
-                <div className="mt-3">
-                  {animatedTVL >= vaultCap ? (
-                    <div className="rounded-lg border border-primary/30 p-2.5 text-center font-mono text-[11px] text-primary tracking-widest">CAPACITY REACHED</div>
-                  ) : !isConnected ? (
-                    <div className="text-[12px] text-[#666] text-center">Connect your wallet to deposit.</div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <input type="number" value={depositAmt} onChange={e => setDepositAmt(e.target.value)} placeholder="USDC" className="flex-1 min-w-0 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2.5 text-[13px] text-white outline-none focus:border-primary/50 placeholder:text-[#555]" />
-                      <button onClick={handleDeposit} disabled={depositing} className="rounded-lg bg-primary text-[#030303] font-bold text-[13px] px-5 disabled:opacity-50 hover:shadow-[0_0_16px_rgba(255,42,77,0.4)] transition-all">{depositing ? '…' : 'Deposit'}</button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </Panel>
 
             {/* eligibility */}
             <Panel className="p-5">
@@ -404,7 +486,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                   {sp.live ? 'OPEN' : sp.eligible ? 'ELIGIBLE' : 'SHADOW PHASE'}
                 </span>
               </div>
-              <div className="text-[12px] text-[#777] mb-4 leading-relaxed">{sp.live ? 'This bot cleared the gate. Its vault is open.' : `Proving in the open — ${clearedCount} of 3 cleared. The vault unlocks when all three are met.`}</div>
+              <div className="text-[12px] text-[#777] mb-4 leading-relaxed">
+                {sp.live ? 'This bot cleared the gate. Its vault is open.' : `Proving in the open — ${clearedCount} of 3 cleared. The vault unlocks when all three are met.`}
+              </div>
               <div className="flex flex-col gap-4">
                 {criteria.map((c, idx) => (
                   <div key={c.label}>
@@ -429,14 +513,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">Track record</span>
                 <button onClick={() => setShowDefs(v => !v)} className="font-mono text-[10px] text-[#666] hover:text-white transition-colors">{showDefs ? 'hide' : 'what do these mean?'}</button>
               </div>
-              <div className="flex items-end justify-between mb-1">
-                <span className="text-[11px] font-mono text-[#777]">Brier score</span>
-                <span className="text-[9px] text-[#3a3a3a] font-mono">lower is better</span>
-              </div>
-              <div className="font-mono font-extrabold text-[34px] leading-none tabular-nums" style={{ color: grade?.c || '#fff' }}>{b != null ? b.toFixed(3) : <Empty />}</div>
-              <div className="text-[10px] text-[#555] font-mono mt-1.5">0 perfect · 0.25 coin flip · 1 always wrong</div>
-
-              <div className="grid grid-cols-2 gap-px bg-[#141414] border border-[#141414] rounded-lg overflow-hidden mt-4">
+              <div className="grid grid-cols-2 gap-px bg-[#141414] border border-[#141414] rounded-lg overflow-hidden">
                 {stats.map(m => (
                   <div key={m.k} className="bg-[#070707] px-3 py-2.5" title={m.info}>
                     <div className="text-[#555] text-[9px] font-mono tracking-widest mb-1 uppercase">{m.k}</div>
@@ -444,7 +521,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                   </div>
                 ))}
               </div>
-
               {showDefs && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-3 overflow-hidden">
                   <div className="flex flex-col gap-2 border-t border-[#141414] pt-3">
@@ -453,7 +529,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                   </div>
                 </motion.div>
               )}
-
               {bot.totalTrades > 0 && bot.totalTrades < SHADOW_RESOLVED_TARGET && (
                 <div className="text-[11px] mt-3 leading-relaxed" style={{ color: VIOLET }}>Low sample. Brier needs {SHADOW_RESOLVED_TARGET} resolved predictions for confidence.</div>
               )}
