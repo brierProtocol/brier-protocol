@@ -322,7 +322,14 @@ model User {
   name          String?
   bio           String?
   pfpUrl        String?
-  
+
+  // Linked X (Twitter) account. xHandle is stored without the leading @.
+  // xVerified flips true only once we run real OAuth; manual links stay false.
+  xHandle       String?
+  xVerified     Boolean  @default(false)
+
+  createdAt     DateTime @default(now())
+
   followers     Follow[] @relation("Followers")
   following     Follow[] @relation("Following")
   comments      Comment[]
