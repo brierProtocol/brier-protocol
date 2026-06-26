@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { isBotStale } from '@/lib/heartbeat';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -10,67 +11,15 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // 1. Fetch all deposits for this address.
-    // Case-insensitive: el POST de /api/deposits guarda la wallet con su case original,
-    // pero el perfil consulta en minúsculas. Sin esto el portfolio sale siempre vacío.
-    const deposits = await prisma.vaultDeposit.findMany({
-      where: {
-        depositorWallet: { equals: address, mode: 'insensitive' }
-      },
-      include: {
-        bot: {
-          include: {
-            scores: {
-              where: { isLatest: true }
-            }
-          }
-        }
-      }
+    // Portfolio is built from VaultPosition (the share-based source of truth), not
+    // from summing raw VaultDeposit rows. Case-insensitive: a position may have been
+    // stored with a different wallet case than the one the dashboard queries with.
+    const positions = await prisma.vaultPosition.findMany({
+      where: { userWallet: { equals: address, mode: 'insensitive' } },
+      include: { bot: { include: { scores: { where: { isLatest: true }, take: 1 } } } },
     });
 
-    // 2. Fetch all TradeEvents for bots this user has active deposits in
-    const botIds = deposits.map(d => d.botId);
-    const trades = await prisma.tradeEvent.findMany({
-      where: {
-        botId: { in: botIds }
-      },
-      orderBy: {
-        timestamp: 'desc'
-      },
-      take: 10
-    });
-
-    // 3. Compute Metrics
-    let totalDeposited = 0;
-    let totalEarned = 0;
-    
-    const allocations = deposits.map(dep => {
-      totalDeposited += dep.amountUsdc;
-      totalEarned += dep.totalProfitEarned;
-      
-      const botScore = dep.bot.scores[0];
-      return {
-        bot: dep.bot.name,
-        slug: dep.bot.slug,
-        vaultAddress: dep.bot.vaultAddress,
-        // Avatar fields so the portfolio can render the bot's face (img or generated iris)
-        id: dep.bot.id,
-        pfpUrl: dep.bot.pfpUrl,
-        color: dep.bot.color,
-        eyeShape: dep.bot.eyeShape,
-        // Capacity so the page can read how full this vault is
-        vaultCap: dep.bot.vaultCap,
-        currentTVL: dep.bot.currentTVL,
-        dep: dep.amountUsdc,
-        prof: dep.totalProfitEarned,
-        pct: dep.amountUsdc > 0 ? parseFloat(((dep.totalProfitEarned / dep.amountUsdc) * 100).toFixed(1)) : 0,
-        mode: dep.mode,
-        brierScore: botScore ? botScore.brierScore : 0.25
-      };
-    });
-
-    // If no deposits exist, generate a nice empty state or a set of default demo allocations
-    if (deposits.length === 0) {
+    if (positions.length === 0) {
       return NextResponse.json({
         portfolioValue: 0,
         totalDeposited: 0,
@@ -79,40 +28,90 @@ export async function GET(request: NextRequest) {
         annualizedReturn: 0,
         activePositions: 0,
         allocations: [],
-        history: []
+        history: [],
       });
     }
 
-    const portfolioValue = totalDeposited + totalEarned;
-    const yield30d = totalEarned * 0.32; // Simulating 32% of total earnings in last 30d
-    const annualizedReturn = totalDeposited > 0 ? parseFloat(((totalEarned / totalDeposited) * 100 * 2.8).toFixed(1)) : 0; // Annualized projection
+    const now = Date.now();
+    let portfolioValue = 0;   // TOTAL BALANCE — current value of all holdings
+    let investedCapital = 0;  // INVESTED CAPITAL — cost basis still at work
+    let allTimePnL = 0;       // ALL-TIME PNL — unrealized + realized
 
-    // Map trades to dashboard history items
-    const history = trades.map(trade => ({
+    const allocations = positions
+      // Aggregate over EVERY position first (closed ones still carry realized PnL),
+      // then keep only the currently-held ones for the grid.
+      .map((pos) => {
+        const bot = pos.bot;
+        // navPerShare reflects profit/loss: NAV drops on losses, so a position's
+        // value (and a closed-vault claim) is automatically deposited − loss.
+        const navPerShare = bot.totalShares > 0 ? bot.currentTVL / bot.totalShares : 1;
+        const value = pos.shares * navPerShare;
+        const pnl = value - pos.costBasisUsdc + pos.realizedPnlUsdc;
+
+        portfolioValue += value;
+        investedCapital += pos.costBasisUsdc;
+        allTimePnL += pnl;
+
+        const score = bot.scores[0];
+        return {
+          held: pos.shares > 0,
+          id: bot.id,
+          bot: bot.name,
+          slug: bot.slug,
+          vaultAddress: bot.vaultAddress,
+          pfpUrl: bot.pfpUrl,
+          color: bot.color,
+          eyeShape: bot.eyeShape,
+          vaultCap: bot.vaultCap,
+          currentTVL: bot.currentTVL,
+          shares: pos.shares,
+          value: parseFloat(value.toFixed(2)),
+          dep: pos.costBasisUsdc,
+          prof: parseFloat(pnl.toFixed(2)),
+          pct: pos.costBasisUsdc > 0 ? parseFloat(((pnl / pos.costBasisUsdc) * 100).toFixed(1)) : 0,
+          mode: pos.mode,
+          brierScore: score ? score.brierScore : 0.25,
+          // L3 + L5 surfaced to the UI: a closed vault shows "Claim" not "Redeem";
+          // a stale bot must not read as "operating".
+          vaultClosed: bot.vaultClosedAt !== null,
+          stale: isBotStale(bot, now),
+        };
+      })
+      .filter((a) => a.held);
+
+    // Recent activity across the bots the user holds.
+    const botIds = positions.map((p) => p.botId);
+    const trades = await prisma.tradeEvent.findMany({
+      where: { botId: { in: botIds } },
+      orderBy: { timestamp: 'desc' },
+      take: 10,
+    });
+    const nameById = new Map(positions.map((p) => [p.botId, p.bot.name]));
+    const history = trades.map((trade) => ({
       id: trade.id.substring(0, 8),
       type: trade.outcome === 'WIN' ? 'earn' : trade.outcome === 'LOSS' ? 'loss' : 'mirror',
-      bot: allocations.find(a => a.bot === trade.botId)?.bot || 'ADAN-PRED',
+      bot: nameById.get(trade.botId) || 'Unknown',
       amount: `${trade.outcome === 'WIN' ? '+' : trade.outcome === 'LOSS' ? '-' : ''}$${trade.amount.toLocaleString()}`,
       date: new Date(trade.timestamp).toLocaleDateString('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        year: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
+        month: '2-digit', day: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
       }),
-      hash: trade.externalTradeId ? `${trade.externalTradeId.substring(0, 6)}...${trade.externalTradeId.substring(trade.externalTradeId.length - 4)}` : '0x0000...0000'
+      hash: trade.externalTradeId
+        ? `${trade.externalTradeId.substring(0, 6)}...${trade.externalTradeId.substring(trade.externalTradeId.length - 4)}`
+        : '0x0000...0000',
     }));
 
     return NextResponse.json({
-      portfolioValue,
-      totalDeposited,
-      yield30d,
-      totalEarned,
-      annualizedReturn: annualizedReturn || 0,
-      activePositions: deposits.length,
+      portfolioValue: parseFloat(portfolioValue.toFixed(2)),
+      totalDeposited: parseFloat(investedCapital.toFixed(2)),
+      totalEarned: parseFloat(allTimePnL.toFixed(2)),
+      // Honest placeholders until L7 (UserEquitySnapshot): with no NAV time series we
+      // can't compute a real 30d yield or annualize. annualizedReturn shows the simple
+      // total return % for now — NOT yet annualized.
+      yield30d: 0,
+      annualizedReturn: investedCapital > 0 ? parseFloat(((allTimePnL / investedCapital) * 100).toFixed(1)) : 0,
+      activePositions: allocations.length,
       allocations,
-      history
+      history,
     });
   } catch (error: any) {
     console.error('Dashboard API Error:', error);
