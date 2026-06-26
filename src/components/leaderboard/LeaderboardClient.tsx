@@ -243,28 +243,36 @@ export default function LeaderboardClient() {
               const slug = b.slug || b.id;
               const eye = botEye(b);
               const wr = wrOf(b);
+              const isBoss = i === 0;
               return (
                 <div
                   key={b.id}
-                  className={`${styles.ptile} ${rankClasses[i] || ''}`}
-                  style={{ ['--tile-color' as string]: eye.accentColor }}
+                  className={`${styles.ptile} ${rankClasses[i] || ''} ${isBoss ? styles.ptileBoss : ''}`}
                   onClick={() => { window.location.href = `/bot/${slug}`; }}
                 >
-                  {i === 0 && <span className={styles.podiumCrown}>♛</span>}
-                  <div className={styles.ptileAvatar}>
-                    <BotIrisAvatar {...eye} size={i === 0 ? 48 : 32} />
-                  </div>
+                  {isBoss && (
+                    <span className={styles.ptileCrown}>
+                      <svg viewBox="0 0 24 24" width="28" height="28" fill="#c89bff" aria-hidden="true">
+                        <path d="M3 7l4 4 5-7 5 7 4-4v11H3V7z" />
+                        <rect x="3" y="20" width="18" height="2" />
+                      </svg>
+                    </span>
+                  )}
                   <div
                     className={styles.gembadge}
-                    style={{ ['--gemsrc' as string]: `url(/gems/${gem}.png)` }}
+                    style={{ ['--gemsrc' as string]: `url(/gems/${gem}.svg)` }}
                   >
-                    <img src={`/gems/${gem}.png`} alt={gem} />
+                    <img src={`/gems/${gem}.svg`} alt={gem} />
                     <span className={styles.shine} />
                   </div>
-                  <div className={styles.ptileLabel}>{gem.toUpperCase()}</div>
-                  <div className={styles.ptileName}>{b.name}</div>
-                  <div className={styles.ptileWr}>
-                    {wr != null ? `WR ${(wr * 100).toFixed(1)}%` : 'WR —'}
+                  <span className={styles.ptileRank}>{i + 1}</span>
+                  <div className={styles.ptileAvatar}>
+                    <BotIrisAvatar {...eye} size={isBoss ? 64 : 40} />
+                  </div>
+                  <div className={styles.ptileBottom}>
+                    <span className={styles.ptileLabel}>{gem.toUpperCase()}</span>
+                    <span className={styles.ptileName}>{b.name}</span>
+                    {wr != null && <span className={styles.ptileWr}>WR {(wr * 100).toFixed(1)}%</span>}
                   </div>
                 </div>
               );
