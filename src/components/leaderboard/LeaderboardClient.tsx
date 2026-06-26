@@ -208,7 +208,6 @@ export default function LeaderboardClient() {
 
   const ranked = [...bots].sort((a, b) => (brierOf(a) ?? 1) - (brierOf(b) ?? 1));
   const champion = ranked[0];
-  const top5 = ranked.slice(0, 5);
   const rest = ranked.slice(5);
 
   const champBrier = champion ? brierOf(champion) : null;
@@ -216,9 +215,6 @@ export default function LeaderboardClient() {
   const tier = tierOf(champBrier);
   const champBrierBar = champBrier != null ? `${Math.round((1 - champBrier) * 100)}%` : '0%';
   const champWinBar = champWr != null ? `${Math.round(champWr * 100)}%` : '0%';
-
-  const RANK_GEMS = ['oracle', 'prism', 'azure', 'ember', 'verdant'];
-  const rankClasses = [styles.r1, styles.r2, styles.r3, styles.r4, styles.r5];
 
   const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [vs, setVs] = useState<{a:number;b:number;top:number;leader:string;aName:string;bName:string;aLeads:boolean} | null>(null);
@@ -288,48 +284,9 @@ export default function LeaderboardClient() {
           </div>
         </div>
 
-        {/* gem podium top 5 */}
-        {top5.length > 0 && (
-          <div className={`${styles.podium} ${styles.reveal}`} style={{ transitionDelay: '.20s' }}>
-            {top5.map((b, i) => {
-              const gem = RANK_GEMS[i];
-              const slug = b.slug || b.id;
-              const eye = botEye(b);
-              const wr = wrOf(b);
-              return (
-                <div
-                  key={b.id}
-                  className={`${styles.ptile} ${rankClasses[i] || ''}`}
-                  style={{ ['--tile-color' as string]: eye.accentColor }}
-                  onClick={() => { window.location.href = `/bot/${slug}`; }}
-                >
-                  {i === 0 && <span className={styles.podiumCrown}>♛</span>}
-                  <div className={styles.ptileAvatar}>
-                    <BotFace bot={b} size={i === 0 ? 48 : 32} />
-                  </div>
-                  <div
-                    className={styles.gembadge}
-                    style={{ ['--gemsrc' as string]: `url(/gems/${gem}.png)` }}
-                  >
-                    {/* el asset /gems/*.png falta en el repo; si 404, ocultamos la imagen
-                        rota y queda el label de gema (ORACLE/PRISM…) limpio debajo */}
-                    <img src={`/gems/${gem}.png`} alt={gem} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                    <span className={styles.shine} />
-                  </div>
-                  <div className={styles.ptileLabel}>{gem.toUpperCase()}</div>
-                  <div className={styles.ptileName}>{b.name}</div>
-                  <div className={styles.ptileWr}>
-                    {wr != null ? `WR ${(wr * 100).toFixed(1)}%` : 'WR —'}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* roster */}
+        {/* roster — character select: las caras de los bots dominan, grandes. */}
         {ranked.length > 0 && (
-          <div className={`${styles.roster} ${styles.reveal}`} style={{ transitionDelay: '.24s' }}>
+          <div className={`${styles.roster} ${styles.reveal}`} style={{ transitionDelay: '.20s' }}>
             <div className={styles.rosterHead}>
               <span className={styles.rosterTitle}>The roster</span>
               <span className={styles.rosterHint}>{ranked.length} agents · ranked by Brier</span>
@@ -339,6 +296,7 @@ export default function LeaderboardClient() {
                 const eye = botEye(b);
                 const slug = b.slug || b.id;
                 const br = brierOf(b);
+                const wr = wrOf(b);
                 const t = tierOf(br);
                 const boss = i === 0;
                 return (
@@ -352,7 +310,7 @@ export default function LeaderboardClient() {
                     <span className={styles.tileRank}>{i + 1}</span>
                     {boss && <span className={styles.crown}>♛</span>}
                     <div className={styles.tileFrame}>
-                      <BotFace bot={b} size={boss ? 108 : 86} />
+                      <BotFace bot={b} size={boss ? 230 : 148} />
                     </div>
                     <div className={styles.tileBody}>
                       <div className={styles.tileName}>{b.name}</div>
@@ -360,6 +318,7 @@ export default function LeaderboardClient() {
                         <span className={styles.tileBrier}>{br != null ? br.toFixed(3) : '—'}</span>
                         {t && <span className={styles.tileTier} style={{ color: t.color }}>{t.label}</span>}
                       </div>
+                      <div className={styles.tileWr}>{wr != null ? `WR ${(wr * 100).toFixed(1)}%` : 'WR —'}</div>
                     </div>
                   </div>
                 );
