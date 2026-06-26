@@ -176,10 +176,11 @@ export default function Navbar() {
   // Docs trae su propio header (logo + search ⌘K + tabs) — sin navbar global encima
   if (pathname.startsWith('/docs')) return null
 
+  // Deploy lives inside the arena (/app) and Discover as a primary CTA, so it no
+  // longer needs a nav slot competing with the core views.
   const navLinks = [
     { href: '/leaderboard', label: 'Leaderboard' },
     { href: '/discover',    label: 'Discover'    },
-    { href: '/list-bot',    label: 'Deploy Bot'  },
     { href: '/dashboard',   label: 'Dashboard'   },
   ]
 
