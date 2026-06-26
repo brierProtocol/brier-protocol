@@ -286,7 +286,7 @@ export default function DiscoverPage() {
                             <span className="rounded-full overflow-hidden shrink-0 inline-flex">
                               {b.maker?.pfpUrl
                                 ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={b.maker.pfpUrl} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
-                                : <BotIrisAvatar {...makerEye(b.walletAddress || 'anon')} size={14} />}
+                                : <BotIrisAvatar {...makerEye(b.walletAddress || 'anon')} size={14} bg="transparent" />}
                             </span>
                             <span className="truncate">by {b.maker?.handle ? `@${b.maker.handle}` : (b.maker?.name || `${(b.walletAddress || 'anon').substring(0, 6)}…`)}</span>
                           </span>

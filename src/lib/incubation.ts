@@ -12,11 +12,11 @@ import { prisma } from './db/prisma'
  * checkStatusTransitions() is the single place that performs this transition.
  */
 
-// v1.4 T1 thresholds
-const T1_MIN_TRADES = 50
+// v1.5 T1 thresholds — alineados con la visión del producto (100 predicciones / 21 días)
+const T1_MIN_TRADES = 100         // mínimo 100 predicciones resueltas (era 50)
 const T1_MAX_BRIER = 0.20
 const T1_MAX_DRAWDOWN = 0.25       // máx 25% de drawdown histórico
-const SHADOW_MIN_DAYS = 7          // mínimo 1 semana en fase shadow antes de habilitar vault
+const SHADOW_MIN_DAYS = 21         // mínimo 21 días en fase shadow antes de habilitar vault (era 7)
 const MS_PER_DAY = 1000 * 60 * 60 * 24
 
 export async function checkStatusTransitions(botId: string) {
