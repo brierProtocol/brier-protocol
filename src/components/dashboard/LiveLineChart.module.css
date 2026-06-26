@@ -1,0 +1,35 @@
+.wrap { position: relative; width: 100%; }
+.svg { display: block; width: 100%; }
+
+/* the line draws itself on mount (pathLength normalized to 1) */
+.line {
+  fill: none;
+  stroke: #ff2a4d;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 6px rgba(255, 42, 77, 0.5));
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+.area { opacity: 0; animation: fade 1.3s ease-out 0.5s forwards; }
+@keyframes fade { to { opacity: 1; } }
+
+/* the burst at the peak: dot pulse + radiating rays — fires after the draw */
+.endDot { transform-box: fill-box; transform-origin: center; opacity: 0; animation: pop 0.5s ease-out 1.55s forwards; }
+@keyframes pop { from { opacity: 0; transform: scale(0.2); } to { opacity: 1; transform: scale(1); } }
+
+.endRing { transform-box: fill-box; transform-origin: center; animation: ring 1.9s ease-out 1.7s infinite; }
+@keyframes ring { 0% { transform: scale(0.5); opacity: 0.7; } 100% { transform: scale(2.4); opacity: 0; } }
+
+.ray { stroke: #ff5570; stroke-width: 2; stroke-linecap: round; opacity: 0; animation: ray 0.55s ease-out 1.6s forwards; }
+@keyframes ray { 0% { opacity: 0; } 55% { opacity: 0.95; } 100% { opacity: 0.4; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .line { animation: none; stroke-dashoffset: 0; }
+  .area, .endDot, .ray { animation: none; opacity: 1; }
+  .endRing { animation: none; opacity: 0; }
+}
