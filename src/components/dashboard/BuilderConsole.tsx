@@ -88,6 +88,7 @@ export default function BuilderConsole({ address }: { address: string }) {
     { lab: 'Managed capital', val: fmtUsd(data.managedCapital), cls: 'text-white' },
   ]
   const equity = data.equitySeries.map(e => e.value)
+  const equityLabels = data.equitySeries.map(e => e.date)
   const equityUp = equity.length >= 2 && equity[equity.length - 1] >= equity[0]
 
   return (
@@ -112,7 +113,7 @@ export default function BuilderConsole({ address }: { address: string }) {
             </span>
           )}
         </div>
-        <LiveLineChart data={equity} height={210} label="Equity" />
+        <LiveLineChart data={equity} labels={equityLabels} height={210} label="Equity" />
       </div>
 
       {/* bot list */}

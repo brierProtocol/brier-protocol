@@ -7,6 +7,7 @@ import { parseUnits } from 'viem'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
 import { brierVaultABI } from '@/lib/abis/BrierVault'
+import LiveLineChart from './LiveLineChart'
 import type { Allocation, DashboardHistoryItem } from '@/types'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -14,6 +15,7 @@ import type { Allocation, DashboardHistoryItem } from '@/types'
 interface DashboardData {
   portfolioValue: number; totalDeposited: number; yield30d: number; totalEarned: number
   annualizedReturn: number; activePositions: number
+  valueSeries?: { date: string; value: number }[]
   allocations: Allocation[]; history: DashboardHistoryItem[]
 }
 
@@ -66,6 +68,24 @@ export default function DepositorView({ address }: { address: string }) {
           </div>
         ))}
       </div>
+
+      {/* portfolio value curve (liveline) — only when there's real history */}
+      {d?.valueSeries && d.valueSeries.length >= 2 && (() => {
+        const series = d.valueSeries!
+        const vals = series.map(s => s.value)
+        const up = vals[vals.length - 1] >= vals[0]
+        return (
+          <div className="bg-[#0b0b0e] border border-[#1a1a20] rounded-xl p-3">
+            <div className="flex items-center justify-between px-1 mb-1">
+              <span className="text-[12px] text-[#9a9aa2]">Portfolio value</span>
+              <span className={`text-[12px] ${up ? 'text-[#37d67a]' : 'text-[#ff5570]'}`}>
+                {up ? '▲' : '▼'} {fmtUsd(Math.abs(vals[vals.length - 1] - vals[0]))}
+              </span>
+            </div>
+            <LiveLineChart data={vals} labels={series.map(s => s.date)} height={200} label="Portfolio" />
+          </div>
+        )
+      })()}
 
       <div className="bg-[#0b0b0e] border border-[#1a1a20] rounded-xl p-4">
         <div className="text-[13px] text-[#9a9aa2] leading-relaxed">

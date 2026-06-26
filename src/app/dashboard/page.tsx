@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { useAccount } from 'wagmi'
 import BuilderConsole from '@/components/dashboard/BuilderConsole'
 import DepositorView from '@/components/dashboard/DepositorView'
@@ -39,7 +38,6 @@ export default function DashboardPage() {
             <p className="mt-1 text-[13px] text-[#6a6a74]">Manage your bots and capital.</p>
           </div>
           <div className="flex items-center gap-2.5">
-            <Link href={`/maker/${address}`} className="text-[12px] text-[#9a9aa2] hover:text-white transition-colors no-underline hidden sm:inline">Profile →</Link>
             <span className="inline-flex items-center gap-2 text-[12px] text-[#b9b9c2] border border-[#26262e] rounded-full px-3 py-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-primary" />{short}
             </span>
