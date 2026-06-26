@@ -1,9 +1,18 @@
 # Brier — Go-Live Runbook
 
-Status: **code-complete.** Frontend, scoring, indexer, resolution, CLOB execution,
-vault auto-creation, NAV reads — all real and tested (scoring 11/11, contracts 21/21).
-Everything below is **operational** (requires your keys/funds/accounts) or optional
-hardening. No application code remains.
+Status: **mostly real, one critical mock remaining.** Frontend, scoring, indexer,
+resolution (oracle), CLOB execution, vault auto-creation and NAV reads are real and
+unit-tested (scoring 11/11, contracts 21/21 — note: tests are a floor, NOT an audit).
+
+**Not yet production-safe:**
+- **Risk Engine price feed** (`brier-executor/src/worker.ts`) is still hardcoded to
+  `0.50`. The PERPS stop-loss cannot be trusted until a live CLOB price WebSocket is
+  wired. Do NOT run PERPS with real funds until then.
+- Contracts are **unaudited** and the vault admin is an **EOA** (should be a Gnosis
+  Safe multisig before real capital).
+
+Everything else below is **operational** (requires your keys/funds/accounts) or
+optional hardening.
 
 ---
 

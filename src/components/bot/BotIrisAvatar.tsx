@@ -94,6 +94,8 @@ export default function BotIrisAvatar({ avatarId, size = 64, accentColor = '#ff2
   const VB = N + PAD * 2
   const A = accentColor
   const ALight = lighten(accentColor, 0.45)
+  // Sin fondo, las pupilas siguen siendo puntos oscuros para que lea como cara.
+  const eyeFill = bg === 'transparent' ? '#050505' : bg
 
   return (
     <svg
@@ -108,7 +110,7 @@ export default function BotIrisAvatar({ avatarId, size = 64, accentColor = '#ff2
         <rect key={i} x={x + PAD} y={y + PAD} width={1} height={1} fill={tone ? ALight : A} />
       ))}
       {eyes.map(({ x, y }, i) => (
-        <rect key={`e${i}`} x={x + PAD + 0.22} y={y + PAD + 0.22} width={0.56} height={0.56} fill="#050505" />
+        <rect key={`e${i}`} x={x + PAD + 0.22} y={y + PAD + 0.22} width={0.56} height={0.56} fill={eyeFill} />
       ))}
     </svg>
   )

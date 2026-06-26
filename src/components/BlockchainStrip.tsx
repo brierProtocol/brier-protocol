@@ -95,7 +95,7 @@ export default function BlockchainStrip() {
     const onMove = (e: MouseEvent) => { const r = wrap.getBoundingClientRect(); tmx = ((e.clientX - r.left) / r.width) * 2 - 1; tmy = ((e.clientY - r.top) / r.height) * 2 - 1 }
     wrap.addEventListener('mousemove', onMove)
 
-    let f = 0, raf = 0, active = 0, activeT = 0
+    let f = 0, raf = 0, active = 0, activeT = 0, visible = true
     const frame = () => {
       f += 0.016
       mx += (tmx - mx) * 0.05; my += (tmy - my) * 0.05
@@ -129,14 +129,22 @@ export default function BlockchainStrip() {
 
       renderer.render(scene, camera)
     }
-    const loop = () => { raf = requestAnimationFrame(loop); frame() }
+    const loop = () => { if (!visible) return; raf = requestAnimationFrame(loop); frame() }
     if (reduceMotion) frame(); else loop()
+
+    // pausa fuera de viewport
+    const io = new IntersectionObserver((es) => {
+      const on = es[0].isIntersecting
+      if (on && !visible && !reduceMotion) { visible = true; loop() }
+      else if (!on) { visible = false; cancelAnimationFrame(raf) }
+    }, { threshold: 0 })
+    io.observe(wrap)
 
     const onResize = () => { cw = wrap.clientWidth; ch = wrap.clientHeight; camera.aspect = cw / ch; camera.updateProjectionMatrix(); renderer.setSize(cw, ch, false); if (reduceMotion) frame() }
     window.addEventListener('resize', onResize)
 
     return () => {
-      cancelAnimationFrame(raf)
+      cancelAnimationFrame(raf); io.disconnect()
       wrap.removeEventListener('mousemove', onMove)
       window.removeEventListener('resize', onResize)
       scene.traverse((obj) => {

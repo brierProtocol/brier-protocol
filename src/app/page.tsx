@@ -33,11 +33,20 @@ export default function Landing() {
   }, [])
 
   useEffect(() => {
-    const onScroll = () => {
+    // El scroll solo escribe estado una vez por frame (rAF). Antes hacía setScrollP
+    // en cada evento, forzando un re-render de toda la landing al desplazarse.
+    let ticking = false
+    const compute = () => {
       const max = document.body.scrollHeight - window.innerHeight
       setScrollP(max > 0 ? Math.min(1, window.scrollY / max) : 0)
+      ticking = false
     }
-    onScroll()
+    const onScroll = () => {
+      if (ticking) return
+      ticking = true
+      requestAnimationFrame(compute)
+    }
+    compute()
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])

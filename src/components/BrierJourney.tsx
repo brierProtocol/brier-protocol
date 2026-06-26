@@ -126,7 +126,7 @@ export default function BrierJourney() {
     stack.add(halo)
 
     const projV = new THREE.Vector3()
-    let f = 0, raf = 0, displayCur = 0, lastStage = -1
+    let f = 0, raf = 0, displayCur = 0, lastStage = -1, visible = true
     const frame = () => {
       f += 0.016
       const targetStage = Math.round(progRef.current * (NP - 1))
@@ -185,8 +185,16 @@ export default function BrierJourney() {
 
       renderer.render(scene, camera)
     }
-    const loop = () => { raf = requestAnimationFrame(loop); frame() }
+    const loop = () => { if (!visible) return; raf = requestAnimationFrame(loop); frame() }
     if (reduceMotion) frame(); else loop()
+
+    // pausa fuera de viewport: la escena 3D no consume frames si no se ve
+    const io = new IntersectionObserver((es) => {
+      const on = es[0].isIntersecting
+      if (on && !visible && !reduceMotion) { visible = true; loop() }
+      else if (!on) { visible = false; cancelAnimationFrame(raf) }
+    }, { threshold: 0 })
+    io.observe(canvas)
 
     const onResize = () => {
       W = window.innerWidth; H = window.innerHeight
@@ -197,7 +205,7 @@ export default function BrierJourney() {
     window.addEventListener('resize', onResize)
 
     return () => {
-      cancelAnimationFrame(raf)
+      cancelAnimationFrame(raf); io.disconnect()
       window.removeEventListener('resize', onResize)
       scene.traverse((obj) => {
         const o = obj as THREE.Mesh
