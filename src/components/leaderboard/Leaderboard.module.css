@@ -133,3 +133,38 @@
 .r4 .gembadge img { animation: emberFlicker 1.9s ease-in-out infinite; }
 @keyframes emberFlicker { 0%, 100% { filter: brightness(1) saturate(1); } 45% { filter: brightness(1.18) saturate(1.22); } 70% { filter: brightness(.96); } }
 @media (prefers-reduced-motion: reduce) { .shine, .r4 .gembadge, .r4 .gembadge img { animation: none; } }
+
+/* ── roster: pantalla de selección de personaje (character select) ──
+   Marco dejó el JSX sin estilos; acá se construye el grid de fichas. */
+.roster{position:relative;z-index:21;margin-top:44px}
+.rosterHead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-family:var(--grotesk);font-size:15px;font-weight:700;color:#fff;margin-bottom:14px}
+.rosterHint{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);white-space:nowrap}
+.rosterGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+
+.tile{position:relative;border:1px solid var(--bd2);border-radius:12px;overflow:hidden;cursor:pointer;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.22));transition:transform .16s cubic-bezier(.16,1,.3,1),border-color .16s,box-shadow .16s;display:flex;flex-direction:column}
+.tile::before{content:'';position:absolute;inset:0;z-index:0;background:radial-gradient(120% 75% at 50% 0%,color-mix(in srgb,var(--tile-color) 24%,transparent),transparent 70%);opacity:.45;transition:opacity .16s;pointer-events:none}
+.tile:hover{transform:translateY(-4px);border-color:color-mix(in srgb,var(--tile-color) 72%,transparent);box-shadow:0 12px 30px -8px color-mix(in srgb,var(--tile-color) 45%,transparent)}
+.tile:hover::before{opacity:1}
+
+.tileFrame{position:relative;z-index:1;aspect-ratio:1;display:grid;place-items:center;background:radial-gradient(80% 80% at 50% 28%,color-mix(in srgb,var(--tile-color) 15%,#0a0a0c),#070708);transition:transform .2s}
+.tileFrame img{border-radius:9px}
+.tile:hover .tileFrame{transform:scale(1.07)}
+
+.tileRank{position:absolute;top:6px;left:6px;z-index:3;min-width:18px;height:18px;padding:0 5px;display:grid;place-items:center;border-radius:6px;background:rgba(0,0,0,.62);border:1px solid var(--bd2);font-family:var(--mono);font-size:10px;font-weight:700;color:#fff;backdrop-filter:blur(4px)}
+.crown{position:absolute;top:5px;right:7px;z-index:3;font-size:14px;color:#ffcf5a;filter:drop-shadow(0 0 6px rgba(255,207,90,.7))}
+
+.tileBody{position:relative;z-index:2;padding:7px 9px 9px;background:rgba(0,0,0,.34);border-top:1px solid var(--bd)}
+.tileName{font-family:var(--grotesk);font-size:12px;font-weight:600;color:#fff;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tileStat{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:3px}
+.tileBrier{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--red2)}
+.tileTier{font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:.8px;text-transform:uppercase}
+
+/* boss = rank 01: trato dorado, sin romper la grilla uniforme */
+.boss{border-color:color-mix(in srgb,#ffcf5a 40%,var(--bd2));box-shadow:inset 0 0 0 1px rgba(255,207,90,.18)}
+.boss .tileFrame{background:radial-gradient(80% 80% at 50% 26%,rgba(255,207,90,.17),#0b0a08,#070708)}
+.boss .tileName{font-size:13px}
+.boss .tileBrier{font-size:12px}
+.boss:hover{border-color:#ffcf5a;box-shadow:0 12px 30px -8px rgba(255,207,90,.45)}
+
+@media(max-width:560px){.rosterGrid{grid-template-columns:repeat(auto-fill,minmax(92px,1fr))}}
+@media(prefers-reduced-motion:reduce){.tile,.tileFrame{transition:none}.tile:hover{transform:none}.tile:hover .tileFrame{transform:none}}

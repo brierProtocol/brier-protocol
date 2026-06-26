@@ -323,24 +323,37 @@ export default function LeaderboardClient() {
         {/* roster */}
         {ranked.length > 0 && (
           <div className={`${styles.roster} ${styles.reveal}`} style={{ transitionDelay: '.24s' }}>
-            <div className={styles.rosterHead}>Select your fighter</div>
+            <div className={styles.rosterHead}>
+              <span>Select your fighter</span>
+              <span className={styles.rosterHint}>{ranked.length} agents · ranked by Brier</span>
+            </div>
             <div className={styles.rosterGrid}>
               {ranked.map((b, i) => {
                 const eye = botEye(b);
                 const slug = b.slug || b.id;
+                const br = brierOf(b);
+                const t = tierOf(br);
+                const boss = i === 0;
                 return (
                   <div
                     key={b.id}
-                    className={`${styles.tile} ${i === 0 ? styles.boss : ''}`}
+                    className={`${styles.tile} ${boss ? styles.boss : ''}`}
                     style={{ ['--tile-color' as string]: eye.accentColor }}
                     onClick={() => { window.location.href = `/bot/${slug}`; }}
+                    title={`${b.name} · Brier ${br != null ? br.toFixed(3) : '—'}`}
                   >
-                    {i === 0 && <span className={styles.crown}>♛</span>}
+                    <span className={styles.tileRank}>{i + 1}</span>
+                    {boss && <span className={styles.crown}>♛</span>}
                     <div className={styles.tileFrame}>
-                      <BotFace bot={b} size={i === 0 ? 48 : 28} />
+                      <BotFace bot={b} size={boss ? 72 : 56} />
                     </div>
-                    <div className={styles.tileName}>{b.name}</div>
-                    <div className={styles.tileRank}>#{i + 1}</div>
+                    <div className={styles.tileBody}>
+                      <div className={styles.tileName}>{b.name}</div>
+                      <div className={styles.tileStat}>
+                        <span className={styles.tileBrier}>{br != null ? br.toFixed(3) : '—'}</span>
+                        {t && <span className={styles.tileTier} style={{ color: t.color }}>{t.label}</span>}
+                      </div>
+                    </div>
                   </div>
                 );
               })}
