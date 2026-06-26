@@ -369,7 +369,7 @@ export default function LeaderboardClient() {
                   <span className={styles.cell}>{br != null ? br.toFixed(3) : 'AWAITING'}</span>
                   <span className={styles.cell}>{wrOf(b) != null ? `${(wrOf(b)! * 100).toFixed(1)}%` : '—'}</span>
                   <span className={styles.cell}>{fmtTvl(tvlOf(b))}</span>
-                  <span className={styles.cell}>{n > 0 ? n.toLocaleString() : '—'}{n > 0 && n < 50 && <span className={styles.lowN}>LOW N</span>}</span>
+                  <span className={styles.cell}>{n > 0 ? n.toLocaleString() : '—'}{n > 0 && n < 100 && <span className={styles.lowN}>LOW N</span>}</span>
                   <span className={styles.cell}>{lifetimeOf(b)}</span>
                   <span className={styles.cell}>{sharpeOf(b) != null ? sharpeOf(b)!.toFixed(2) : '—'}</span>
                 </div>
