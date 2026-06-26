@@ -10,8 +10,8 @@ interface BotIrisAvatarProps {
   size?: number
   accentColor?: string
   shape?: EyeShape
-  // Fondo del lienzo. Por defecto el cuadro oscuro de siempre; pasar 'transparent'
-  // para que la criatura flote sobre el fondo del contenedor (leaderboard).
+  // Fondo del lienzo. Pasar 'transparent' para que la criatura flote sobre el
+  // fondo del contenedor. (El default lo unifica el PR de avatar-float.)
   bg?: string
 }
 

@@ -69,6 +69,17 @@ export default function LiveFeedStrip({ bots }: { bots: Bot[] }) {
     )
   }
 
+  // Tournament ranking: order by real Brier (lower = better). Only bots with a
+  // score get a rank — no invented positions. Drives the medal on the top 3.
+  const rankOf = new Map<string, number>()
+  ;[...bots]
+    .map(b => ({ id: b.id, brier: typeof b.scores?.[0]?.brierScore === 'number' ? (b.scores![0].brierScore as number) : null }))
+    .filter(x => x.brier != null && x.brier > 0)
+    .sort((a, z) => (a.brier! - z.brier!))
+    .forEach((x, i) => rankOf.set(x.id, i + 1))
+
+  const MEDAL: Record<number, string> = { 1: '#ffd23f', 2: '#cfd2d6', 3: '#d9914f' }
+
   const items = [...bots, ...bots]
 
   return (
@@ -88,14 +99,28 @@ export default function LiveFeedStrip({ bots }: { bots: Bot[] }) {
             const p = shadowProgress(b as any)
             const m = phaseMeta(p)
             const maker = b.maker?.handle ? `@${b.maker.handle}` : (b.maker?.name || `${(b.walletAddress || 'anon').substring(0, 6)}…`)
+            const rank = rankOf.get(b.id)
+            const medal = rank ? MEDAL[rank] : undefined
             return (
               <Link
                 key={`${b.id}-${i}`}
                 href={`/bot/${b.slug || b.id}`}
                 className="shrink-0 inline-flex items-center gap-2.5 pl-2 pr-3.5 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] hover:border-white/20 hover:bg-white/[0.07] no-underline transition-all group"
+                style={medal ? { borderColor: `${medal}40`, background: `${medal}0d` } : undefined}
               >
+                {/* rank: medal for top 3, quiet number otherwise — real, only if scored */}
+                {rank && (
+                  <span
+                    className="shrink-0 inline-flex items-center justify-center w-[18px] h-[18px] rounded-full font-mono text-[9px] font-extrabold tabular-nums leading-none"
+                    style={medal
+                      ? { background: medal, color: '#050505', boxShadow: `0 0 10px ${medal}80` }
+                      : { background: 'rgba(255,255,255,0.06)', color: '#888' }}
+                  >
+                    {rank}
+                  </span>
+                )}
                 <span className="w-6 h-6 shrink-0 flex items-center justify-center rounded-full overflow-hidden">
-                  <BotIrisAvatar {...botEye(b as any)} size={24} />
+                  <BotIrisAvatar {...botEye(b as any)} size={24} bg="transparent" />
                 </span>
                 <span className="font-sans text-[13px] font-semibold text-white group-hover:text-primary transition-colors leading-none">{b.name}</span>
                 <span className="font-mono text-[9px] text-[#555] hidden lg:inline leading-none">{maker}</span>

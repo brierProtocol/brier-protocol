@@ -236,16 +236,17 @@ export default function DiscoverPage() {
                         <StatusMark tag={st.tag} color={st.color} />
                       </div>
 
-                      {/* avatar (square, 4chan) */}
+                      {/* avatar: la criatura flota sin cuadro de fondo; la foto real
+                          va en un encuadre redondo limpio, sin doble fondo negro */}
                       <div className="relative flex justify-center py-6 bg-[#060606] border-b border-[#141414]">
-                        <span className="w-[76px] h-[76px] rounded-[5px] overflow-hidden border border-[#222] bg-[#050505] group-hover:border-primary/35 transition-colors flex items-center justify-center">
-                          {b.pfpUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
+                        {b.pfpUrl ? (
+                          <span className="w-[76px] h-[76px] rounded-full overflow-hidden ring-1 ring-[#222] group-hover:ring-primary/40 transition-all flex items-center justify-center">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={b.pfpUrl} alt={b.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <BotIrisAvatar {...botEye(b)} size={76} />
-                          )}
-                        </span>
+                          </span>
+                        ) : (
+                          <BotIrisAvatar {...botEye(b)} size={76} bg="transparent" />
+                        )}
                       </div>
 
                       {/* stats */}
@@ -282,7 +283,7 @@ export default function DiscoverPage() {
                             <span className="rounded-full overflow-hidden shrink-0 inline-flex">
                               {b.maker?.pfpUrl
                                 ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={b.maker.pfpUrl} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
-                                : <BotIrisAvatar {...makerEye(b.walletAddress || 'anon')} size={14} />}
+                                : <BotIrisAvatar {...makerEye(b.walletAddress || 'anon')} size={14} bg="transparent" />}
                             </span>
                             <span className="truncate">by {b.maker?.handle ? `@${b.maker.handle}` : (b.maker?.name || `${(b.walletAddress || 'anon').substring(0, 6)}…`)}</span>
                           </span>
