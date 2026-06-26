@@ -97,6 +97,12 @@
 .vsBadge{position:absolute;right:14px;z-index:20;transform:translateY(-50%);display:flex;align-items:center;gap:7px;pointer-events:none;white-space:nowrap;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.5px;color:#fff;background:rgba(8,8,10,.92);border:1px solid var(--bd2);border-radius:100px;padding:4px 11px}
 .vsMark{color:var(--red2)}.vsUp{color:var(--teal)}.vsDn{color:var(--mut)}.vsLead{color:var(--teal)}
 
+/* ── section labels ───────────────────────────────────────────── */
+.lbl{display:flex;align-items:center;gap:10px;margin:28px 0 16px}
+.lblH3{font-family:var(--grotesk);font-weight:700;font-size:15px;color:#fff;margin:0;letter-spacing:-.3px}
+.lblHint{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.5px}
+.lblLine{flex:1;height:1px;background:linear-gradient(90deg,var(--bd2),transparent)}
+
 /* ── gem podium ───────────────────────────────────────────────── */
 .podium{position:relative;z-index:21;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:28px}
 .ptile{position:relative;aspect-ratio:1;border-radius:14px;background:#0a0a0c;border:1px solid var(--bd);cursor:pointer;transition:transform .2s cubic-bezier(.34,1.56,.64,1);display:flex;align-items:center;justify-content:center;overflow:visible}

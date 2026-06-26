@@ -189,15 +189,8 @@ export default function LeaderboardClient() {
   }, [run]);
 
   const ranked = [...bots].sort((a, b) => (brierOf(a) ?? 1) - (brierOf(b) ?? 1));
-  const champion = ranked[0];
   const top5 = ranked.slice(0, 5);
   const rest = ranked.slice(5);
-
-  const champBrier = champion ? brierOf(champion) : null;
-  const champWr = champion ? wrOf(champion) : null;
-  const tier = tierOf(champBrier);
-  const champBrierBar = champBrier != null ? `${Math.round((1 - champBrier) * 100)}%` : '0%';
-  const champWinBar = champWr != null ? `${Math.round(champWr * 100)}%` : '0%';
 
   const RANK_GEMS = ['oracle', 'prism', 'azure', 'ember', 'verdant'];
   const rankClasses = [styles.r1, styles.r2, styles.r3, styles.r4, styles.r5];
@@ -235,9 +228,18 @@ export default function LeaderboardClient() {
           Ranked strictly by <b>Brier Score</b>. Lower is superior. Every score derives from resolved trades. Nothing is self reported.
         </p>
 
+        {/* section label — podium */}
+        {top5.length > 0 && (
+          <div className={`${styles.lbl} ${styles.reveal}`} style={{ transitionDelay: '.18s' }}>
+            <h3 className={styles.lblH3}>The podium</h3>
+            <span className={styles.lblHint}>top 5 · tiers</span>
+            <div className={styles.lblLine} />
+          </div>
+        )}
+
         {/* gem podium top 5 */}
         {top5.length > 0 && (
-          <div className={`${styles.podium} ${styles.reveal}`} style={{ transitionDelay: '.20s' }}>
+          <div className={`${styles.podium} ${styles.reveal}`} style={{ transitionDelay: '.26s' }}>
             {top5.map((b, i) => {
               const gem = RANK_GEMS[i];
               const slug = b.slug || b.id;
@@ -280,69 +282,12 @@ export default function LeaderboardClient() {
           </div>
         )}
 
-        {/* roster */}
-        {ranked.length > 0 && (
-          <div className={`${styles.roster} ${styles.reveal}`} style={{ transitionDelay: '.24s' }}>
-            <div className={styles.rosterHead}>Select your fighter</div>
-            <div className={styles.rosterGrid}>
-              {ranked.map((b, i) => {
-                const eye = botEye(b);
-                const slug = b.slug || b.id;
-                return (
-                  <div
-                    key={b.id}
-                    className={`${styles.tile} ${i === 0 ? styles.boss : ''}`}
-                    style={{ ['--tile-color' as string]: eye.accentColor }}
-                    onClick={() => { window.location.href = `/bot/${slug}`; }}
-                  >
-                    {i === 0 && <span className={styles.crown}>♛</span>}
-                    <div className={styles.tileFrame}>
-                      <BotIrisAvatar {...eye} size={i === 0 ? 48 : 28} />
-                    </div>
-                    <div className={styles.tileName}>{b.name}</div>
-                    <div className={styles.tileRank}>#{i + 1}</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* champion */}
-        {champion && (
-          <div className={`${styles.champ} ${styles.reveal}`} style={{ transitionDelay: '.34s' }}>
-            <div className={styles.champTop}>
-              <span className={styles.medal}>RANK 01</span>
-              <div className={styles.heroFrame}>
-                <BotIrisAvatar {...botEye(champion)} size={58} />
-              </div>
-              <div className={styles.champId}>
-                <div className={styles.champName}>
-                  {champion.name}
-                  {tier && <span className={styles.tier} style={{ color: tier.color, background: `${tier.color}14`, border: `1px solid ${tier.color}33` }}>{tier.label}</span>}
-                </div>
-                <div className={styles.champBy}>by {authorOf(champion)}</div>
-              </div>
-              <div className={styles.live}><span className={styles.liveDot} />LIVE</div>
-            </div>
-            <div className={styles.stats}>
-              <div className={styles.stat}>
-                <div className={styles.statK}>Brier</div>
-                <div className={`${styles.statV} ${styles.statVRed}`}>{champBrier != null ? champBrier.toFixed(3) : 'AWAITING'}</div>
-                <div className={styles.bar}><span className={styles.barFill} style={{ ['--w' as string]: champBrierBar }} /></div>
-              </div>
-              <div className={styles.stat}>
-                <div className={styles.statK}>Win rate</div>
-                <div className={styles.statV}>{champWr != null ? `${(champWr * 100).toFixed(1)}%` : '—'}</div>
-                <div className={styles.bar}><span className={styles.barFill} style={{ ['--w' as string]: champWinBar }} /></div>
-              </div>
-              <div className={styles.stat}><div className={styles.statK}>TVL vault</div><div className={styles.statV}>{fmtTvl(tvlOf(champion))}</div></div>
-              <div className={styles.stat}><div className={styles.statK}>Trades</div><div className={styles.statV}>{tradesOf(champion) || '—'}</div></div>
-              <div className={styles.stat}><div className={styles.statK}>Lifetime</div><div className={styles.statV}>{lifetimeOf(champion)}</div></div>
-              <div className={styles.stat}><div className={styles.statK}>Sharpe</div><div className={styles.statV}>{sharpeOf(champion) != null ? sharpeOf(champion)!.toFixed(2) : '—'}</div></div>
-            </div>
-          </div>
-        )}
+        {/* section label — standings */}
+        <div className={`${styles.lbl} ${styles.reveal}`} style={{ transitionDelay: '.36s' }}>
+          <h3 className={styles.lblH3}>The standings</h3>
+          <span className={styles.lblHint}>rank 6 & below · hover a row for its closest rival</span>
+          <div className={styles.lblLine} />
+        </div>
 
         {/* rows — rank 6+ */}
         {!loading && rest.length === 0 ? (
@@ -351,9 +296,6 @@ export default function LeaderboardClient() {
           </div>
         ) : (
         <div className={`${styles.rows} ${styles.reveal}`} style={{ transitionDelay: '.42s' }} onMouseLeave={() => setVs(null)}>
-          {!loading && rest.length > 0 && (
-            <div className={styles.standingsHead}>The standings</div>
-          )}
           <div className={styles.rhead}>
             <span>#</span><span>Algorithm</span><span>Brier</span><span>Win rate</span><span>TVL</span><span>Trades</span><span>Lifetime</span><span>Sharpe</span>
           </div>
@@ -395,40 +337,6 @@ export default function LeaderboardClient() {
         </div>
         )}
 
-        {/* explainer */}
-        <div className={`${styles.exp} ${styles.reveal}`} style={{ transitionDelay: '.5s' }}>
-          <div className={styles.expHead}>
-            <h3>The Brier Score<span className={styles.accent}>.</span></h3>
-            <span className={styles.expTag}>how ranking works</span>
-          </div>
-          <p className={styles.expBody}>
-            A Brier Score measures how accurate a probabilistic forecast is. It is the mean squared error between the probability a bot assigns to an outcome and what actually resolves. The scale runs from <b>0</b> to <b>1</b>. A flawless forecaster scores <b>0</b>. A coin flip lands near <b>0.25</b>. On Brier, the lowest score ranks first.
-          </p>
-          <div className={styles.formula}>BS = (1/N) Σ (pᵢ − oᵢ)² <span className={styles.formulaMut}>// p = forecast, o = outcome</span></div>
-          <div className={styles.scaleWrap}>
-            <div className={styles.track}>
-              <div className={styles.mark} style={{ left: '0%' }} />
-              <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '0%', transform: 'translateX(0)' }}>0.00 · perfect</div>
-              <div className={styles.mark} style={{ left: '25%' }} />
-              <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '25%' }}>0.25 · coin flip</div>
-              {champBrier != null && (
-                <>
-                  <div className={`${styles.mark} ${styles.markAdan}`} style={{ left: `${Math.min(100, champBrier * 100)}%` }} />
-                  <div className={`${styles.mlbl} ${styles.mlblTop} ${styles.mlblAdan}`} style={{ left: `${Math.min(100, champBrier * 100)}%` }}>{champion.name} {champBrier.toFixed(3)}</div>
-                </>
-              )}
-              <div className={styles.mark} style={{ left: '100%' }} />
-              <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '100%', transform: 'translateX(-100%)' }}>1.00 · worst</div>
-            </div>
-          </div>
-        </div>
-
-        {/* trust grid */}
-        <div className={`${styles.trust} ${styles.reveal}`} style={{ transitionDelay: '.58s' }}>
-          <div className={styles.tcard}><div className={styles.ic}>/&gt;</div><h4>Math enforcement</h4><p>Rankings derived from the Brier Score, the gold standard in forecasting.</p></div>
-          <div className={styles.tcard}><div className={styles.ic}>{'{}'}</div><h4>Verified fills</h4><p>Every score traces back to resolved market outcomes. No self reporting.</p></div>
-          <div className={styles.tcard}><div className={styles.ic}>[]</div><h4>Zero trust</h4><p>HMAC-SHA256 signed signals. Resolution state cannot be altered.</p></div>
-        </div>
       </div>
 
       <canvas ref={swarmRef} className={styles.swarm} />
