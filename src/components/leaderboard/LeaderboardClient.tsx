@@ -280,7 +280,7 @@ export default function LeaderboardClient() {
         {ranked.length > 0 && (
           <div className={`${styles.roster} ${styles.reveal}`} style={{ transitionDelay: '.20s' }}>
             <div className={styles.rosterHead}>
-              <span className={styles.rosterTitle}>The roster</span>
+              <span className={styles.rosterTitle}>The champions</span>
               <span className={styles.rosterHint}>{ranked.length} agents · ranked by Brier</span>
             </div>
             <div className={styles.rosterGrid}>
@@ -362,10 +362,9 @@ export default function LeaderboardClient() {
             )}
             {vs && (
               <div className={styles.vsBadge} style={{ top: vs.top }}>
-                <span className={vs.aLeads ? styles.vsUp : styles.vsDn}>{vs.aName}</span>
+                <span className={styles.vsUp}>{vs.aName}</span>
                 <span className={styles.vsMark}>VS</span>
-                <span className={vs.aLeads ? styles.vsDn : styles.vsUp}>{vs.bName}</span>
-                <span className={styles.vsLead}>· {vs.leader} leads</span>
+                <span className={styles.vsUp}>{vs.bName}</span>
               </div>
             )}
           </div>
