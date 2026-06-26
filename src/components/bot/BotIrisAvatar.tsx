@@ -10,6 +10,8 @@ interface BotIrisAvatarProps {
   size?: number
   accentColor?: string
   shape?: EyeShape
+  /** Backdrop behind the creature. Pass 'transparent' to let it float on a tile. */
+  bg?: string
 }
 
 // FNV-1a with avalanche — small id changes produce very different creatures.
@@ -47,7 +49,7 @@ function lighten(hex: string, amt: number): string {
  * deterministic per avatarId, with eyes so it reads as a face. Replaces the
  * old glyph weave (git history keeps both ancestors).
  */
-export default function BotIrisAvatar({ avatarId, size = 64, accentColor = '#ff2a4d' }: BotIrisAvatarProps) {
+export default function BotIrisAvatar({ avatarId, size = 64, accentColor = '#ff2a4d', bg = '#050505' }: BotIrisAvatarProps) {
   const { cells, eyes } = useMemo(() => {
     const N = 10                       // 10×10 board, mirrored halves
     const half = N / 2
@@ -98,7 +100,7 @@ export default function BotIrisAvatar({ avatarId, size = 64, accentColor = '#ff2
       height={size}
       viewBox={`0 0 ${VB} ${VB}`}
       shapeRendering="crispEdges"
-      style={{ display: 'block', background: '#050505' }}
+      style={{ display: 'block', background: bg }}
       aria-label={`agent ${avatarId}`}
     >
       {cells.map(({ x, y, tone }, i) => (
