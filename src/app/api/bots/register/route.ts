@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
       ok: true,
       botId: bot.id,
       slug: bot.slug,
-      message: `Algorithm "${bot.name}" registered successfully. Entering calibration phase (50 resolved trades).`
+      message: `Algorithm "${bot.name}" registered successfully. Entering calibration phase (100 resolved trades).`
     })
 
   } catch (err: any) {
