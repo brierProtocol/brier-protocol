@@ -62,10 +62,18 @@
 .lowN{color:#C9A84C;font-size:8px;margin-left:5px}
 .empty{padding:48px;text-align:center;font-family:var(--mono);color:var(--dim);font-size:12px}
 
-.exp{margin-top:28px;border:1px solid var(--bd);border-radius:18px;overflow:hidden;background:rgba(255,255,255,.012)}
-.expHead{display:flex;align-items:center;gap:12px;padding:22px 24px 0}
-.expHead h3{font-family:var(--grotesk);font-weight:700;font-size:21px;letter-spacing:-.5px;margin:0;color:#fff}
-.expTag{font-family:var(--mono);font-size:9px;letter-spacing:1.5px;color:var(--red2);border:1px solid #3a1822;border-radius:6px;padding:3px 9px;text-transform:uppercase}
+.exp{margin-top:28px}
+.expToggle{width:100%;display:flex;align-items:center;gap:10px;padding:12px 18px;background:rgba(255,255,255,.025);border:1px solid var(--bd);border-radius:14px;cursor:pointer;color:#e8e8e8;font-family:var(--grotesk);transition:border-color .18s,background .18s;text-align:left}
+.expToggle:hover{border-color:var(--bd2);background:rgba(255,255,255,.05)}
+.expOpen .expToggle{border-color:var(--bd2);border-radius:14px 14px 0 0;background:rgba(255,255,255,.038)}
+.expQ{width:22px;height:22px;border-radius:7px;background:rgba(255,42,77,.15);border:1px solid rgba(255,42,77,.3);color:var(--red2);font-family:var(--mono);font-size:11px;font-weight:700;display:grid;place-items:center;flex:none}
+.expToggleText{flex:1;font-size:14px;font-weight:600;color:#e8e8e8}
+.expToggleHint{font-family:var(--mono);font-size:10px;color:var(--mut);letter-spacing:1px;text-transform:uppercase}
+.expChevron{font-size:16px;color:var(--dim);transition:transform .25s;line-height:1;display:block}
+.expOpen .expChevron{transform:rotate(180deg)}
+.expPanel{display:grid;grid-template-rows:0fr;overflow:hidden;transition:grid-template-rows .35s cubic-bezier(.16,1,.3,1);border:1px solid var(--bd);border-top:none;border-radius:0 0 14px 14px;background:rgba(255,255,255,.012)}
+.expOpen .expPanel{grid-template-rows:1fr}
+.expPanelInner{min-height:0;overflow:hidden}
 .expBody{font-size:13px;color:var(--mut);line-height:1.75;margin:14px 0 0;padding:0 24px;max-width:640px}
 .expBody b{color:#e4e4e8;font-weight:600}
 .formula{font-family:var(--mono);font-size:12px;color:#cfcfd4;background:#0b0b0d;border:1px solid var(--bd);border-radius:8px;padding:12px 15px;margin:18px 24px 0;display:inline-block}
@@ -137,13 +145,14 @@
 /* ── roster: pantalla de selección de personaje (character select) ──
    Marco dejó el JSX sin estilos; acá se construye el grid de fichas. */
 .roster{position:relative;z-index:21;margin-top:44px}
-.rosterHead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-family:var(--grotesk);font-size:15px;font-weight:700;color:#fff;margin-bottom:14px}
+.rosterHead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}
+.rosterTitle{font-family:var(--grotesk);font-size:19px;font-weight:700;color:#fff;letter-spacing:-.4px}
 .rosterHint{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);white-space:nowrap}
 .rosterGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
 
-.tile{position:relative;border:1px solid var(--bd2);border-radius:12px;overflow:hidden;cursor:pointer;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.22));transition:transform .16s cubic-bezier(.16,1,.3,1),border-color .16s,box-shadow .16s;display:flex;flex-direction:column}
-.tile::before{content:'';position:absolute;inset:0;z-index:0;background:radial-gradient(120% 75% at 50% 0%,color-mix(in srgb,var(--tile-color) 24%,transparent),transparent 70%);opacity:.45;transition:opacity .16s;pointer-events:none}
-.tile:hover{transform:translateY(-4px);border-color:color-mix(in srgb,var(--tile-color) 72%,transparent);box-shadow:0 12px 30px -8px color-mix(in srgb,var(--tile-color) 45%,transparent)}
+.tile{position:relative;border-radius:12px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.02);box-shadow:0 0 0 1px rgba(255,255,255,.055),0 2px 14px -4px rgba(0,0,0,.6);transition:transform .16s cubic-bezier(.16,1,.3,1),box-shadow .16s;display:flex;flex-direction:column}
+.tile::before{content:'';position:absolute;inset:0;z-index:0;background:radial-gradient(120% 75% at 50% 0%,color-mix(in srgb,var(--tile-color) 28%,transparent),transparent 70%);opacity:.5;transition:opacity .16s;pointer-events:none}
+.tile:hover{transform:translateY(-5px);box-shadow:0 0 0 1px color-mix(in srgb,var(--tile-color) 55%,transparent),0 16px 36px -8px color-mix(in srgb,var(--tile-color) 40%,transparent)}
 .tile:hover::before{opacity:1}
 
 .tileFrame{position:relative;z-index:1;aspect-ratio:1;display:grid;place-items:center;background:radial-gradient(80% 80% at 50% 28%,color-mix(in srgb,var(--tile-color) 15%,#0a0a0c),#070708);transition:transform .2s}
@@ -160,11 +169,11 @@
 .tileTier{font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:.8px;text-transform:uppercase}
 
 /* boss = rank 01: trato dorado, sin romper la grilla uniforme */
-.boss{border-color:color-mix(in srgb,#ffcf5a 40%,var(--bd2));box-shadow:inset 0 0 0 1px rgba(255,207,90,.18)}
+.boss{box-shadow:0 0 0 1px rgba(255,207,90,.4),0 4px 18px -4px rgba(255,207,90,.2),inset 0 0 0 1px rgba(255,207,90,.1)}
 .boss .tileFrame{background:radial-gradient(80% 80% at 50% 26%,rgba(255,207,90,.17),#0b0a08,#070708)}
 .boss .tileName{font-size:13px}
 .boss .tileBrier{font-size:12px}
-.boss:hover{border-color:#ffcf5a;box-shadow:0 12px 30px -8px rgba(255,207,90,.45)}
+.boss:hover{box-shadow:0 0 0 1px rgba(255,207,90,.75),0 16px 36px -8px rgba(255,207,90,.45)}
 
 @media(max-width:560px){.rosterGrid{grid-template-columns:repeat(auto-fill,minmax(92px,1fr))}}
 @media(prefers-reduced-motion:reduce){.tile,.tileFrame{transition:none}.tile:hover{transform:none}.tile:hover .tileFrame{transform:none}}

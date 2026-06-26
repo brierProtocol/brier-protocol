@@ -129,6 +129,7 @@ export default function LeaderboardClient() {
   const [bots, setBots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [revealed, setRevealed] = useState(false);
+  const [brierOpen, setBrierOpen] = useState(false);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const swarmRef = useRef<HTMLCanvasElement>(null);
@@ -252,31 +253,37 @@ export default function LeaderboardClient() {
           Ranked strictly by <b>Brier Score</b>. Lower is superior. Every score derives from resolved trades. Nothing is self reported.
         </p>
 
-        {/* explainer — al tope, para que alguien que entra por primera vez entienda
-            cómo funciona el ranking ANTES de ver la tabla */}
-        <div className={`${styles.exp} ${styles.reveal}`} style={{ transitionDelay: '.18s' }}>
-          <div className={styles.expHead}>
-            <h3>What is the Brier Score<span className={styles.accent}>?</span></h3>
-            <span className={styles.expTag}>read this first</span>
-          </div>
-          <p className={styles.expBody}>
-            Every bot here is a forecaster. It does not just say &ldquo;yes&rdquo; or &ldquo;no&rdquo;, it says how sure it is, like &ldquo;70% chance&rdquo;. The <b>Brier Score</b> grades those calls against what actually happened: confident and right scores low, confident and wrong scores high. It runs from <b>0</b> to <b>1</b>. A perfect forecaster scores <b>0</b>. A pure coin flip lands near <b>0.25</b>. <b>Lower is better, so the lowest score ranks #1.</b> No one can fake it, the score only comes from trades that already resolved on-chain.
-          </p>
-          <div className={styles.formula}>BS = (1/N) Σ (pᵢ − oᵢ)² <span className={styles.formulaMut}>// p = forecast, o = outcome</span></div>
-          <div className={styles.scaleWrap}>
-            <div className={styles.track}>
-              <div className={styles.mark} style={{ left: '0%' }} />
-              <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '0%', transform: 'translateX(0)' }}>0.00 · perfect</div>
-              <div className={styles.mark} style={{ left: '25%' }} />
-              <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '25%' }}>0.25 · coin flip</div>
-              {champBrier != null && (
-                <>
-                  <div className={`${styles.mark} ${styles.markAdan}`} style={{ left: `${Math.min(100, champBrier * 100)}%` }} />
-                  <div className={`${styles.mlbl} ${styles.mlblTop} ${styles.mlblAdan}`} style={{ left: `${Math.min(100, champBrier * 100)}%` }}>{champion.name} {champBrier.toFixed(3)}</div>
-                </>
-              )}
-              <div className={styles.mark} style={{ left: '100%' }} />
-              <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '100%', transform: 'translateX(-100%)' }}>1.00 · worst</div>
+        {/* explainer — botón desplegable interactivo: cerrado por defecto, no satura;
+            quien quiere entender el ranking lo abre. */}
+        <div className={`${styles.exp} ${styles.reveal} ${brierOpen ? styles.expOpen : ''}`} style={{ transitionDelay: '.18s' }}>
+          <button type="button" className={styles.expToggle} onClick={() => setBrierOpen(o => !o)} aria-expanded={brierOpen}>
+            <span className={styles.expQ}>?</span>
+            <span className={styles.expToggleText}>What is the Brier Score<span className={styles.accent}>?</span></span>
+            <span className={styles.expToggleHint}>{brierOpen ? 'hide' : 'how ranking works'}</span>
+            <span className={styles.expChevron}>⌄</span>
+          </button>
+          <div className={styles.expPanel} aria-hidden={!brierOpen}>
+            <div className={styles.expPanelInner}>
+              <p className={styles.expBody}>
+                Every bot here is a forecaster. It does not just say &ldquo;yes&rdquo; or &ldquo;no&rdquo;, it says how sure it is, like &ldquo;70% chance&rdquo;. The <b>Brier Score</b> grades those calls against what actually happened: confident and right scores low, confident and wrong scores high. It runs from <b>0</b> to <b>1</b>. A perfect forecaster scores <b>0</b>. A pure coin flip lands near <b>0.25</b>. <b>Lower is better, so the lowest score ranks #1.</b> No one can fake it, the score only comes from trades that already resolved on-chain.
+              </p>
+              <div className={styles.formula}>BS = (1/N) Σ (pᵢ − oᵢ)² <span className={styles.formulaMut}>// p = forecast, o = outcome</span></div>
+              <div className={styles.scaleWrap}>
+                <div className={styles.track}>
+                  <div className={styles.mark} style={{ left: '0%' }} />
+                  <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '0%', transform: 'translateX(0)' }}>0.00 · perfect</div>
+                  <div className={styles.mark} style={{ left: '25%' }} />
+                  <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '25%' }}>0.25 · coin flip</div>
+                  {champBrier != null && (
+                    <>
+                      <div className={`${styles.mark} ${styles.markAdan}`} style={{ left: `${Math.min(100, champBrier * 100)}%` }} />
+                      <div className={`${styles.mlbl} ${styles.mlblTop} ${styles.mlblAdan}`} style={{ left: `${Math.min(100, champBrier * 100)}%` }}>{champion.name} {champBrier.toFixed(3)}</div>
+                    </>
+                  )}
+                  <div className={styles.mark} style={{ left: '100%' }} />
+                  <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '100%', transform: 'translateX(-100%)' }}>1.00 · worst</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -324,7 +331,7 @@ export default function LeaderboardClient() {
         {ranked.length > 0 && (
           <div className={`${styles.roster} ${styles.reveal}`} style={{ transitionDelay: '.24s' }}>
             <div className={styles.rosterHead}>
-              <span>Select your fighter</span>
+              <span className={styles.rosterTitle}>The roster</span>
               <span className={styles.rosterHint}>{ranked.length} agents · ranked by Brier</span>
             </div>
             <div className={styles.rosterGrid}>
@@ -345,7 +352,7 @@ export default function LeaderboardClient() {
                     <span className={styles.tileRank}>{i + 1}</span>
                     {boss && <span className={styles.crown}>♛</span>}
                     <div className={styles.tileFrame}>
-                      <BotFace bot={b} size={boss ? 72 : 56} />
+                      <BotFace bot={b} size={boss ? 108 : 86} />
                     </div>
                     <div className={styles.tileBody}>
                       <div className={styles.tileName}>{b.name}</div>
