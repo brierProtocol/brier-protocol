@@ -1,5 +1,5 @@
 import { prisma } from './db/prisma'
-import { deriveVerifiedCategories } from './marketCategories'
+import { deriveVerifiedCategories } from './market-categories'
 
 // Polymarket exposes a public Data API that returns a wallet's executed trades.
 // This is far more reliable than decoding raw CTF ERC-1155 transfers, and it's the

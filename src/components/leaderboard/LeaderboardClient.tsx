@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar';
-import { botEye, deriveAvatarColor } from '@/lib/botIdentity';
+import { botEye, deriveAvatarColor } from '@/lib/bot-identity';
 import styles from './Leaderboard.module.css';
 
 const REVEAL_AT = 1050; // ms — el contenido se destapa cuando el swarm ya tapó la pantalla

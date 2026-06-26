@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { currentPrice, marketCap, bondingProgress, priceAt, INITIAL_PRICE, TOTAL_SUPPLY } from '@/lib/bondingCurve'
+import { currentPrice, marketCap, bondingProgress, priceAt, INITIAL_PRICE, TOTAL_SUPPLY } from '@/lib/bonding-curve'
 
 // GET /api/tokens/[botId] — token state + price history + holders
 export async function GET(_req: Request, { params }: { params: Promise<{ botId: string }> }) {

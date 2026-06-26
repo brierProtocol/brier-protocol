@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
-import { botEye } from '@/lib/botIdentity'
+import { botEye } from '@/lib/bot-identity'
 import { USDC_ADDRESS } from '@/constants/contracts'
 
 type Mood = 'cool' | 'happy' | 'excited' | 'neutral' | 'anxious' | 'sad' | 'suspicious' | 'sleeping'

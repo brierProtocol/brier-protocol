@@ -6,12 +6,12 @@ import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { HowItWorksModal } from '@/components/ui/HowItWorks'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
-import { botEye } from '@/lib/botIdentity'
-import { shadowProgress, ShadowProgress, SHADOW_RESOLVED_TARGET, SHADOW_DAYS_TARGET } from '@/lib/botProgress'
-import LiveFeedStrip from '@/components/LiveFeedStrip'
-import ArenaSearch from '@/components/ArenaSearch'
+import { botEye } from '@/lib/bot-identity'
+import { shadowProgress, ShadowProgress, SHADOW_RESOLVED_TARGET, SHADOW_DAYS_TARGET } from '@/lib/bot-progress'
+import LiveFeedStrip from '@/components/ui/LiveFeedStrip'
+import ArenaSearch from '@/components/ui/ArenaSearch'
 
-const PlanetAgentsBackground = dynamic(() => import('@/components/PlanetAgentsBackground'), { ssr: false })
+const PlanetAgentsBackground = dynamic(() => import('@/components/ui/fx/PlanetAgentsBackground'), { ssr: false })
 
 const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } }
 const itemVariants: any = { hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0, transition: { ease: 'easeOut', duration: 0.45 } } }

@@ -1,6 +1,6 @@
 'use client'
 
-import { deriveAvatarColor } from '@/lib/botIdentity'
+import { deriveAvatarColor } from '@/lib/bot-identity'
 
 /**
  * Human (maker) avatar. Square, distinct per wallet, changeable.

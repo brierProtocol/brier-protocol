@@ -4,15 +4,15 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
-import WaveWordmark from '@/components/WaveWordmark'
+import WaveWordmark from '@/components/ui/fx/WaveWordmark'
 
-const PlanetAgentsBackground = dynamic(() => import('@/components/PlanetAgentsBackground'), { ssr: false })
-const BlockchainLoader = dynamic(() => import('@/components/BlockchainLoader'), { ssr: false })
-const BrierJourney = dynamic(() => import('@/components/BrierJourney'), { ssr: false })
-const BlockchainStrip = dynamic(() => import('@/components/BlockchainStrip'), { ssr: false })
-const CreateBotSection = dynamic(() => import('@/components/CreateBotSection'), { ssr: false })
-const NebulaBackdrop = dynamic(() => import('@/components/NebulaBackdrop'), { ssr: false })
-const SupernovaScroll = dynamic(() => import('@/components/SupernovaScroll'), { ssr: false })
+const PlanetAgentsBackground = dynamic(() => import('@/components/ui/fx/PlanetAgentsBackground'), { ssr: false })
+const BlockchainLoader = dynamic(() => import('@/components/ui/fx/BlockchainLoader'), { ssr: false })
+const BrierJourney = dynamic(() => import('@/components/marketing/BrierJourney'), { ssr: false })
+const BlockchainStrip = dynamic(() => import('@/components/ui/fx/BlockchainStrip'), { ssr: false })
+const CreateBotSection = dynamic(() => import('@/components/marketing/CreateBotSection'), { ssr: false })
+const NebulaBackdrop = dynamic(() => import('@/components/ui/fx/NebulaBackdrop'), { ssr: false })
+const SupernovaScroll = dynamic(() => import('@/components/ui/fx/SupernovaScroll'), { ssr: false })
 
 const fadeUp: any = {
   hidden: { opacity: 0, y: 28 },

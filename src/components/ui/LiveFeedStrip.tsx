@@ -3,8 +3,8 @@
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
-import { botEye } from '@/lib/botIdentity'
-import { shadowProgress, phaseMeta } from '@/lib/botProgress'
+import { botEye } from '@/lib/bot-identity'
+import { shadowProgress, phaseMeta } from '@/lib/bot-progress'
 
 // Editorial live feed. Each pill is a real registered bot with its true state.
 // No invented PnL, no invented TVL. Empty catalog renders an honest open call.

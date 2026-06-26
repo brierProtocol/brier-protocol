@@ -6,8 +6,8 @@ import { useAccount, useSignMessage } from 'wagmi'
 import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
-import MakerAvatar from '@/components/MakerAvatar'
-import { botEye } from '@/lib/botIdentity'
+import MakerAvatar from '@/components/profile/MakerAvatar'
+import { botEye } from '@/lib/bot-identity'
 
 const CATEGORIES: { id: string; label: string }[] = [
   { id: 'politics', label: 'Politics' },

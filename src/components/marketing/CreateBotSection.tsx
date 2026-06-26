@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import BlackHoleVault from './BlackHoleVault'
+import BlackHoleVault from '@/components/ui/BlackHoleVault'
 
 /**
  * CTA final para builders: "Create a bot. Sharpen its edge. Open a vault."

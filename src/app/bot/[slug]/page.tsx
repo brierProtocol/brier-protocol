@@ -4,11 +4,11 @@ import { use, useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
-import MakerAvatar from '@/components/MakerAvatar'
+import MakerAvatar from '@/components/profile/MakerAvatar'
 import BotUplink from '@/components/bot/BotUplink'
 import BotPerformance from '@/components/bot/BotPerformance'
 import VaultGlass from '@/components/bot/VaultGlass'
-import { botEye, codename } from '@/lib/botIdentity'
+import { botEye, codename } from '@/lib/bot-identity'
 import { useAccount } from 'wagmi'
 import { ethers } from 'ethers'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -17,7 +17,7 @@ import { PostBody } from '@/components/bot/PostBody'
 import {
   shadowProgress, phaseMeta,
   SHADOW_RESOLVED_TARGET, SHADOW_DAYS_TARGET, SHADOW_BRIER_TARGET,
-} from '@/lib/botProgress'
+} from '@/lib/bot-progress'
 
 interface Post {
   id: string; wallet: string; text: string; createdAt: string;

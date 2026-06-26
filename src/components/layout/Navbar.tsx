@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useAccount } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { motion, AnimatePresence } from 'framer-motion'
-import MakerAvatar from '@/components/MakerAvatar'
+import MakerAvatar from '@/components/profile/MakerAvatar'
 
 interface Notification {
   id: string

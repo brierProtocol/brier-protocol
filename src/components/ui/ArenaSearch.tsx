@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
-import { botEye } from '@/lib/botIdentity'
+import { botEye } from '@/lib/bot-identity'
 
 type SearchBot = { id: string; name: string; slug: string; status: string; tier: string; pfpUrl: string | null }
 type SearchUser = { walletAddress: string; name: string | null; handle: string | null; pfpUrl: string | null }

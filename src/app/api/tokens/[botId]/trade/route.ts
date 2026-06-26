@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { buy, sell, currentPrice, marketCap, bondingProgress, splitFee } from '@/lib/bondingCurve'
+import { buy, sell, currentPrice, marketCap, bondingProgress, splitFee } from '@/lib/bonding-curve'
 
 // POST /api/tokens/[botId]/trade  { wallet, side: 'BUY'|'SELL', amount }
 // amount = virtual USDC for BUY, shares for SELL.
