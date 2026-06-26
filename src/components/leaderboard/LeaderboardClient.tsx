@@ -51,6 +51,23 @@ function tierOf(brier: number | null): { label: string; color: string } | null {
   return { label: 'WEAK', color: '#555' };
 }
 
+// Cara del bot: la foto real (pfpUrl) si la subió, si no el alien generado.
+// Mantiene el mismo tamaño/encuadre que el BotIrisAvatar para no romper el layout.
+function BotFace({ bot, size }: { bot: any; size: number }) {
+  if (bot?.pfpUrl) {
+    return (
+      <img
+        src={bot.pfpUrl}
+        alt={bot?.name || 'bot'}
+        width={size}
+        height={size}
+        style={{ width: size, height: size, objectFit: 'cover', borderRadius: 8, display: 'block' }}
+      />
+    );
+  }
+  return <BotIrisAvatar {...botEye(bot)} size={size} />;
+}
+
 interface Sprite { bmp: HTMLCanvasElement; x: number; y: number; vx: number; vy: number; rot: number; vr: number; alpha: number; }
 
 function mulberry32(a: number) {
@@ -235,6 +252,35 @@ export default function LeaderboardClient() {
           Ranked strictly by <b>Brier Score</b>. Lower is superior. Every score derives from resolved trades. Nothing is self reported.
         </p>
 
+        {/* explainer — al tope, para que alguien que entra por primera vez entienda
+            cómo funciona el ranking ANTES de ver la tabla */}
+        <div className={`${styles.exp} ${styles.reveal}`} style={{ transitionDelay: '.18s' }}>
+          <div className={styles.expHead}>
+            <h3>What is the Brier Score<span className={styles.accent}>?</span></h3>
+            <span className={styles.expTag}>read this first</span>
+          </div>
+          <p className={styles.expBody}>
+            Every bot here is a forecaster. It does not just say &ldquo;yes&rdquo; or &ldquo;no&rdquo;, it says how sure it is, like &ldquo;70% chance&rdquo;. The <b>Brier Score</b> grades those calls against what actually happened: confident and right scores low, confident and wrong scores high. It runs from <b>0</b> to <b>1</b>. A perfect forecaster scores <b>0</b>. A pure coin flip lands near <b>0.25</b>. <b>Lower is better, so the lowest score ranks #1.</b> No one can fake it, the score only comes from trades that already resolved on-chain.
+          </p>
+          <div className={styles.formula}>BS = (1/N) Σ (pᵢ − oᵢ)² <span className={styles.formulaMut}>// p = forecast, o = outcome</span></div>
+          <div className={styles.scaleWrap}>
+            <div className={styles.track}>
+              <div className={styles.mark} style={{ left: '0%' }} />
+              <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '0%', transform: 'translateX(0)' }}>0.00 · perfect</div>
+              <div className={styles.mark} style={{ left: '25%' }} />
+              <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '25%' }}>0.25 · coin flip</div>
+              {champBrier != null && (
+                <>
+                  <div className={`${styles.mark} ${styles.markAdan}`} style={{ left: `${Math.min(100, champBrier * 100)}%` }} />
+                  <div className={`${styles.mlbl} ${styles.mlblTop} ${styles.mlblAdan}`} style={{ left: `${Math.min(100, champBrier * 100)}%` }}>{champion.name} {champBrier.toFixed(3)}</div>
+                </>
+              )}
+              <div className={styles.mark} style={{ left: '100%' }} />
+              <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '100%', transform: 'translateX(-100%)' }}>1.00 · worst</div>
+            </div>
+          </div>
+        </div>
+
         {/* gem podium top 5 */}
         {top5.length > 0 && (
           <div className={`${styles.podium} ${styles.reveal}`} style={{ transitionDelay: '.20s' }}>
@@ -252,13 +298,15 @@ export default function LeaderboardClient() {
                 >
                   {i === 0 && <span className={styles.podiumCrown}>♛</span>}
                   <div className={styles.ptileAvatar}>
-                    <BotIrisAvatar {...eye} size={i === 0 ? 48 : 32} />
+                    <BotFace bot={b} size={i === 0 ? 48 : 32} />
                   </div>
                   <div
                     className={styles.gembadge}
                     style={{ ['--gemsrc' as string]: `url(/gems/${gem}.png)` }}
                   >
-                    <img src={`/gems/${gem}.png`} alt={gem} />
+                    {/* el asset /gems/*.png falta en el repo; si 404, ocultamos la imagen
+                        rota y queda el label de gema (ORACLE/PRISM…) limpio debajo */}
+                    <img src={`/gems/${gem}.png`} alt={gem} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                     <span className={styles.shine} />
                   </div>
                   <div className={styles.ptileLabel}>{gem.toUpperCase()}</div>
@@ -289,7 +337,7 @@ export default function LeaderboardClient() {
                   >
                     {i === 0 && <span className={styles.crown}>♛</span>}
                     <div className={styles.tileFrame}>
-                      <BotIrisAvatar {...eye} size={i === 0 ? 48 : 28} />
+                      <BotFace bot={b} size={i === 0 ? 48 : 28} />
                     </div>
                     <div className={styles.tileName}>{b.name}</div>
                     <div className={styles.tileRank}>#{i + 1}</div>
@@ -306,7 +354,7 @@ export default function LeaderboardClient() {
             <div className={styles.champTop}>
               <span className={styles.medal}>RANK 01</span>
               <div className={styles.heroFrame}>
-                <BotIrisAvatar {...botEye(champion)} size={58} />
+                <BotFace bot={champion} size={58} />
               </div>
               <div className={styles.champId}>
                 <div className={styles.champName}>
@@ -360,7 +408,7 @@ export default function LeaderboardClient() {
                 <div key={b.id} ref={(el) => { rowRefs.current[i] = el; }} className={`${styles.row} ${vs && vs.a === i ? styles.rowActive : ''} ${vs && vs.b === i ? styles.rowRival : ''}`} onMouseEnter={() => onRowHover(i)} onClick={() => { window.location.href = `/bot/${slug}`; }}>
                   <span className={styles.rk}>{i + 6}</span>
                   <span className={styles.algo}>
-                    <span className={styles.rowFrame}><BotIrisAvatar {...botEye(b)} size={32} /></span>
+                    <span className={styles.rowFrame}><BotFace bot={b} size={32} /></span>
                     <span>
                       <span className={styles.rname}><Link href={`/bot/${slug}`} onClick={(e) => e.stopPropagation()}>{b.name}</Link></span>
                       <br /><span className={styles.rby}>by {authorOf(b)}</span>
@@ -386,34 +434,6 @@ export default function LeaderboardClient() {
           )}
         </div>
         )}
-
-        {/* explainer */}
-        <div className={`${styles.exp} ${styles.reveal}`} style={{ transitionDelay: '.5s' }}>
-          <div className={styles.expHead}>
-            <h3>The Brier Score<span className={styles.accent}>.</span></h3>
-            <span className={styles.expTag}>how ranking works</span>
-          </div>
-          <p className={styles.expBody}>
-            A Brier Score measures how accurate a probabilistic forecast is. It is the mean squared error between the probability a bot assigns to an outcome and what actually resolves. The scale runs from <b>0</b> to <b>1</b>. A flawless forecaster scores <b>0</b>. A coin flip lands near <b>0.25</b>. On Brier, the lowest score ranks first.
-          </p>
-          <div className={styles.formula}>BS = (1/N) Σ (pᵢ − oᵢ)² <span className={styles.formulaMut}>// p = forecast, o = outcome</span></div>
-          <div className={styles.scaleWrap}>
-            <div className={styles.track}>
-              <div className={styles.mark} style={{ left: '0%' }} />
-              <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '0%', transform: 'translateX(0)' }}>0.00 · perfect</div>
-              <div className={styles.mark} style={{ left: '25%' }} />
-              <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '25%' }}>0.25 · coin flip</div>
-              {champBrier != null && (
-                <>
-                  <div className={`${styles.mark} ${styles.markAdan}`} style={{ left: `${Math.min(100, champBrier * 100)}%` }} />
-                  <div className={`${styles.mlbl} ${styles.mlblTop} ${styles.mlblAdan}`} style={{ left: `${Math.min(100, champBrier * 100)}%` }}>{champion.name} {champBrier.toFixed(3)}</div>
-                </>
-              )}
-              <div className={styles.mark} style={{ left: '100%' }} />
-              <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '100%', transform: 'translateX(-100%)' }}>1.00 · worst</div>
-            </div>
-          </div>
-        </div>
 
         {/* trust grid */}
         <div className={`${styles.trust} ${styles.reveal}`} style={{ transitionDelay: '.58s' }}>
