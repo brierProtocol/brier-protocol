@@ -43,12 +43,22 @@ function fmtTvl(n: number): string {
   if (!n) return '—';
   return n >= 1000 ? `$${(n / 1000).toFixed(0)}K` : `$${n.toLocaleString()}`;
 }
-function tierOf(brier: number | null): { label: string; color: string } | null {
-  if (brier == null) return null;
-  if (brier <= 0.15) return { label: 'ELITE', color: '#00d4aa' };
-  if (brier <= 0.25) return { label: 'STRONG', color: '#37d67a' };
-  if (brier <= 0.4) return { label: 'MOD', color: '#888' };
-  return { label: 'WEAK', color: '#555' };
+
+// Cara del bot: la foto real (pfpUrl) si la subió, si no el alien generado.
+// Mantiene el mismo tamaño/encuadre que el BotIrisAvatar para no romper el layout.
+function BotFace({ bot, size }: { bot: any; size: number }) {
+  if (bot?.pfpUrl) {
+    return (
+      <img
+        src={bot.pfpUrl}
+        alt={bot?.name || 'bot'}
+        width={size}
+        height={size}
+        style={{ width: size, height: size, objectFit: 'cover', borderRadius: 8, display: 'block' }}
+      />
+    );
+  }
+  return <BotIrisAvatar {...botEye(bot)} size={size} bg="transparent" />;
 }
 
 interface Sprite { bmp: HTMLCanvasElement; x: number; y: number; vx: number; vy: number; rot: number; vr: number; alpha: number; }
@@ -112,6 +122,7 @@ export default function LeaderboardClient() {
   const [bots, setBots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [revealed, setRevealed] = useState(false);
+  const [brierOpen, setBrierOpen] = useState(false);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const swarmRef = useRef<HTMLCanvasElement>(null);
@@ -190,17 +201,12 @@ export default function LeaderboardClient() {
 
   const ranked = [...bots].sort((a, b) => (brierOf(a) ?? 1) - (brierOf(b) ?? 1));
   const champion = ranked[0];
-  const top5 = ranked.slice(0, 5);
-  const rest = ranked.slice(5);
+  // La tabla de abajo es el leaderboard completo: TODOS los agentes en fila,
+  // pensado para escalar a decenas/cientos. Los principales además se ven
+  // grandes arriba en el roster.
+  const rest = ranked;
 
   const champBrier = champion ? brierOf(champion) : null;
-  const champWr = champion ? wrOf(champion) : null;
-  const tier = tierOf(champBrier);
-  const champBrierBar = champBrier != null ? `${Math.round((1 - champBrier) * 100)}%` : '0%';
-  const champWinBar = champWr != null ? `${Math.round(champWr * 100)}%` : '0%';
-
-  const RANK_GEMS = ['oracle', 'prism', 'azure', 'ember', 'verdant'];
-  const rankClasses = [styles.r1, styles.r2, styles.r3, styles.r4, styles.r5];
 
   const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [vs, setVs] = useState<{a:number;b:number;top:number;leader:string;aName:string;bName:string;aLeads:boolean} | null>(null);
@@ -235,64 +241,76 @@ export default function LeaderboardClient() {
           Ranked strictly by <b>Brier Score</b>. Lower is superior. Every score derives from resolved trades. Nothing is self reported.
         </p>
 
-        {/* gem podium top 5 */}
-        {top5.length > 0 && (
-          <div className={`${styles.podium} ${styles.reveal}`} style={{ transitionDelay: '.20s' }}>
-            {top5.map((b, i) => {
-              const gem = RANK_GEMS[i];
-              const slug = b.slug || b.id;
-              const eye = botEye(b);
-              const wr = wrOf(b);
-              return (
-                <div
-                  key={b.id}
-                  className={`${styles.ptile} ${rankClasses[i] || ''}`}
-                  style={{ ['--tile-color' as string]: eye.accentColor }}
-                  onClick={() => { window.location.href = `/bot/${slug}`; }}
-                >
-                  {i === 0 && <span className={styles.podiumCrown}>♛</span>}
-                  <div className={styles.ptileAvatar}>
-                    <BotIrisAvatar {...eye} size={i === 0 ? 48 : 32} />
-                  </div>
-                  <div
-                    className={styles.gembadge}
-                    style={{ ['--gemsrc' as string]: `url(/gems/${gem}.png)` }}
-                  >
-                    <img src={`/gems/${gem}.png`} alt={gem} />
-                    <span className={styles.shine} />
-                  </div>
-                  <div className={styles.ptileLabel}>{gem.toUpperCase()}</div>
-                  <div className={styles.ptileName}>{b.name}</div>
-                  <div className={styles.ptileWr}>
-                    {wr != null ? `WR ${(wr * 100).toFixed(1)}%` : 'WR —'}
-                  </div>
+        {/* explainer — botón desplegable interactivo: cerrado por defecto, no satura;
+            quien quiere entender el ranking lo abre. */}
+        <div className={`${styles.exp} ${styles.reveal} ${brierOpen ? styles.expOpen : ''}`} style={{ transitionDelay: '.18s' }}>
+          <button type="button" className={styles.expToggle} onClick={() => setBrierOpen(o => !o)} aria-expanded={brierOpen}>
+            <span className={styles.expQ}>?</span>
+            <span className={styles.expToggleText}>What is the Brier Score<span className={styles.accent}>?</span></span>
+            <span className={styles.expToggleHint}>{brierOpen ? 'hide' : 'how ranking works'}</span>
+            <span className={styles.expChevron}>⌄</span>
+          </button>
+          <div className={styles.expPanel} aria-hidden={!brierOpen}>
+            <div className={styles.expPanelInner}>
+              <p className={styles.expBody}>
+                Every bot here is a forecaster. It does not just say &ldquo;yes&rdquo; or &ldquo;no&rdquo;, it says how sure it is, like &ldquo;70% chance&rdquo;. The <b>Brier Score</b> grades those calls against what actually happened: confident and right scores low, confident and wrong scores high. It runs from <b>0</b> to <b>1</b>. A perfect forecaster scores <b>0</b>. A pure coin flip lands near <b>0.25</b>. <b>Lower is better, so the lowest score ranks #1.</b> No one can fake it, the score only comes from trades that already resolved on-chain.
+              </p>
+              <div className={styles.formula}>BS = (1/N) Σ (pᵢ − oᵢ)² <span className={styles.formulaMut}>// p = forecast, o = outcome</span></div>
+              <div className={styles.scaleWrap}>
+                <div className={styles.track}>
+                  <div className={styles.mark} style={{ left: '0%' }} />
+                  <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '0%', transform: 'translateX(0)' }}>0.00 · perfect</div>
+                  <div className={styles.mark} style={{ left: '25%' }} />
+                  <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '25%' }}>0.25 · coin flip</div>
+                  {champBrier != null && (
+                    <>
+                      <div className={`${styles.mark} ${styles.markAdan}`} style={{ left: `${Math.min(100, champBrier * 100)}%` }} />
+                      <div className={`${styles.mlbl} ${styles.mlblTop} ${styles.mlblAdan}`} style={{ left: `${Math.min(100, champBrier * 100)}%` }}>{champion.name} {champBrier.toFixed(3)}</div>
+                    </>
+                  )}
+                  <div className={styles.mark} style={{ left: '100%' }} />
+                  <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '100%', transform: 'translateX(-100%)' }}>1.00 · worst</div>
                 </div>
-              );
-            })}
+              </div>
+            </div>
           </div>
-        )}
+        </div>
 
-        {/* roster */}
+        {/* roster — character select: las caras de los bots dominan, grandes. */}
         {ranked.length > 0 && (
-          <div className={`${styles.roster} ${styles.reveal}`} style={{ transitionDelay: '.24s' }}>
-            <div className={styles.rosterHead}>Select your fighter</div>
+          <div className={`${styles.roster} ${styles.reveal}`} style={{ transitionDelay: '.20s' }}>
+            <div className={styles.rosterHead}>
+              <span className={styles.rosterTitle}>The champions</span>
+              <span className={styles.rosterHint}>{ranked.length} agents · ranked by Brier</span>
+            </div>
             <div className={styles.rosterGrid}>
               {ranked.map((b, i) => {
                 const eye = botEye(b);
                 const slug = b.slug || b.id;
+                const br = brierOf(b);
+                const wr = wrOf(b);
+                const boss = i === 0;
                 return (
                   <div
                     key={b.id}
-                    className={`${styles.tile} ${i === 0 ? styles.boss : ''}`}
+                    className={`${styles.tile} ${boss ? styles.boss : ''}`}
                     style={{ ['--tile-color' as string]: eye.accentColor }}
                     onClick={() => { window.location.href = `/bot/${slug}`; }}
+                    title={`${b.name} · Brier ${br != null ? br.toFixed(3) : '—'}`}
                   >
-                    {i === 0 && <span className={styles.crown}>♛</span>}
+                    <span className={styles.tileRank}>{i + 1}</span>
+                    {boss && <span className={styles.crown}>♛</span>}
                     <div className={styles.tileFrame}>
-                      <BotIrisAvatar {...eye} size={i === 0 ? 48 : 28} />
+                      <BotFace bot={b} size={boss ? 230 : 148} />
                     </div>
-                    <div className={styles.tileName}>{b.name}</div>
-                    <div className={styles.tileRank}>#{i + 1}</div>
+                    <div className={styles.tileBody}>
+                      <div className={styles.tileName}>{b.name}</div>
+                      <div className={styles.tileStat}>
+                        <span className={styles.tileBrierLbl}>Brier</span>
+                        <span className={styles.tileBrier}>{br != null ? br.toFixed(3) : '—'}</span>
+                        <span className={styles.tileWr}>{wr != null ? `${(wr * 100).toFixed(1)}% WR` : ''}</span>
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -300,126 +318,78 @@ export default function LeaderboardClient() {
           </div>
         )}
 
-        {/* champion */}
-        {champion && (
-          <div className={`${styles.champ} ${styles.reveal}`} style={{ transitionDelay: '.34s' }}>
-            <div className={styles.champTop}>
-              <span className={styles.medal}>RANK 01</span>
-              <div className={styles.heroFrame}>
-                <BotIrisAvatar {...botEye(champion)} size={58} />
-              </div>
-              <div className={styles.champId}>
-                <div className={styles.champName}>
-                  {champion.name}
-                  {tier && <span className={styles.tier} style={{ color: tier.color, background: `${tier.color}14`, border: `1px solid ${tier.color}33` }}>{tier.label}</span>}
-                </div>
-                <div className={styles.champBy}>by {authorOf(champion)}</div>
-              </div>
-              <div className={styles.live}><span className={styles.liveDot} />LIVE</div>
-            </div>
-            <div className={styles.stats}>
-              <div className={styles.stat}>
-                <div className={styles.statK}>Brier</div>
-                <div className={`${styles.statV} ${styles.statVRed}`}>{champBrier != null ? champBrier.toFixed(3) : 'AWAITING'}</div>
-                <div className={styles.bar}><span className={styles.barFill} style={{ ['--w' as string]: champBrierBar }} /></div>
-              </div>
-              <div className={styles.stat}>
-                <div className={styles.statK}>Win rate</div>
-                <div className={styles.statV}>{champWr != null ? `${(champWr * 100).toFixed(1)}%` : '—'}</div>
-                <div className={styles.bar}><span className={styles.barFill} style={{ ['--w' as string]: champWinBar }} /></div>
-              </div>
-              <div className={styles.stat}><div className={styles.statK}>TVL vault</div><div className={styles.statV}>{fmtTvl(tvlOf(champion))}</div></div>
-              <div className={styles.stat}><div className={styles.statK}>Trades</div><div className={styles.statV}>{tradesOf(champion) || '—'}</div></div>
-              <div className={styles.stat}><div className={styles.statK}>Lifetime</div><div className={styles.statV}>{lifetimeOf(champion)}</div></div>
-              <div className={styles.stat}><div className={styles.statK}>Sharpe</div><div className={styles.statV}>{sharpeOf(champion) != null ? sharpeOf(champion)!.toFixed(2) : '—'}</div></div>
-            </div>
-          </div>
-        )}
 
-        {/* rows — rank 6+ */}
-        {!loading && rest.length === 0 ? (
-          <div className={`${styles.standingsMore} ${styles.reveal}`} style={{ transitionDelay: '.42s' }}>
-            more bots coming soon
+        {/* leaderboard completo: todos los agentes en fila, escala a cientos */}
+        <div className={`${styles.standings} ${styles.reveal}`} style={{ transitionDelay: '.34s' }}>
+          <div className={styles.standingsTop}>
+            <span className={styles.standingsTitle}>Full leaderboard</span>
+            {!loading && rest.length > 0 && (
+              <span className={styles.rosterHint}>{rest.length} {rest.length === 1 ? 'agent' : 'agents'} · live ranking</span>
+            )}
           </div>
-        ) : (
-        <div className={`${styles.rows} ${styles.reveal}`} style={{ transitionDelay: '.42s' }} onMouseLeave={() => setVs(null)}>
-          {!loading && rest.length > 0 && (
-            <div className={styles.standingsHead}>The standings</div>
-          )}
-          <div className={styles.rhead}>
-            <span>#</span><span>Algorithm</span><span>Brier</span><span>Win rate</span><span>TVL</span><span>Trades</span><span>Lifetime</span><span>Sharpe</span>
-          </div>
-          {loading ? (
-            <div className={styles.empty}>&gt; syncing on-chain data…</div>
-          ) : (
-            rest.map((b, i) => {
-              const slug = b.slug || b.id;
-              const br = brierOf(b);
-              const n = tradesOf(b);
-              return (
-                <div key={b.id} ref={(el) => { rowRefs.current[i] = el; }} className={`${styles.row} ${vs && vs.a === i ? styles.rowActive : ''} ${vs && vs.b === i ? styles.rowRival : ''}`} onMouseEnter={() => onRowHover(i)} onClick={() => { window.location.href = `/bot/${slug}`; }}>
-                  <span className={styles.rk}>{i + 6}</span>
-                  <span className={styles.algo}>
-                    <span className={styles.rowFrame}><BotIrisAvatar {...botEye(b)} size={32} /></span>
-                    <span>
-                      <span className={styles.rname}><Link href={`/bot/${slug}`} onClick={(e) => e.stopPropagation()}>{b.name}</Link></span>
-                      <br /><span className={styles.rby}>by {authorOf(b)}</span>
+          <div className={`${styles.rows}`} onMouseLeave={() => setVs(null)}>
+            <div className={styles.rhead}>
+              <span>#</span><span>Agent</span><span>Brier</span><span>Win rate</span><span>TVL</span><span>Trades</span><span>Lifetime</span><span>Sharpe</span>
+            </div>
+            {loading ? (
+              <div className={styles.empty}>&gt; syncing on-chain data…</div>
+            ) : rest.length === 0 ? (
+              <div className={styles.empty}>No agents have resolved trades yet.</div>
+            ) : (
+              rest.map((b, i) => {
+                const slug = b.slug || b.id;
+                const br = brierOf(b);
+                const n = tradesOf(b);
+                return (
+                  <div key={b.id} ref={(el) => { rowRefs.current[i] = el; }} className={`${styles.row} ${i === 0 ? styles.rowLead : ''} ${vs && vs.a === i ? styles.rowActive : ''} ${vs && vs.b === i ? styles.rowRival : ''}`} onMouseEnter={() => onRowHover(i)} onClick={() => { window.location.href = `/bot/${slug}`; }}>
+                    <span className={styles.rk}>{i + 1}</span>
+                    <span className={styles.algo}>
+                      <span className={styles.rowFrame}><BotFace bot={b} size={34} /></span>
+                      <span>
+                        <span className={styles.rname}><Link href={`/bot/${slug}`} onClick={(e) => e.stopPropagation()}>{b.name}</Link></span>
+                        <br /><span className={styles.rby}>by {authorOf(b)}</span>
+                      </span>
                     </span>
-                  </span>
-                  <span className={styles.cell}>{br != null ? br.toFixed(3) : 'AWAITING'}</span>
-                  <span className={styles.cell}>{wrOf(b) != null ? `${(wrOf(b)! * 100).toFixed(1)}%` : '—'}</span>
-                  <span className={styles.cell}>{fmtTvl(tvlOf(b))}</span>
-                  <span className={styles.cell}>{n > 0 ? n.toLocaleString() : '—'}{n > 0 && n < 50 && <span className={styles.lowN}>LOW N</span>}</span>
-                  <span className={styles.cell}>{lifetimeOf(b)}</span>
-                  <span className={styles.cell}>{sharpeOf(b) != null ? sharpeOf(b)!.toFixed(2) : '—'}</span>
-                </div>
-              );
-            })
-          )}
-          {vs && (
-            <div className={styles.vsBadge} style={{ top: vs.top }}>
-              <span className={vs.aLeads ? styles.vsUp : styles.vsDn}>{vs.aName}</span>
-              <span className={styles.vsMark}>VS</span>
-              <span className={vs.aLeads ? styles.vsDn : styles.vsUp}>{vs.bName}</span>
-              <span className={styles.vsLead}>· {vs.leader} leads</span>
-            </div>
-          )}
-        </div>
-        )}
-
-        {/* explainer */}
-        <div className={`${styles.exp} ${styles.reveal}`} style={{ transitionDelay: '.5s' }}>
-          <div className={styles.expHead}>
-            <h3>The Brier Score<span className={styles.accent}>.</span></h3>
-            <span className={styles.expTag}>how ranking works</span>
-          </div>
-          <p className={styles.expBody}>
-            A Brier Score measures how accurate a probabilistic forecast is. It is the mean squared error between the probability a bot assigns to an outcome and what actually resolves. The scale runs from <b>0</b> to <b>1</b>. A flawless forecaster scores <b>0</b>. A coin flip lands near <b>0.25</b>. On Brier, the lowest score ranks first.
-          </p>
-          <div className={styles.formula}>BS = (1/N) Σ (pᵢ − oᵢ)² <span className={styles.formulaMut}>// p = forecast, o = outcome</span></div>
-          <div className={styles.scaleWrap}>
-            <div className={styles.track}>
-              <div className={styles.mark} style={{ left: '0%' }} />
-              <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '0%', transform: 'translateX(0)' }}>0.00 · perfect</div>
-              <div className={styles.mark} style={{ left: '25%' }} />
-              <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '25%' }}>0.25 · coin flip</div>
-              {champBrier != null && (
-                <>
-                  <div className={`${styles.mark} ${styles.markAdan}`} style={{ left: `${Math.min(100, champBrier * 100)}%` }} />
-                  <div className={`${styles.mlbl} ${styles.mlblTop} ${styles.mlblAdan}`} style={{ left: `${Math.min(100, champBrier * 100)}%` }}>{champion.name} {champBrier.toFixed(3)}</div>
-                </>
-              )}
-              <div className={styles.mark} style={{ left: '100%' }} />
-              <div className={`${styles.mlbl} ${styles.mlblBot}`} style={{ left: '100%', transform: 'translateX(-100%)' }}>1.00 · worst</div>
-            </div>
+                    <span className={`${styles.cell} ${styles.cellBrier}`}>{br != null ? br.toFixed(3) : 'AWAITING'}</span>
+                    <span className={styles.cell}>{wrOf(b) != null ? `${(wrOf(b)! * 100).toFixed(1)}%` : '—'}</span>
+                    <span className={styles.cell}>{fmtTvl(tvlOf(b))}</span>
+                    <span className={styles.cell}>{n > 0 ? n.toLocaleString() : '—'}{n > 0 && n < 50 && <span className={styles.lowN}>LOW N</span>}</span>
+                    <span className={styles.cell}>{lifetimeOf(b)}</span>
+                    <span className={styles.cell}>{sharpeOf(b) != null ? sharpeOf(b)!.toFixed(2) : '—'}</span>
+                  </div>
+                );
+              })
+            )}
+            {vs && (
+              <div className={styles.vsBadge} style={{ top: vs.top }}>
+                <span className={styles.vsUp}>{vs.aName}</span>
+                <span className={styles.vsMark}>VS</span>
+                <span className={styles.vsUp}>{vs.bName}</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* trust grid */}
-        <div className={`${styles.trust} ${styles.reveal}`} style={{ transitionDelay: '.58s' }}>
-          <div className={styles.tcard}><div className={styles.ic}>/&gt;</div><h4>Math enforcement</h4><p>Rankings derived from the Brier Score, the gold standard in forecasting.</p></div>
-          <div className={styles.tcard}><div className={styles.ic}>{'{}'}</div><h4>Verified fills</h4><p>Every score traces back to resolved market outcomes. No self reporting.</p></div>
-          <div className={styles.tcard}><div className={styles.ic}>[]</div><h4>Zero trust</h4><p>HMAC-SHA256 signed signals. Resolution state cannot be altered.</p></div>
+        {/* por qué confiar en este ranking — tres pilares, lenguaje claro */}
+        <div className={`${styles.trust} ${styles.reveal}`} style={{ transitionDelay: '.46s' }}>
+          <div className={styles.trustHead}>Why this ranking is honest</div>
+          <div className={styles.trustGrid}>
+            <div className={styles.tcard}>
+              <div className={styles.tnum}>01</div>
+              <h4>Graded by math</h4>
+              <p>Every rank comes from the Brier Score, the same metric used to grade professional forecasters. No opinions, no committee.</p>
+            </div>
+            <div className={styles.tcard}>
+              <div className={styles.tnum}>02</div>
+              <h4>Settled on-chain</h4>
+              <p>A score only counts after the market it bet on actually resolved on-chain. Open trades never inflate the number.</p>
+            </div>
+            <div className={styles.tcard}>
+              <div className={styles.tnum}>03</div>
+              <h4>Impossible to fake</h4>
+              <p>Signals are signed and outcomes are public. No agent can edit its own history or self report a single result.</p>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -197,6 +197,7 @@ export default function PlanetAgentsBackground({ className = '' }: { className?:
     let elapsed = 0
     let raf = 0
     let coreGlow = 0
+    let visible = true
 
     const renderFrame = () => {
       const now = performance.now()
@@ -279,6 +280,7 @@ export default function PlanetAgentsBackground({ className = '' }: { className?:
     }
 
     const loop = () => {
+      if (!visible) return
       raf = requestAnimationFrame(loop)
       renderFrame()
     }
@@ -289,6 +291,18 @@ export default function PlanetAgentsBackground({ className = '' }: { className?:
       window.addEventListener('mousemove', onMove)
       loop()
     }
+
+    // El planeta es un fondo fixed: un IntersectionObserver siempre lo vería en
+    // pantalla. Se pausa cuando ya se hizo scroll más allá del hero (lo tapan las
+    // secciones opacas) o cuando la pestaña pasa a segundo plano.
+    const syncVisibility = () => {
+      if (reduceMotion) return
+      const off = document.hidden || window.scrollY > window.innerHeight * 1.3
+      if (off && visible) { visible = false; cancelAnimationFrame(raf) }
+      else if (!off && !visible) { visible = true; lastTime = performance.now(); loop() }
+    }
+    window.addEventListener('scroll', syncVisibility, { passive: true })
+    document.addEventListener('visibilitychange', syncVisibility)
 
     const onResize = () => {
       W = window.innerWidth
@@ -303,6 +317,8 @@ export default function PlanetAgentsBackground({ className = '' }: { className?:
     return () => {
       cancelAnimationFrame(raf)
       window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('scroll', syncVisibility)
+      document.removeEventListener('visibilitychange', syncVisibility)
       window.removeEventListener('resize', onResize)
       scene.traverse((obj) => {
         const o = obj as THREE.Mesh
