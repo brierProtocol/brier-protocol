@@ -68,8 +68,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Actualizar estado: marcar los depósitos del LP como retirados y bajar el TVL.
-    // MVP = salida total. TODO: soportar retiros parciales reduciendo amountUsdc (FIFO).
+    // Posición agregada del inversor (case-insensitive: el depósito pudo guardar la
+    // wallet con otro case). MVP = salida total, así que se queman TODAS sus shares.
+    const position = await prisma.vaultPosition.findFirst({
+      where: { botId, userWallet: { equals: depositorWallet, mode: 'insensitive' } },
+    });
+    const sharesBurned = position?.shares ?? 0;
+    // PnL realizado en salida total = lo que recibió on-chain menos su cost basis.
+    const realizedDelta = withdrawnAmount - (position?.costBasisUsdc ?? 0);
+
+    // Actualizar estado: marcar los depósitos del LP como retirados, bajar el TVL,
+    // quemar las shares del bot y cerrar la posición agregada (realizando el PnL).
+    // MVP = salida total. TODO: soportar retiros parciales reduciendo shares (FIFO).
     await prisma.$transaction([
       prisma.vaultDeposit.updateMany({
         where: { botId, depositorWallet, active: true },
@@ -77,9 +87,24 @@ export async function POST(request: NextRequest) {
       }),
       prisma.bot.update({
         where: { id: botId },
-        // Evita TVL negativo si hubo ganancias contabilizadas aparte.
-        data: { currentTVL: { decrement: Math.min(withdrawnAmount, bot.currentTVL) } },
+        // Evita TVL/shares negativos si hubo ganancias contabilizadas aparte.
+        data: {
+          currentTVL: { decrement: Math.min(withdrawnAmount, bot.currentTVL) },
+          totalShares: { decrement: Math.min(sharesBurned, bot.totalShares) },
+        },
       }),
+      ...(position
+        ? [
+            prisma.vaultPosition.update({
+              where: { id: position.id },
+              data: {
+                shares: 0,
+                costBasisUsdc: 0,
+                realizedPnlUsdc: { increment: realizedDelta },
+              },
+            }),
+          ]
+        : []),
     ]);
 
     return NextResponse.json({ success: true, withdrawnAmount });

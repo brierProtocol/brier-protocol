@@ -5,7 +5,8 @@ async function main() {
   console.log('🌱 Iniciando Brier Protocol Data Seeding (Fase 2)...')
 
   // Limpieza Idempotente (Borramos data existente para evitar conflictos)
-  console.log('🧹 Limpiando base de datos (VaultDeposit, BotScore, TradeEvent, Bot)...')
+  console.log('🧹 Limpiando base de datos (VaultPosition, VaultDeposit, BotScore, TradeEvent, Bot)...')
+  await prisma.vaultPosition.deleteMany()
   await prisma.vaultDeposit.deleteMany()
   await prisma.botScore.deleteMany()
   await prisma.tradeEvent.deleteMany()
@@ -80,19 +81,42 @@ async function main() {
   })
   console.log(`✅ Creado Bot ADAN-PRED (PERP): ${botAdan.name}`)
 
-  // Generar 10 VaultDeposits para ADAN-PRED
-  console.log('💰 Generando 10 VaultDeposits para ADAN-PRED...')
+  // Generar 10 inversores (User) con su depósito + posición en ADAN-PRED.
+  // Wallets/montos DETERMINISTAS para que re-seedear sea idempotente.
+  // Shares 1:1 con el monto (NAV génesis = 1). El currentTVL benchmark (125k) es
+  // mayor que el total aportado (100k) => navPerShare ≈ 1.25, o sea cada whale
+  // arrastra ~25% de ganancia no realizada: data realista para el dashboard.
+  console.log('💰 Generando 10 inversores (User + VaultDeposit + VaultPosition) para ADAN-PRED...')
+  let adanTotalShares = 0
   for (let i = 0; i < 10; i++) {
+    const wallet = `0xWHALE${String(i).padStart(35, '0')}` // 42 chars, tipo address
+    const amountUsdc = 1000 + i * 2000                     // 1k..19k, suma = 100k
+    const mode = i % 2 === 0 ? 'CONSERVATIVE' : 'DEGEN'
+    const shares = amountUsdc                              // NAV génesis = 1 => 1:1
+    adanTotalShares += shares
+
+    // Identidad del inversor (cero-fricción: wallet = user).
+    await prisma.user.upsert({
+      where: { walletAddress: wallet },
+      update: {},
+      create: { walletAddress: wallet, handle: `whale_${i}`, name: `Whale #${i}` },
+    })
+
     await prisma.vaultDeposit.create({
-      data: {
-        botId: botAdan.id,
-        depositorWallet: `0xWhale${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-        amountUsdc: Math.floor(Math.random() * 20000) + 1000, // Deposits between 1k and 21k
-        mode: i % 2 === 0 ? 'CONSERVATIVE' : 'DEGEN'
-      }
+      data: { botId: botAdan.id, depositorWallet: wallet, amountUsdc, shares, kind: 'DEPOSIT', mode },
+    })
+
+    await prisma.vaultPosition.create({
+      data: { userWallet: wallet, botId: botAdan.id, shares, costBasisUsdc: amountUsdc, mode },
     })
   }
-  console.log('✅ 10 VaultDeposits creados exitosamente.')
+
+  // Reflejar las shares minteadas en el bot (para que navPerShare sea consistente).
+  await prisma.bot.update({
+    where: { id: botAdan.id },
+    data: { totalShares: adanTotalShares },
+  })
+  console.log(`✅ 10 inversores creados (totalShares=${adanTotalShares}).`)
 
   console.log('🚀 SEEDING COMPLETADO CON ÉXITO.')
 }

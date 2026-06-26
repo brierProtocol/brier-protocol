@@ -43,6 +43,8 @@ model Bot {
   skinInGame      Float         @default(0)
   vaultCap        Float         @default(0)
   currentTVL      Float         @default(0)
+  // ERC-4626 vault shares minted (off-chain mirror). navPerShare = currentTVL / totalShares.
+  totalShares     Float         @default(0)
   vaultOpen       Boolean       @default(false)
   strategyType    String        @default("hybrid")
   
@@ -54,6 +56,7 @@ model Bot {
   trades          TradeEvent[]
   scores          BotScore[]
   deposits        VaultDeposit[]
+  positions       VaultPosition[]
   incubationLogs  IncubationLog[]
   pnlSnapshots    PnlSnapshot[]
   polyConnection  PolyConnection?
@@ -223,6 +226,13 @@ model VaultDeposit {
   depositorWallet  String
   amountUsdc       Float
 
+  // ERC-4626 vault shares minted for this deposit (off-chain mirror of the on-chain mint).
+  shares           Float     @default(0)
+
+  // DEPOSIT | REDEEM — ledger entry type. Today only DEPOSIT rows are written here;
+  // redeems update VaultPosition and flip active=false (see /api/withdraw).
+  kind             String    @default("DEPOSIT")
+
   // Hash de la transacción on-chain. Único => previene replay (mismo txHash 2 veces).
   // Nullable para no romper datos sembrados antiguos; la API siempre lo setea ahora.
   txHash           String?   @unique
@@ -239,6 +249,43 @@ model VaultDeposit {
   depositedAt      DateTime  @default(now())
   exitedAt         DateTime?
   exitReason       String?   // MANUAL | CIRCUIT_BREAKER | CONSERVATIVE_TRIGGER | VAULT_SUSPENDED
+
+  @@index([depositorWallet])
+  @@index([botId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// VAULT POSITION — aggregated holding of ONE investor in ONE bot's vault.
+// This is the source of truth for the user's dashboard portfolio (Total
+// Balance, Invested Capital, Active Bots). VaultDeposit stays the raw on-chain
+// ledger; VaultPosition is the rolled-up, share-based view per (user, bot).
+// ─────────────────────────────────────────────────────────────
+model VaultPosition {
+  id              String   @id @default(cuid())
+
+  // Investor identity. Wallet = user (cero-fricción onboarding). FK is safe here
+  // because this is a new table; deposit/withdraw upsert the User first.
+  userWallet      String
+  user            User     @relation(fields: [userWallet], references: [walletAddress])
+
+  botId           String
+  bot             Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  // ERC-4626 vault shares this user currently holds in this bot's vault.
+  shares          Float    @default(0)
+  // USDC paid in for the shares still held (cost basis). Drops proportionally on redeem.
+  costBasisUsdc   Float    @default(0)
+  // PnL booked on redeems. Unrealized PnL = shares * navPerShare - costBasisUsdc.
+  realizedPnlUsdc Float    @default(0)
+
+  // CONSERVATIVE | DEGEN — risk mode the user chose for this vault.
+  mode            String   @default("CONSERVATIVE")
+
+  firstDepositAt  DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userWallet, botId])
+  @@index([botId])
 }
 
 model IncubationLog {
@@ -333,6 +380,7 @@ model User {
   followers     Follow[] @relation("Followers")
   following     Follow[] @relation("Following")
   comments      Comment[]
+  vaultPositions VaultPosition[]
 }
 
 model Follow {
