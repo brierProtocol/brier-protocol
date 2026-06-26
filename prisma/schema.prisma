@@ -37,6 +37,10 @@ model Bot {
   // truth). When present, the catalog trusts these over the declared ones.
   verifiedCategories String[]   @default([])
   lastIndexedAt   DateTime?
+  // Last bot heartbeat (spec §2.2: bots emit every ~4s). The dashboard reads this
+  // and shows "stale" if none arrived within HEARTBEAT_STALE_MS. Null = never
+  // reported / not operating. See src/lib/heartbeat.ts.
+  lastHeartbeatAt DateTime?
 
   walletAddress   String
   // Maker/builder wallet that PUBLISHED the bot. Distinct from walletAddress,
@@ -66,6 +70,7 @@ model Bot {
   scores          BotScore[]
   deposits        VaultDeposit[]
   positions       VaultPosition[]
+  distributions   Distribution[]
   incubationLogs  IncubationLog[]
   pnlSnapshots    PnlSnapshot[]
   polyConnection  PolyConnection?
@@ -297,6 +302,30 @@ model VaultPosition {
 
   @@unique([userWallet, botId])
   @@index([botId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// DISTRIBUTION — one profit-split event. When a settlement books POSITIVE profit
+// for a bot, it is split 60/30/10 (depositors / builder / protocol). Losses are
+// NOT distributed — they hit NAV directly (Darwinism). Cuts are stored as concrete
+// USDC amounts so reporting stays exact even if the rates ever change.
+// ─────────────────────────────────────────────────────────────
+model Distribution {
+  id              String   @id @default(cuid())
+  botId           String
+  bot             Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  grossProfitUsdc Float    // total profit booked in this settlement (always > 0)
+  depositorCut    Float    // 60%
+  builderCut      Float    // 30% — accrues to the bot's maker (Bot.ownerWallet)
+  protocolCut     Float    // 10%
+
+  // Optional link to the settlement/trade that produced the profit.
+  sourceTradeId   String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([botId, createdAt])
 }
 
 model IncubationLog {

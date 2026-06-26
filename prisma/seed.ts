@@ -135,6 +135,29 @@ async function main() {
   })
   console.log(`✅ 10 inversores creados (totalShares=${adanTotalShares}).`)
 
+  // Heartbeats (L5): los bots LIVE están "operando"; el PAPER nunca reportó (null).
+  await prisma.bot.updateMany({
+    where: { id: { in: [botLive.id, botAdan.id] } },
+    data: { lastHeartbeatAt: new Date() },
+  })
+
+  // Distribuciones demo (L4) — split 60/30/10 para ADAN, así el dashboard del
+  // builder y el reporting de protocolo tienen datos reales que leer.
+  const profits = [1800, 3200, 950, 4100]
+  for (const gross of profits) {
+    await prisma.distribution.create({
+      data: {
+        botId: botAdan.id,
+        grossProfitUsdc: gross,
+        depositorCut: gross * 0.6,
+        builderCut: gross * 0.3,
+        protocolCut: gross * 0.1,
+      },
+    })
+  }
+  const builderTotal = profits.reduce((a, g) => a + g * 0.3, 0)
+  console.log(`✅ ${profits.length} distribuciones creadas (builder earnings ADAN=$${builderTotal}).`)
+
   console.log('🚀 SEEDING COMPLETADO CON ÉXITO.')
 }
 
