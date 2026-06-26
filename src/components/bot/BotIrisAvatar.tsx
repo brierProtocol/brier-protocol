@@ -10,8 +10,8 @@ interface BotIrisAvatarProps {
   size?: number
   accentColor?: string
   shape?: EyeShape
-  // Fondo del lienzo. Pasar 'transparent' para que la criatura flote sobre el
-  // fondo del contenedor. (El default lo unifica el PR de avatar-float.)
+  // Fondo del lienzo. Por defecto transparente: la criatura flota sobre el fondo
+  // del contenedor en toda la app. Pasar un color solo si se quiere un cuadro.
   bg?: string
 }
 
@@ -50,7 +50,7 @@ function lighten(hex: string, amt: number): string {
  * deterministic per avatarId, with eyes so it reads as a face. Replaces the
  * old glyph weave (git history keeps both ancestors).
  */
-export default function BotIrisAvatar({ avatarId, size = 64, accentColor = '#ff2a4d', bg = '#050505' }: BotIrisAvatarProps) {
+export default function BotIrisAvatar({ avatarId, size = 64, accentColor = '#ff2a4d', bg = 'transparent' }: BotIrisAvatarProps) {
   const { cells, eyes } = useMemo(() => {
     const N = 10                       // 10×10 board, mirrored halves
     const half = N / 2

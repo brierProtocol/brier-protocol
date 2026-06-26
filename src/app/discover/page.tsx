@@ -236,16 +236,19 @@ export default function DiscoverPage() {
                         <StatusMark tag={st.tag} color={st.color} />
                       </div>
 
-                      {/* avatar: la criatura flota sin cuadro de fondo; la foto real
-                          va en un encuadre redondo limpio, sin doble fondo negro */}
-                      <div className="relative flex justify-center py-6 bg-[#060606] border-b border-[#141414]">
+                      {/* avatar: the creature floats; photos get a round frame */}
+                      <div className="relative flex justify-center py-6 border-b border-[#141414]">
+                        {/* soft halo so the entity feels alive without a hard box */}
+                        <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120px] h-[120px] rounded-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: 'radial-gradient(circle, rgba(255,42,77,0.10), transparent 70%)' }} />
                         {b.pfpUrl ? (
-                          <span className="w-[76px] h-[76px] rounded-full overflow-hidden ring-1 ring-[#222] group-hover:ring-primary/40 transition-all flex items-center justify-center">
+                          <span className="relative w-[76px] h-[76px] rounded-full overflow-hidden border border-[#222] group-hover:border-primary/35 transition-colors flex items-center justify-center">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={b.pfpUrl} alt={b.name} className="w-full h-full object-cover" />
                           </span>
                         ) : (
-                          <BotIrisAvatar {...botEye(b)} size={76} bg="transparent" />
+                          <span className="relative transition-transform duration-300 group-hover:scale-110">
+                            <BotIrisAvatar {...botEye(b)} size={76} />
+                          </span>
                         )}
                       </div>
 
