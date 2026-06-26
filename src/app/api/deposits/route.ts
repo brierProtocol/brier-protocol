@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import { ethers } from 'ethers';
 import { notifyDeposit } from '@/lib/notifications';
 import { DEPOSIT_RPC_URL as RPC_URL, USDC_ADDRESS_ENV, USDC_DECIMALS } from '@/constants/contracts';
+import { depositBlockReason } from '@/lib/vault-lifecycle';
 
 // Direccion del contrato USDC esperado. Si se define (USDC_ADDRESS_ENV), SOLO se aceptan
 // transferencias de ese token (evita depositar un ERC20 falso e inflar el TVL).
@@ -101,13 +102,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // CAPACITY: si el vault declaró un cap y ya está lleno, no se aceptan nuevos depósitos.
-    // Sobre-llenar un vault diluye el rendimiento de quienes ya entraron, así que se cierra.
-    if (bot.vaultCap && bot.vaultCap > 0 && bot.currentTVL >= bot.vaultCap) {
-      return NextResponse.json(
-        { error: 'This vault is at capacity and is not accepting new deposits.' },
-        { status: 409 }
-      );
+    // LIFECYCLE + CAPACITY: un vault cerrado (black swan) o lleno no acepta depósitos.
+    // Sobre-llenar diluye a los que ya entraron; un vault cerrado solo permite claim.
+    const blocked = depositBlockReason(bot);
+    if (blocked) {
+      return NextResponse.json({ error: blocked }, { status: 409 });
     }
 
     // SHARES (ERC-4626 mirror): se mintean al NAV vigente ANTES de este depósito.

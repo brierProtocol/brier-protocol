@@ -77,13 +77,17 @@ export async function POST(request: NextRequest) {
     // PnL realizado en salida total = lo que recibió on-chain menos su cost basis.
     const realizedDelta = withdrawnAmount - (position?.costBasisUsdc ?? 0);
 
+    // Un retiro desde un vault cerrado (black swan) es un "claim" / wind-down, no
+    // una salida voluntaria: lo reflejamos en exitReason con el motivo del cierre.
+    const exitReason = bot.vaultClosedAt ? (bot.vaultCloseReason || 'VAULT_CLOSED') : 'MANUAL';
+
     // Actualizar estado: marcar los depósitos del LP como retirados, bajar el TVL,
     // quemar las shares del bot y cerrar la posición agregada (realizando el PnL).
     // MVP = salida total. TODO: soportar retiros parciales reduciendo shares (FIFO).
     await prisma.$transaction([
       prisma.vaultDeposit.updateMany({
         where: { botId, depositorWallet, active: true },
-        data: { active: false, exitedAt: new Date(), exitReason: 'MANUAL' },
+        data: { active: false, exitedAt: new Date(), exitReason },
       }),
       prisma.bot.update({
         where: { id: botId },

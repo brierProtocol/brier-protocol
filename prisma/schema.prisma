@@ -39,6 +39,10 @@ model Bot {
   lastIndexedAt   DateTime?
 
   walletAddress   String
+  // Maker/builder wallet that PUBLISHED the bot. Distinct from walletAddress,
+  // which can hold the bot's Polymarket execution wallet. FK to User so the maker
+  // is a first-class identity. Nullable so a bot can exist before its maker links.
+  ownerWallet     String?
   vaultAddress    String?
   skinInGame      Float         @default(0)
   vaultCap        Float         @default(0)
@@ -46,6 +50,11 @@ model Bot {
   // ERC-4626 vault shares minted (off-chain mirror). navPerShare = currentTVL / totalShares.
   totalShares     Float         @default(0)
   vaultOpen       Boolean       @default(false)
+  // Vault terminal state (Darwinism black-swan): once set, the vault is CLOSED —
+  // no new deposits; depositors can only claim (redeem at current NAV). Set by the
+  // risk engine via closeVault() — see src/lib/vault-lifecycle.ts.
+  vaultClosedAt   DateTime?
+  vaultCloseReason String?      // CIRCUIT_BREAKER | DRAWDOWN_BREACH | MANUAL
   strategyType    String        @default("hybrid")
   
   createdAt       DateTime      @default(now())
@@ -64,8 +73,10 @@ model Bot {
   comments        Comment[]
   hearts          Heart[]
   token           BotToken?
+  maker           User?         @relation("BotMaker", fields: [ownerWallet], references: [walletAddress])
 
   @@index([walletAddress])
+  @@index([ownerWallet])
   @@index([status])       // FIX-5: leaderboard filters by status constantly
   @@index([tier])         // FIX-5: tier filtering
 }
@@ -381,6 +392,7 @@ model User {
   following     Follow[] @relation("Following")
   comments      Comment[]
   vaultPositions VaultPosition[]
+  botsOwned     Bot[]    @relation("BotMaker")
 }
 
 model Follow {

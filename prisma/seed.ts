@@ -12,6 +12,20 @@ async function main() {
   await prisma.tradeEvent.deleteMany()
   await prisma.bot.deleteMany()
 
+  // Makers (first-class Users) — deben existir ANTES que sus bots (FK ownerWallet).
+  const makerWallets = {
+    paper: '0x0000000000000000000000000000000000001234',
+    live: '0x1111111111111111111111111111111111115678',
+    adan: '0xADAN00000000000000000000000000000000PRED',
+  }
+  for (const [key, wallet] of Object.entries(makerWallets)) {
+    await prisma.user.upsert({
+      where: { walletAddress: wallet },
+      update: {},
+      create: { walletAddress: wallet, handle: `maker_${key}`, name: `Maker (${key})` },
+    })
+  }
+
   // 1. Crear Bot PAPER (Stats en null, sin TVL)
   const botPaper = await prisma.bot.create({
     data: {
@@ -21,6 +35,7 @@ async function main() {
       tagline: 'Model Testing Phase',
       description: 'Backtesting new momentum strategies on mid-cap tokens.',
       walletAddress: '0x0000000000000000000000000000000000001234',
+      ownerWallet: makerWallets.paper,
       status: 'PAPER',
       marketType: 'SPOT',
       currentTVL: 0,
@@ -38,6 +53,7 @@ async function main() {
       tagline: 'Live Sports Arbitrage',
       description: 'Arbitrage between Polymarket sports lines and offshore books.',
       walletAddress: '0x1111111111111111111111111111111111115678',
+      ownerWallet: makerWallets.live,
       status: 'LIVE',
       marketType: 'SPORTS',
       currentTVL: 14500.50,
@@ -64,6 +80,7 @@ async function main() {
       tagline: 'Perp-based Predictive Engine',
       description: 'HFT predictive market engine leveraging Tier-1 infrastructure. Aggressive latency and Fill-And-Kill execution.',
       walletAddress: '0xADAN00000000000000000000000000000000PRED',
+      ownerWallet: makerWallets.adan,
       status: 'VAULT_ELIGIBLE_T1',
       marketType: 'POLITICS', // Can be CRYPTO or POLITICS, politics fee = 0.04%
       currentTVL: 125000.00,

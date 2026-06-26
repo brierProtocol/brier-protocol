@@ -67,7 +67,15 @@ export async function POST(req: NextRequest) {
     const moods = ['happy', 'confident', 'neutral', 'thinking', 'intense']
     const mood = moods[Math.floor(Math.random() * moods.length)]
 
-    // Create the bot
+    // Ensure the maker exists as a first-class User BEFORE creating the bot:
+    // Bot.ownerWallet is a FK to User, so the row must exist first.
+    await prisma.user.upsert({
+      where: { walletAddress: finalWallet },
+      create: { walletAddress: finalWallet },
+      update: {},
+    })
+
+    // Create the bot, linked to its maker via ownerWallet.
     const bot = await prisma.bot.create({
       data: {
         slug,
@@ -82,17 +90,11 @@ export async function POST(req: NextRequest) {
         status: 'PAPER',
         tier: 'NONE',
         walletAddress: finalWallet,
+        ownerWallet: finalWallet,
         strategyType: market || 'Polymarket',
         categories: validCategories,
         vaultCap: declaredCap,
       }
-    })
-
-    // Also ensure the user profile exists
-    await prisma.user.upsert({
-      where: { walletAddress: walletAddress.toLowerCase() },
-      create: { walletAddress: walletAddress.toLowerCase() },
-      update: {}
     })
 
     // Register the execution wallet so the indexer watches it on Polymarket.
