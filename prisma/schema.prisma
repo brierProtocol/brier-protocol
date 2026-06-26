@@ -422,6 +422,26 @@ model User {
   comments      Comment[]
   vaultPositions VaultPosition[]
   botsOwned     Bot[]    @relation("BotMaker")
+  equitySnapshots UserEquitySnapshot[]
+}
+
+// ─────────────────────────────────────────────────────────────
+// USER EQUITY SNAPSHOT — one daily point of an investor's portfolio, taken by the
+// snapshot-equity cron. Powers the dashboard's [30D_EQUITY_CURVE] and an honest
+// EST. APY (annualized from the real holding period) without recomputing on read.
+// ─────────────────────────────────────────────────────────────
+model UserEquitySnapshot {
+  id           String   @id @default(cuid())
+  userWallet   String
+  user         User     @relation(fields: [userWallet], references: [walletAddress])
+
+  date         DateTime // daily granularity (one row per user per day)
+  balanceUsdc  Float    // TOTAL BALANCE that day (shares × navPerShare)
+  investedUsdc Float    // cost basis still at work that day
+  pnlUsdc      Float    // all-time PnL that day (unrealized + realized)
+
+  @@unique([userWallet, date])
+  @@index([userWallet, date])
 }
 
 model Follow {

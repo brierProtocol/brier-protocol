@@ -5,7 +5,8 @@ async function main() {
   console.log('🌱 Iniciando Brier Protocol Data Seeding (Fase 2)...')
 
   // Limpieza Idempotente (Borramos data existente para evitar conflictos)
-  console.log('🧹 Limpiando base de datos (VaultPosition, VaultDeposit, BotScore, TradeEvent, Bot)...')
+  console.log('🧹 Limpiando base de datos (EquitySnapshot, VaultPosition, VaultDeposit, BotScore, TradeEvent, Bot)...')
+  await prisma.userEquitySnapshot.deleteMany()
   await prisma.vaultPosition.deleteMany()
   await prisma.vaultDeposit.deleteMany()
   await prisma.botScore.deleteMany()
@@ -104,6 +105,11 @@ async function main() {
   // mayor que el total aportado (100k) => navPerShare ≈ 1.25, o sea cada whale
   // arrastra ~25% de ganancia no realizada: data realista para el dashboard.
   console.log('💰 Generando 10 inversores (User + VaultDeposit + VaultPosition) para ADAN-PRED...')
+  const DAY_MS = 86_400_000
+  // Entraron hace ~90 días, así la APY anualizada da un número sano (~100%) y no
+  // una extrapolación absurda de una ventana de 1 día.
+  const firstDepositAt = new Date(Date.now() - 90 * DAY_MS)
+  const investors: { wallet: string; amount: number }[] = []
   let adanTotalShares = 0
   for (let i = 0; i < 10; i++) {
     const wallet = `0xWHALE${String(i).padStart(35, '0')}` // 42 chars, tipo address
@@ -111,6 +117,7 @@ async function main() {
     const mode = i % 2 === 0 ? 'CONSERVATIVE' : 'DEGEN'
     const shares = amountUsdc                              // NAV génesis = 1 => 1:1
     adanTotalShares += shares
+    investors.push({ wallet, amount: amountUsdc })
 
     // Identidad del inversor (cero-fricción: wallet = user).
     await prisma.user.upsert({
@@ -124,7 +131,7 @@ async function main() {
     })
 
     await prisma.vaultPosition.create({
-      data: { userWallet: wallet, botId: botAdan.id, shares, costBasisUsdc: amountUsdc, mode },
+      data: { userWallet: wallet, botId: botAdan.id, shares, costBasisUsdc: amountUsdc, mode, firstDepositAt },
     })
   }
 
@@ -157,6 +164,29 @@ async function main() {
   }
   const builderTotal = profits.reduce((a, g) => a + g * 0.3, 0)
   console.log(`✅ ${profits.length} distribuciones creadas (builder earnings ADAN=$${builderTotal}).`)
+
+  // Equity snapshots (L7): 30 puntos diarios por inversor → curva 30D + APY honesta.
+  const midnightUTC = (ms: number) => {
+    const d = new Date(ms)
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+  }
+  const snapshots: { userWallet: string; date: Date; balanceUsdc: number; investedUsdc: number; pnlUsdc: number }[] = []
+  for (const inv of investors) {
+    for (let k = 29; k >= 0; k--) {
+      const progress = (29 - k) / 29                                    // 0 (viejo) → 1 (hoy)
+      const balance = +(inv.amount * (1 + 0.25 * progress)).toFixed(2)  // NAV 1.00 → 1.25
+      snapshots.push({
+        userWallet: inv.wallet,
+        date: midnightUTC(Date.now() - k * DAY_MS),
+        balanceUsdc: balance,
+        investedUsdc: inv.amount,
+        pnlUsdc: +(balance - inv.amount).toFixed(2),
+      })
+    }
+  }
+  // Un solo insert masivo: 300 creates sueltos sobre la conexión remota dan timeout.
+  await prisma.userEquitySnapshot.createMany({ data: snapshots })
+  console.log(`✅ ${snapshots.length} equity snapshots creados (30 días × ${investors.length} inversores).`)
 
   console.log('🚀 SEEDING COMPLETADO CON ÉXITO.')
 }

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { isBotStale } from '@/lib/heartbeat';
+import { navPerShare } from '@/lib/portfolio';
+import { userEquitySeries, estimatedApy } from '@/lib/equity';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -29,6 +31,7 @@ export async function GET(request: NextRequest) {
         activePositions: 0,
         allocations: [],
         history: [],
+        equityCurve: [],
       });
     }
 
@@ -44,8 +47,7 @@ export async function GET(request: NextRequest) {
         const bot = pos.bot;
         // navPerShare reflects profit/loss: NAV drops on losses, so a position's
         // value (and a closed-vault claim) is automatically deposited − loss.
-        const navPerShare = bot.totalShares > 0 ? bot.currentTVL / bot.totalShares : 1;
-        const value = pos.shares * navPerShare;
+        const value = pos.shares * navPerShare(bot);
         const pnl = value - pos.costBasisUsdc + pos.realizedPnlUsdc;
 
         portfolioValue += value;
@@ -100,18 +102,23 @@ export async function GET(request: NextRequest) {
         : '0x0000...0000',
     }));
 
+    // Equity curve + honest EST. APY from the daily snapshots (L7).
+    const equityCurve = await userEquitySeries(address, 30);
+    const annualizedReturn = await estimatedApy(address);
+    const yield30d = equityCurve.length >= 2 && equityCurve[0] > 0
+      ? parseFloat((((equityCurve[equityCurve.length - 1] - equityCurve[0]) / equityCurve[0]) * 100).toFixed(1))
+      : 0;
+
     return NextResponse.json({
       portfolioValue: parseFloat(portfolioValue.toFixed(2)),
       totalDeposited: parseFloat(investedCapital.toFixed(2)),
       totalEarned: parseFloat(allTimePnL.toFixed(2)),
-      // Honest placeholders until L7 (UserEquitySnapshot): with no NAV time series we
-      // can't compute a real 30d yield or annualize. annualizedReturn shows the simple
-      // total return % for now — NOT yet annualized.
-      yield30d: 0,
-      annualizedReturn: investedCapital > 0 ? parseFloat(((allTimePnL / investedCapital) * 100).toFixed(1)) : 0,
+      yield30d,
+      annualizedReturn,
       activePositions: allocations.length,
       allocations,
       history,
+      equityCurve,
     });
   } catch (error: any) {
     console.error('Dashboard API Error:', error);

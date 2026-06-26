@@ -80,6 +80,7 @@ interface DashboardData {
   activePositions: number;
   allocations: Allocation[];
   history: DashboardHistoryItem[];
+  equityCurve: number[];
 }
 
 export default function DashboardPage() {
@@ -113,9 +114,10 @@ export default function DashboardPage() {
     })
   }
 
-  // Generate a mock curve scaled to portfolio value
-  const baseCurve = [1, 1.02, 1.015, 1.04, 1.08, 1.075, 1.11, 1.142]
-  const pnlData = dashData?.portfolioValue ? baseCurve.map(v => v * dashData.totalDeposited) : [0,0,0,0,0]
+  // Real 30d equity curve from snapshots (L7). Flat line until the cron has run.
+  const pnlData = dashData?.equityCurve && dashData.equityCurve.length > 0
+    ? dashData.equityCurve
+    : [0, 0, 0, 0, 0]
 
   if (!isConnected) {
     return (
