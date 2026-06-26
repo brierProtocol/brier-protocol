@@ -96,9 +96,13 @@ export async function POST(req: NextRequest) {
 
     // Register the execution wallet so the indexer watches it on Polymarket.
     // This is what turns the bot from a claim into something verified on-chain.
+    // Best-effort: a duplicate/failed connection must never break registration,
+    // but we log it instead of swallowing it silently.
     await prisma.polyConnection.create({
       data: { botId: bot.id, walletAddress: finalWallet },
-    }).catch(() => {})
+    }).catch((connErr) => {
+      console.error('PolyConnection create failed (bot still registered):', connErr)
+    })
 
     // Token launch is a separate, owner-initiated step (POST /api/tokens)
     return NextResponse.json({
