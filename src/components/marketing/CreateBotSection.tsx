@@ -42,8 +42,23 @@ export default function CreateBotSection() {
     }
     build()
 
-    let raf = 0, t = 0
+    // glow pre-renderizado: evita ctx.shadowBlur por partícula por frame (carísimo)
+    const makeGlow = (r: number, g: number, b: number) => {
+      const S = 24
+      const c = document.createElement('canvas'); c.width = c.height = S
+      const gx = c.getContext('2d')!
+      const grd = gx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2)
+      grd.addColorStop(0, `rgba(${r},${g},${b},1)`)
+      grd.addColorStop(0.4, `rgba(${r},${g},${b},0.5)`)
+      grd.addColorStop(1, `rgba(${r},${g},${b},0)`)
+      gx.fillStyle = grd; gx.fillRect(0, 0, S, S)
+      return c
+    }
+    const redGlow = makeGlow(255, 42, 77)
+
+    let raf = 0, t = 0, visible = true
     const frame = () => {
+      if (!visible) return
       t += 0.016
       ctx.clearRect(0, 0, W, H)
       for (const d of dots) {
@@ -51,25 +66,33 @@ export default function CreateBotSection() {
         if (d.x < 0) d.x = W; if (d.x > W) d.x = 0
         if (d.y < 0) d.y = H; if (d.y > H) d.y = 0
         const tw = 0.6 + 0.4 * Math.sin(t * 1.5 + d.tw)
-        ctx.beginPath()
-        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2)
         if (d.red) {
-          ctx.fillStyle = `rgba(255,42,77,${d.a * tw})`
-          ctx.shadowColor = 'rgba(255,42,77,0.8)'; ctx.shadowBlur = 6
+          const sz = (d.r + 5) * 2
+          ctx.globalAlpha = d.a * tw
+          ctx.drawImage(redGlow, d.x - sz / 2, d.y - sz / 2, sz, sz)
+          ctx.globalAlpha = 1
         } else {
+          ctx.beginPath()
+          ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2)
           ctx.fillStyle = `rgba(255,255,255,${d.a * tw * 0.8})`
-          ctx.shadowBlur = 0
+          ctx.fill()
         }
-        ctx.fill()
       }
-      ctx.shadowBlur = 0
       raf = requestAnimationFrame(frame)
     }
     if (reduceMotion) { ctx.clearRect(0, 0, W, H) } else frame()
 
+    // pausa fuera de viewport
+    const io = new IntersectionObserver((es) => {
+      const on = es[0].isIntersecting
+      if (on && !visible && !reduceMotion) { visible = true; frame() }
+      else if (!on) { visible = false; cancelAnimationFrame(raf) }
+    }, { threshold: 0 })
+    io.observe(wrap)
+
     const onResize = () => build()
     window.addEventListener('resize', onResize)
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', onResize) }
+    return () => { cancelAnimationFrame(raf); io.disconnect(); window.removeEventListener('resize', onResize) }
   }, [])
 
   return (

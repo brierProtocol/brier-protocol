@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
+import { events } from '@/lib/events/bus'
 
 /**
  * POST /api/bots/register
@@ -104,12 +105,15 @@ export async function POST(req: NextRequest) {
       console.error('PolyConnection create failed (bot still registered):', connErr)
     })
 
+    // Emit AgentRegistered into the event bus (best-effort).
+    await events.agentRegistered(bot.id, { slug: bot.slug, name: bot.name, walletAddress: finalWallet })
+
     // Token launch is a separate, owner-initiated step (POST /api/tokens)
     return NextResponse.json({
       ok: true,
       botId: bot.id,
       slug: bot.slug,
-      message: `Algorithm "${bot.name}" registered successfully. Entering calibration phase (50 resolved trades).`
+      message: `Algorithm "${bot.name}" registered successfully. Entering calibration phase (100 resolved trades).`
     })
 
   } catch (err: any) {
