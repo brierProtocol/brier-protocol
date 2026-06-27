@@ -61,6 +61,7 @@ model Bot {
   comments        Comment[]
   hearts          Heart[]
   token           BotToken?
+  apiKeys         ApiKey[]
 
   @@index([walletAddress])
   @@index([status])       // FIX-5: leaderboard filters by status constantly
@@ -291,6 +292,36 @@ model KalshiConnection {
   kalshiUserId    String
   lastSyncAt      DateTime?
   syncStatus      String   @default("idle")
+}
+
+// ─────────────────────────────────────────────────────────────
+// API KEY — a builder's signing credential for ONE bot. The raw secret is shown
+// to the builder exactly once at creation, then only ever stored encrypted at
+// rest (AES-256-GCM via lib/crypto, same envelope as KalshiConnection). The
+// executor resolves the secret by `prefix` to verify the HMAC of each signal,
+// so each bot signs with its OWN secret instead of one global shared key.
+// Supports multiple keys per bot + rotation (issue new, revoke old).
+// ─────────────────────────────────────────────────────────────
+model ApiKey {
+  id            String    @id @default(cuid())
+  botId         String
+  bot           Bot       @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  // Public identifier, e.g. "bk_live_a1b2c3d4e5f6g7h8". Sent in the x-brier-key
+  // header so the executor knows which secret to verify against. Safe to display.
+  prefix        String    @unique
+  label         String    @default("default")
+
+  // The signing secret, encrypted at rest. Never stored or logged raw.
+  encryptedKey  String
+  keyIv         String
+  keyAuthTag    String
+
+  lastUsedAt    DateTime?
+  revokedAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([botId])
 }
 
 model PnlSnapshot {
