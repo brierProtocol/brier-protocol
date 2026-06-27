@@ -13,7 +13,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -29,7 +30,17 @@
     "trading-bot",
     "sdk"
   ],
+  "author": "Brier Protocol",
   "license": "MIT",
+  "homepage": "https://brier.world",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brierProtocol/brier-protocol.git",
+    "directory": "packages/brier-sdk-js"
+  },
+  "bugs": {
+    "url": "https://github.com/brierProtocol/brier-protocol/issues"
+  },
   "publishConfig": {
     "access": "public"
   }
