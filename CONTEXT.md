@@ -107,9 +107,10 @@ al menos **1 review**.
   - **Oráculo de resolución** (`brier-executor/.../watcher.ts`): **REAL.** Consulta
     `clob.polymarket.com/markets/{conditionId}` cada 5 min; resuelve WIN/LOSS según
     el token ganador (ya NO resuelve al azar).
-  - **Price feed del Risk Engine** (`worker.ts`, línea ~141): **sigue MOCK** (hardcoded
-    `0.50`). Es el único mock crítico que queda: el stop-loss de PERPS no es fiable en
-    prod hasta cablear un WebSocket de precios del CLOB. Marcado con TODO en el código.
+  - **Price feed del Risk Engine** (`brier-executor/src/price-feed.ts`): **REAL.**
+    Consulta `GET /midpoint?token_id=<tokenId>` en el CLOB de Polymarket (5s Redis
+    cache, null-safe — si el CLOB no responde el Risk Engine omite el chequeo en lugar
+    de disparar un stop-loss falso).
   - **Circuit breaker** (`api/cron/circuit-breaker`): pausa el vault automáticamente si
     el Brier se deteriora (>0.08 en 7d) y llama `vault.pause()` on-chain.
 
