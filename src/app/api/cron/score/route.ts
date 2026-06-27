@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { computeBotMetrics } from '@/lib/score-engine'
 import { checkStatusTransitions } from '@/lib/incubation'
+import { events } from '@/lib/events/bus'
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -63,6 +64,15 @@ export async function GET(req: NextRequest) {
           },
         }),
       ])
+
+      // Emit ScoreUpdated into the event bus (best-effort, never blocks scoring).
+      await events.scoreUpdated(bot.id, {
+        brierScore: m.brierScore,
+        winRate: m.winRate,
+        sharpe: m.sharpe,
+        totalTrades: m.totalTrades,
+        status: bot.status,
+      })
 
       // Promotion (LIVE -> VAULT_ELIGIBLE_T1, etc.)
       await checkStatusTransitions(bot.id).catch(() => {})
