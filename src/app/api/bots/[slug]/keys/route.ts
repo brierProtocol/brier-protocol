@@ -1,8 +1,11 @@
 /**
  * Per-bot API key management.
  *
- *   GET  /api/bots/:id/keys   → list this bot's keys (masked, no secrets)
- *   POST /api/bots/:id/keys   → issue a new key, returns the raw secret ONCE
+ *   GET  /api/bots/:slug/keys   → list this bot's keys (masked, no secrets)
+ *   POST /api/bots/:slug/keys   → issue a new key, returns the raw secret ONCE
+ *
+ * :slug accepts the bot's slug or its id. Segment is [slug] (not [id]) to avoid a
+ * Next.js dynamic-segment-name clash with the sibling /api/bots/[slug] route.
  *
  * Issuing requires a wallet-ownership signature (see lib/owner-auth): the caller
  * signs a message with the bot's wallet, proving they own the bot. The raw secret
@@ -13,20 +16,20 @@ import { prisma } from '@/lib/db/prisma'
 import { issueApiKey, listApiKeys } from '@/lib/api-keys'
 import { verifyOwnership } from '@/lib/owner-auth'
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const bot = await prisma.bot.findFirst({ where: { OR: [{ id }, { slug: id }] }, select: { id: true } })
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const bot = await prisma.bot.findFirst({ where: { OR: [{ id: slug }, { slug }] }, select: { id: true } })
   if (!bot) return NextResponse.json({ error: 'Bot not found' }, { status: 404 })
 
   const keys = await listApiKeys(bot.id)
   return NextResponse.json({ keys })
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export async function POST(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
 
   const bot = await prisma.bot.findFirst({
-    where: { OR: [{ id }, { slug: id }] },
+    where: { OR: [{ id: slug }, { slug }] },
     select: { id: true, walletAddress: true },
   })
   if (!bot) return NextResponse.json({ error: 'Bot not found' }, { status: 404 })

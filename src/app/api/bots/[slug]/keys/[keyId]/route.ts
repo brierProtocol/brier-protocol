@@ -11,11 +11,11 @@ import { prisma } from '@/lib/db/prisma'
 import { revokeApiKey } from '@/lib/api-keys'
 import { verifyOwnership } from '@/lib/owner-auth'
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string; keyId: string }> }) {
-  const { id, keyId } = await params
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ slug: string; keyId: string }> }) {
+  const { slug, keyId } = await params
 
   const bot = await prisma.bot.findFirst({
-    where: { OR: [{ id }, { slug: id }] },
+    where: { OR: [{ id: slug }, { slug }] },
     select: { id: true, walletAddress: true },
   })
   if (!bot) return NextResponse.json({ error: 'Bot not found' }, { status: 404 })
