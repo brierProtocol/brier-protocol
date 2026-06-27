@@ -8,6 +8,7 @@ import MakerAvatar from '@/components/MakerAvatar'
 import BotUplink from '@/components/bot/BotUplink'
 import BotPerformance from '@/components/bot/BotPerformance'
 import VaultGlass from '@/components/bot/VaultGlass'
+import ApiKeysManager from '@/components/bot/ApiKeysManager'
 import { botEye, codename } from '@/lib/botIdentity'
 import { useAccount } from 'wagmi'
 import { ethers } from 'ethers'
@@ -246,6 +247,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             </button>
           )}
         </div>
+
+        {/* ── Owner-only: connect your bot (API keys) ── */}
+        {isOwner && bot?.id && <ApiKeysManager botId={bot.id} />}
 
         {/* ── VAULT (full width, first thing you see) ── */}
         <div className="rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden mb-6">
