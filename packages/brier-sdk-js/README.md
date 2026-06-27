@@ -1,7 +1,8 @@
 # @brier/sdk
 
-Connect a prediction bot to **Brier Protocol** in ~10 lines. The SDK signs every
-signal with your bot's API key and sends it to the executor. Node 18+.
+Build a **verifiable prediction track record** in ~10 lines. Commit a probability
+on a real market, Brier resolves it independently, your Brier Score updates. No
+capital, no vault, no on-chain anything. Node 18+.
 
 ## Install
 
@@ -9,35 +10,46 @@ signal with your bot's API key and sends it to the executor. Node 18+.
 npm install @brier/sdk
 ```
 
-## Quickstart
+## Quickstart — your first prediction (no money required)
 
 1. Create a bot in the dashboard and copy its **bot id**.
 2. Click **Generate API key** (you sign once with your wallet). Copy the `bk_live_...`
    secret — it is shown only once.
-3. Send your first signal:
+3. Predict:
 
 ```ts
 import { BrierClient } from '@brier/sdk'
-import { randomUUID } from 'node:crypto'
 
 const brier = new BrierClient({
-  baseUrl: process.env.BRIER_EXECUTOR_URL!, // e.g. https://executor.brier.world
-  apiKey: process.env.BRIER_API_KEY!,       // bk_live_...
+  baseUrl: 'https://brier.world',     // the Brier API
+  apiKey: process.env.BRIER_API_KEY!, // bk_live_...
 })
 
-await brier.sendTradeSignal({
-  tradeId: randomUUID(),
+await brier.predict({
   botId: process.env.BRIER_BOT_ID!,
-  vaultAddress: '0xYourVault',
-  marketId: '0xOutcomeToken',
-  outcomeIndex: 0,
-  entryPrice: 0.62,   // probability you assign, 0..1
-  size: 100,          // USDC
-  confidence: 0.8,
+  marketId: '0xMarketConditionId',
+  side: 'YES',
+  probability: 0.62, // your P(YES wins), strictly between 0 and 1
 })
 ```
 
-That's it. The signal is authenticated, risk-checked, and queued for execution.
+That's it. The prediction is committed and timestamped; when the market settles on
+Polymarket, Brier resolves it and folds it into your score. Watch it on your profile.
+
+## Going live (later)
+
+Once your bot clears the gate and earns a vault, the same client drives real
+execution — just add the executor URL:
+
+```ts
+const brier = new BrierClient({
+  baseUrl: 'https://brier.world',
+  executorUrl: 'https://executor.brier.world',
+  apiKey: process.env.BRIER_API_KEY!,
+})
+
+await brier.sendTradeSignal({ /* tradeId, botId, vaultAddress, marketId, ... */ })
+```
 
 ## What the SDK handles for you
 
@@ -50,13 +62,27 @@ That's it. The signal is authenticated, risk-checked, and queued for execution.
 ## API
 
 ```ts
-new BrierClient({ baseUrl, apiKey, maxRetries?, timeoutMs? })
+new BrierClient({ baseUrl, apiKey, executorUrl?, maxRetries?, timeoutMs? })
 
-client.sendTradeSignal(signal): Promise<unknown>
+client.predict(prediction): Promise<unknown>          // the fast path — no capital
+client.sendTradeSignal(signal): Promise<unknown>      // live trading (needs executorUrl)
 client.health(): Promise<unknown>
 ```
 
-### `BrierTradeSignal`
+### `PredictionInput` (predict)
+
+| field | type | notes |
+|---|---|---|
+| `botId` | string | from the dashboard |
+| `marketId` | string | the market conditionId |
+| `side` | `YES \| NO` | which side you back |
+| `probability` | number | P(your side wins), strictly 0..1 |
+| `marketTitle?` | string | optional label |
+
+One prediction per (bot, market): you can't resubmit after the market moves. The
+market must still be open when you commit.
+
+### `BrierTradeSignal` (sendTradeSignal — advanced)
 
 | field | type | notes |
 |---|---|---|
@@ -74,8 +100,8 @@ client.health(): Promise<unknown>
 
 ## Key rotation
 
-Generate a new key before revoking the old one — the executor accepts any active
-key for your bot, so there is no downtime. Revoke the old key from the dashboard.
+Generate a new key before revoking the old one — Brier accepts any active key for
+your bot, so there is no downtime. Revoke the old key from the dashboard.
 
 ## Security
 
