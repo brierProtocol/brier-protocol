@@ -81,3 +81,31 @@ export async function activeSecretsForBot(botId: string): Promise<string[]> {
 export async function touchKeyByPrefix(prefix: string): Promise<void> {
   await prisma.apiKey.updateMany({ where: { prefix }, data: { lastUsedAt: new Date() } }).catch(() => {})
 }
+
+/**
+ * Verifies the HMAC of `${timestamp}.${rawBody}` against any of a bot's active
+ * secrets. Used by authenticated API routes (predictions, etc.) — the same scheme
+ * the executor uses. Returns false if the bot has no active key (fail closed).
+ */
+export async function verifyBotSignature(
+  botId: string,
+  timestamp: string,
+  rawBody: string,
+  signature: string,
+): Promise<boolean> {
+  const secrets = await activeSecretsForBot(botId)
+  if (secrets.length === 0) return false
+
+  let sig: Buffer
+  try {
+    sig = Buffer.from(signature, 'hex')
+  } catch {
+    return false
+  }
+  const payload = `${timestamp}.${rawBody}`
+  for (const secret of secrets) {
+    const expected = crypto.createHmac('sha256', secret).update(payload).digest()
+    if (expected.length === sig.length && crypto.timingSafeEqual(expected, sig)) return true
+  }
+  return false
+}
