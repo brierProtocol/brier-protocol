@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { SHADOW_RESOLVED_TARGET } from '@/lib/botProgress'
+import { events } from '@/lib/events/bus'
 
 /**
  * POST /api/bots/register
@@ -103,12 +103,15 @@ export async function POST(req: NextRequest) {
       data: { botId: bot.id, walletAddress: finalWallet },
     }).catch(() => {})
 
+    // Emit AgentRegistered into the event bus (best-effort).
+    await events.agentRegistered(bot.id, { slug: bot.slug, name: bot.name, walletAddress: finalWallet })
+
     // Token launch is a separate, owner-initiated step (POST /api/tokens)
     return NextResponse.json({
       ok: true,
       botId: bot.id,
       slug: bot.slug,
-      message: `Algorithm "${bot.name}" registered successfully. Entering calibration phase (${SHADOW_RESOLVED_TARGET} resolved trades).`
+      message: `Algorithm "${bot.name}" registered successfully. Entering calibration phase (100 resolved trades).`
     })
 
   } catch (err: any) {

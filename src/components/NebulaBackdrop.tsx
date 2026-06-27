@@ -52,8 +52,25 @@ export default function NebulaBackdrop({ className = '' }: { className?: string 
     }
     build()
 
-    let raf = 0, t = 0
+    // Glow pre-renderizado una sola vez. Antes cada partícula usaba shadowBlur por
+    // frame (lo más caro de canvas 2D); ahora es un drawImage de un sprite con gradiente.
+    const makeGlow = (r: number, g: number, b: number) => {
+      const S = 32
+      const c = document.createElement('canvas'); c.width = c.height = S
+      const gx = c.getContext('2d')!
+      const grd = gx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2)
+      grd.addColorStop(0, `rgba(${r},${g},${b},1)`)
+      grd.addColorStop(0.35, `rgba(${r},${g},${b},0.55)`)
+      grd.addColorStop(1, `rgba(${r},${g},${b},0)`)
+      gx.fillStyle = grd; gx.fillRect(0, 0, S, S)
+      return c
+    }
+    const redGlow = makeGlow(255, 42, 77)
+    const whiteGlow = makeGlow(255, 255, 255)
+
+    let raf = 0, t = 0, visible = true
     const frame = () => {
+      if (!visible) return
       t += 0.016
       ctx.clearRect(0, 0, W, H)
       for (const p of ps) {
@@ -61,27 +78,28 @@ export default function NebulaBackdrop({ className = '' }: { className?: string 
         if (p.x < -6) p.x = W + 6; if (p.x > W + 6) p.x = -6
         if (p.y < -6) p.y = H + 6; if (p.y > H + 6) p.y = -6
         const tw = 0.6 + 0.4 * Math.sin(t * 1.4 + p.tw)
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
-        if (p.red) {
-          ctx.fillStyle = `rgba(255,42,77,${p.a * tw})`
-          ctx.shadowColor = 'rgba(255,42,77,0.8)'; ctx.shadowBlur = 7
-        } else {
-          ctx.fillStyle = `rgba(255,255,255,${p.a * tw})`
-          ctx.shadowColor = 'rgba(255,255,255,0.5)'; ctx.shadowBlur = 4
-        }
-        ctx.fill()
+        const d = (p.r + (p.red ? 6 : 3)) * 2
+        ctx.globalAlpha = p.a * tw
+        ctx.drawImage(p.red ? redGlow : whiteGlow, p.x - d / 2, p.y - d / 2, d, d)
       }
-      ctx.shadowBlur = 0
+      ctx.globalAlpha = 1
       raf = requestAnimationFrame(frame)
     }
     frame()
+
+    // pausa fuera de viewport
+    const io = new IntersectionObserver((es) => {
+      const on = es[0].isIntersecting
+      if (on && !visible) { visible = true; frame() }
+      else if (!on) { visible = false; cancelAnimationFrame(raf) }
+    }, { threshold: 0 })
+    io.observe(wrap)
 
     const onResize = () => build()
     window.addEventListener('resize', onResize)
     const ro = new ResizeObserver(() => build())
     ro.observe(wrap)
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); ro.disconnect() }
+    return () => { cancelAnimationFrame(raf); io.disconnect(); window.removeEventListener('resize', onResize); ro.disconnect() }
   }, [])
 
   return (
