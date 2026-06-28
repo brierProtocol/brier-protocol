@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import BotIrisAvatar from '@/components/BotIrisAvatar'
+import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
+import { botEye } from '@/lib/botIdentity'
 import { FEATURES } from '@/lib/features'
 
 type Mood = 'cool' | 'happy' | 'excited' | 'neutral' | 'anxious' | 'sad' | 'suspicious' | 'sleeping'
@@ -13,6 +14,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagm
 import { parseUnits, erc20Abi, parseAbi } from 'viem'
 import dynamic from 'next/dynamic'
 const Liveline = dynamic(() => import('liveline').then(mod => mod.Liveline), { ssr: false })
+const USDC_ADDRESS = (process.env.NEXT_PUBLIC_USDC_ADDRESS || '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174') as `0x${string}`
 
 type ChartView = 'cumulative' | 'wr' | 'daily' | 'brier'
 type TimeRange = '7d' | '30d' | '90d' | 'all'

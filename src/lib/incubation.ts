@@ -1,4 +1,4 @@
-import { prisma } from './prisma'
+import { prisma } from './db/prisma'
 import { FEATURES } from './features'
 
 /**
@@ -41,10 +41,6 @@ export async function checkStatusTransitions(botId: string) {
   if (bot.status === 'LIVE') {
     const meetsTrades = score.totalTrades >= T1_MIN_TRADES
     const meetsBrier = score.brierScore <= T1_MAX_BRIER
-
-    // maxDrawdown is stored as a negative fraction (e.g. -0.18 = -18%).
-    // A bot graduates only if its worst drawdown is within the T1 ceiling.
-    const meetsDrawdown = Math.abs(score.maxDrawdown) <= T1_MAX_DRAWDOWN
 
     // Drawdown real: maxDrawdown se guarda como % negativo (p.ej. -0.18 = -18%).
     const meetsDrawdown = Math.abs(score.maxDrawdown) <= T1_MAX_DRAWDOWN

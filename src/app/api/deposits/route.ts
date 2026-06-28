@@ -7,7 +7,9 @@ import { FEATURES } from '@/lib/features';
 // Direccion del contrato USDC esperado. Si se define (USDC_ADDRESS_ENV), SOLO se aceptan
 // transferencias de ese token (evita depositar un ERC20 falso e inflar el TVL).
 // undefined => validacion de token deshabilitada.
-const USDC_ADDRESS = USDC_ADDRESS_ENV?.toLowerCase();
+const USDC_ADDRESS = process.env.USDC_ADDRESS?.toLowerCase();
+const RPC_URL = process.env.RPC_URL || 'https://polygon-rpc.com';
+const USDC_DECIMALS = 6;
 
 // ERC20 Transfer Event Signature
 const TRANSFER_EVENT_SIG = ethers.id('Transfer(address,address,uint256)');
@@ -133,30 +135,6 @@ export async function POST(request: NextRequest) {
       throw e;
     }
 
-    // 4. Guardar el depósito (con txHash para el anti-replay).
-    let deposit;
-    try {
-      deposit = await prisma.vaultDeposit.create({
-        data: {
-          botId,
-          depositorWallet,
-          amountUsdc: realAmountUsdc,
-          txHash,
-          mode: mode || 'CONSERVATIVE',
-          active: true,
-          totalProfitEarned: 0,
-        },
-      });
-    } catch (e: any) {
-      // P2002 = violación de índice único (txHash) por carrera concurrente.
-      if (e?.code === 'P2002') {
-        return NextResponse.json(
-          { error: 'This transaction has already been recorded' },
-          { status: 409 }
-        );
-      }
-      throw e;
-    }
 
     // 5. Incrementar el TVL del bot con el monto REAL
     await prisma.bot.update({
