@@ -14,6 +14,12 @@ const executorWallet = new ethers.Wallet(process.env.EXECUTOR_PRIVATE_KEY || '0x
 
 const CTF_ABI = ['function redeemPositions(address collateralToken, bytes32 parentCollectionId, bytes32 conditionId, uint256[] indexSets) external'];
 
+// Redis Set of tradeIds with an OPEN perp position. The Risk Engine iterates THIS
+// instead of scanning the whole keyspace with KEYS 'trade:*' (which is O(N) over
+// every key and blocks the Redis shared with BullMQ). Adds on open, removes on
+// close / stop-loss; the loop also self-heals any stale members.
+const ACTIVE_PERP_SET = 'active_perp_trades';
+
 // =========================================================
 // Trade Execution Worker (SPOT + PERP Routing)
 // =========================================================
@@ -67,6 +73,8 @@ const executionWorker = new Worker('trade-signals', async job => {
                 marketId: marketId,
                 vaultAddress: vaultAddress
             });
+            // Register in the active-perp set so the Risk Engine watches it (no keyspace scan).
+            await redis.sadd(ACTIVE_PERP_SET, tradeId);
             console.log(`[Perp Engine] CLOB order ${result.orderId} → ${result.status}. SL: ${stopLossPrice}`);
         } else if (actionType === 'CLOSE') {
             console.log(`[Perp Engine] Executing Market CLOSE for ${tradeId}...`);
@@ -77,6 +85,7 @@ const executionWorker = new Worker('trade-signals', async job => {
                 worstPrice: Number(worstPrice ?? 0.5),
             });
             await redis.hset(`trade:${tradeId}`, { status: 'settled', closeOrderId: result.orderId ?? '' });
+            await redis.srem(ACTIVE_PERP_SET, tradeId);
             console.log(`[Perp Engine] Position closed via CLOB order ${result.orderId}. Ready for PnL settlement.`);
         }
     }
@@ -84,6 +93,7 @@ const executionWorker = new Worker('trade-signals', async job => {
   } catch (error) {
     console.error(`[Executor] Failed to execute trade ${tradeId}:`, error);
     await redis.hset(`trade:${tradeId}`, 'status', 'failed');
+    await redis.srem(ACTIVE_PERP_SET, tradeId); // never leave a failed trade in the watch set
     throw error;
   }
 }, { connection: redisConfig });
@@ -132,30 +142,40 @@ const settlementWorker = new Worker('trade-settlements', async job => {
 // =========================================================
 setInterval(async () => {
     try {
-        const keys = await redis.keys('trade:*');
-        for (const key of keys) {
+        // Only the open perp positions, not the whole keyspace. O(active) instead of
+        // O(all keys), and no blocking KEYS on the Redis shared with BullMQ.
+        const ids: string[] = await redis.smembers(ACTIVE_PERP_SET);
+        for (const id of ids) {
+            const key = `trade:${id}`;
             const trade = await redis.hgetall(key);
-            if (trade.status === 'active_perp') {
-                const currentLivePrice = await getLivePrice(trade.marketId, redis);
-                if (currentLivePrice === null) continue; // CLOB unreachable — skip, don't fire false SL
 
-                // Si el precio cruza el Stop Loss, DISPARAR MARKET CLOSE INMEDIATO
-                if (trade.stopLoss && parseFloat(trade.stopLoss) > 0) {
-                    const isLong = trade.direction === 'LONG';
-                    const sl = parseFloat(trade.stopLoss);
+            // Self-heal: anything no longer an open perp (closed elsewhere, expired,
+            // or missing) is dropped from the watch set so it never accumulates.
+            if (trade.status !== 'active_perp') {
+                await redis.srem(ACTIVE_PERP_SET, id);
+                continue;
+            }
 
-                    if ((isLong && currentLivePrice <= sl) || (!isLong && currentLivePrice >= sl)) {
-                        console.error(`[Risk Engine] STOP LOSS TRIGGERED for ${key}! Price=${currentLivePrice} SL=${sl}. Executing Market Close!`);
-                        await redis.hset(key, 'status', 'stop_loss_triggered');
-                        // Close the position via CLOB (best-effort)
-                        closePerpPosition({
-                            tokenID: trade.marketId,
-                            direction: (trade.direction || 'LONG') as 'LONG' | 'SHORT',
-                            size: parseFloat(trade.size || '0'),
-                            worstPrice: parseFloat(trade.worstPrice || '0.5'),
-                        }).then(r => redis.hset(key, { status: 'stop_loss_executed', closeOrderId: r.orderId ?? '' }))
-                          .catch(e => console.error(`[Risk Engine] Close order failed for ${key}:`, e));
-                    }
+            const currentLivePrice = await getLivePrice(trade.marketId, redis);
+            if (currentLivePrice === null) continue; // CLOB unreachable — skip, don't fire false SL
+
+            // Si el precio cruza el Stop Loss, DISPARAR MARKET CLOSE INMEDIATO
+            if (trade.stopLoss && parseFloat(trade.stopLoss) > 0) {
+                const isLong = trade.direction === 'LONG';
+                const sl = parseFloat(trade.stopLoss);
+
+                if ((isLong && currentLivePrice <= sl) || (!isLong && currentLivePrice >= sl)) {
+                    console.error(`[Risk Engine] STOP LOSS TRIGGERED for ${key}! Price=${currentLivePrice} SL=${sl}. Executing Market Close!`);
+                    await redis.hset(key, 'status', 'stop_loss_triggered');
+                    await redis.srem(ACTIVE_PERP_SET, id); // leaves the watch set now; don't re-fire while the close is in flight
+                    // Close the position via CLOB (best-effort)
+                    closePerpPosition({
+                        tokenID: trade.marketId,
+                        direction: (trade.direction || 'LONG') as 'LONG' | 'SHORT',
+                        size: parseFloat(trade.size || '0'),
+                        worstPrice: parseFloat(trade.worstPrice || '0.5'),
+                    }).then(r => redis.hset(key, { status: 'stop_loss_executed', closeOrderId: r.orderId ?? '' }))
+                      .catch(e => console.error(`[Risk Engine] Close order failed for ${key}:`, e));
                 }
             }
         }
