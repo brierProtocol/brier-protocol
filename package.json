@@ -21,7 +21,7 @@
     "test:skill": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"customConditions\":null,\"esModuleInterop\":true}' ts-node scripts/test-skill.ts"
   },
   "prisma": {
-    "seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts"
+    "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@openzeppelin/contracts": "5.0.2",

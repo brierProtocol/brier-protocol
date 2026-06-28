@@ -37,13 +37,28 @@ model Bot {
   // truth). When present, the catalog trusts these over the declared ones.
   verifiedCategories String[]   @default([])
   lastIndexedAt   DateTime?
+  // Last bot heartbeat (spec §2.2: bots emit every ~4s). The dashboard reads this
+  // and shows "stale" if none arrived within HEARTBEAT_STALE_MS. Null = never
+  // reported / not operating. See src/lib/heartbeat.ts.
+  lastHeartbeatAt DateTime?
 
   walletAddress   String
+  // Maker/builder wallet that PUBLISHED the bot. Distinct from walletAddress,
+  // which can hold the bot's Polymarket execution wallet. FK to User so the maker
+  // is a first-class identity. Nullable so a bot can exist before its maker links.
+  ownerWallet     String?
   vaultAddress    String?
   skinInGame      Float         @default(0)
   vaultCap        Float         @default(0)
   currentTVL      Float         @default(0)
+  // ERC-4626 vault shares minted (off-chain mirror). navPerShare = currentTVL / totalShares.
+  totalShares     Float         @default(0)
   vaultOpen       Boolean       @default(false)
+  // Vault terminal state (Darwinism black-swan): once set, the vault is CLOSED —
+  // no new deposits; depositors can only claim (redeem at current NAV). Set by the
+  // risk engine via closeVault() — see src/lib/vault-lifecycle.ts.
+  vaultClosedAt   DateTime?
+  vaultCloseReason String?      // CIRCUIT_BREAKER | DRAWDOWN_BREACH | MANUAL
   strategyType    String        @default("hybrid")
   
   createdAt       DateTime      @default(now())
@@ -54,6 +69,8 @@ model Bot {
   trades          TradeEvent[]
   scores          BotScore[]
   deposits        VaultDeposit[]
+  positions       VaultPosition[]
+  distributions   Distribution[]
   incubationLogs  IncubationLog[]
   pnlSnapshots    PnlSnapshot[]
   polyConnection  PolyConnection?
@@ -61,8 +78,10 @@ model Bot {
   comments        Comment[]
   hearts          Heart[]
   token           BotToken?
+  maker           User?         @relation("BotMaker", fields: [ownerWallet], references: [walletAddress])
 
   @@index([walletAddress])
+  @@index([ownerWallet])
   @@index([status])       // FIX-5: leaderboard filters by status constantly
   @@index([tier])         // FIX-5: tier filtering
 }
@@ -223,6 +242,13 @@ model VaultDeposit {
   depositorWallet  String
   amountUsdc       Float
 
+  // ERC-4626 vault shares minted for this deposit (off-chain mirror of the on-chain mint).
+  shares           Float     @default(0)
+
+  // DEPOSIT | REDEEM — ledger entry type. Today only DEPOSIT rows are written here;
+  // redeems update VaultPosition and flip active=false (see /api/withdraw).
+  kind             String    @default("DEPOSIT")
+
   // Hash de la transacción on-chain. Único => previene replay (mismo txHash 2 veces).
   // Nullable para no romper datos sembrados antiguos; la API siempre lo setea ahora.
   txHash           String?   @unique
@@ -239,6 +265,67 @@ model VaultDeposit {
   depositedAt      DateTime  @default(now())
   exitedAt         DateTime?
   exitReason       String?   // MANUAL | CIRCUIT_BREAKER | CONSERVATIVE_TRIGGER | VAULT_SUSPENDED
+
+  @@index([depositorWallet])
+  @@index([botId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// VAULT POSITION — aggregated holding of ONE investor in ONE bot's vault.
+// This is the source of truth for the user's dashboard portfolio (Total
+// Balance, Invested Capital, Active Bots). VaultDeposit stays the raw on-chain
+// ledger; VaultPosition is the rolled-up, share-based view per (user, bot).
+// ─────────────────────────────────────────────────────────────
+model VaultPosition {
+  id              String   @id @default(cuid())
+
+  // Investor identity. Wallet = user (cero-fricción onboarding). FK is safe here
+  // because this is a new table; deposit/withdraw upsert the User first.
+  userWallet      String
+  user            User     @relation(fields: [userWallet], references: [walletAddress])
+
+  botId           String
+  bot             Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  // ERC-4626 vault shares this user currently holds in this bot's vault.
+  shares          Float    @default(0)
+  // USDC paid in for the shares still held (cost basis). Drops proportionally on redeem.
+  costBasisUsdc   Float    @default(0)
+  // PnL booked on redeems. Unrealized PnL = shares * navPerShare - costBasisUsdc.
+  realizedPnlUsdc Float    @default(0)
+
+  // CONSERVATIVE | DEGEN — risk mode the user chose for this vault.
+  mode            String   @default("CONSERVATIVE")
+
+  firstDepositAt  DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userWallet, botId])
+  @@index([botId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// DISTRIBUTION — one profit-split event. When a settlement books POSITIVE profit
+// for a bot, it is split 60/30/10 (depositors / builder / protocol). Losses are
+// NOT distributed — they hit NAV directly (Darwinism). Cuts are stored as concrete
+// USDC amounts so reporting stays exact even if the rates ever change.
+// ─────────────────────────────────────────────────────────────
+model Distribution {
+  id              String   @id @default(cuid())
+  botId           String
+  bot             Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  grossProfitUsdc Float    // total profit booked in this settlement (always > 0)
+  depositorCut    Float    // 60%
+  builderCut      Float    // 30% — accrues to the bot's maker (Bot.ownerWallet)
+  protocolCut     Float    // 10%
+
+  // Optional link to the settlement/trade that produced the profit.
+  sourceTradeId   String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([botId, createdAt])
 }
 
 model IncubationLog {
@@ -333,6 +420,28 @@ model User {
   followers     Follow[] @relation("Followers")
   following     Follow[] @relation("Following")
   comments      Comment[]
+  vaultPositions VaultPosition[]
+  botsOwned     Bot[]    @relation("BotMaker")
+  equitySnapshots UserEquitySnapshot[]
+}
+
+// ─────────────────────────────────────────────────────────────
+// USER EQUITY SNAPSHOT — one daily point of an investor's portfolio, taken by the
+// snapshot-equity cron. Powers the dashboard's [30D_EQUITY_CURVE] and an honest
+// EST. APY (annualized from the real holding period) without recomputing on read.
+// ─────────────────────────────────────────────────────────────
+model UserEquitySnapshot {
+  id           String   @id @default(cuid())
+  userWallet   String
+  user         User     @relation(fields: [userWallet], references: [walletAddress])
+
+  date         DateTime // daily granularity (one row per user per day)
+  balanceUsdc  Float    // TOTAL BALANCE that day (shares × navPerShare)
+  investedUsdc Float    // cost basis still at work that day
+  pnlUsdc      Float    // all-time PnL that day (unrealized + realized)
+
+  @@unique([userWallet, date])
+  @@index([userWallet, date])
 }
 
 model Follow {

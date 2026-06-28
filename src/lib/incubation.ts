@@ -1,4 +1,9 @@
 import { prisma } from './db/prisma'
+import {
+  SHADOW_RESOLVED_TARGET,
+  SHADOW_DAYS_TARGET,
+  SHADOW_BRIER_TARGET,
+} from './botProgress'
 
 /**
  * Bot status state machine — Tier-1 (T1) promotion.
@@ -8,8 +13,12 @@ import { prisma } from './db/prisma'
  *
  * A LIVE bot graduates to T1 only when it clears EVERY gate below: enough
  * resolved trades, a low-enough Brier (proven edge), a bounded drawdown, AND a
- * minimum time in the shadow phase (so a lucky 1-day streak can't graduate).
+ * minimum time in the shadow phase (so a lucky streak can't graduate).
  * checkStatusTransitions() is the single place that performs this transition.
+ *
+ * The resolved/Brier/days gates are imported from botProgress.ts (CEO rule:
+ * 100 resolved, Brier <= 0.20, 21 days live) so the graduation logic and the
+ * UI readiness bars can NEVER drift apart.
  */
 
 // v1.5 T1 thresholds — alineados con la visión del producto (100 predicciones / 21 días)
@@ -34,15 +43,15 @@ export async function checkStatusTransitions(botId: string) {
   // PAPER -> LIVE happens manually (verified wallet)
   // LIVE -> VAULT_ELIGIBLE_T1 logic
   if (bot.status === 'LIVE') {
-    const meetsTrades = score.totalTrades >= T1_MIN_TRADES
-    const meetsBrier = score.brierScore <= T1_MAX_BRIER
+    const meetsTrades = score.totalTrades >= SHADOW_RESOLVED_TARGET
+    const meetsBrier = score.brierScore <= SHADOW_BRIER_TARGET
 
     // Drawdown real: maxDrawdown se guarda como % negativo (p.ej. -0.18 = -18%).
     const meetsDrawdown = Math.abs(score.maxDrawdown) <= T1_MAX_DRAWDOWN
 
-    // Tiempo mínimo en shadow: al menos SHADOW_MIN_DAYS desde la creación del bot.
+    // Tiempo mínimo en shadow: al menos SHADOW_DAYS_TARGET desde la creación del bot.
     const daysInShadow = (Date.now() - bot.createdAt.getTime()) / MS_PER_DAY
-    const meetsTime = daysInShadow >= SHADOW_MIN_DAYS
+    const meetsTime = daysInShadow >= SHADOW_DAYS_TARGET
 
     if (meetsTrades && meetsBrier && meetsDrawdown && meetsTime) {
       // Deploy the bot's on-chain clone vault (no-op/null if factory not configured yet).
