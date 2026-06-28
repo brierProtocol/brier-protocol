@@ -2,19 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { ethers } from 'ethers';
 import { notifyDeposit } from '@/lib/notifications';
-<<<<<<< HEAD
 import { FEATURES } from '@/lib/features';
-=======
 import { DEPOSIT_RPC_URL as RPC_URL, USDC_ADDRESS_ENV, USDC_DECIMALS } from '@/constants/contracts';
 import { depositBlockReason } from '@/lib/vault-lifecycle';
->>>>>>> origin/dev
 
 // Direccion del contrato USDC esperado. Si se define (USDC_ADDRESS_ENV), SOLO se aceptan
 // transferencias de ese token (evita depositar un ERC20 falso e inflar el TVL).
 // undefined => validacion de token deshabilitada.
 const USDC_ADDRESS = process.env.USDC_ADDRESS?.toLowerCase();
-const RPC_URL = process.env.RPC_URL || 'https://polygon-rpc.com';
-const USDC_DECIMALS = 6;
 
 // ERC20 Transfer Event Signature
 const TRANSFER_EVENT_SIG = ethers.id('Transfer(address,address,uint256)');

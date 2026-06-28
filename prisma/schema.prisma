@@ -506,7 +506,7 @@ model Waitlist {
   createdAt DateTime @default(now())
 }
 
-<<<<<<< HEAD
+
 model Prediction {
   id              String   @id @default(cuid())
   botId           String
@@ -528,7 +528,7 @@ model Prediction {
   @@unique([botId, marketId])
   @@index([botId, outcome])
   @@index([marketId])
-=======
+}
 // ─────────────────────────────────────────────────────────────
 // EVENT BUS — append-only log of everything that happens in the protocol.
 // The single source of truth that every future consumer (alerts, analytics,
@@ -553,5 +553,4 @@ model ProtocolEvent {
   @@index([type, createdAt])
   @@index([botId, createdAt])
   @@index([vaultAddress, createdAt])
->>>>>>> origin/dev
 }

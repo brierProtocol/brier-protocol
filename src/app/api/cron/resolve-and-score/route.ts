@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { resolveMarket } from '@/lib/market-data'
-import { calculateRelativeSkillWithLCB, type ResolvedPrediction } from '@/lib/skill-engine'
+import { calculateRelativeSkillWithLCB, LegacyResolvedPrediction } from '@/lib/skill-engine'
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -53,11 +53,10 @@ export async function GET(req: NextRequest) {
         where: { botId, outcome: { in: ['YES', 'NO'] } },
         select: { forecast: true, marketMidpoint: true, outcome: true },
       })
-
-      const resolved: ResolvedPrediction[] = preds.map(p => ({
+      const resolved: LegacyResolvedPrediction[] = preds.map(p => ({
         forecast: p.forecast,
         marketMidpoint: p.marketMidpoint,
-        outcome: (p.outcome === 'YES' ? 1 : 0) as 1 | 0,
+        outcome: (p.outcome === 'WIN' ? 1 : 0) as 1 | 0,
       }))
 
       const skill = calculateRelativeSkillWithLCB(resolved)

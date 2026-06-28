@@ -89,6 +89,7 @@ export function calculateRelativeSkillWithLCB(predictions: LegacyResolvedPredict
     botBrier,
     normalizedScore
   };
+}
 /**
  * SKILL ENGINE — the frozen reputation core of Brier v1.
  *
