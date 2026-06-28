@@ -215,10 +215,20 @@ model BotScore {
   
   // Max drawdown in history (as negative %, e.g. -0.18 = -18%)
   maxDrawdown  Float    @default(0)
-  
+
+  // ── Reputation layer (skill vs market, from src/lib/skill-engine) ──
+  // relativeSkill = mean(marketBrier − botBrier): >0 beats the market.
+  // lcb = lower confidence bound (anti-sybil: luck doesn't top the board).
+  // reputationScore = lcb normalized to 0..100 (the public headline number).
+  // resolvedPredictions = how many resolved predictions this is computed from.
+  relativeSkill       Float?
+  lcb                 Float?
+  reputationScore     Float?
+  resolvedPredictions Int     @default(0)
+
   // Daily snapshot. One record per bot per day.
   snapshotDate DateTime @default(now())
-  
+
   isLatest     Boolean  @default(true)
 
   @@unique([botId, snapshotDate])

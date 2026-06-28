@@ -44,3 +44,27 @@ export async function captureMarket(marketId: string): Promise<MarketSnapshot> {
     return { pYes: null, liquidity: null, state: 'unknown' }
   }
 }
+
+/**
+ * Resolves a market via the CLOB: is it settled, and did YES win? The winning
+ * token carries `winner: true`. Best-effort — returns { resolved:false } if the
+ * market is still open or the CLOB is unreachable, so the caller leaves the
+ * prediction PENDING and retries next run.
+ */
+export async function resolveMarket(marketId: string): Promise<{ resolved: boolean; yesWon: boolean | null }> {
+  try {
+    const ctrl = new AbortController()
+    const t = setTimeout(() => ctrl.abort(), 4000)
+    const res = await fetch(`${CLOB}/markets/${marketId}`, { signal: ctrl.signal }).finally(() => clearTimeout(t))
+    if (!res.ok) return { resolved: false, yesWon: null }
+    const data: any = await res.json().catch(() => null)
+    if (!data || data.closed !== true) return { resolved: false, yesWon: null }
+
+    const tokens: Array<{ outcome?: string; winner?: boolean }> = data.tokens || []
+    const winner = tokens.find(tk => tk.winner === true)
+    if (!winner) return { resolved: false, yesWon: null } // closed but not finalized yet
+    return { resolved: true, yesWon: (winner.outcome || '').toUpperCase() === 'YES' }
+  } catch {
+    return { resolved: false, yesWon: null }
+  }
+}
