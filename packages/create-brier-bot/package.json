@@ -1,0 +1,34 @@
+{
+  "name": "create-brier-bot",
+  "version": "0.1.0",
+  "description": "Scaffold a working Brier prediction bot in one command.",
+  "bin": {
+    "create-brier-bot": "index.js"
+  },
+  "files": [
+    "index.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "brier",
+    "prediction-markets",
+    "polymarket",
+    "scaffold",
+    "create",
+    "cli"
+  ],
+  "author": "Brier Protocol",
+  "license": "MIT",
+  "homepage": "https://brier.world",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brierProtocol/brier-protocol.git",
+    "directory": "packages/create-brier-bot"
+  },
+  "bugs": {
+    "url": "https://github.com/brierProtocol/brier-protocol/issues"
+  }
+}
