@@ -8,6 +8,7 @@ import { prisma } from '@/lib/db/prisma'
 import { computeBotMetrics } from '@/lib/score-engine'
 import { checkStatusTransitions } from '@/lib/incubation'
 import { events } from '@/lib/events/bus'
+import { recordCronRun, captureError } from '@/lib/observability'
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -80,9 +81,11 @@ export async function GET(req: NextRequest) {
       results.push({ bot: bot.slug, brier: Number(m.brierScore.toFixed(4)), trades: m.totalTrades })
     }
 
+    await recordCronRun('score', 'SUCCESS', { records: results.length })
     return NextResponse.json({ ok: true, scored: results.length, results })
   } catch (err: any) {
-    console.error('[cron/score]', err)
+    captureError(err, { cron: 'score' })
+    await recordCronRun('score', 'FAILED', { error: err?.message })
     return NextResponse.json({ error: err?.message || 'score cron failed' }, { status: 500 })
   }
 }
