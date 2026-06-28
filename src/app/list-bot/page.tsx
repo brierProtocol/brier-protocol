@@ -60,13 +60,26 @@ export default function ListBotPage() {
         const result = await res.json()
         if (!res.ok) throw new Error(result.error || 'Registration failed. Please try again.')
         
-        // Generate real API credentials
+        // Generate real API credentials. Key generation now requires a wallet
+        // SIGNATURE proving ownership (a public address alone is not enough).
+        const newBotId = result.botId || result.id
+        const keyTs = Date.now()
+        const keyMsg = `Brier: generate API key for bot ${newBotId} at ${keyTs}`
+        let keySig: string
+        if (isConnected && address) {
+          keySig = await signMessageAsync({ message: keyMsg })
+        } else {
+          const hexMsg = '0x' + keyMsg.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('')
+          keySig = await (window as any).ethereum.request({ method: 'personal_sign', params: [hexMsg, finalAddress] })
+        }
         const keysRes = await fetch('/api/bot/keys', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            botId: result.botId || result.id, // Depending on what register returns
-            walletAddress: finalAddress
+            botId: newBotId,
+            address: finalAddress,
+            signature: keySig,
+            timestamp: keyTs,
           })
         })
         

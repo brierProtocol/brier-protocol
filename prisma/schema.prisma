@@ -403,7 +403,10 @@ model Prediction {
   resolvedAt      DateTime?
   
   createdAt       DateTime @default(now())
-  
+
+  // One prediction per bot per market — blocks resubmitting after the market moves
+  // (anti cherry-picking). Enforced at the DB so concurrent commits can't race past it.
+  @@unique([botId, marketId])
   @@index([botId, outcome])
   @@index([marketId])
 }
