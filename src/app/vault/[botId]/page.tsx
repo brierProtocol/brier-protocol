@@ -30,7 +30,6 @@ export default function VaultPage() {
   const [depositAmount, setDepositAmount] = useState('')
   const [txState, setTxState] = useState<'idle' | 'approving' | 'awaiting_approve' | 'depositing' | 'awaiting_deposit' | 'success' | 'error'>('idle')
 
-  const USDC_ADDRESS = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'
   const VAULT_ABI = parseAbi(['function deposit(uint256 assets, address receiver) external returns (uint256)'])
 
   const { data: approveHash, writeContract: writeApprove, error: approveError } = useWriteContract()
@@ -146,7 +145,7 @@ export default function VaultPage() {
   // Determine mood from bot stats
   function getMoodFromStats(b: typeof bot): Mood {
     if (!b) return 'neutral'
-    if ((b as any).fraudFlag > 0) return 'suspicious'
+    if (((b as { fraudFlag?: number }).fraudFlag ?? 0) > 0) return 'suspicious'
     if (b.maxDrawdown < -0.15) return 'sad'
     if (b.brierScore < 0.20 && b.winRate > 0.57) return 'cool'
     if (b.brierScore < 0.25 && b.winRate > 0.54) return 'happy'
@@ -184,7 +183,7 @@ export default function VaultPage() {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 200, damping: 20 }}
           >
-            <BotIrisAvatar avatarId={(bot as any).avatarId || 'void-eye'} accentColor={bot.color} size={160} />
+            <BotIrisAvatar {...botEye(bot)} size={160} />
           </motion.div>
           
           {/* Bot name */}
@@ -357,10 +356,10 @@ export default function VaultPage() {
               
               <div className="space-y-4">
                 <div className="p-4 rounded-2xl bg-black/40 border border-white/5">
-                  <div className="text-[10px] font-bold opacity-30 tracking-widest uppercase mb-2">Network Selection</div>
+                  <div className="text-[10px] font-bold opacity-30 tracking-widest uppercase mb-2">Settlement Asset</div>
                   <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-[#8247E5]" />
-                    <span className="font-mono text-sm font-bold">Polygon Mainnet</span>
+                    <div className="w-5 h-5 rounded-full bg-[#2775CA]" />
+                    <span className="font-mono text-sm font-bold">USDC</span>
                   </div>
                 </div>
 
@@ -385,7 +384,7 @@ export default function VaultPage() {
                     {['CONSERVATIVE', 'DEGEN'].map((m) => (
                       <button
                         key={m}
-                        onClick={() => setMode(m as any)}
+                        onClick={() => setMode(m as 'CONSERVATIVE' | 'DEGEN')}
                         className={`flex-1 py-2 rounded-xl text-[10px] font-bold tracking-widest transition-all ${
                           mode === m ? 'bg-white text-[#050505]' : 'bg-white/5 text-white/30 hover:text-white/60'
                         }`}

@@ -59,56 +59,49 @@ export class ResolutionWatcher {
 
   private async processTrade(trade: any) {
     try {
-      // 1. In a production scenario, we hit Polymarket's / Gamma API or Kalshi's API
-      // Here, we simulate querying an Oracle with the marketId:
-      // const oracleRes = await axios.get(`https://clob.polymarket.com/markets/${trade.marketId}`);
-      // const isResolved = oracleRes.data.closed;
-      // const winningSide = oracleRes.data.tokens[0].winner ? "YES" : "NO";
-      
-      // MOCK ORACLE: Randomly resolve 10% of pending trades per cycle for simulation
-      const randomSettle = Math.random() < 0.1; 
-      if (!randomSettle) return; // Market is still running
-      
-      console.log(`[WATCHER] Market ${trade.marketId} has RESOLVED. Initiating Settlement for Trade ${trade.id}...`);
+      // ── REAL ORACLE: query Polymarket's CLOB for the market's resolution ──
+      // marketId is the CTF conditionId. The CLOB market endpoint returns `closed`
+      // and a `tokens` array; once resolved, exactly one token has `winner: true`.
+      const base = process.env.POLYMARKET_CLOB_URL || 'https://clob.polymarket.com';
+      const { data } = await axios.get(`${base}/markets/${trade.marketId}`, { timeout: 15000 });
 
-      // Determine Outcome (Mock logic: 50/50 win or loss for the simulation)
-      const didWin = Math.random() > 0.5;
-      const profitUsdc = didWin ? trade.size * 2 : 0; // Win double or lose all
+      if (!data || data.closed !== true) {
+        return; // market still open — leave PENDING
+      }
 
-      // 2. Call the INTERNAL Settlement Logic 
-      // We hit our own Fastify server loopback to ensure it goes through the BullMQ processing queue!
-      const executorUrl = process.env.BRIER_EXECUTOR_URL || 'http://localhost:3001';
-      
-      // We must sign this internal request to pass the HMAC security check
-      const payload = {
-        tradeId: trade.id,
-        botId: trade.botId,
-        vaultAddress: trade.botId, // Note: The schema links vault via Bot in this mock
-        result: didWin ? "WIN" : "LOSS",
-        pnlValue: didWin ? profitUsdc : -trade.size,
-        timestamp: Date.now()
-      };
+      const tokens: Array<{ outcome?: string; winner?: boolean; price?: number }> = data.tokens || [];
+      const winningToken = tokens.find(t => t.winner === true);
+      if (!winningToken) {
+        // Closed but winner not finalized yet (UMA dispute window) — retry next cycle.
+        console.log(`[WATCHER] Market ${trade.marketId} closed but winner not finalized yet.`);
+        return;
+      }
 
-      // Since we are internal, we can either hit the API or just queue it to BullMQ directly.
-      // To ensure architecture parity, hitting the API is best if we have the secret.
-      // But for the sake of the watcher, we will just update the DB to reflect the Oracle state.
-      
-      // In a real scenario, this is where we execute the Ethereum Transaction:
-      // const tx = await vaultContract.settleMarket(trade.tradeId, profitUsdc);
+      // Map the bot's recorded side to the winning outcome.
+      const winningOutcome = (winningToken.outcome || '').toUpperCase();   // "YES" / "NO"
+      const betSide = (trade.side || '').toUpperCase();                    // YES | NO | LONG | SHORT
+      const normalizedBet = betSide === 'LONG' ? 'YES' : betSide === 'SHORT' ? 'NO' : betSide;
+      const didWin = normalizedBet === winningOutcome;
 
-      // Update Database
+      console.log(`[WATCHER] Market ${trade.marketId} RESOLVED → ${winningOutcome}. Trade ${trade.id} (${normalizedBet}) = ${didWin ? 'WIN' : 'LOSS'}`);
+
       await prisma.tradeEvent.update({
         where: { id: trade.id },
         data: {
           outcome: didWin ? 'WIN' : 'LOSS',
-          resolvedPrice: didWin ? 1 : 0
-        }
+          resolvedPrice: didWin ? 1 : 0,
+          resolvedAt: new Date(),
+        },
       });
 
-      console.log(`[WATCHER] Successfully settled Trade ${trade.id}. PnL: $${didWin ? profitUsdc - trade.size : -trade.size}`);
-
-    } catch (error) {
-      console.error(`[WATCHER] Failed to process trade ${trade.id}:`, error);
+      // On-chain settlement (vaultContract.settleMarket) is handled by the settlement
+      // worker once the trade is marked resolved — the scoring cron then recomputes Brier.
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        console.warn(`[WATCHER] Market ${trade.marketId} not found on CLOB (skipping).`);
+      } else {
+        console.error(`[WATCHER] Failed to process trade ${trade.id}:`, error?.message || error);
+      }
     }
   }
 }

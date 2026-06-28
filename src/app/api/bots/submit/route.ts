@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/db/prisma'
 import { encryptApiKey } from '@/lib/crypto'
 
 const CreateBotSchema = z.object({
@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    // Token launch is a separate, owner-initiated step (POST /api/tokens)
     return NextResponse.json({ ok: true, botId: bot.id, slug: bot.slug })
   } catch (err) {
     if (err instanceof z.ZodError) {

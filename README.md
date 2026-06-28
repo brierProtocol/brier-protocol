@@ -1,129 +1,197 @@
-# 🌿 Brier Protocol
+# BRIER PROTOCOL
 
-Brier Protocol es una plataforma descentralizada (un "shadow indexer" y arquitectura de bóvedas ERC4626) que permite a los creadores ("Makers") desplegar algoritmos de trading predictivo en mercados como **Polymarket**, y a los inversores ("LPs") delegar liquidez en ellos a través de un esquema seguro y automatizado.
+**Non-custodial vaults for algorithmic prediction-market bots.**
+Build a bot with zero capital, prove its edge on-chain through its Brier Score,
+and let investors fund it. Builders earn from skill, not from their wallet.
 
----
-
-## 🚀 Características Principales
-
-### Para Creadores (Makers)
-- **Registro de Algoritmos:** Permite registrar bots predictivos, establecer estrategias, y conectarlos a fuentes de datos como Polymarket y Kalshi.
-- **Fase de Incubación (Paper Trading):** Todos los bots nuevos inician en fase de prueba (Paper) sin fondos reales hasta probar su rentabilidad (Win Rate, Sharpe Ratio, Brier Score).
-- **Gestión de Perfil:** Dashboard de creador para monitorear el desempeño del bot, modificar metadatos y revisar el historial de transacciones.
-- **Circuit Breaker & Skin in the Game:** Los creadores depositan una garantía que puede ser reducida (slashed) si el bot sufre un Drawdown mayor al 15%, alineando incentivos.
-
-### Para Inversores (LPs)
-- **Bóvedas ERC4626 (Smart Contracts):** Cada algoritmo aprobado obtiene un Vault (bóveda inteligente) que gestiona los depósitos en USDC.
-- **Transparencia Total:** Las métricas de desempeño, APY histórico, PnL y retiros están completamente indexadas y visibles en tiempo real.
-- **Verificación On-Chain:** Los depósitos se verifican mediante la escucha de eventos `Transfer` directo de un RPC público de Arbitrum One, protegiendo contra ataques de repetición (Replay Attacks) y validando el remitente (depositorWallet).
-- **Retiros Instantáneos:** El capital ocioso ("idle capital") no comprometido en operaciones activas puede ser retirado al instante, sin bloqueos de 48 horas.
-
-### Funciones de la Plataforma
-- **Ranking y Descubrimiento:** Tablas de clasificación (Leaderboards) basadas en el Brier Score y rendimiento general.
-- **Módulos Sociales:** Sistema de seguidores, "corazones" (likes) y comentarios para construir comunidad alrededor de las estrategias.
-- **Arquitectura de UI Dual:** Diseño estético retro-terminal (Bloomberg-style) con elementos de glassmorphism premium.
+> Ranked by math, not marketing. Predicts on Polymarket. Settled on Polygon.
 
 ---
 
-## 🛠 Arquitectura Tecnológica (Stack)
+## The idea
 
-### Frontend (Web3 App)
-- **Framework:** Next.js 16.2.6 (App Router) con Turbopack
-- **Estilos:** Tailwind CSS v4 + Framer Motion (animaciones de micro-interacciones)
-- **Web3:** `wagmi` + `viem` + `@rainbow-me/rainbowkit` (conexión de wallets)
-- **Gráficos:** Recharts + Liveline para gráficos financieros y PnL interactivo
+A skilled forecaster with **no money** can:
 
-### Backend y Base de Datos
-- **API:** Next.js Route Handlers (`/api/deposits`, `/api/bots`, `/api/cron`, etc.)
-- **Base de Datos:** PostgreSQL alojado en Supabase
-- **ORM:** Prisma v5.22.0
-- **Seguridad:** Middlewares y protecciones activas contra falsificación de transacciones (Spoofing) e inyección de datos. Rate limiting en despliegues.
+1. Deploy a prediction bot (free, no capital required)
+2. Prove it works in a **shadow phase** that Brier runs and scores against reality
+3. Pass the bar (see **Eligibility rules**) and a **vault** opens for it
+4. Investors fund the vault with USDC. The builder earns a share of the profit, **never risking their own capital**, and can run farms of bots
 
-### Smart Contracts (Blockchain)
-- **Lenguaje:** Solidity `^0.8.20`
-- **Librerías:** OpenZeppelin Contracts Upgradeable v5.6.1 (`ERC4626`, `Initializable`, `Pausable`, `ReentrancyGuard`)
-- **Factory:** `BrierVaultFactory.sol` (Usa EIP-1167 Minimal Proxy Clones para despliegues ultra-baratos)
-- **Vault:** `BrierVault.sol` (Gestión central de fondos, cortes de emergencia, y reparto de fees: 60% LP, 30% Maker, 10% Plataforma)
-- **Testing y Deploy:** Hardhat + Ignition
+Investors get **non-custodial** exposure to verified algorithms: deposit USDC,
+receive ERC-4626 shares, redeem anytime 1:1 at NAV. The bot can trade the
+capital but can **never withdraw it** — the same trust model as Hyperliquid vaults.
+
+The whole point: turn forecasting skill into income without gatekeeping by capital.
+Imagine "how to earn from a Polymarket bot without a single dollar" as a real path.
 
 ---
 
-## 📁 Estructura del Proyecto
+## Eligibility rules (shadow → vault)
 
-```text
-brier-protocol/
-├── contracts/
-│   ├── BrierVault.sol              # Lógica principal de Bóveda Upgradeable
-│   ├── BrierVaultFactory.sol       # Proxy factory para creación de vaults
-│   └── BrierFactory.sol            # (Obsoleto) Factory inicial 
-├── prisma/
-│   ├── schema.prisma               # Modelos de BD (Bot, VaultDeposit, User...)
-│   └── seed.ts                     # Script de inicialización de datos falsos
-├── src/
-│   ├── app/
-│   │   ├── api/                    # Endpoints (Bots, Depósitos verificados, Cron)
-│   │   ├── bot/[slug]/             # UI pública del bot (Métricas, Depósitos, Foros)
-│   │   ├── dashboard/              # Panel de control de inversores
-│   │   ├── discover/               # Listado y filtros de bots
-│   │   ├── leaderboard/            # Ranking global
-│   │   ├── list-bot/               # Flujo para registrar nuevos bots
-│   │   ├── maker/[address]/        # Perfil público y gestión del creador
-│   │   └── vault/[botId]/          # Vista detallada de la bóveda ERC4626
-│   ├── components/                 # Componentes reutilizables (BotCard, MiniChart, Nav)
-│   └── lib/                        # Prisma client, Wagmi config, helpers
-└── middleware.ts                   # Next.js rate-limiting
+A bot only manages real money after it proves itself **inside Brier**. All three
+conditions must be met:
+
+| Gate | Threshold |
+|---|---|
+| Resolved predictions | **≥ 100** (measured by outcomes settled, not by days) |
+| Brier Score | **≤ 0.20** (0.25 is a coin flip; 0.20 demands a real edge) |
+| Active window | **≥ 21 days** |
+
+Notes:
+- **Measured by predictions, not by a fixed "7 days".** Sample size is what makes a
+  Brier Score statistically meaningful. A bot that got lucky on 5 calls does not qualify.
+- **Specialisation is allowed and encouraged.** A bot can focus on one kind of market
+  (weather, politics, crypto, geopolitics) or be a generalist. The edge is the builder's
+  choice. We do not require a spread across categories.
+- Anti-gaming is an internal scoring detail: a bot is scored **once per resolved market**
+  (not per re-submission), so it cannot inflate the count by spamming the same event.
+- **No builder capital required.** A skin-in-the-game buffer is **optional**: a builder who
+  wants to signal extra confidence can post one, but it is never mandatory. The barrier is
+  effort (100 good resolved predictions over 21 days) and the bot's public Brier reputation.
+
+---
+
+## Verification (why a track record cannot be faked)
+
+The track record runs **inside Brier**, never imported from a builder's local machine:
+
+- Every prediction is signed and **timestamped before** the market resolves. The forecast
+  cannot be changed after the outcome is known.
+- Outcomes are settled by an **external oracle** (Polymarket CLOB), not self-reported.
+- Even if a builder ran the bot locally, on Brier it starts from zero.
+
+Anti-scam is **architectural, not identity-based**: the worst a bad actor can do is run a
+bot that predicts poorly and sinks on its own public score. Funds are protected by the
+non-custodial vault (the bot can never withdraw depositor capital) plus a 15% drawdown
+circuit breaker. **Security is the top priority** — contracts must be audited before real
+deposits, and key handling must be best-in-class.
+
+---
+
+## Architecture
+
+```
+Builder ──deploy bot (free)──► Brier (SHADOW)
+                                │ predictions signed + timestamped on Brier
+   Polymarket trades ──────────┤ indexer → TradeEvent → scoring (Brier/Sharpe/DD)
+                                ▼
+              eligibility met (100 resolved · Brier ≤ 0.20 · 21d) → vault deploys
+                                │
+Investor ──deposit USDC────────►│ ERC-4626 vault  ◄── executor trades Polymarket CLOB
+                                │                      (FAK orders, slippage-bounded)
+   market resolves ────────────┤ watcher (CLOB) → settleMarket → profit split
+                                ▼
+Investor ──redeem shares───────► principal + profit (1:1 @ NAV, instant)
 ```
 
----
-
-## 🔒 Auditoría de Seguridad & Estado Actual
-
-Recientemente se completó una auditoría exhaustiva de seguridad y arquitectura, resolviendo los siguientes vectores críticos para un entorno de producción que maneja dinero real:
-1. **Sanitización de Credenciales:** La BD está completamente aislada usando variables de entorno `.env` en lugar de strings de conexión duros.
-2. **Deposit Replay Attack Prevention:** El endpoint de depósitos previene la inyección duplicada de `txHash` y valida el `msg.sender` original desde los eventos del contrato en Arbitrum.
-3. **Hardcoded Fallbacks:** Se removieron los fallbacks peligrosos a direcciones de vault arbitrarias; los depósitos se bloquean si un bot no tiene vault asignado.
-4. **Protección de API y Cron Jobs:** Los jobs de sincronización (Cron) ahora están protegidos tras tokens de autorización (`CRON_SECRET`), previniendo ejecución no autorizada y fuga de logs.
+### Stack
+| Layer | Tech |
+|---|---|
+| **App** | Next.js 16 (App Router, Turbopack), TypeScript, Tailwind v4, Framer Motion, Three.js |
+| **Data** | Prisma + PostgreSQL (Supabase in prod); shadow indexer mirrors on-chain events |
+| **Chain** | `BrierVault` (ERC-4626) + `BrierVaultFactory` (EIP-1167 clones) on Polygon |
+| **Executor** | Node/TS service: HMAC-signed signals → queue → Polymarket CLOB; resolution watcher |
 
 ---
 
-## 💻 Desarrollo Local
+## v1 scope
 
-### 1. Requisitos Previos
-- Node.js (v20+)
-- Postgres Database (URL)
-- Claves de API de Alchemy o un RPC público de Arbitrum
+v1 is **product and infrastructure only**: the bot rails, the scoring, the vaults,
+the security. Make Brier useful and safe first.
 
-### 2. Variables de Entorno
-Crea un archivo `.env.local` en la raíz (no lo subas a Github):
-```env
-DATABASE_URL="postgresql://user:password@host:port/postgres"
-DIRECT_URL="postgresql://user:password@host:port/postgres"
-NEXT_PUBLIC_ARBITRUM_RPC_URL="https://arb1.arbitrum.io/rpc"
-CRON_SECRET="your-secure-secret"
-```
+- **No token, no coin.** The conviction-token / Shadow-Market launch layer is **out of
+  scope for v1** and removed from all public messaging (landing, docs).
+- Token-related code still exists in the repo (`/api/tokens`, `launchpad`, `TokenPanel`,
+  `lib/bondingCurve.ts`, parts of the bot page). It is **dormant for v1** and should be
+  cleanly removed or gated in a dedicated pass so it never appears in the product.
+- Polymarket is **not blocked in the US** as of 2026 (confirm current regulatory status
+  before making legal claims on the site).
 
-### 3. Instalación y Ejecución
+---
+
+## Landing (presentation site)
+
+`/` is a marketing landing, separate from the app:
+
+- 3D planet hero (Brier core, vaults orbiting, users as red nodes) with a readability vignette
+- "No pay to play" flagship statement
+- **The Brier Stack** — 3D scene that settles on each stage (Deploy → Shadow → Vault → Earn) as you scroll, synced notes
+- **Everything is on-chain** — glass block chain with a flowing data stream
+- **Two ways in** — depositors (earn passively) vs builders (build on Polymarket, no capital)
+- Manifesto, giant `Brier.` footer with the Wave wordmark and social icons
+- Sunset scroll: black at top, reddish in the middle, black again at the footer
+
+The app lives at `/app` behind "Launch App". Docs at `/docs` (GitBook style, ⌘K search).
+
+---
+
+## Pages
+
+`/` landing · `/app` product · `/discover` · `/leaderboard` · `/dashboard` ·
+`/list-bot` · `/bot/[slug]` · `/maker/[address]` · `/vault` · `/how-it-works` ·
+`/strategy` · `/developers` · `/docs` · `/about` · `/faq` · `/terms` · `/privacy`
+
+---
+
+## Quick start (local)
+
 ```bash
-# 1. Instalar dependencias
 npm install
-
-# 2. Sincronizar la base de datos de Prisma
-npx prisma db push
-
-# 3. (Opcional) Popular con datos semilla
-npm run db:seed
-
-# 4. Iniciar el servidor local de Next.js
-npm run dev
+# set DATABASE_URL & DIRECT_URL in .env.local
+npm run db:push
+npm run db:seed        # demo bots
+npm run dev            # http://localhost:3000
 ```
 
-El proyecto estará disponible en `http://localhost:3000`.
-
-### 4. Smart Contracts
+### Tests
 ```bash
-# Compilar contratos
-npm run compile:contracts
-
-# Ejecutar test unitarios
-npm run test:contracts
+npm run test:scoring    # Brier scoring engine
+npm run test:contracts  # Hardhat suite (split, capacity, circuit breaker, admin)
 ```
+
+### Smart contracts
+```bash
+npm run deploy:hardhat  # local dry-run
+npm run deploy:amoy     # Polygon Amoy testnet (needs a funded PRIVATE_KEY)
+```
+
+---
+
+## Economics
+
+On profit only — **no management fee, nothing on losses**:
+
+| Recipient | Share |
+|---|---|
+| Depositors (NAV growth) | **60%** |
+| Builder | **30%** |
+| Protocol | **10%** |
+
+A 15% drawdown trips the circuit breaker (pause). If a builder posted an optional
+buffer, it absorbs losses first.
+
+---
+
+## Environment variables
+
+See `.env.example`. Core: `DATABASE_URL`, `DIRECT_URL`, `ENCRYPTION_SECRET`,
+`CRON_SECRET`, `NEXT_PUBLIC_WC_PROJECT_ID`, `NEXT_PUBLIC_USDC_ADDRESS`,
+`VAULT_FACTORY_ADDRESS`, `EXECUTOR_PRIVATE_KEY`.
+
+---
+
+## Status
+
+Platform built and tested (scoring + contracts). To go live: Supabase + Vercel for the
+showcase, Polygon Amoy for vault mechanics, then a mainnet deploy **with an audit** before
+any real deposits.
+
+Runbooks: [`GO_LIVE.md`](./GO_LIVE.md) · [`DEPLOY_AMOY.md`](./DEPLOY_AMOY.md)
+
+---
+
+## Disclaimer
+
+Prediction markets and algorithmic strategies carry risk of total loss. Contracts are
+**unaudited** — do not deposit real funds before an audit. `/terms` and `/privacy` are
+templates pending legal review. Not financial advice.

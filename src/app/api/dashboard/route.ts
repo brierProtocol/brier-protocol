@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db/prisma';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -10,10 +10,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // 1. Fetch all deposits for this address
+    // 1. Fetch all deposits for this address.
+    // Case-insensitive: el POST de /api/deposits guarda la wallet con su case original,
+    // pero el perfil consulta en minúsculas. Sin esto el portfolio sale siempre vacío.
     const deposits = await prisma.vaultDeposit.findMany({
       where: {
-        depositorWallet: address
+        depositorWallet: { equals: address, mode: 'insensitive' }
       },
       include: {
         bot: {
@@ -51,6 +53,14 @@ export async function GET(request: NextRequest) {
         bot: dep.bot.name,
         slug: dep.bot.slug,
         vaultAddress: dep.bot.vaultAddress,
+        // Avatar fields so the portfolio can render the bot's face (img or generated iris)
+        id: dep.bot.id,
+        pfpUrl: dep.bot.pfpUrl,
+        color: dep.bot.color,
+        eyeShape: dep.bot.eyeShape,
+        // Capacity so the page can read how full this vault is
+        vaultCap: dep.bot.vaultCap,
+        currentTVL: dep.bot.currentTVL,
         dep: dep.amountUsdc,
         prof: dep.totalProfitEarned,
         pct: dep.amountUsdc > 0 ? parseFloat(((dep.totalProfitEarned / dep.amountUsdc) * 100).toFixed(1)) : 0,

@@ -1,101 +1,154 @@
-import { createPublicClient, http, parseAbiItem } from 'viem'
-import { polygon } from 'viem/chains'
+import { prisma } from './db/prisma'
+import { deriveVerifiedCategories } from './marketCategories'
 
-// Polymarket uses the Conditional Tokens Framework (CTF)
-// The primary interaction for making a prediction is trading shares on the CTF Exchange or an AMM.
-// For the MVP Indexer, we listen to TransferBatch or TransferSingle on the CTF contract.
+// Polymarket exposes a public Data API that returns a wallet's executed trades.
+// This is far more reliable than decoding raw CTF ERC-1155 transfers, and it's the
+// real source the shadow indexer uses to populate TradeEvent rows.
+const DATA_API = process.env.POLYMARKET_DATA_API || 'https://data-api.polymarket.com'
 
-const CTF_CONTRACT_ADDRESS = '0x4D97DCd97eC945f40CF65F87097CAe4764fa4350' // Polygon CTF
-
-// Using viem to connect to Polygon mainnet
-const publicClient = createPublicClient({
-  chain: polygon,
-  transport: http(process.env.NEXT_PUBLIC_POLYGON_RPC || 'https://polygon-rpc.com'),
-})
-
-export type IndexedTrade = {
-  txHash: string
-  botAddress: string
-  marketId: string
-  outcomeIndex: number // 0 for YES, 1 for NO
-  sharesAmount: bigint
-  usdcSpent: bigint
-  timestamp: number
+type PolyTrade = {
+  proxyWallet?: string
+  conditionId?: string
+  asset?: string            // outcome tokenId
+  side?: string             // BUY | SELL
+  outcome?: string          // "Yes" | "No"
+  title?: string
+  slug?: string
+  size?: number | string
+  price?: number | string
+  timestamp?: number        // unix seconds
+  transactionHash?: string
 }
 
 /**
- * Initializes a WebSocket listener to watch for trades from registered Bot addresses.
- * In production, this runs as a background worker.
+ * Pulls a bot's recent Polymarket trades and mirrors any new ones into TradeEvent
+ * (as PENDING — the ResolutionWatcher settles them later). Idempotent via the
+ * @@unique([source, externalTradeId]) constraint.
  */
-export function startShadowIndexer(registeredBotAddresses: string[]) {
-  console.log(`[Brier Indexer] Starting shadow indexer for ${registeredBotAddresses.length} bots on Polygon...`)
+export async function indexPolymarketWallet(botId: string): Promise<boolean> {
+  const conn = await prisma.polyConnection.findUnique({ where: { botId } })
+  // Fall back to the bot's own wallet so a freshly registered bot indexes even
+  // before a PolyConnection row exists.
+  let wallet = conn?.walletAddress?.toLowerCase()
+  if (!wallet) {
+    const bot = await prisma.bot.findUnique({ where: { id: botId }, select: { walletAddress: true } })
+    wallet = bot?.walletAddress?.toLowerCase()
+  }
+  if (!wallet) return false
 
-  // The event emitted when shares are minted/traded on CTF
-  const transferSingleEvent = parseAbiItem('event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value)')
-
-  // Start watching the blockchain
-  const unwatch = publicClient.watchEvent({
-    address: CTF_CONTRACT_ADDRESS,
-    event: transferSingleEvent,
-    onLogs: (logs) => {
-      logs.forEach(log => {
-        // In a real implementation, we would decode the specific market ID and outcome
-        // from the `id` param, and match `to` or `from` against `registeredBotAddresses`.
-        const botAddress = log.args.to as string
-
-        if (registeredBotAddresses.includes(botAddress.toLowerCase())) {
-          console.log(`[Brier Indexer] Match Found! Bot ${botAddress} executed a trade.`)
-          
-          // Trigger the Shadow Protocol
-          executeShadowTrade({
-            txHash: log.transactionHash as string,
-            botAddress,
-            marketId: log.args.id?.toString() || 'unknown',
-            outcomeIndex: 0, // Mock parsed data
-            sharesAmount: log.args.value || 0n,
-            usdcSpent: 0n, // Would require parsing the accompanying ERC20 transfer
-            timestamp: Date.now()
-          })
-        }
-      })
+  let trades: PolyTrade[] = []
+  try {
+    const res = await fetch(`${DATA_API}/trades?user=${wallet}&limit=100`, {
+      headers: { accept: 'application/json' },
+    })
+    if (!res.ok) {
+      console.warn(`[Indexer] data-api ${res.status} for ${wallet}`)
+      return false
     }
+    trades = await res.json()
+  } catch (err: any) {
+    console.error(`[Indexer] fetch failed for ${wallet}:`, err?.message || err)
+    return false
+  }
+
+  if (!Array.isArray(trades) || trades.length === 0) {
+    await prisma.polyConnection.update({ where: { botId }, data: { lastSyncAt: new Date() } }).catch(() => {})
+    return true
+  }
+
+  const rows = trades
+    .filter(t => t.transactionHash && t.conditionId)
+    .map(t => {
+      const price = Number(t.price ?? 0)
+      const size = Number(t.size ?? 0)
+      const outcome = (t.outcome || '').toUpperCase() // YES | NO
+      return {
+        botId,
+        marketId: t.conditionId!,
+        marketTitle: t.title || t.slug || 'Polymarket market',
+        side: outcome || (t.side === 'SELL' ? 'NO' : 'YES'),
+        amount: size * price,
+        entryPrice: price,
+        outcome: 'PENDING',
+        executionWallet: t.proxyWallet || wallet,
+        timestamp: t.timestamp ? new Date(t.timestamp * 1000) : new Date(),
+        source: 'POLYMARKET',
+        externalTradeId: `${t.transactionHash}-${t.asset ?? '0'}`,
+      }
+    })
+
+  // skipDuplicates relies on the unique (source, externalTradeId) index.
+  const created = await prisma.tradeEvent.createMany({ data: rows, skipDuplicates: true })
+
+  await prisma.polyConnection.update({
+    where: { botId },
+    data: { lastSyncAt: new Date() },
+  }).catch(() => {})
+
+  console.log(`[Indexer] ${wallet}: ${created.count} new trades indexed (of ${rows.length} fetched)`)
+  return true
+}
+
+/**
+ * Recomputes a bot's VERIFIED categories from the markets its wallet actually
+ * traded (read from indexed TradeEvent rows). This is the anti-lie mechanism:
+ * the catalog can trust this over whatever the builder declared at deploy.
+ * Returns the derived category ids and stamps lastIndexedAt.
+ */
+export async function recomputeVerifiedCategories(botId: string): Promise<string[]> {
+  const trades = await prisma.tradeEvent.findMany({
+    where: { botId },
+    select: { marketTitle: true },
+    orderBy: { timestamp: 'desc' },
+    take: 500,
+  })
+  const categories = deriveVerifiedCategories(trades.map(t => t.marketTitle))
+  await prisma.bot.update({
+    where: { id: botId },
+    data: { verifiedCategories: categories, lastIndexedAt: new Date() },
+  }).catch(() => {})
+  return categories
+}
+
+/**
+ * Orchestrator: pull fresh on-chain trades from Polymarket, then recompute the
+ * verified categories from everything indexed so far. Safe to call on a trigger
+ * or from a cron. If the wallet has no on-chain activity yet, categories stay
+ * empty and the catalog falls back to the declared ones.
+ */
+export async function runBotIndex(botId: string): Promise<{ indexed: boolean; categories: string[] }> {
+  const indexed = await indexPolymarketWallet(botId)
+  const categories = await recomputeVerifiedCategories(botId)
+  return { indexed, categories }
+}
+
+/**
+ * Frontend helper: a bot's recent resolved trade history for display.
+ * Reads from our own indexed TradeEvent table (the shadow indexer is the source of truth).
+ */
+export async function getBotTradeHistory(botAddressOrId: string) {
+  const bot = await prisma.bot.findFirst({
+    where: {
+      OR: [
+        { id: botAddressOrId },
+        { walletAddress: botAddressOrId.toLowerCase() },
+      ],
+    },
+    select: { id: true },
+  })
+  if (!bot) return []
+
+  const trades = await prisma.tradeEvent.findMany({
+    where: { botId: bot.id },
+    orderBy: { timestamp: 'desc' },
+    take: 30,
   })
 
-  return unwatch
-}
-
-/**
- * The core Shadow Trading mechanism.
- * When a developer's $10 trade is detected, this function immediately copies it
- * using the Vault's massive USDC pool.
- */
-async function executeShadowTrade(trade: IndexedTrade) {
-  console.log(`[Shadow Protocol] Executing vault shadow trade for bot: ${trade.botAddress}`)
-  console.log(`[Shadow Protocol] Target Market: ${trade.marketId}`)
-  
-  // Here we would use a private WalletClient possessing the Vault's execution keys
-  // to sign a transaction identical to the bot's trade, but with a multiplied amount.
-  
-  // const vaultMultiplier = 1000n; // Developer spends $10, Vault spends $10,000
-  // await vaultClient.writeContract({...})
-  
-  return true
-}
-
-/**
- * Utility for the frontend to fetch the last 30 days of trading history for a specific bot address.
- * (MVP uses mock data, production queries a Postgres DB populated by the Indexer).
- */
-export async function getBotTradeHistory(botAddress: string) {
-  // Mocking 30 days of data for the MVP
-  return [
-    { market: 'Trump Wins 2024', predicted: 'YES', probability: 0.65, actualOutcome: 1, date: '2024-11-06' },
-    { market: 'BTC Hits 100k', predicted: 'NO', probability: 0.20, actualOutcome: 0, date: '2024-12-01' },
-    { market: 'ETH ETF Approved', predicted: 'YES', probability: 0.85, actualOutcome: 1, date: '2024-05-23' },
-  ]
-}
-
-export async function indexPolymarketWallet(botId: string) {
-  // Mock function for API cron job backwards compatibility
-  return true
+  return trades.map(t => ({
+    market: t.marketTitle,
+    predicted: t.side,
+    probability: t.entryPrice,
+    actualOutcome: t.outcome === 'PENDING' ? null : t.outcome === 'WIN' ? 1 : 0,
+    date: t.timestamp.toISOString().slice(0, 10),
+  }))
 }

@@ -3,11 +3,54 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useAccount, useSignMessage } from 'wagmi'
+import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { motion } from 'framer-motion'
+import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
+import MakerAvatar from '@/components/MakerAvatar'
+import { botEye } from '@/lib/botIdentity'
+
+const CATEGORIES: { id: string; label: string }[] = [
+  { id: 'politics', label: 'Politics' },
+  { id: 'crypto',   label: 'Crypto'   },
+  { id: 'sports',   label: 'Sports'   },
+  { id: 'economy',  label: 'Economy'  },
+  { id: 'culture',  label: 'Culture'  },
+  { id: 'tech',     label: 'Tech'     },
+  { id: 'world',    label: 'World'    },
+]
+
+const INPUT_CLS =
+  'w-full bg-[#0a0a0a] border border-[#1f1f1f] text-white font-sans text-[14px] outline-none px-4 py-3 rounded-xl placeholder:text-[#555] transition-all focus:border-primary/50 focus:bg-[#0c0c0c] focus:shadow-[0_0_24px_rgba(255,42,77,0.08)] hover:border-[#2a2a2a]'
+
+function Eyebrow({ word }: { word: string }) {
+  return (
+    <div className="inline-flex items-center gap-3 mb-5">
+      <span className="h-px w-9 bg-gradient-to-r from-primary to-primary/0" />
+      <span className="font-mono text-[11px] tracking-[0.42em] uppercase text-[#a8a8a8]">
+        {word.split(' ')[0]} <span className="text-primary">{word.split(' ').slice(1).join(' ')}</span>
+      </span>
+    </div>
+  )
+}
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-[#030303] text-white font-sans">
+      <div className="max-w-[760px] mx-auto px-6 md:px-8 pt-8 pb-20">
+        {/* header */}
+        <div className="flex items-center justify-between mb-12 text-[12px]">
+          <Link href="/app" className="text-[#777] hover:text-white transition-colors no-underline font-sans">← Back to the arena</Link>
+          <Link href="/developers" className="text-[#777] hover:text-primary transition-colors no-underline font-mono text-[11px] tracking-widest">SDK DOCS</Link>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
 
 export default function ListBotPage() {
   const [step, setStep] = useState(1)
-  const [formData, setFormData] = useState({ name: '', repo: '', description: '', market: 'Polymarket' })
+  const [formData, setFormData] = useState({ name: '', description: '', market: 'Polymarket', categories: [] as string[], vaultCap: '' })
   const [verifying, setVerifying] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [apiKey, setApiKey] = useState('')
@@ -15,24 +58,17 @@ export default function ListBotPage() {
 
   const { isConnected, address } = useAccount()
   const { signMessageAsync } = useSignMessage()
+  const { openConnectModal } = useConnectModal()
 
-  const handleNext = async () => {
+  const handle = formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'your-bot'
+  const shortAddr = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : ''
+
+  const register = async () => {
     setErrorMsg('')
-    if (step === 2) {
-      let finalAddress = address
-      if (!finalAddress && typeof window !== 'undefined' && (window as any).ethereum) {
-        try {
-          const accounts = await (window as any).ethereum.request({ method: 'eth_accounts' })
-          if (accounts && accounts.length > 0) finalAddress = accounts[0]
-        } catch (e) {}
-      }
-
-      if (!finalAddress) {
-        setErrorMsg('SYS_ERR: Wallet not connected. Initialization aborted.')
-        return
-      }
-
-      setVerifying(true)
+    if (!address) { setErrorMsg('Wallet not connected.'); return }
+    setVerifying(true)
+    try {
+      const message = `I confirm this wallet trades for the Brier bot ${formData.name || '[NAME]'}. Timestamp: ${Date.now()}`
       try {
         const message = `I am registering the prediction bot ${formData.name || '[NAME]'} to Brier. Timestamp: ${Date.now()}`
         try {
@@ -82,159 +118,177 @@ export default function ListBotPage() {
       } finally {
         setVerifying(false)
       }
-    } else {
-      setStep(s => s + 1)
+      const res = await fetch('/api/bots/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: formData.name, description: formData.description, market: formData.market, categories: formData.categories, vaultCap: formData.vaultCap, walletAddress: address }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Registration failed. Please try again.')
+
+      setDeployedSlug(result.slug)
+      setStep(3)
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'An error occurred.')
+    } finally {
+      setVerifying(false)
     }
   }
 
-  const handle = formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'your-bot'
+  // ── GATE: wallet must be connected first ───────────────────────────────────
+  if (!isConnected) {
+    return (
+      <Shell>
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: 'easeOut' }}>
+          <Eyebrow word="Deploy a bot" />
+          <h1 className="m-0 font-sans font-extrabold tracking-[-0.035em] leading-[1.02] text-[clamp(34px,5vw,56px)]">
+            Deploy a bot<span className="text-primary">.</span>
+          </h1>
+          <p className="mt-4 max-w-lg text-[15px] leading-relaxed text-[#9a9a9a]">
+            No capital of your own. Just an edge on Polymarket, proven in the open. Bring your algorithm and let it climb.
+          </p>
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    background: '#050505',
-    border: '1px solid #331015',
-    color: '#ff2a4d',
-    padding: '12px 16px',
-    fontFamily: 'inherit',
-    fontSize: '13px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    transition: 'all 0.2s'
+          {/* plain-language model, so nobody gets lost at "connect" */}
+          <div className="mt-8 rounded-2xl border border-[#161616] bg-[#070708] p-5">
+            <div className="font-mono text-[10px] tracking-[0.22em] uppercase text-[#777] mb-4">How it works</div>
+            <div className="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-3">
+              {[
+                { n: '1', t: 'Your bot trades on Polymarket', d: 'from a wallet it already controls' },
+                { n: '2', t: 'Connect that same wallet here', d: 'one signature proves it is yours' },
+                { n: '3', t: 'Brier scores it on-chain', d: 'no keys, no SDK, nothing to run' },
+              ].map((s) => (
+                <div key={s.n} className="flex-1 flex items-start gap-3">
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-primary/[0.12] border border-primary/40 text-primary font-mono text-[11px] flex items-center justify-center">{s.n}</span>
+                  <div>
+                    <div className="text-[13px] font-sans font-semibold text-white leading-snug">{s.t}</div>
+                    <div className="text-[12px] text-[#777] mt-0.5 leading-snug">{s.d}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* connect panel */}
+          <div className="mt-10 rounded-2xl border border-[#1a1a1a] bg-gradient-to-b from-[#0b0b0c] to-[#080809] p-8 relative overflow-hidden">
+            <div className="absolute inset-x-0 top-0 h-28 pointer-events-none" style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(255,42,77,0.10), transparent 70%)' }} />
+            <div className="relative">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(255,42,77,0.8)]" />
+                <span className="font-mono text-[11px] tracking-[0.22em] uppercase text-primary">Step 1 — Connect</span>
+              </div>
+              <h2 className="m-0 font-sans font-bold text-[22px] tracking-tight">Connect your bot&apos;s trading wallet</h2>
+              <p className="mt-3 max-w-md text-[14px] leading-relaxed text-[#8f8f8f]">
+                Connect the wallet your bot trades with on Polymarket. It is your builder identity, the source of your track record, and how your share of the profits flows back to you. Non custodial, always.
+              </p>
+              <button
+                onClick={() => openConnectModal?.()}
+                className="mt-6 inline-flex items-center gap-2 bg-primary text-[#030303] px-7 py-3 rounded-full font-sans font-bold text-[14px] transition-all hover:shadow-[0_0_24px_rgba(255,42,77,0.5)] cursor-pointer"
+              >
+                Connect wallet →
+              </button>
+            </div>
+          </div>
+
+          {/* what comes next */}
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { n: '01', t: 'Name it', d: 'Name, bio and market categories. Its signature art is born from the name.' },
+              { n: '02', t: 'Connect it', d: 'Connect the wallet your bot trades with. One signature proves it is yours.' },
+              { n: '03', t: 'Open a vault', d: 'Brier watches it on Polymarket. 100 resolved, Brier 0.20, 21 days, then capital backs you.' },
+            ].map((s) => (
+              <div key={s.n} className="rounded-xl border border-[#161616] bg-[#070708] p-4">
+                <div className="font-mono text-[11px] text-primary mb-2">{s.n}</div>
+                <div className="font-sans font-bold text-[14px] mb-1">{s.t}</div>
+                <div className="text-[12px] leading-relaxed text-[#777]">{s.d}</div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      </Shell>
+    )
   }
 
+  // ── stepper (connected) ─────────────────────────────────────────────────────
+  const STEPS = [
+    { n: 1, label: 'Identity' },
+    { n: 2, label: 'Prove' },
+    { n: 3, label: 'Live' },
+  ]
+
   return (
-    <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: 'easeOut' }} className="min-h-screen bg-[#030303] text-primary font-mono p-8">
-      
-      {/* HEADER BAR */}
-      <div className="max-w-[700px] mx-auto mb-6 flex justify-between items-center border-b border-border pb-2 text-[13px]">
-        <div className="flex gap-3 items-center">
-          <Link href="/" className="text-muted hover:text-primary transition-colors no-underline">[&lt; RETURN]</Link>
-          <span className="text-primary font-bold">/brier/ — DEPLOY_NODE</span>
-        </div>
-        <div className="flex gap-4 text-xs text-muted">
-          <Link href="/developers" className="hover:text-primary transition-colors no-underline">[SDK_DOCS]</Link>
-        </div>
+    <Shell>
+      <Eyebrow word="Deploy a bot" />
+
+      {/* stepper */}
+      <div className="flex items-center mb-10 select-none">
+        {STEPS.map((s, i) => (
+          <div key={s.n} className="flex items-center flex-1 last:flex-none">
+            <div className="flex items-center gap-2.5">
+              <span
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold font-mono transition-all ${
+                  step === s.n
+                    ? 'bg-primary text-[#030303] shadow-[0_0_14px_rgba(255,42,77,0.45)]'
+                    : step > s.n
+                      ? 'bg-primary/15 text-primary border border-primary/40'
+                      : 'bg-white/[0.03] text-[#555] border border-[#222]'
+                }`}
+              >
+                {step > s.n ? '✓' : s.n}
+              </span>
+              <span className={`text-[12px] font-sans font-semibold tracking-tight ${step >= s.n ? 'text-white' : 'text-[#555]'}`}>{s.label}</span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div className={`flex-1 h-px mx-3 transition-colors ${step > s.n ? 'bg-primary/30' : 'bg-[#1a1a1a]'}`} />
+            )}
+          </div>
+        ))}
       </div>
 
-      <div className="max-w-[700px] mx-auto">
-        
-        {/* PROGRESS BAR */}
-        <div className="flex mb-8">
-          <div className={`flex-1 h-1 transition-colors ${step >= 1 ? 'bg-primary shadow-[0_0_10px_rgba(255,42,77,0.5)]' : 'bg-[#110508]'}`}></div>
-          <div className={`flex-1 h-1 transition-colors ${step >= 2 ? 'bg-primary shadow-[0_0_10px_rgba(255,42,77,0.5)]' : 'bg-[#110508]'}`}></div>
-          <div className={`flex-1 h-1 transition-colors ${step >= 3 ? 'bg-primary shadow-[0_0_10px_rgba(255,42,77,0.5)]' : 'bg-[#110508]'}`}></div>
-        </div>
+      <div className="rounded-2xl border border-[#1a1a1a] bg-[#080809] p-7 md:p-9">
 
-        <div className="border border-border bg-[#080405] p-8 shadow-[0_0_20px_rgba(255,42,77,0.05)] relative">
-          <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-primary" />
-          <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-primary" />
+        {/* ── STEP 1: IDENTITY ── */}
+        {step === 1 && (
+          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
+            <h2 className="m-0 font-sans font-extrabold text-[26px] tracking-tight">Name your algorithm<span className="text-primary">.</span></h2>
+            <p className="mt-2 mb-7 text-[14px] text-[#8f8f8f]">This is how the arena will know it. You can refine everything later from its profile.</p>
 
-          {step === 1 && (
-            <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
-              <div className="text-primary font-bold text-sm mb-8 tracking-widest">&gt;&gt; STEP 1: CONFIGURE_NODE_METADATA</div>
-              
-              <div className="mb-6">
-                <div className="text-muted text-[11px] mb-2 tracking-widest">NODE_IDENTIFIER</div>
-                <input 
-                  type="text" 
-                  value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
-                  placeholder="e.g. ADAN-PRED" 
-                  style={inputStyle}
-                  className="focus:border-primary focus:shadow-[0_0_10px_rgba(255,42,77,0.15)] placeholder-[#331015]"
-                />
-              </div>
-
-              <div className="mb-6">
-                <div className="text-muted text-[11px] mb-2 tracking-widest">TARGET_MARKET_MAKER</div>
-                <input 
-                  type="text" 
-                  value={formData.market}
-                  disabled
-                  style={{...inputStyle, color: '#666', background: '#030303'}} 
-                />
-              </div>
-
-              <div className="mb-8">
-                <div className="text-muted text-[11px] mb-2 tracking-widest">STRATEGY_DESCRIPTION</div>
-                <textarea 
-                  value={formData.description}
-                  onChange={e => setFormData({...formData, description: e.target.value})}
-                  placeholder="Define protocol strategy..." 
-                  style={{ ...inputStyle, minHeight: '120px', resize: 'vertical' }}
-                  className="focus:border-primary focus:shadow-[0_0_10px_rgba(255,42,77,0.15)] placeholder-[#331015]"
-                />
-              </div>
-
-              <div className="flex justify-end">
-                <button 
-                  onClick={handleNext}
-                  disabled={!formData.name}
-                  className={`font-mono font-bold text-[13px] px-8 py-3 tracking-widest transition-all ${
-                    formData.name 
-                      ? 'bg-primary text-[#030303] shadow-[0_0_15px_rgba(255,42,77,0.4)] hover:bg-[#ff1438] cursor-pointer' 
-                      : 'bg-[#110508] text-muted cursor-not-allowed border border-[#331015]'
-                  }`}
-                >
-                  PROCEED_TO_SIG &gt;
-                </button>
-              </div>
-            </motion.div>
-          )}
-
-          {step === 2 && (
-            <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
-              <div className="text-primary font-bold text-sm mb-8 tracking-widest">&gt;&gt; STEP 2: VERIFY_WALLET_OWNERSHIP</div>
-              
-              <div className="text-[#c5c8c6] text-[13px] leading-relaxed mb-8 border-l border-primary pl-4 bg-[#110508] py-4 pr-4">
-                To bind <strong className="text-primary">{formData.name}</strong> to your identity, you must execute a cryptographic signature proving ownership of the connected terminal.
-                <br /><br />
-                Connected Terminal: <span className="text-white font-bold">{address || 'NOT CONNECTED'}</span>
-              </div>
-
-              {errorMsg && (
-                <div className="bg-[#1a0505] border border-primary text-primary p-4 text-[12px] mb-8 font-bold tracking-widest shadow-[inset_0_0_10px_rgba(255,42,77,0.2)] animate-pulse">
-                  {errorMsg}
-                </div>
+            {/* bot name */}
+            <div className="mb-6">
+              <label className="block text-[12px] font-sans font-semibold text-[#bbb] mb-2">Bot name</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g. ADAN-PRED"
+                className={INPUT_CLS}
+              />
+              {formData.name && (
+                <div className="mt-2 font-mono text-[11px] text-[#666]">brier.world/bot/<span className="text-primary">{handle}</span></div>
               )}
+            </div>
 
-              <div className="flex justify-between items-center">
-                <button 
-                  onClick={() => setStep(1)}
-                  className="bg-transparent border border-border text-muted px-6 py-3 cursor-pointer font-mono text-[13px] hover:text-primary transition-colors tracking-widest"
-                >
-                  &lt; ABORT
-                </button>
-                <button 
-                  onClick={handleNext}
-                  disabled={verifying || !address}
-                  className={`font-mono font-bold text-[13px] px-8 py-3 tracking-widest transition-all ${
-                    (verifying || !address)
-                      ? 'bg-[#110508] text-muted cursor-not-allowed border border-[#331015]'
-                      : 'bg-primary text-[#030303] shadow-[0_0_15px_rgba(255,42,77,0.4)] hover:bg-[#ff1438] cursor-pointer'
-                  }`}
-                >
-                  {verifying ? 'AWAITING_SIGNATURE...' : 'SIGN_PAYLOAD'}
-                </button>
-              </div>
-            </motion.div>
-          )}
+            {/* bio */}
+            <div className="mb-6">
+              <label className="block text-[12px] font-sans font-semibold text-[#bbb] mb-2">Bio</label>
+              <textarea
+                value={formData.description}
+                onChange={e => setFormData({ ...formData, description: e.target.value })}
+                placeholder="What does it predict, and what is its edge? e.g. Perp-funded model forecasting BTC and ETH resolutions on Polymarket."
+                className={`${INPUT_CLS} min-h-[110px] resize-y leading-relaxed`}
+              />
+              <div className="mt-2 text-[11px] text-[#666]">A short pitch. This is what investors read first on its card.</div>
+            </div>
 
-          {step === 3 && (
-            <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4 }}>
-              <div className="text-primary font-bold text-sm mb-4 tracking-widest shadow-primary drop-shadow-[0_0_8px_rgba(255,42,77,0.5)]">
-                &gt;&gt; SYS_STATUS: DEPLOYMENT_SUCCESSFUL
-              </div>
-              
-              <div className="text-[#c5c8c6] text-[13px] leading-relaxed mb-8">
-                Node <strong className="text-white">{formData.name}</strong> has been embedded into Brier Protocol. A dedicated Vault has been initialized on-chain.
-              </div>
-
-              {/* CRITICAL SECRET KEY REVEAL */}
-              <div className="bg-[#0a0204] border border-primary p-6 mb-8 relative shadow-[0_0_20px_rgba(255,42,77,0.15)]">
-                <div className="text-primary font-bold text-[12px] mb-3 flex items-center gap-2 tracking-widest">
-                  <span className="inline-block w-2 h-2 bg-primary animate-pulse shadow-[0_0_5px_rgba(255,42,77,1)]"></span>
-                  CRITICAL: BUILDER_SECRET_KEY GENERATED
+            {/* venue */}
+            <div className="mb-7">
+              <label className="block text-[12px] font-sans font-semibold text-[#bbb] mb-2">Prediction venue</label>
+              <div className="flex items-center gap-3 rounded-xl border border-[#1a1a1a] bg-[#060607] px-4 py-3">
+                <span className="w-7 h-7 rounded-md bg-[#1a1f2e] flex items-center justify-center shrink-0">
+                  <span className="w-3 h-3 rounded-sm bg-[#4285f0]" />
+                </span>
+                <div className="flex-1">
+                  <div className="text-[13px] font-sans font-semibold text-white">Polymarket</div>
+                  <div className="text-[11px] text-[#666]">Forecasts real world events across every category</div>
                 </div>
                 <div className="text-[#c5c8c6] text-[11px] mb-4 leading-relaxed">
                   This is your <span className="text-white font-bold">BUILDER_SECRET_KEY</span>. Required for SDK authentication. We do not store this key. You will only see this once. Do not commit to version control.
@@ -270,6 +324,7 @@ export default function ListBotPage() {
                   </div>
                 </div>
               </div>
+            </div>
 
               {/* SDK SNIPPET */}
               <div className="mb-8">
@@ -290,23 +345,24 @@ bot.predict({
 });`}
                 </div>
               </div>
+            </div>
 
-              <div className="flex justify-end gap-4">
-                <Link href={`/bot/${handle}`} className="bg-transparent border border-primary text-primary px-8 py-3 no-underline font-bold text-[13px] transition-all hover:bg-primary hover:text-[#030303] tracking-widest shadow-[0_0_10px_rgba(255,42,77,0.2)]">
-                  VIEW_NODE_PROFILE &gt;
-                </Link>
-              </div>
-            </motion.div>
-          )}
-
-        </div>
-
-        {/* INFO FOOTER */}
-        <div className="mt-8 border border-border p-4 text-[11px] text-muted leading-relaxed">
-          <span className="text-primary font-bold">&gt; SYS_NOTE:</span> Your algorithm runs on <strong className="text-white">your isolated hardware</strong>. Brier Protocol only indexes your trade signals via the SDK. Source code remains 100% encrypted and private.
-        </div>
-
+            <div className="flex justify-end gap-3">
+              <Link href="/discover" className="rounded-full border border-[#2a2a2a] text-white px-6 py-3 no-underline font-sans font-semibold text-[13px] hover:border-[#555] hover:bg-white/[0.03] transition-all">
+                Browse the catalog
+              </Link>
+              <Link href={`/bot/${deployedSlug || handle}`} className="rounded-full bg-primary text-[#030303] px-6 py-3 no-underline font-sans font-bold text-[13px] hover:shadow-[0_0_22px_rgba(255,42,77,0.5)] transition-all">
+                View its profile →
+              </Link>
+            </div>
+          </motion.div>
+        )}
       </div>
-    </motion.div>
+
+      {/* footer note */}
+      <div className="mt-6 text-[12px] text-[#666] leading-relaxed">
+        <span className="text-primary font-semibold">Note.</span> Your algorithm runs on your own hardware. Brier only reads this wallet&apos;s public Polymarket activity on-chain to score it, your source code stays private.
+      </div>
+    </Shell>
   )
 }

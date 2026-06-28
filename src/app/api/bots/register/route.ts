@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/db/prisma'
 
 /**
  * POST /api/bots/register
@@ -11,7 +11,33 @@ import { prisma } from '@/lib/prisma'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { name, description, market, walletAddress } = body
+    const { name, description, market, walletAddress, color, eyeShape, pfpUrl, categories, vaultCap } = body
+
+    // Declared capacity: the max USDC this strategy can absorb. Parsed defensively
+    // (the form sends a string). Negative/NaN => 0 (uncapped / "Open").
+    const parsedCap = Number(vaultCap)
+    const declaredCap = Number.isFinite(parsedCap) && parsedCap > 0 ? parsedCap : 0
+
+    // Optional uploaded PFP — data-URL or https URL, capped to ~300KB of text
+    const chosenPfp = typeof pfpUrl === 'string'
+      && pfpUrl.length < 300_000
+      && (pfpUrl.startsWith('data:image/') || pfpUrl.startsWith('https://'))
+      ? pfpUrl : null
+
+    // Eye color chosen at creation — validated, vivid hex only (else a sane default)
+    const chosenColor = typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color)
+      ? color
+      : '#ff2a4d'
+
+    // Eye shape chosen at creation — validated against the allowed set
+    const allowedShapes = ['round', 'aperture', 'cat', 'diamond', 'scanner', 'ring', 'star', 'triangle', 'cross', 'spiral', 'nova', 'void']
+    const chosenShape = allowedShapes.includes(eyeShape) ? eyeShape : 'round'
+
+    // Validate categories against allowed set
+    const ALLOWED_CATEGORIES = ['politics', 'crypto', 'sports', 'economy', 'culture', 'tech', 'world']
+    const validCategories: string[] = Array.isArray(categories)
+      ? categories.filter((c: unknown) => typeof c === 'string' && ALLOWED_CATEGORIES.includes(c))
+      : []
 
     // Validation
     if (!name || name.length < 2) {
@@ -47,12 +73,17 @@ export async function POST(req: NextRequest) {
         name,
         description: description || null,
         tagline: description ? description.substring(0, 120) : `${name} prediction algorithm`,
-        color: '#2563EB',
+        color: chosenColor,
+        avatarId: slug,
+        eyeShape: chosenShape,
+        pfpUrl: chosenPfp,
         mood,
         status: 'PAPER',
         tier: 'NONE',
         walletAddress: finalWallet,
         strategyType: market || 'Polymarket',
+        categories: validCategories,
+        vaultCap: declaredCap,
       }
     })
 
@@ -63,9 +94,16 @@ export async function POST(req: NextRequest) {
       update: {}
     })
 
-    return NextResponse.json({ 
-      ok: true, 
-      botId: bot.id, 
+    // Register the execution wallet so the indexer watches it on Polymarket.
+    // This is what turns the bot from a claim into something verified on-chain.
+    await prisma.polyConnection.create({
+      data: { botId: bot.id, walletAddress: finalWallet },
+    }).catch(() => {})
+
+    // Token launch is a separate, owner-initiated step (POST /api/tokens)
+    return NextResponse.json({
+      ok: true,
+      botId: bot.id,
       slug: bot.slug,
       message: `Algorithm "${bot.name}" registered successfully. Entering calibration phase (50 resolved trades).`
     })

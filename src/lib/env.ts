@@ -8,10 +8,13 @@ const REQUIRED_ENV_VARS = [
 
 export function validateEnv() {
   const missing = REQUIRED_ENV_VARS.filter(key => !process.env[key]);
-  
+
+  // Don't hard-fail during the production *build* (page-data collection) — only at runtime.
+  const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
+
   if (missing.length > 0) {
     const errorMsg = `❌ Missing required environment variables: ${missing.join(', ')}`;
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production' && !isBuildPhase) {
       throw new Error(errorMsg);
     } else {
       console.error(errorMsg);

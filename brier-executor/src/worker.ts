@@ -1,5 +1,6 @@
 import { Worker } from 'bullmq';
 import { ethers } from 'ethers';
+import { openPerpPosition, closePerpPosition } from './polymarket.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const Redis = require('ioredis');
@@ -15,8 +16,15 @@ const CTF_ABI = ['function redeemPositions(address collateralToken, bytes32 pare
 // =========================================================
 // Trade Execution Worker (SPOT + PERP Routing)
 // =========================================================
+// REAL vs MOCK status:
+//   - SPOT path → on-chain CTF via BrierVault.executeTrade ........ REAL
+//   - PERP path → Polymarket CLOB via openPerpPosition/closePerpPosition
+//                 in polymarket.ts (real @polymarket/clob-client) .. REAL
+//   - Risk Engine price feed (further below) ..................... MOCK
+//                 hardcoded 0.50; TODO: wire a live CLOB WebSocket
+//                 price before trusting stop-loss execution in prod.
 const executionWorker = new Worker('trade-signals', async job => {
-  const { tradeId, botId, vaultAddress, marketId, outcomeIndex, size, marketType, actionType, direction, leverage, stopLossPrice } = job.data;
+  const { tradeId, botId, vaultAddress, marketId, outcomeIndex, size, marketType, actionType, direction, leverage, stopLossPrice, worstPrice, slippageBps } = job.data;
   
   console.log(`[Executor] Processing ${actionType} trade ${tradeId} for Vault ${vaultAddress} (${marketType})`);
   
@@ -38,23 +46,38 @@ const executionWorker = new Worker('trade-signals', async job => {
     } else if (marketType === 'PERP') {
         // --- NUEVA LÓGICA PERP (CLOB Polymarket) ---
         if (actionType === 'OPEN') {
-            console.log(`[Perp Engine] Opening ${leverage}x ${direction} on ${marketId}...`);
-            // TODO: Integrar llamada directa a Polymarket CLOB API Level 2 aquí.
-            // Para proteger el Vault de Brier, solo inyectamos el margen off-chain temporalmente
+            console.log(`[Perp Engine] Opening ${leverage}x ${direction} on ${marketId} (worstPrice=${worstPrice}, slip=${slippageBps}bps)...`);
+            // Real CLOB execution: Fill-And-Kill bounded by worstPrice (slippage guard).
+            // marketId here must be the outcome tokenID being traded.
+            const result = await openPerpPosition({
+                tokenID: marketId,
+                direction: (direction || 'LONG') as 'LONG' | 'SHORT',
+                size: Number(size),
+                worstPrice: Number(worstPrice ?? 0.5),
+            });
             await redis.hset(`trade:${tradeId}`, {
                 status: 'active_perp',
+                orderId: result.orderId ?? '',
+                clobStatus: result.status,
                 direction: direction,
                 leverage: leverage,
+                worstPrice: worstPrice ?? 0,
+                slippageBps: slippageBps ?? 0,
                 stopLoss: stopLossPrice || 0,
                 marketId: marketId,
                 vaultAddress: vaultAddress
             });
-            console.log(`[Perp Engine] Position tracked in Risk Engine. SL: ${stopLossPrice}`);
+            console.log(`[Perp Engine] CLOB order ${result.orderId} → ${result.status}. SL: ${stopLossPrice}`);
         } else if (actionType === 'CLOSE') {
             console.log(`[Perp Engine] Executing Market CLOSE for ${tradeId}...`);
-            // TODO: Enviar orden IOC opuesta al CLOB.
-            await redis.hset(`trade:${tradeId}`, 'status', 'settled');
-            console.log(`[Perp Engine] Position closed. Ready for PnL settlement.`);
+            const result = await closePerpPosition({
+                tokenID: marketId,
+                direction: (direction || 'LONG') as 'LONG' | 'SHORT',
+                size: Number(size),
+                worstPrice: Number(worstPrice ?? 0.5),
+            });
+            await redis.hset(`trade:${tradeId}`, { status: 'settled', closeOrderId: result.orderId ?? '' });
+            console.log(`[Perp Engine] Position closed via CLOB order ${result.orderId}. Ready for PnL settlement.`);
         }
     }
 

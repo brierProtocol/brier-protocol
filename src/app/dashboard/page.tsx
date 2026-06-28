@@ -5,16 +5,8 @@ import Link from 'next/link'
 import { useAccount, useReadContract, useWriteContract } from 'wagmi'
 import { parseUnits } from 'viem'
 import { motion, useSpring, useTransform, AnimatePresence } from 'framer-motion'
-
-const brierVaultABI = [
-  {
-    "inputs": [{"internalType": "uint256", "name": "shares", "type": "uint256"}, {"internalType": "address", "name": "receiver", "type": "address"}, {"internalType": "address", "name": "owner", "type": "address"}],
-    "name": "redeem",
-    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  }
-]
+import { brierVaultABI } from '@/lib/abis/BrierVault'
+import type { Allocation, DashboardHistoryItem } from '@/types'
 
 // ── Portfolio Chart (canvas) ──
 function PortfolioChart({ data }: { data: number[] }) {
@@ -86,8 +78,8 @@ interface DashboardData {
   totalEarned: number;
   annualizedReturn: number;
   activePositions: number;
-  allocations: any[];
-  history: any[];
+  allocations: Allocation[];
+  history: DashboardHistoryItem[];
 }
 
 export default function DashboardPage() {
@@ -159,6 +151,31 @@ export default function DashboardPage() {
       </div>
 
       <div className="max-w-[1200px] mx-auto">
+
+        {/* INFO BANNER */}
+        <div className="info-banner mb-6">
+          <span className="text-primary text-xs">[INFO]</span>
+          Capital is deployed via ERC-4626 shares. Exit is <span className="text-white mx-1 font-semibold">instant</span> — shares are redeemable 1:1 at current NAV. Principal + profit arrive in one transaction.
+        </div>
+
+        {/* HOW IT WORKS — Cuadritos */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
+          {[
+            { n: '01', title: 'DEPOSIT', icon: '[$]', desc: 'Send USDC to the vault. Shares minted proportionally. Your share = your claim on all vault assets.' },
+            { n: '02', title: 'BOT_TRADES', icon: '[⚡]', desc: 'Algorithm trades Polymarket markets. NAV updates on every settlement. You can exit any time.' },
+            { n: '03', title: 'REDEEM', icon: '[↗]', desc: 'Burn shares → receive USDC. Builder 30% + protocol 10% deducted from profit only. Principal always 100% liquid.' },
+          ].map(({ n, title, icon, desc }) => (
+            <div key={n} className="bg-black/40 border border-primary/10 hover:border-primary/25 transition-colors p-5 relative group">
+              <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-primary/20 group-hover:border-primary/40 transition-colors" />
+              <div className="flex items-start gap-3 mb-3">
+                <span className="text-primary/40 font-mono text-xs">{n}</span>
+                <span className="text-primary font-mono font-bold text-lg">{icon}</span>
+              </div>
+              <div className="text-white font-mono text-xs font-bold tracking-widest mb-2">{title}</div>
+              <div className="text-[#555] text-[11px] leading-relaxed font-sans">{desc}</div>
+            </div>
+          ))}
+        </div>
 
         {/* METRICS ROW */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -243,7 +260,7 @@ export default function DashboardPage() {
                                 {alloc.bot}
                                 <span className="text-[9px] bg-primary/20 text-primary px-2 py-[2px] rounded-sm tracking-widest border border-primary/30">{alloc.mode}</span>
                               </Link>
-                              <div className="text-primary/50 text-[10px] tracking-widest font-mono">VAULT: {alloc.vaultAddress?.substring(0, 10)}...</div>
+                              <div className="text-primary/50 text-[10px] tracking-widest font-mono">VAULT: {(alloc.vaultAddress ?? '')?.substring(0, 10)}...</div>
                               
                               <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-primary/10">
                                 <div>
@@ -271,19 +288,19 @@ export default function DashboardPage() {
                                 <input 
                                   type="number" 
                                   placeholder="USDC" 
-                                  value={withdrawInputs[alloc.vaultAddress] || ''}
-                                  onChange={e => setWithdrawInputs(prev => ({ ...prev, [alloc.vaultAddress]: e.target.value }))}
+                                  value={withdrawInputs[(alloc.vaultAddress ?? '')] || ''}
+                                  onChange={e => setWithdrawInputs(prev => ({ ...prev, [(alloc.vaultAddress ?? '')]: e.target.value }))}
                                   className="w-full bg-transparent border-none text-white p-2 font-mono text-sm outline-none placeholder-primary/20"
                                   disabled={isRedeeming}
                                 />
-                                <button onClick={() => setWithdrawInputs(prev => ({ ...prev, [alloc.vaultAddress]: alloc.dep.toString() }))} className="bg-transparent border-none border-l border-primary/30 text-primary px-3 cursor-pointer font-mono font-bold text-[10px] hover:bg-primary/10 transition-colors">MAX</button>
+                                <button onClick={() => setWithdrawInputs(prev => ({ ...prev, [(alloc.vaultAddress ?? '')]: alloc.dep.toString() }))} className="bg-transparent border-none border-l border-primary/30 text-primary px-3 cursor-pointer font-mono font-bold text-[10px] hover:bg-primary/10 transition-colors">MAX</button>
                               </div>
                               <button 
-                                onClick={() => handleRedeem(alloc.vaultAddress)}
-                                disabled={isRedeeming || !withdrawInputs[alloc.vaultAddress]}
+                                onClick={() => handleRedeem((alloc.vaultAddress ?? ''))}
+                                disabled={isRedeeming || !withdrawInputs[(alloc.vaultAddress ?? '')]}
                                 className={`w-full py-2 font-bold text-[11px] tracking-widest font-mono rounded-sm transition-all ${
                                   isRedeeming ? 'bg-black text-primary/40 border border-primary/20 cursor-not-allowed' :
-                                  withdrawInputs[alloc.vaultAddress] ? 'bg-primary text-black border-none shadow-[0_0_15px_rgba(255,42,77,0.5)] hover:shadow-[0_0_25px_rgba(255,42,77,0.8)] cursor-pointer scale-[1.02]' :
+                                  withdrawInputs[(alloc.vaultAddress ?? '')] ? 'bg-primary text-black border-none shadow-[0_0_15px_rgba(255,42,77,0.5)] hover:shadow-[0_0_25px_rgba(255,42,77,0.8)] cursor-pointer scale-[1.02]' :
                                   'bg-[#0a0204] text-primary/50 border border-primary/20 cursor-not-allowed'
                                 }`}
                               >
@@ -295,9 +312,10 @@ export default function DashboardPage() {
                         ))
                       ) : (
                         <div className="p-12 text-center border border-primary/10 bg-black/30">
-                          <div className="text-primary/50 text-xs mb-4 tracking-widest font-bold">[ NO_CAPITAL_DEPLOYED ]</div>
-                          <Link href="/discover" className="inline-block bg-transparent border border-primary/50 text-primary px-6 py-3 no-underline text-[11px] font-bold tracking-widest transition-all hover:bg-primary hover:text-black hover:shadow-[0_0_20px_rgba(255,42,77,0.5)] rounded-sm">
-                            INITIALIZE DEPLOYMENT &gt;
+                          <div className="text-primary/50 text-xs mb-1 tracking-widest font-bold">[ NO_ACTIVE_POSITIONS ]</div>
+                          <div className="text-[#333] text-[10px] font-mono mb-6">No capital deployed in active vaults.</div>
+                          <Link href="/discover" className="inline-block bg-transparent border border-primary/50 text-primary px-6 py-3 no-underline text-[11px] font-bold tracking-widest transition-all hover:bg-primary hover:text-black hover:shadow-[0_0_20px_rgba(255,42,77,0.5)] font-mono">
+                            EXPLORE_CATALOG →
                           </Link>
                         </div>
                       )}

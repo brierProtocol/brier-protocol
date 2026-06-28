@@ -1,5 +1,5 @@
 // src/lib/notifications.ts
-import { prisma } from './prisma'
+import { prisma } from './db/prisma'
 
 export type NotificationType =
   | 'VAULT_UNLOCKED'

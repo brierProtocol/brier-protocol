@@ -22,6 +22,7 @@ model Bot {
   tier            String        @default("NONE")
   pfpUrl          String?
   avatarId        String        @default("void-eye")
+  eyeShape        String        @default("round")     // round | aperture | cat | diamond | scanner | ring
   
   // --- NUEVA TAXONOMÍA INSTITUCIONAL (PERPS) ---
   marketType      String        @default("SPOT")      // SPOT | PERP
@@ -29,6 +30,13 @@ model Bot {
   mandate         String        @default("DIRECTIONAL") // DIRECTIONAL | DELTA-NEUTRAL
   maxLeverage     Float         @default(1.0)
   // ---------------------------------------------
+
+  // Polymarket categories this bot targets (e.g. ["crypto","politics"])
+  categories      String[]      @default([])
+  // Categories DERIVED from the markets the wallet actually traded (on-chain
+  // truth). When present, the catalog trusts these over the declared ones.
+  verifiedCategories String[]   @default([])
+  lastIndexedAt   DateTime?
 
   walletAddress   String
   vaultAddress    String?
@@ -62,6 +70,65 @@ model Bot {
   @@index([walletAddress])
   @@index([status])       // FIX-5: leaderboard filters by status constantly
   @@index([tier])         // FIX-5: tier filtering
+}
+
+// ─────────────────────────────────────────────────────────────
+// LAUNCHPAD — each bot has a tokenized "conviction market".
+// During shadow it trades on a virtual bonding curve; on Tier-1 it graduates.
+// ─────────────────────────────────────────────────────────────
+model BotToken {
+  id            String   @id @default(cuid())
+  botId         String   @unique
+  bot           Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  ticker        String                         // e.g. ADAN
+  name          String                         // display name
+
+  // Virtual bonding-curve state (off-chain MVP; on-chain later)
+  // Pump.fun-style: fixed 1B total supply, constant-product virtual reserves
+  supply        Float    @default(0)           // tokens SOLD from the curve
+  reserve       Float    @default(0)           // real virtual-USDC collected
+  basePrice     Float    @default(0.0001)      // LEGACY (old linear curve) — unused
+  slope         Float    @default(0.000000005) // LEGACY (old linear curve) — unused
+  graduationMcap Float   @default(50000)       // mcap that triggers graduation → vault
+
+  status        String   @default("BONDING")   // BONDING | GRADUATED
+  holdersCount  Int      @default(0)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  trades        TokenTrade[]
+  holdings      TokenHolding[]
+
+  @@index([status])
+}
+
+model TokenTrade {
+  id         String   @id @default(cuid())
+  tokenId    String
+  token      BotToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  wallet     String
+  side       String                         // BUY | SELL
+  usdc       Float                          // virtual USDC in/out
+  shares     Float                          // shares minted/burned
+  priceAfter Float                          // curve price after the trade
+  createdAt  DateTime @default(now())
+
+  @@index([tokenId, createdAt])
+  @@index([wallet])
+}
+
+model TokenHolding {
+  id        String   @id @default(cuid())
+  tokenId   String
+  token     BotToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  wallet    String
+  shares    Float    @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([tokenId, wallet])
 }
 
 model BotMarket {
@@ -166,7 +233,11 @@ model VaultDeposit {
 
   depositorWallet  String
   amountUsdc       Float
-  
+
+  // Hash de la transacción on-chain. Único => previene replay (mismo txHash 2 veces).
+  // Nullable para no romper datos sembrados antiguos; la API siempre lo setea ahora.
+  txHash           String?   @unique
+
   // CONSERVATIVE | DEGEN
   mode             String    @default("CONSERVATIVE")
   
@@ -262,7 +333,14 @@ model User {
   name          String?
   bio           String?
   pfpUrl        String?
-  
+
+  // Linked X (Twitter) account. xHandle is stored without the leading @.
+  // xVerified flips true only once we run real OAuth; manual links stay false.
+  xHandle       String?
+  xVerified     Boolean  @default(false)
+
+  createdAt     DateTime @default(now())
+
   followers     Follow[] @relation("Followers")
   following     Follow[] @relation("Following")
   comments      Comment[]

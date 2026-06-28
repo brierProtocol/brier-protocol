@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -10,6 +10,25 @@
   --glow: rgba(255, 42, 77, 0.25);
   --text: #e8e8e8;
   --text-secondary: #999999;
+
+  /* Typography tokens referenced across components (were previously undefined) */
+  --font-display: 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+
+  /* Semantic PnL / status colors */
+  --acid: #C8FF00;              /* high-energy "good" signal (existing) */
+  --positive: #C8FF00;         /* profit (green +$X) */
+  --positive-glow: rgba(200, 255, 0, 0.12);
+  --negative: #ff3b3b;         /* loss */
+  --negative-glow: rgba(255, 59, 59, 0.12);
+
+  /* Surfaces */
+  --card-bg: rgba(255, 255, 255, 0.04);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
 }
 
 @theme inline {
@@ -18,7 +37,9 @@
   --color-border: var(--border-neon);
   --color-primary: var(--primary);
   --color-muted: var(--muted);
-  --font-mono: var(--font-body), 'Courier New', monospace;
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
   --font-sans: 'Inter', 'Space Grotesk', system-ui, sans-serif;
 }
 
@@ -27,13 +48,14 @@ body {
   color: var(--text);
   font-family: 'Inter', 'Space Grotesk', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   min-height: 100vh;
   font-weight: 400;
   letter-spacing: -0.01em;
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
@@ -47,6 +69,53 @@ html { scroll-behavior: smooth; }
 /* Active press effect */
 button, a { cursor: pointer; }
 button:active, a:active { transform: scale(0.97); }
+
+/* Keyboard accessibility: visible focus ring (was missing) */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+:focus:not(:focus-visible) { outline: none; }
+
+/* ===== Reusable UI primitives ===== */
+
+/* Glassmorphism card — matches the existing inline card styles, reusable */
+.glass-card {
+  background: var(--card-bg);
+  border: 0.5px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+}
+
+/* PnL helpers — the green "+$4,000" / red loss treatment */
+.pnl-up   { color: var(--positive); }
+.pnl-down { color: var(--negative); }
+.pnl-pill-up {
+  color: var(--positive);
+  background: var(--positive-glow);
+  border: 0.5px solid var(--positive);
+  border-radius: var(--radius-full, 9999px);
+  padding: 2px 10px;
+  font-variant-numeric: tabular-nums;
+}
+.pnl-pill-down {
+  color: var(--negative);
+  background: var(--negative-glow);
+  border: 0.5px solid var(--negative);
+  border-radius: 9999px;
+  padding: 2px 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Numbers line up nicely in tables / stat cards */
+.tabular { font-variant-numeric: tabular-nums; }
 
 /* Animation keyframes */
 @keyframes float {
@@ -77,29 +146,6 @@ button:active, a:active { transform: scale(0.97); }
 .page-transition {
   animation: pageEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-/* CRT Scanline overlay — adds depth to terminal aesthetic */
-body::after {
-  content: '';
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0,0,0,0.03) 2px,
-    rgba(0,0,0,0.03) 4px
-  );
-  pointer-events: none;
-  z-index: 9999;
-}
-
-/* Glitch animation for status badges */
-@keyframes glitch {
-  0%, 100% { transform: translate(0); clip-path: inset(0 0 100% 0); }
-  10% { transform: translate(-2px, 1px); clip-path: inset(20% 0 60% 0); }
-  20% { transform: translate(2px, -1px); clip-path: inset(50% 0 30% 0); }
-  30% { transform: translate(0); clip-path: inset(0 0 100% 0); }
-}
 
 @keyframes terminal-blink {
   0%, 49% { opacity: 1; }
@@ -112,4 +158,85 @@ body::after {
   color: var(--primary);
 }
 
+/* Podium rank colors */
+.rank-gold   { color: #FFD700; text-shadow: 0 0 12px rgba(255,215,0,0.5); }
+.rank-silver { color: #C0C0C0; text-shadow: 0 0 8px rgba(192,192,192,0.3); }
+.rank-bronze { color: #CD7F32; text-shadow: 0 0 8px rgba(205,127,50,0.3); }
 
+/* Info banner */
+.info-banner {
+  background: rgba(255, 42, 77, 0.05);
+  border: 0.5px solid rgba(255, 42, 77, 0.2);
+  color: var(--text-secondary);
+  padding: 10px 16px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Stepper */
+.stepper-step { color: rgba(255,255,255,0.25); font-family: var(--font-mono); font-size: 11px; }
+.stepper-step.active { color: var(--primary); }
+.stepper-step.done   { color: rgba(200,255,0,0.7); }
+.stepper-line { color: rgba(255,255,255,0.1); user-select: none; }
+
+/* Protocol stat pill */
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 0.5px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.stat-pill span { color: #fff; font-weight: 700; }
+
+/* Market tab */
+.mkt-tab { padding: 4px 12px; font-size: 11px; font-family: var(--font-mono); border: 0.5px solid transparent; background: transparent; cursor: pointer; transition: all 0.15s; color: #666; letter-spacing: 0.05em; }
+.mkt-tab:hover { color: #fff; }
+.mkt-tab.active { color: var(--primary); border-color: rgba(255,42,77,0.3); background: rgba(255,42,77,0.06); }
+
+/* Accessibility: respect users who prefer less motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  button:active, a:active { transform: none; }
+}
+
+/* ===== Panel primitives — shared chrome for every data surface ===== */
+.panel {
+  background: #070707;
+  border: 1px solid #161616;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid #141414;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #555;
+}
+.panel-header .title { color: #ddd; font-weight: 700; }
+
+/* Thread (imageboard) styles — anonymous, precise, zero kitsch */
+.post-text { font-size: 13px; line-height: 1.65; color: #cfcfcf; white-space: pre-wrap; word-break: break-word; }
+.post-text .greentext { color: #7ea35e; }
+.post-text .quotelink { color: var(--primary); text-decoration: none; border-bottom: 1px dotted rgba(255,42,77,0.4); cursor: pointer; }
+.post-text .quotelink:hover { color: #fff; }
+.post-highlight { animation: postFlash 1.6s ease-out; }
+@keyframes postFlash {
+  0% { background: rgba(255,42,77,0.12); }
+  100% { background: transparent; }
+}

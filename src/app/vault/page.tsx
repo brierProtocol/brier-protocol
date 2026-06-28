@@ -1,4 +1,4 @@
-'use client'
+import { redirect } from 'next/navigation'
 
 import { useState } from 'react'
 import { FEATURES } from '@/lib/features'

@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db/prisma';
 import { ethers } from 'ethers';
 import { notifyDeposit } from '@/lib/notifications';
 import { FEATURES } from '@/lib/features';
 
-// Use Polygon Amoy public RPC as fallback, or environment variable
-const RPC_URL = process.env.NEXT_PUBLIC_AMOY_RPC_URL || "https://rpc-amoy.polygon.technology";
+// Direccion del contrato USDC esperado. Si se define (USDC_ADDRESS_ENV), SOLO se aceptan
+// transferencias de ese token (evita depositar un ERC20 falso e inflar el TVL).
+// undefined => validacion de token deshabilitada.
+const USDC_ADDRESS = USDC_ADDRESS_ENV?.toLowerCase();
 
 // ERC20 Transfer Event Signature
-const TRANSFER_EVENT_SIG = ethers.id("Transfer(address,address,uint256)");
+const TRANSFER_EVENT_SIG = ethers.id('Transfer(address,address,uint256)');
 
 export async function POST(request: NextRequest) {
   // v1: reputation layer only — deposits are disabled until contracts are audited
@@ -24,7 +26,10 @@ export async function POST(request: NextRequest) {
     const { botId, depositorWallet, txHash, mode } = body;
 
     if (!botId || !depositorWallet || !txHash) {
-      return NextResponse.json({ error: 'Missing required parameters (txHash, botId, depositorWallet)' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Missing required parameters (txHash, botId, depositorWallet)' },
+        { status: 400 }
+      );
     }
 
     // Basic shape validation of the tx hash (0x + 64 hex chars)
@@ -42,55 +47,68 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'This transaction has already been processed' }, { status: 409 });
     }
 
-    // 1. Fetch the bot from Prisma to get its vaultAddress
+    // 1. Buscar el bot para obtener su vaultAddress
     const bot = await prisma.bot.findUnique({ where: { id: botId } });
     if (!bot || !bot.vaultAddress) {
       return NextResponse.json({ error: 'Bot or Vault Address not found' }, { status: 404 });
     }
 
-    // 2. Query the Blockchain to verify the txHash
+    // 2. Verificar el txHash on-chain
     const provider = new ethers.JsonRpcProvider(RPC_URL);
     const receipt = await provider.getTransactionReceipt(normalizedTxHash);
 
     if (!receipt || receipt.status !== 1) {
-      return NextResponse.json({ error: 'Transaction failed or not found on-chain' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Transaction failed or not found on-chain' },
+        { status: 400 }
+      );
     }
 
-    // 3. Decode the Transfer event to find the exact deposited amount
+    // 3. Decodificar el evento Transfer para hallar el monto exacto depositado
     let realAmountUsdc = 0;
     let verifiedSender = '';
-    
-    // We look through the logs to find an ERC20 Transfer sent to the vaultAddress
+
     for (const log of receipt.logs) {
-      // Check if this log is a Transfer event
-      if (log.topics[0] === TRANSFER_EVENT_SIG) {
-        // topics[1] is 'from', topics[2] is 'to'
-        const fromAddressHex = log.topics[1];
-        const toAddressHex = log.topics[2];
-        if (!toAddressHex || !fromAddressHex) continue;
-        
-        // Convert the padded hex address back to standard format
-        const toAddress = ethers.getAddress(ethers.dataSlice(toAddressHex, 12));
-        const fromAddress = ethers.getAddress(ethers.dataSlice(fromAddressHex, 12));
-        
-        if (toAddress.toLowerCase() === bot.vaultAddress.toLowerCase()) {
-          // The data field contains the amount (uint256)
-          // USDC has 6 decimals, adjust accordingly
-          const amountBigInt = ethers.toBigInt(log.data);
-          realAmountUsdc = Number(amountBigInt) / 1e6;
-          verifiedSender = fromAddress;
-          break;
-        }
+      if (log.topics[0] !== TRANSFER_EVENT_SIG) continue;
+
+      // SECURITY [token-spoofing]: si hay USDC configurado, exigir que el Transfer
+      // provenga exactamente del contrato USDC, no de un ERC20 cualquiera.
+      if (USDC_ADDRESS && log.address.toLowerCase() !== USDC_ADDRESS) continue;
+
+      const fromAddressHex = log.topics[1];
+      const toAddressHex = log.topics[2];
+      if (!toAddressHex || !fromAddressHex) continue;
+
+      const toAddress = ethers.getAddress(ethers.dataSlice(toAddressHex, 12));
+      const fromAddress = ethers.getAddress(ethers.dataSlice(fromAddressHex, 12));
+
+      if (toAddress.toLowerCase() === bot.vaultAddress.toLowerCase()) {
+        // formatUnits usa BigInt internamente => sin pérdida de precisión por Number.
+        realAmountUsdc = Number(ethers.formatUnits(ethers.toBigInt(log.data), USDC_DECIMALS));
+        verifiedSender = fromAddress;
+        break;
       }
     }
 
-    if (realAmountUsdc <= 0) {
-      return NextResponse.json({ error: 'No valid USDC Transfer to the Vault found in this transaction' }, { status: 400 });
+    if (!USDC_ADDRESS) {
+      console.warn(
+        '[deposits] NEXT_PUBLIC_USDC_ADDRESS no está configurada: validación de token deshabilitada.'
+      );
     }
 
-    // SECURITY: Verify depositor matches the actual on-chain sender
+    if (realAmountUsdc <= 0) {
+      return NextResponse.json(
+        { error: 'No valid USDC Transfer to the Vault found in this transaction' },
+        { status: 400 }
+      );
+    }
+
+    // SECURITY: el depositante declarado debe coincidir con el sender real on-chain
     if (verifiedSender && depositorWallet.toLowerCase() !== verifiedSender.toLowerCase()) {
-      return NextResponse.json({ error: 'Depositor wallet does not match the on-chain sender' }, { status: 403 });
+      return NextResponse.json(
+        { error: 'Depositor wallet does not match the on-chain sender' },
+        { status: 403 }
+      );
     }
 
     // 4. Save deposit to database
@@ -115,17 +133,38 @@ export async function POST(request: NextRequest) {
       throw e;
     }
 
-    // 5. Increment bot TVL in Prisma using the REAL amount
+    // 4. Guardar el depósito (con txHash para el anti-replay).
+    let deposit;
+    try {
+      deposit = await prisma.vaultDeposit.create({
+        data: {
+          botId,
+          depositorWallet,
+          amountUsdc: realAmountUsdc,
+          txHash,
+          mode: mode || 'CONSERVATIVE',
+          active: true,
+          totalProfitEarned: 0,
+        },
+      });
+    } catch (e: any) {
+      // P2002 = violación de índice único (txHash) por carrera concurrente.
+      if (e?.code === 'P2002') {
+        return NextResponse.json(
+          { error: 'This transaction has already been recorded' },
+          { status: 409 }
+        );
+      }
+      throw e;
+    }
+
+    // 5. Incrementar el TVL del bot con el monto REAL
     await prisma.bot.update({
       where: { id: botId },
-      data: {
-        currentTVL: {
-          increment: realAmountUsdc
-        }
-      }
+      data: { currentTVL: { increment: realAmountUsdc } },
     });
 
-    // Dispatch notification to the builder
+    // Notificar al creador
     if (bot.walletAddress) {
       await notifyDeposit(bot.walletAddress, depositorWallet, bot.name, realAmountUsdc);
     }
@@ -136,4 +175,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to record deposit' }, { status: 500 });
   }
 }
-

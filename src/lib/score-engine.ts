@@ -16,6 +16,77 @@ export type PredictionLog = {
   actualOutcome: 1 | 0;        // 1 if happened, 0 if didn't
 }
 
+/** A single resolved trade as stored in TradeEvent. */
+export type ResolvedTrade = {
+  entryPrice: number          // probability the bot assigned to its bet (0..1)
+  outcome: 'WIN' | 'LOSS' | 'LIQUIDATED' | string
+  amount: number              // USDC risked
+}
+
+/**
+ * Computes the full metric set for a bot from its RESOLVED trades.
+ * Pure function — no I/O — so it is fully unit-testable.
+ *
+ * Metrics:
+ *  - brierScore  : mean squared error of P(win) vs outcome. 0 = perfect,
+ *                  0.25 = coin flip, 1 = always wrong. The core "edge" measure.
+ *  - winRate     : fraction of resolved trades that won (0..1).
+ *  - sharpe      : risk-adjusted return = mean/stdev of per-trade returns,
+ *                  scaled by √n. Higher = more consistent edge.
+ *  - maxDrawdown : worst peak-to-trough drop of the equity curve (negative %).
+ *  - totalVolume : USDC risked across resolved trades.
+ *
+ * Per-trade return model: a share bought at price p pays 1 on win
+ * (return = (1 - p) / p) and 0 on loss (return = -1).
+ */
+export function computeBotMetrics(trades: ResolvedTrade[]): {
+  brierScore: number
+  winRate: number
+  sharpe: number
+  maxDrawdown: number
+  totalTrades: number
+  totalVolume: number
+} {
+  const resolved = trades.filter(t => t.outcome === 'WIN' || t.outcome === 'LOSS' || t.outcome === 'LIQUIDATED')
+  const n = resolved.length
+  if (n === 0) {
+    return { brierScore: 0.25, winRate: 0, sharpe: 0, maxDrawdown: 0, totalTrades: 0, totalVolume: 0 }
+  }
+
+  let sse = 0
+  let wins = 0
+  const returns: number[] = []
+  let totalVolume = 0
+
+  for (const t of resolved) {
+    const won = t.outcome === 'WIN'
+    const actual = won ? 1 : 0
+    const p = Math.min(Math.max(t.entryPrice, 0.001), 0.999)
+    sse += (p - actual) ** 2
+    if (won) wins++
+    totalVolume += t.amount || 0
+    returns.push(won ? (1 - p) / p : -1) // share bought at p pays 1 on win
+  }
+
+  const brierScore = sse / n
+  const winRate = wins / n
+
+  const mean = returns.reduce((a, b) => a + b, 0) / n
+  const variance = returns.reduce((a, b) => a + (b - mean) ** 2, 0) / n
+  const std = Math.sqrt(variance)
+  const sharpe = std > 0 ? (mean / std) * Math.sqrt(n) : 0
+
+  let equity = 1, peak = 1, maxDrawdown = 0
+  for (const r of returns) {
+    equity *= (1 + r)
+    if (equity > peak) peak = equity
+    const dd = peak > 0 ? (equity - peak) / peak : 0
+    if (dd < maxDrawdown) maxDrawdown = dd
+  }
+
+  return { brierScore, winRate, sharpe, maxDrawdown, totalTrades: n, totalVolume }
+}
+
 export function calculateBrierScore(predictions: PredictionLog[]): number {
   if (predictions.length === 0) return 0.25; // Default to neutral if no data
 

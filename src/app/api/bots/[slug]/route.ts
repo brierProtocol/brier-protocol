@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db/prisma';
+import { readVaultNav } from '@/lib/vault-reader';
 
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
@@ -35,7 +36,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       return NextResponse.json({ error: 'Bot not found' }, { status: 404 });
     }
 
-    return NextResponse.json(bot);
+    // Live on-chain NAV when the bot has a deployed vault (null otherwise).
+    const liveNav = await readVaultNav(bot.vaultAddress);
+
+    // Maker profile (no Prisma relation between Bot.walletAddress and User)
+    const user = bot.walletAddress
+      ? await prisma.user.findUnique({ where: { walletAddress: bot.walletAddress.toLowerCase() } })
+      : null;
+
+    return NextResponse.json({
+      ...bot,
+      liveNav,
+      user: user ? { handle: user.handle, name: user.name, pfpUrl: user.pfpUrl } : null
+    });
   } catch (error) {
     console.error('Error fetching bot:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
