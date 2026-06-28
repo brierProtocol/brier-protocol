@@ -114,16 +114,19 @@ export function calculateROI(startingCapital: number, endingCapital: number): nu
 /**
  * Validates whether a bot has successfully passed the calibration phase.
  * Requirements:
- * 1. Must have a minimum of 50 resolved predictions.
+ * 1. Must have a minimum of 100 resolved predictions.
  * 2. Brier Score must be strictly < 0.20 (Proof of Edge).
+ *
+ * Mirrors the gate in incubation.ts (single source of truth for promotion is
+ * checkStatusTransitions, which also enforces drawdown and 21-day shadow time).
  */
 export function validateVaultEligibility(
-  totalPredictions: number, 
+  totalPredictions: number,
   brierScore: number
 ): { eligible: boolean; reason: string } {
-  
-  if (totalPredictions < 50) {
-    return { eligible: false, reason: 'Insufficient volume. Minimum 50 resolved predictions required.' };
+
+  if (totalPredictions < 100) {
+    return { eligible: false, reason: 'Insufficient volume. Minimum 100 resolved predictions required.' };
   }
 
   if (brierScore >= 0.20) {
