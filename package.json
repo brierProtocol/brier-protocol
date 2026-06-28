@@ -16,7 +16,8 @@
     "test:scoring": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"customConditions\":null,\"esModuleInterop\":true}' ts-node scripts/test-scoring.ts",
     "deploy:mumbai": "npx hardhat compile && npx ts-node scripts/deploy-mumbai.ts",
     "deploy:amoy": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"customConditions\":null}' hardhat run scripts/deploy-amoy.ts --network polygonAmoy",
-    "deploy:hardhat": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"customConditions\":null}' hardhat run scripts/deploy-amoy.ts"
+    "deploy:hardhat": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"customConditions\":null}' hardhat run scripts/deploy-amoy.ts",
+    "test:connect": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"customConditions\":null,\"esModuleInterop\":true}' ts-node scripts/test-bot-connection.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts"

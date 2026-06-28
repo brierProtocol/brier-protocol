@@ -68,15 +68,26 @@ export async function POST(req: NextRequest) {
     if (snap.state === 'closed') {
       return NextResponse.json({ error: 'Market already closed — predictions must be committed before resolution' }, { status: 409 })
     }
-    if (snap.pYes === null) {
-      return NextResponse.json({ error: 'Could not capture the market price right now. Please retry.' }, { status: 503 })
+
+    let marketMidpoint = snap.pYes
+    let devFallback = false
+    if (marketMidpoint === null) {
+      // PRODUCTION NEVER fakes the baseline — it rejects. But in local dev the CLOB
+      // is often network-blocked, so we allow a fixed TEST midpoint to make the flow
+      // testable end-to-end. Gated hard to non-production and clearly flagged.
+      if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json({ error: 'Could not capture the market price right now. Please retry.' }, { status: 503 })
+      }
+      marketMidpoint = 0.5
+      devFallback = true
+      console.warn('[commit] DEV market fallback midpoint=0.5 (CLOB unreachable). NOT used in production.')
     }
 
     // 6. Commit (one prediction per bot per market — the unique constraint blocks
     //    resubmitting after the market moves).
     try {
       const prediction = await prisma.prediction.create({
-        data: { botId: bot.id, marketId, marketTitle, forecast: f, marketMidpoint: snap.pYes, outcome: 'PENDING' },
+        data: { botId: bot.id, marketId, marketTitle, forecast: f, marketMidpoint, outcome: 'PENDING' },
       })
       // Best-effort usage counter (not the rate limit; that lives in middleware).
       prisma.bot.update({ where: { id: bot.id }, data: { rateLimitCount: { increment: 1 } } }).catch(() => {})
@@ -85,7 +96,8 @@ export async function POST(req: NextRequest) {
         success: true,
         message: 'Prediction committed to Reputation Layer',
         predictionId: prediction.id,
-        capturedMarketMidpoint: snap.pYes,
+        capturedMarketMidpoint: marketMidpoint,
+        ...(devFallback ? { devFallback: true, note: 'TEST midpoint (CLOB unreachable in dev). Not real.' } : {}),
       }, { status: 200 })
     } catch (e: any) {
       if (e?.code === 'P2002') {
