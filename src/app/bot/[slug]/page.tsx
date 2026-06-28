@@ -12,6 +12,7 @@ import { ethers } from 'ethers'
 import { motion } from 'framer-motion'
 import { Liveline } from 'liveline'
 import type { LivelinePoint } from 'liveline'
+import { FEATURES } from '@/lib/features'
 
 const BRAND = '#ff2a4d'
 
@@ -583,12 +584,14 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                   </div>
                 </div>
 
-                <VaultCapacityBar current={animatedTVL} cap={vaultCap} />
+                {FEATURES.CAPITAL_LAYER && <VaultCapacityBar current={animatedTVL} cap={vaultCap} />}
                 
                 {/* PnL Chart */}
                 <PnlChart data={bot.pnlHistory} entryValue={bot.pnlHistory?.[0]} />
 
-                {bot.status === 'PAPER' ? (
+                {FEATURES.CAPITAL_LAYER ? (
+                  <>
+                  {bot.status === 'PAPER' ? (
                   <div className="bg-[#0a0a0a] border border-[#1a1a1a] border-dashed p-4 text-center">
                     <div className="text-white font-sans font-bold text-[13px] mb-2 tracking-tight">Incubation Phase</div>
                     <div className="text-[11px] text-[#888] font-sans">This algorithm is currently paper-trading. Vault deposits are locked until 30-day epoch completes.</div>
@@ -630,6 +633,13 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                         </div>
                       </>
                     )}
+                  </div>
+                )}
+                  </>
+                ) : (
+                  <div className="bg-[#0a0a0a] border border-[#1a1a1a] border-dashed p-4 text-center">
+                    <div className="text-white font-sans font-bold text-[13px] mb-2 tracking-tight">🔒 Reputation Layer Only</div>
+                    <div className="text-[11px] text-[#888] font-sans">Brier v1 measures skill, not capital. Vaults will open in a future phase.</div>
                   </div>
                 )}
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { GlobalSearch } from '@/components/Navbar'
+import { FEATURES } from '@/lib/features'
 
 
 export default function Home() {
@@ -58,7 +59,7 @@ export default function Home() {
 /_____/_/  /_/\\___/_/      `}
           </pre>
           <div className="text-[#888] mt-2 font-sans font-bold tracking-wide text-[clamp(8px,1.5vw,14px)]">
-            Vaultmaxxing
+            {FEATURES.CAPITAL_LAYER ? 'Vaultmaxxing' : 'Reputation Protocol'}
           </div>
         </motion.div>
 
@@ -84,9 +85,11 @@ export default function Home() {
           
           {/* Investor Box */}
           <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-8 transition-all relative group hover:border-[#333] hover:shadow-[0_0_15px_rgba(255,255,255,0.03)]">
-            <div className="text-white font-sans font-bold mb-4 text-lg tracking-tight">Deposit into Vaults</div>
+            <div className="text-white font-sans font-bold mb-4 text-lg tracking-tight">{FEATURES.CAPITAL_LAYER ? 'Deposit into Vaults' : 'Explore Reputation'}</div>
             <div className="text-sm text-[#999] mb-8 leading-relaxed h-10 font-sans">
-              Deploy capital into verified algorithmic prediction vaults. Zero emotion, strict mathematics.
+              {FEATURES.CAPITAL_LAYER
+                ? 'Deploy capital into verified algorithmic prediction vaults. Zero emotion, strict mathematics.'
+                : 'Discover the most accurate prediction algorithms, ranked by verified on-chain Brier Score.'}
             </div>
             <Link href="/discover" className="inline-block bg-primary text-[#030303] px-6 py-2 font-sans font-bold text-xs transition-all hover:bg-[#ff1438] hover:shadow-[0_0_10px_rgba(255,42,77,0.5)]">
               Explore Catalog
@@ -124,7 +127,7 @@ export default function Home() {
                 <th className="pb-4 px-4 font-semibold font-sans">Brier</th>
                 <th className="pb-4 px-4 font-semibold font-sans">Win Rate</th>
                 <th className="pb-4 px-4 font-semibold font-sans">Status</th>
-                <th className="pb-4 px-4 font-semibold font-sans text-right">Vault TVL</th>
+                {FEATURES.CAPITAL_LAYER && <th className="pb-4 px-4 font-semibold font-sans text-right">Vault TVL</th>}
               </tr>
             </thead>
             <tbody>
@@ -166,9 +169,11 @@ export default function Home() {
                         {isLive ? '● Live' : '○ Paper'}
                       </div>
                     </td>
+                    {FEATURES.CAPITAL_LAYER && (
                     <td className="p-4 text-right text-white font-bold font-mono">
                       ${tvl.toLocaleString()}
                     </td>
+                    )}
                   </tr>
                 )
               }) : (

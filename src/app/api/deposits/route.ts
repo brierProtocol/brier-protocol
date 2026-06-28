@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ethers } from 'ethers';
 import { notifyDeposit } from '@/lib/notifications';
+import { FEATURES } from '@/lib/features';
 
 // Use Polygon Amoy public RPC as fallback, or environment variable
 const RPC_URL = process.env.NEXT_PUBLIC_AMOY_RPC_URL || "https://rpc-amoy.polygon.technology";
@@ -10,6 +11,14 @@ const RPC_URL = process.env.NEXT_PUBLIC_AMOY_RPC_URL || "https://rpc-amoy.polygo
 const TRANSFER_EVENT_SIG = ethers.id("Transfer(address,address,uint256)");
 
 export async function POST(request: NextRequest) {
+  // v1: reputation layer only — deposits are disabled until contracts are audited
+  if (!FEATURES.CAPITAL_LAYER) {
+    return NextResponse.json(
+      { error: 'Capital layer is disabled in v1. Brier is currently a reputation-only protocol.' },
+      { status: 503 }
+    );
+  }
+
   try {
     const body = await request.json();
     const { botId, depositorWallet, txHash, mode } = body;
@@ -18,17 +27,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required parameters (txHash, botId, depositorWallet)' }, { status: 400 });
     }
 
-    // SECURITY: Prevent replay attacks — reject duplicate txHash
-    const existingDeposit = await prisma.vaultDeposit.findFirst({
-      where: { botId, depositorWallet, amountUsdc: { gt: 0 } },
-    });
-    // Check if this exact txHash was already processed (search by a combined check)
-    const allDepositsForBot = await prisma.vaultDeposit.findMany({
-      where: { botId },
+    // Basic shape validation of the tx hash (0x + 64 hex chars)
+    const normalizedTxHash = String(txHash).toLowerCase();
+    if (!/^0x[0-9a-f]{64}$/.test(normalizedTxHash)) {
+      return NextResponse.json({ error: 'Invalid transaction hash format' }, { status: 400 });
+    }
+
+    // SECURITY: Prevent replay attacks — reject any txHash already recorded.
+    const duplicate = await prisma.vaultDeposit.findUnique({
+      where: { txHash: normalizedTxHash },
       select: { id: true },
     });
-    // For a more robust check, we should store txHash in the DB
-    // For now, use a simple idempotency approach
+    if (duplicate) {
+      return NextResponse.json({ error: 'This transaction has already been processed' }, { status: 409 });
+    }
 
     // 1. Fetch the bot from Prisma to get its vaultAddress
     const bot = await prisma.bot.findUnique({ where: { id: botId } });
@@ -38,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Query the Blockchain to verify the txHash
     const provider = new ethers.JsonRpcProvider(RPC_URL);
-    const receipt = await provider.getTransactionReceipt(txHash);
+    const receipt = await provider.getTransactionReceipt(normalizedTxHash);
 
     if (!receipt || receipt.status !== 1) {
       return NextResponse.json({ error: 'Transaction failed or not found on-chain' }, { status: 400 });
@@ -82,16 +94,26 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Save deposit to database
-    const deposit = await prisma.vaultDeposit.create({
-      data: {
-        botId,
-        depositorWallet,
-        amountUsdc: realAmountUsdc,
-        mode: mode || 'CONSERVATIVE',
-        active: true,
-        totalProfitEarned: 0
+    let deposit;
+    try {
+      deposit = await prisma.vaultDeposit.create({
+        data: {
+          botId,
+          txHash: normalizedTxHash,
+          depositorWallet,
+          amountUsdc: realAmountUsdc,
+          mode: mode || 'CONSERVATIVE',
+          active: true,
+          totalProfitEarned: 0
+        }
+      });
+    } catch (e: any) {
+      // Unique constraint on txHash — concurrent duplicate submission lost the race
+      if (e?.code === 'P2002') {
+        return NextResponse.json({ error: 'This transaction has already been processed' }, { status: 409 });
       }
-    });
+      throw e;
+    }
 
     // 5. Increment bot TVL in Prisma using the REAL amount
     await prisma.bot.update({

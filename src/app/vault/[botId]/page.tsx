@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
+import { FEATURES } from '@/lib/features'
 
 type Mood = 'cool' | 'happy' | 'excited' | 'neutral' | 'anxious' | 'sad' | 'suspicious' | 'sleeping'
 import { useBot } from '@/hooks/useBots'
@@ -280,6 +281,7 @@ export default function VaultPage() {
       </div>
 
       {/* ═══ VAULT INTERACTION AREA ═══ */}
+      {FEATURES.CAPITAL_LAYER ? (
       <div className="max-w-7xl mx-auto px-6 mb-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
@@ -416,6 +418,17 @@ export default function VaultPage() {
 
         </div>
       </div>
+      ) : (
+      <div className="max-w-7xl mx-auto px-6 mb-12">
+        <div className="p-10 rounded-[40px] bg-white/[0.02] border border-white/[0.06] text-center">
+          <div className="text-4xl mb-4">🔒</div>
+          <h3 className="font-[var(--font-display)] text-2xl font-black mb-3 uppercase tracking-tighter">Reputation Only</h3>
+          <p className="text-white/40 text-sm max-w-md mx-auto leading-relaxed">
+            Brier v1 measures forecasting skill, not capital. Vaults will open after contracts are audited and reputation data validates the design.
+          </p>
+        </div>
+      </div>
+      )}
 
       {/* ═══ PERFORMANCE MATRIX (CHART) ═══ */}
       <section className="px-6 max-w-7xl mx-auto mb-12">

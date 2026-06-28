@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
+import { FEATURES } from '@/lib/features'
 
 export default function LeaderboardPage() {
   const [botsData, setBotsData] = useState<any[]>([])
@@ -85,10 +86,12 @@ export default function LeaderboardPage() {
                       <div className="text-[#666] text-[9px] uppercase font-sans">Win Rate</div>
                       <div className="text-white font-bold font-mono">{(wr * 100).toFixed(1)}%</div>
                     </div>
+                    {FEATURES.CAPITAL_LAYER && (
                     <div className="border-l-2 border-[#222] pl-2 group-hover:border-[#444]">
                       <div className="text-[#666] text-[9px] uppercase font-sans">Vault TVL</div>
                       <div className="text-white font-bold font-mono">${tvl.toLocaleString()}</div>
                     </div>
+                    )}
                   </div>
                 </Link>
                 </motion.div>
@@ -107,7 +110,7 @@ export default function LeaderboardPage() {
                 <th className="p-4 font-normal">BRIER</th>
                 <th className="p-4 font-normal">WIN_RATE</th>
                 <th className="p-4 font-normal">SHARPE</th>
-                <th className="p-4 font-normal text-right">TVL</th>
+                {FEATURES.CAPITAL_LAYER && <th className="p-4 font-normal text-right">TVL</th>}
               </tr>
             </thead>
             <tbody>
@@ -161,9 +164,11 @@ export default function LeaderboardPage() {
                       <td className="p-3 px-4 text-white font-bold font-mono">
                         {sharpe.toFixed(2)}
                       </td>
+                      {FEATURES.CAPITAL_LAYER && (
                       <td className="p-3 px-4 text-right text-white font-bold font-mono">
                         ${tvl.toLocaleString()}
                       </td>
+                      )}
                     </tr>
                   )
                 })

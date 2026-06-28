@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import BotIrisAvatar from '@/components/BotIrisAvatar'
 import { motion } from 'framer-motion'
+import { FEATURES } from '@/lib/features'
 
 export default function DiscoverPage() {
   const [activeSort, setActiveSort] = useState<'brier' | 'yield' | 'tvl' | 'new'>('brier')
@@ -79,7 +80,7 @@ export default function DiscoverPage() {
           {[
             { id: 'brier', label: 'Brier Score' },
             { id: 'yield', label: 'Monthly Yield' },
-            { id: 'tvl', label: 'TVL' },
+            ...(FEATURES.CAPITAL_LAYER ? [{ id: 'tvl', label: 'TVL' }] : []),
             { id: 'new', label: 'Newest' },
           ].map(s => (
             <button 
@@ -162,10 +163,12 @@ export default function DiscoverPage() {
                   <span className="text-[#666]">Mth Yield</span>
                   <span className={`font-mono ${yld > 0 ? 'text-[#00d4aa]' : 'text-[#666]'}`}>{yld > 0 ? '+' : ''}{yld}%</span>
                 </div>
+                {FEATURES.CAPITAL_LAYER && (
                 <div className="flex justify-between border-t border-[#1a1a1a] pt-2 mt-2">
                   <span className="text-[#666]">Vault TVL</span>
                   <span className="text-white font-mono font-bold">${tvl.toLocaleString()}</span>
                 </div>
+                )}
               </div>
             </Link>
             </motion.div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { FEATURES } from '@/lib/features'
 import Link from 'next/link'
 
 export default function VaultPage() {
@@ -13,6 +14,33 @@ export default function VaultPage() {
     setToast(`> EXECUTING ${action.toUpperCase()} OF ${amount} USDC...`)
     setTimeout(() => setToast(`> ${action.toUpperCase()} SUCCESSFUL. TX: 0x8b...1a`), 1500)
     setTimeout(() => { setToast(''); setAmount('') }, 4000)
+  }
+
+  // v1: capital layer disabled — show reputation-only message
+  if (!FEATURES.CAPITAL_LAYER) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#050505', fontFamily: 'var(--font-body), sans-serif', color: '#EFEFEF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ maxWidth: 560, textAlign: 'center', padding: '3rem 1.5rem' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
+          <h1 style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: '2rem', fontWeight: 800, marginBottom: '1rem', letterSpacing: '-0.02em' }}>
+            Vaults are not live yet
+          </h1>
+          <p style={{ color: '#888', fontSize: '0.95rem', lineHeight: 1.7, marginBottom: '2rem' }}>
+            Brier v1 is a <strong style={{ color: '#fff' }}>reputation layer</strong>. Builders prove their forecasting skill 
+            on-chain through their Brier Score before any capital is involved. Vaults will open in a future phase, 
+            after contracts are audited and reputation data validates the design.
+          </p>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link href="/discover" style={{ background: '#fff', color: '#050505', padding: '12px 28px', borderRadius: '6px', fontWeight: 700, fontSize: '14px', textDecoration: 'none', transition: 'opacity 0.2s' }}>
+              Explore Bots
+            </Link>
+            <Link href="/leaderboard" style={{ background: 'rgba(255,255,255,0.06)', color: '#fff', padding: '12px 28px', borderRadius: '6px', fontWeight: 700, fontSize: '14px', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.1)', transition: 'opacity 0.2s' }}>
+              Leaderboard
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
