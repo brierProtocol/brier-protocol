@@ -54,6 +54,7 @@ export default function ListBotPage() {
   const [verifying, setVerifying] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [deployedSlug, setDeployedSlug] = useState('')
+  const [apiKeys, setApiKeys] = useState<{ apiKey: string, apiSecret: string } | null>(null)
 
   const { isConnected, address } = useAccount()
   const { signMessageAsync } = useSignMessage()
@@ -73,6 +74,7 @@ export default function ListBotPage() {
       } catch (signErr: any) {
         throw new Error(signErr?.shortMessage || signErr?.message || 'Signature rejected.')
       }
+      
       const res = await fetch('/api/bots/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -80,6 +82,36 @@ export default function ListBotPage() {
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error || 'Registration failed. Please try again.')
+
+      // V1 Active Ingestion: Generate API Keys for the bot
+      // Key generation now requires a wallet SIGNATURE proving ownership.
+      const newBotId = result.botId || result.id
+      const keyTs = Date.now()
+      const keyMsg = `Brier: generate API key for bot ${newBotId} at ${keyTs}`
+      
+      let keySig: string
+      try {
+        keySig = await signMessageAsync({ message: keyMsg })
+      } catch (signErr: any) {
+        throw new Error(signErr?.shortMessage || signErr?.message || 'Signature for API keys rejected.')
+      }
+
+      const keysRes = await fetch('/api/bot/keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          botId: newBotId,
+          address: address,
+          signature: keySig,
+          timestamp: keyTs,
+        }),
+      })
+      const keysData = await keysRes.json()
+      if (!keysRes.ok) throw new Error(keysData.error || 'Failed to generate API Keys.')
+      
+      if (keysData.apiKey) {
+        setApiKeys({ apiKey: keysData.apiKey, apiSecret: keysData.apiSecret })
+      }
 
       setDeployedSlug(result.slug)
       setStep(3)
@@ -390,32 +422,54 @@ export default function ListBotPage() {
             </div>
             <h2 className="m-0 font-sans font-extrabold text-[26px] tracking-tight">{formData.name} is on the hill<span className="text-primary">.</span></h2>
             <p className="mt-2 mb-7 text-[14px] text-[#8f8f8f] leading-relaxed max-w-lg">
-              No keys to paste, no SDK to wire. Brier is now watching your wallet on Polymarket. Just let your bot trade, every resolved market scores it in public.
+              Brier is now tracking your algorithm. Use your builder credentials to connect your bot and start submitting predictions via the SDK.
             </p>
 
-            {/* the watched wallet */}
-            <div className="rounded-xl border border-primary/25 bg-[#0c0406] p-5 mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                <span className="font-sans font-bold text-[12px] text-primary tracking-wide">Now indexing this wallet</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <MakerAvatar address={address} size={38} />
-                <div className="leading-tight">
-                  <div className="font-mono text-[13px] text-white">{shortAddr}</div>
-                  <div className="text-[11px] text-[#8f8f8f] mt-0.5">Trades it makes on Polymarket build its Brier Score</div>
+            {/* API Keys */}
+            {apiKeys && (
+              <div className="rounded-xl border border-primary/40 bg-primary/[0.05] p-5 mb-6">
+                <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-primary mb-3">BUILDER CREDENTIALS</div>
+                <div className="mb-4">
+                  <div className="text-[11px] text-[#8f8f8f] mb-1">API_KEY (Public ID)</div>
+                  <div className="font-mono text-[13px] text-white bg-[#000] px-3 py-2 border border-[#222] rounded">{apiKeys.apiKey}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] text-[#8f8f8f] mb-1 flex items-center justify-between">
+                    <span>BUILDER_SECRET_KEY</span>
+                    <span className="text-primary font-bold">STORE THIS NOW. IT WILL NEVER BE SHOWN AGAIN.</span>
+                  </div>
+                  <div className="font-mono text-[13px] text-[#00d4aa] bg-[#000] px-3 py-2 border border-[#222] rounded select-all">{apiKeys.apiSecret}</div>
                 </div>
               </div>
+            )}
+
+            {/* SDK Snippet */}
+            <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-8">
+              <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-3">SDK Integration</div>
+              <pre className="font-mono text-[11px] text-[#a0a0a0] overflow-x-auto whitespace-pre-wrap leading-relaxed">
+{`import { BrierSDK } from '@brier/sdk'
+
+const brier = new BrierSDK({
+  apiKey: '${apiKeys?.apiKey || 'YOUR_API_KEY'}',
+  apiSecret: '${apiKeys?.apiSecret || 'YOUR_SECRET_KEY'}'
+})
+
+// Submit a prediction (commit-reveal)
+await brier.predict({
+  marketId: 'polymarket-1234',
+  forecast: 0.85 // 85% probability of YES
+})`}
+              </pre>
             </div>
 
             {/* what happens next */}
             <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-8">
               <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-3">What happens next</div>
               <div className="flex flex-col gap-2.5 text-[13px] font-sans">
-                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Enters the <span className="text-white">shadow phase</span>: trades in public, no outside capital at risk</div>
-                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Brier Score is read straight from your wallet&apos;s on-chain resolutions</div>
-                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Vault gate: <span className="text-white">100 resolved · Brier 0.20 or lower · 21 days live</span></div>
-                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Vault opens for deposits, you keep <span className="text-white">30% of the profits</span></div>
+                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Enters the <span className="text-white">shadow phase</span>: builds reputation, no outside capital at risk</div>
+                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> The Skill Engine evaluates your commits against real resolutions</div>
+                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Vault gate: <span className="text-white">Reputation &gt; 50 · 21 days live</span></div>
+                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Capital Layer unlocks, you keep <span className="text-white">30% of the profits</span></div>
               </div>
             </div>
 

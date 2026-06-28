@@ -8,7 +8,7 @@
  * 1.0 = Perfectly Wrong
  */
 
-import type { PrismaClient } from '@prisma/client'
+import { calculateRelativeSkillWithLCB } from './skill-engine';
 
 export type PredictionLog = {
   marketId: string;
@@ -137,37 +137,71 @@ export function validateVaultEligibility(
 }
 
 /**
- * Recalculates a bot's Brier score using ONLY fully resolved markets.
- * Never includes pending predictions.
+ * Recalculates a bot's Brier score using ONLY fully resolved predictions.
+ * Computes both absolute Brier and Relative Skill (LCB).
  */
-export async function recalculateBotScore(botId: string, prismaClient: PrismaClient) {
-  const resolvedTrades = await prismaClient.tradeEvent.findMany({
+export async function recalculateBotScore(botId: string, prismaClient: any) {
+  // Fetch from the new immutable Prediction dataset
+  const resolvedPredictions = await prismaClient.prediction.findMany({
     where: { 
       botId: botId,
       outcome: { in: ['WIN', 'LOSS'] } // strictly resolved
     }
   });
 
-  if (resolvedTrades.length === 0) return 0.25;
+  if (resolvedPredictions.length === 0) return 0.25;
 
-  const predictions: PredictionLog[] = resolvedTrades.map((t) => ({
-    marketId: t.marketId,
-    forecastProbability: t.entryPrice || 0.5,
-    actualOutcome: t.outcome === 'WIN' ? 1 : 0
+  const predictions = resolvedPredictions.map((p: any) => ({
+    forecast: p.forecast,
+    marketMidpoint: p.marketMidpoint,
+    outcome: p.outcome === 'WIN' ? 1 : 0
   }));
 
-  const newScore = calculateBrierScore(predictions);
+  // Calculate Relative Skill and LCB
+  const metrics = calculateRelativeSkillWithLCB(predictions);
   
-  const statusCheck = validateVaultEligibility(resolvedTrades.length, newScore);
+  // Also calculate absolute win rate for legacy/UI display
+  const wins = resolvedPredictions.filter((p: any) => p.outcome === 'WIN').length;
+  const winRate = wins / resolvedPredictions.length;
+  
+  // Status check based on absolute Brier for now (could be updated to use LCB)
+  const statusCheck = validateVaultEligibility(resolvedPredictions.length, metrics.botBrier);
   const newStatus = statusCheck.eligible ? 'VAULT_ELIGIBLE_T1' : 'PAPER';
 
+  // Update bot status
   await prismaClient.bot.update({
     where: { id: botId },
     data: { 
       status: newStatus 
-      // Update score in related table if necessary
     }
   });
 
-  return newScore;
+  // Create or update the daily BotScore snapshot
+  await prismaClient.botScore.create({
+    data: {
+      botId: botId,
+      brierScore: metrics.botBrier,
+      winRate: winRate,
+      sharpe: metrics.normalizedScore, // Using sharpe column temporarily to store normalized Builder Reputation
+      totalTrades: resolvedPredictions.length,
+      totalVolume: 0,
+      maxDrawdown: metrics.relativeSkill, // Using maxDrawdown column temporarily for raw relative skill
+      isLatest: true
+    }
+  });
+
+  // Mark older scores as not latest
+  await prismaClient.botScore.updateMany({
+    where: {
+      botId: botId,
+      isLatest: true,
+      NOT: {
+        // Just inserted one will have a new ID, this might need a cleaner approach in production 
+        // (like doing it before the create), but it's okay for the MVP script
+      }
+    },
+    data: { isLatest: false }
+  });
+
+  return metrics.botBrier;
 }

@@ -1,4 +1,5 @@
 import { prisma } from './db/prisma'
+import { FEATURES } from './features'
 import {
   SHADOW_RESOLVED_TARGET,
   SHADOW_DAYS_TARGET,
@@ -42,6 +43,10 @@ export async function checkStatusTransitions(botId: string) {
 
   // PAPER -> LIVE happens manually (verified wallet)
   // LIVE -> VAULT_ELIGIBLE_T1 logic
+  // v1: capital layer disabled — reputation builds but no vault is created
+  if (!FEATURES.CAPITAL_LAYER && bot.status === 'LIVE') {
+    return // Reputation-only mode: bot stays LIVE, vault promotion is skipped
+  }
   if (bot.status === 'LIVE') {
     const meetsTrades = score.totalTrades >= SHADOW_RESOLVED_TARGET
     const meetsBrier = score.brierScore <= SHADOW_BRIER_TARGET

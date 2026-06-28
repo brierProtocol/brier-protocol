@@ -9,6 +9,7 @@ import BotUplink from '@/components/bot/BotUplink'
 import BotPerformance from '@/components/bot/BotPerformance'
 import VaultGlass from '@/components/bot/VaultGlass'
 import { botEye, codename } from '@/lib/botIdentity'
+import { FEATURES } from '@/lib/features'
 import { useAccount } from 'wagmi'
 import { ethers } from 'ethers'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -289,7 +290,12 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               </div>
               {sp.live && (
                 <div className="mt-4">
-                  {atCapacity ? (
+                  {!FEATURES.CAPITAL_LAYER ? (
+                    <div className="rounded-lg border border-[#1a1a1a] bg-[#0c0c0c] p-3 text-center text-[12px] text-[#888] font-sans">
+                      <span className="font-bold text-white mb-1 block">Shadow Phase</span>
+                      Capital Layer disabled. Building reputation on-chain.
+                    </div>
+                  ) : atCapacity ? (
                     <div className="rounded-lg border border-primary/30 p-2.5 text-center font-mono text-[11px] text-primary tracking-widest">AT CAPACITY · DEPOSITS CLOSED</div>
                   ) : !isConnected ? (
                     <div className="text-[12px] text-[#666]">Connect your wallet to deposit.</div>

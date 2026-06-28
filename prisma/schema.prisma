@@ -64,6 +64,11 @@ model Bot {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   
+  // Security & API
+  apiKey          String?       @unique
+  apiSecret       String?
+  rateLimitCount  Int           @default(0)
+  
   // Relations
   markets         BotMarket[]
   trades          TradeEvent[]
@@ -77,6 +82,7 @@ model Bot {
   kalshiConnection KalshiConnection?
   comments        Comment[]
   hearts          Heart[]
+  predictions     Prediction[]
   token           BotToken?
   maker           User?         @relation("BotMaker", fields: [ownerWallet], references: [walletAddress])
 
@@ -193,9 +199,12 @@ model TradeEvent {
   timestamp        DateTime @default(now())
   resolvedAt       DateTime?
   
-  source           String   @default("POLYMARKET") 
-  externalTradeId  String?  
-  
+  source           String   @default("POLYMARKET")
+  externalTradeId  String?
+
+  // Polymarket CTF condition id — required for on-chain redeem/settlement.
+  conditionId      String?
+
   @@unique([source, externalTradeId])
   @@index([botId, outcome])
   @@index([botId, timestamp])
@@ -225,10 +234,20 @@ model BotScore {
   
   // Max drawdown in history (as negative %, e.g. -0.18 = -18%)
   maxDrawdown  Float    @default(0)
-  
+
+  // ── Reputation layer (skill vs market, from src/lib/skill-engine) ──
+  // relativeSkill = mean(marketBrier − botBrier): >0 beats the market.
+  // lcb = lower confidence bound (anti-sybil: luck doesn't top the board).
+  // reputationScore = lcb normalized to 0..100 (the public headline number).
+  // resolvedPredictions = how many resolved predictions this is computed from.
+  relativeSkill       Float?
+  lcb                 Float?
+  reputationScore     Float?
+  resolvedPredictions Int     @default(0)
+
   // Daily snapshot. One record per bot per day.
   snapshotDate DateTime @default(now())
-  
+
   isLatest     Boolean  @default(true)
 
   @@unique([botId, snapshotDate])
@@ -238,7 +257,10 @@ model VaultDeposit {
   id               String    @id @default(cuid())
   botId            String
   bot              Bot       @relation(fields: [botId], references: [id])
-  
+
+  // SECURITY: on-chain transaction hash — enforces single-use per deposit (replay protection)
+  txHash           String?   @unique
+
   depositorWallet  String
   amountUsdc       Float
 
@@ -248,10 +270,6 @@ model VaultDeposit {
   // DEPOSIT | REDEEM — ledger entry type. Today only DEPOSIT rows are written here;
   // redeems update VaultPosition and flip active=false (see /api/withdraw).
   kind             String    @default("DEPOSIT")
-
-  // Hash de la transacción on-chain. Único => previene replay (mismo txHash 2 veces).
-  // Nullable para no romper datos sembrados antiguos; la API siempre lo setea ahora.
-  txHash           String?   @unique
 
   // CONSERVATIVE | DEGEN
   mode             String    @default("CONSERVATIVE")
@@ -488,6 +506,29 @@ model Waitlist {
   createdAt DateTime @default(now())
 }
 
+
+model Prediction {
+  id              String   @id @default(cuid())
+  botId           String
+  bot             Bot      @relation(fields: [botId], references: [id])
+  marketId        String
+  marketTitle     String
+  
+  forecast        Float    // Bot's submitted probability (0 to 1)
+  marketMidpoint  Float    // Market probability at the exact time of commit
+  
+  // PENDING | WIN | LOSS | VOID
+  outcome         String   @default("PENDING")
+  resolvedAt      DateTime?
+  
+  createdAt       DateTime @default(now())
+
+  // One prediction per bot per market — blocks resubmitting after the market moves
+  // (anti cherry-picking). Enforced at the DB so concurrent commits can't race past it.
+  @@unique([botId, marketId])
+  @@index([botId, outcome])
+  @@index([marketId])
+}
 // ─────────────────────────────────────────────────────────────
 // EVENT BUS — append-only log of everything that happens in the protocol.
 // The single source of truth that every future consumer (alerts, analytics,

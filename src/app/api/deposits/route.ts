@@ -2,18 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { ethers } from 'ethers';
 import { notifyDeposit } from '@/lib/notifications';
+import { FEATURES } from '@/lib/features';
 import { DEPOSIT_RPC_URL as RPC_URL, USDC_ADDRESS_ENV, USDC_DECIMALS } from '@/constants/contracts';
 import { depositBlockReason } from '@/lib/vault-lifecycle';
 
 // Direccion del contrato USDC esperado. Si se define (USDC_ADDRESS_ENV), SOLO se aceptan
 // transferencias de ese token (evita depositar un ERC20 falso e inflar el TVL).
 // undefined => validacion de token deshabilitada.
-const USDC_ADDRESS = USDC_ADDRESS_ENV?.toLowerCase();
+const USDC_ADDRESS = process.env.USDC_ADDRESS?.toLowerCase();
 
 // ERC20 Transfer Event Signature
 const TRANSFER_EVENT_SIG = ethers.id('Transfer(address,address,uint256)');
 
 export async function POST(request: NextRequest) {
+  // v1: reputation layer only — deposits are disabled until contracts are audited
+  if (!FEATURES.CAPITAL_LAYER) {
+    return NextResponse.json(
+      { error: 'Capital layer is disabled in v1. Brier is currently a reputation-only protocol.' },
+      { status: 503 }
+    );
+  }
+
   try {
     const body = await request.json();
     const { botId, depositorWallet, txHash, mode } = body;
@@ -25,17 +34,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SECURITY [anti-replay]: rechazar si este txHash ya fue procesado.
-    // (Antes había código muerto que NUNCA deduplicaba y ni guardaba el txHash.)
-    const alreadyProcessed = await prisma.vaultDeposit.findUnique({
-      where: { txHash },
+    // Basic shape validation of the tx hash (0x + 64 hex chars)
+    const normalizedTxHash = String(txHash).toLowerCase();
+    if (!/^0x[0-9a-f]{64}$/.test(normalizedTxHash)) {
+      return NextResponse.json({ error: 'Invalid transaction hash format' }, { status: 400 });
+    }
+
+    // SECURITY: Prevent replay attacks — reject any txHash already recorded.
+    const duplicate = await prisma.vaultDeposit.findUnique({
+      where: { txHash: normalizedTxHash },
       select: { id: true },
     });
-    if (alreadyProcessed) {
-      return NextResponse.json(
-        { error: 'This transaction has already been recorded' },
-        { status: 409 }
-      );
+    if (duplicate) {
+      return NextResponse.json({ error: 'This transaction has already been processed' }, { status: 409 });
     }
 
     // 1. Buscar el bot para obtener su vaultAddress
@@ -46,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Verificar el txHash on-chain
     const provider = new ethers.JsonRpcProvider(RPC_URL);
-    const receipt = await provider.getTransactionReceipt(txHash);
+    const receipt = await provider.getTransactionReceipt(normalizedTxHash);
 
     if (!receipt || receipt.status !== 1) {
       return NextResponse.json(
@@ -131,23 +142,20 @@ export async function POST(request: NextRequest) {
       deposit = await prisma.vaultDeposit.create({
         data: {
           botId,
+          txHash: normalizedTxHash,
           depositorWallet,
           amountUsdc: realAmountUsdc,
           shares: sharesMinted,
           kind: 'DEPOSIT',
-          txHash,
           mode: riskMode,
           active: true,
-          totalProfitEarned: 0,
-        },
+          totalProfitEarned: 0
+        }
       });
     } catch (e: any) {
-      // P2002 = violación de índice único (txHash) por carrera concurrente.
+      // Unique constraint on txHash — concurrent duplicate submission lost the race
       if (e?.code === 'P2002') {
-        return NextResponse.json(
-          { error: 'This transaction has already been recorded' },
-          { status: 409 }
-        );
+        return NextResponse.json({ error: 'This transaction has already been processed' }, { status: 409 });
       }
       throw e;
     }
