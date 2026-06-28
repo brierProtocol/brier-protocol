@@ -52,6 +52,7 @@ model Bot {
   kalshiConnection KalshiConnection?
   comments        Comment[]
   hearts          Heart[]
+  predictions     Prediction[]
 
   @@index([walletAddress])
   @@index([status])       // FIX-5: leaderboard filters by status constantly
@@ -106,9 +107,12 @@ model TradeEvent {
   timestamp        DateTime @default(now())
   resolvedAt       DateTime?
   
-  source           String   @default("POLYMARKET") 
-  externalTradeId  String?  
-  
+  source           String   @default("POLYMARKET")
+  externalTradeId  String?
+
+  // Polymarket CTF condition id — required for on-chain redeem/settlement.
+  conditionId      String?
+
   @@unique([source, externalTradeId])
   @@index([botId, outcome])
   @@index([botId, timestamp])
@@ -151,7 +155,10 @@ model VaultDeposit {
   id               String    @id @default(cuid())
   botId            String
   bot              Bot       @relation(fields: [botId], references: [id])
-  
+
+  // SECURITY: on-chain transaction hash — enforces single-use per deposit (replay protection)
+  txHash           String?   @unique
+
   depositorWallet  String
   amountUsdc       Float
   
@@ -298,4 +305,24 @@ model Waitlist {
   id        String   @id @default(cuid())
   email     String   @unique
   createdAt DateTime @default(now())
+}
+
+model Prediction {
+  id              String   @id @default(cuid())
+  botId           String
+  bot             Bot      @relation(fields: [botId], references: [id])
+  marketId        String
+  marketTitle     String
+  
+  forecast        Float    // Bot's submitted probability (0 to 1)
+  marketMidpoint  Float    // Market probability at the exact time of commit
+  
+  // PENDING | WIN | LOSS | VOID
+  outcome         String   @default("PENDING")
+  resolvedAt      DateTime?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([botId, outcome])
+  @@index([marketId])
 }
