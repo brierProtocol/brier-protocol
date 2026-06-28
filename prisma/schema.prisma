@@ -66,6 +66,7 @@ model Bot {
   comments        Comment[]
   hearts          Heart[]
   predictions     Prediction[]
+  token           BotToken?
 
   @@index([walletAddress])
   @@index([status])       // FIX-5: leaderboard filters by status constantly
@@ -234,9 +235,6 @@ model VaultDeposit {
   depositorWallet  String
   amountUsdc       Float
 
-  // Hash de la transacción on-chain. Único => previene replay (mismo txHash 2 veces).
-  // Nullable para no romper datos sembrados antiguos; la API siempre lo setea ahora.
-  txHash           String?   @unique
 
   // CONSERVATIVE | DEGEN
   mode             String    @default("CONSERVATIVE")
