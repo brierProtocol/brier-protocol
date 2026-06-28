@@ -62,6 +62,7 @@ model Bot {
   hearts          Heart[]
   token           BotToken?
   apiKeys         ApiKey[]
+  predictions     Prediction[]
 
   @@index([walletAddress])
   @@index([status])       // FIX-5: leaderboard filters by status constantly
@@ -210,10 +211,62 @@ model BotScore {
   
   // Daily snapshot. One record per bot per day.
   snapshotDate DateTime @default(now())
-  
+
   isLatest     Boolean  @default(true)
 
   @@unique([botId, snapshotDate])
+}
+
+// ─────────────────────────────────────────────────────────────
+// PREDICTION — the core asset of Brier v1 (reputation layer). A bot commits a
+// probability on a REAL market BEFORE it resolves; the oracle resolves it; the
+// skill engine scores it vs the market. NO capital, NO vault — this is the
+// verifiable track record. Append-only and intentionally rich: the dataset is a
+// strategic asset, so we capture full context from day one.
+//
+// All probabilities are in the perspective of `side` (P(side wins)), so the skill
+// engine (src/lib/skill-engine.ts) consumes pBot/pMarket/outcome directly.
+// ─────────────────────────────────────────────────────────────
+model Prediction {
+  id               String    @id @default(cuid())
+  botId            String
+  bot              Bot       @relation(fields: [botId], references: [id], onDelete: Cascade)
+  // The builder wallet that owns the bot — denormalized for Builder Reputation
+  // aggregation (the anti-Sybil core pools all of a builder's predictions).
+  builderWallet    String
+
+  // Market context (Polymarket conditionId + human label + category)
+  marketId         String
+  marketTitle      String?
+  category         String?
+
+  // The prediction, in the perspective of `side`.
+  side             String                 // YES | NO
+  pBot             Float                  // P(side wins) the bot assigned (0..1)
+
+  // Market baseline captured AT COMMIT (exogenous → keeps the score proper).
+  // Null if the CLOB was unreachable at commit → skill-ineligible, but kept as data.
+  pMarket          Float?                 // P(side wins) per the market at commit
+  liquidity        Float?                 // market liquidity at commit (liquidity filter)
+
+  // Commit-reveal (next brick): public commitment now, reveal after resolution.
+  commitHash       String?
+  revealed         Boolean   @default(true)
+
+  // Resolution — filled by the oracle/watcher when the market settles.
+  outcome          Int?                   // 1 if `side` won, 0 if not, null = pending
+  resolvedAt       DateTime?
+  resolutionSource String?                // e.g. POLYMARKET_CLOB
+
+  // Cached per-prediction Brier-skill once resolved, for fast aggregation.
+  skillContribution Float?
+
+  committedAt      DateTime  @default(now())
+
+  @@unique([botId, marketId])             // one prediction per bot per market (anti-resubmit)
+  @@index([botId, outcome])
+  @@index([builderWallet])
+  @@index([outcome, committedAt])         // the scorer scans resolved predictions
 }
 
 model VaultDeposit {
