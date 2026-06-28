@@ -1,0 +1,15 @@
+{
+  "name": "@brier/sdk",
+  "version": "1.0.0",
+  "description": "Official Brier Protocol SDK for node.js algorithms",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "license": "MIT"
+}

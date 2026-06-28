@@ -1,34 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import crypto from 'crypto'
 
 export async function POST(req: NextRequest) {
   try {
-    // In production, require HMAC-SHA256 signature from bot's API key
-    const authHeader = req.headers.get('authorization')
-    if (process.env.NODE_ENV === 'production' && !authHeader) {
-      return NextResponse.json({ error: 'Unauthorized. Bot API Key required.' }, { status: 401 })
+    const apiKey = req.headers.get('x-api-key')
+    const timestamp = req.headers.get('x-timestamp')
+    const signature = req.headers.get('x-signature')
+    
+    // During local dev, we could bypass if needed, but we want to enforce it.
+    if (!apiKey || !timestamp || !signature) {
+      return NextResponse.json({ error: 'Missing security headers: x-api-key, x-timestamp, x-signature' }, { status: 401 })
     }
 
-    const body = await req.json()
-    const { botId, marketId, forecast, marketTitle = "Unknown Market" } = body
-
-    if (!botId || !marketId || forecast === undefined) {
-      return NextResponse.json({ error: 'Missing required fields: botId, marketId, forecast' }, { status: 400 })
+    // 1. Replay Attack Protection (5 minute window)
+    const now = Date.now()
+    if (Math.abs(now - Number(timestamp)) > 5 * 60 * 1000) {
+      return NextResponse.json({ error: 'Timestamp is stale or invalid' }, { status: 401 })
     }
 
-    if (forecast < 0 || forecast > 1) {
-      return NextResponse.json({ error: 'Forecast must be a probability between 0 and 1' }, { status: 400 })
-    }
-
-    // VERIFY BOT EXISTS
+    // 2. Fetch Bot Secret
     const bot = await prisma.bot.findUnique({
-      where: { id: botId }
+      where: { apiKey }
     })
     
-    if (!bot) {
-      return NextResponse.json({ error: 'Bot not found' }, { status: 404 })
+    if (!bot || !bot.apiSecret) {
+      return NextResponse.json({ error: 'Invalid API Key' }, { status: 401 })
     }
 
+    // 3. Verify HMAC-SHA256 Signature
+    // Read raw body as text to ensure accurate hashing
+    const rawBody = await req.text()
+    
+    const computedSignature = crypto
+      .createHmac('sha256', bot.apiSecret)
+      .update(timestamp + rawBody)
+      .digest('hex')
+      
+    if (computedSignature !== signature) {
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+    }
+
+    // 4. Rate Limiting Update (basic)
+    await prisma.bot.update({
+      where: { id: bot.id },
+      data: { rateLimitCount: { increment: 1 } }
+    })
+
+    // 5. Process Payload
+    const body = JSON.parse(rawBody)
+    const { marketId, forecast, marketTitle = "Unknown Market" } = body
+    const botId = bot.id
+    
     // FETCH REAL-TIME CLOB MIDPOINT
     // In production, this calls Polymarket API or directly reads orderbook.
     // For MVP, we simulate a market probability close to the bot's forecast to reflect reality.

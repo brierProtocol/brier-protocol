@@ -10,6 +10,7 @@ export default function ListBotPage() {
   const [formData, setFormData] = useState({ name: '', repo: '', description: '', market: 'Polymarket' })
   const [verifying, setVerifying] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [apiKey, setApiKey] = useState('')
   const [secretKey, setSecretKey] = useState('')
 
   const { isConnected, address } = useAccount()
@@ -59,10 +60,21 @@ export default function ListBotPage() {
         const result = await res.json()
         if (!res.ok) throw new Error(result.error || 'Registration failed. Please try again.')
         
-        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
-        let sk = 'sk_live_'
-        for (let i = 0; i < 32; i++) sk += chars[Math.floor(Math.random() * chars.length)]
-        setSecretKey(sk)
+        // Generate real API credentials
+        const keysRes = await fetch('/api/bot/keys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            botId: result.botId || result.id, // Depending on what register returns
+            walletAddress: finalAddress
+          })
+        })
+        
+        const keysResult = await keysRes.json()
+        if (!keysRes.ok) throw new Error(keysResult.error || 'Failed to generate API Keys.')
+        
+        setApiKey(keysResult.apiKey)
+        setSecretKey(keysResult.apiSecret)
         
         setStep(3)
       } catch (err: any) {
@@ -227,19 +239,35 @@ export default function ListBotPage() {
                 <div className="text-[#c5c8c6] text-[11px] mb-4 leading-relaxed">
                   This is your <span className="text-white font-bold">BUILDER_SECRET_KEY</span>. Required for SDK authentication. We do not store this key. You will only see this once. Do not commit to version control.
                 </div>
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    value={secretKey} 
-                    readOnly 
-                    className="flex-1 bg-[#1a0505] border border-primary text-primary px-4 py-3 font-mono text-[13px] outline-none"
-                  />
-                  <button 
-                    onClick={() => navigator.clipboard.writeText(secretKey)}
-                    className="bg-primary text-[#030303] border-none px-6 font-bold cursor-pointer font-mono text-[12px] hover:bg-[#ff1438] transition-colors"
-                  >
-                    COPY
-                  </button>
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <div className="text-muted text-[10px] mb-1">API_KEY (Public)</div>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={apiKey} 
+                        readOnly 
+                        className="flex-1 bg-[#0a0204] border border-[#331015] text-[#888] px-4 py-2 font-mono text-[12px] outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-muted text-[10px] mb-1">API_SECRET (Private)</div>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={secretKey} 
+                        readOnly 
+                        className="flex-1 bg-[#1a0505] border border-primary text-primary px-4 py-3 font-mono text-[13px] outline-none"
+                      />
+                      <button 
+                        onClick={() => navigator.clipboard.writeText(secretKey)}
+                        className="bg-primary text-[#030303] border-none px-6 font-bold cursor-pointer font-mono text-[12px] hover:bg-[#ff1438] transition-colors"
+                      >
+                        COPY
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -249,9 +277,9 @@ export default function ListBotPage() {
                 <div className="bg-[#030303] border border-[#331015] p-4 text-primary text-[12px] overflow-x-auto whitespace-pre font-mono">
 {`import { BrierSDK } from '@brier/sdk';
 
-const bot = new BrierSDK({
-  botId: '${handle}',
-  secretKey: process.env.BUILDER_SECRET_KEY,
+const bot = new BrierClient({
+  apiKey: '${apiKey || 'br_123...'}',
+  apiSecret: process.env.BRIER_API_SECRET,
 });
 
 // Run quantitative logic

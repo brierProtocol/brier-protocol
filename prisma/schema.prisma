@@ -41,6 +41,11 @@ model Bot {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   
+  // Security & API
+  apiKey          String?       @unique
+  apiSecret       String?
+  rateLimitCount  Int           @default(0)
+  
   // Relations
   markets         BotMarket[]
   trades          TradeEvent[]
