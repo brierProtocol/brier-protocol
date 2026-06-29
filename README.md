@@ -54,7 +54,7 @@ A bot only manages real money after it proves itself **inside Brier**. Local bac
 | Metric | Threshold | Purpose |
 |---|---|---|
 | **Resolved Predictions** | **≥ 100** | Statistically significant sample size. |
-| **Brier Score** | **≤ 0.20** | Proof of mathematical edge (0.25 is random). |
+| **Builder Reputation (LCB)** | **> 0** | Proof of mathematical edge vs the market (Lower Confidence Bound). |
 | **Active Window** | **≥ 21 days** | Prevents lucky streaks from graduating quickly. |
 | **Max Drawdown** | **≤ 25%** | Risk management validation. |
 
@@ -62,7 +62,42 @@ A bot only manages real money after it proves itself **inside Brier**. Local bac
 
 ---
 
-## 4. Economics (60 / 30 / 10)
+## 4. Developer Quick Start: Connect a Bot in 3 Minutes
+
+1. **Get API Keys:** Register on the Brier dashboard and generate your `API_KEY` and `API_SECRET`.
+2. **Use the Example Script:** Copy `scripts/adan-example.ts` as your baseline.
+3. **Submit Predictions (Append-Only):**
+```typescript
+import fetch from 'node-fetch'
+import crypto from 'node:crypto'
+
+const timestamp = Date.now().toString()
+const rawBody = JSON.stringify({
+  marketId: "0x123...",
+  conditionId: "0x987...",
+  side: "YES",
+  confidence: 0.85,
+  marketTitle: "Example Market"
+})
+
+const signature = crypto.createHmac('sha256', process.env.API_SECRET).update(timestamp + rawBody).digest('hex')
+
+await fetch('https://brier.gg/api/predictions/commit', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-api-key': process.env.API_KEY,
+    'x-timestamp': timestamp,
+    'x-signature': signature,
+  },
+  body: rawBody,
+})
+```
+4. **Build Reputation:** Your predictions are immutably logged and scored against the market using our Lower Confidence Bound (LCB) skill engine.
+
+---
+
+## 5. Economics (60 / 30 / 10)
 
 Fees are generated **on profit only**. There are no management fees. Losses hit the NAV directly (Darwinism).
 
@@ -72,25 +107,25 @@ Fees are generated **on profit only**. There are no management fees. Losses hit 
 
 ---
 
-## 5. Current MVP Status & Feature Flags
+## 6. Current MVP Status & Feature Flags
 
-Brier is currently in **Phase 1: Empirical Validation**.
-The capital layer (Vaults, USDC deposits, TVL) is deliberately gated behind feature flags (`NEXT_PUBLIC_ENABLE_CAPITAL=false`) until we empirically prove that the `Brier < 0.20` threshold is achievable on Polymarket by a real agent (e.g., ADAN).
+Brier is currently in **MVP Completion Mode: Empirical Validation**.
+The capital layer (Vaults, USDC deposits, TVL) is deliberately gated behind feature flags (`NEXT_PUBLIC_ENABLE_CAPITAL=false`) until we empirically prove that a real agent (e.g., ADAN) can achieve an `LCB > 0` on Polymarket.
 
 **What is LIVE:**
 - SDK Integration (HMAC authentication).
-- Shadow Phase ingestion and Event Bus.
-- Polymarket Oracle Resolution (`watcher.ts`).
-- Scoring Engine (Brier, Win Rate, LCB).
+- Shadow Phase ingestion and Event Bus (Append-Only PostgreSQL).
+- Polymarket Oracle Resolution (`watcher.ts` / cron).
+- Skill Engine (Builder Reputation, Lower Confidence Bound).
 
 **What is PENDING / OUT OF SCOPE:**
-- **No Tokenomics / Bonding Curves:** All legacy launchpad/token code is dormant and scheduled for deletion. We are building institutional infrastructure, not a memecoin casino.
+- **No Tokenomics:** All legacy launchpad/token code has been deleted.
 - **Risk Engine Price Feed:** The WebSocket feed for Polymarket PERPS stop-loss is currently mocked. **Do not deploy real funds until this is wired.**
 - **Smart Contract Audits:** Vault contracts (`BrierVault.sol`) are strictly in Testnet (Polygon Amoy).
 
 ---
 
-## 6. Local Quick Start
+## 7. Local Infrastructure Setup
 
 ```bash
 npm install
@@ -101,13 +136,9 @@ npm run dev            # http://localhost:3000
 
 ### Services
 ```bash
-# Start the Executor API (Receives Bot Signals)
-cd brier-executor
-npm install
-npm run start:server
-
-# Start the Resolution Oracle (Polls Polymarket for results)
-npm run start:worker
+# Start the Resolution Oracle (Polls Polymarket for results and computes LCB scores)
+# Runs hourly via Vercel Cron in prod, or manually via:
+curl -H "Authorization: Bearer CRON_SECRET" http://localhost:3000/api/cron/resolve-and-score
 ```
 
 ### Smart Contracts (Hardhat)

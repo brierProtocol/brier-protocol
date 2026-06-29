@@ -34,7 +34,7 @@ const UPSTASH_CONFIGURED =
 const rateLimitMap = new Map<string, { count: number; lastReset: number }>()
 
 export async function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname.startsWith('/api/bots/submit')) {
+  if (request.nextUrl.pathname.startsWith('/api/bots/submit') || request.nextUrl.pathname.startsWith('/api/predictions/commit')) {
     const ip = (request as any).ip ?? '127.0.0.1'
 
     // TODO(prod): when UPSTASH_CONFIGURED, route through the Upstash limiter
