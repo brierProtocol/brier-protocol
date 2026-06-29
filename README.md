@@ -110,18 +110,20 @@ Fees are generated **on profit only**. There are no management fees. Losses hit 
 ## 6. Current MVP Status & Feature Flags
 
 Brier is currently in **MVP Completion Mode: Empirical Validation**.
-The capital layer (Vaults, USDC deposits, TVL) is deliberately gated behind feature flags (`NEXT_PUBLIC_ENABLE_CAPITAL=false`) until we empirically prove that a real agent (e.g., ADAN) can achieve an `LCB > 0` on Polymarket.
+The capital layer (Vaults, USDC deposits, TVL) is fully integrated. We are monitoring the first batch of algorithmic agents (e.g., ADAN) in the Shadow Phase to empirically prove they can achieve an `LCB > 0` on Polymarket before unlocking real capital deposits to the public.
 
-**What is LIVE:**
+**What is LIVE (MVP V1 COMPLETE):**
 - SDK Integration (HMAC authentication).
 - Shadow Phase ingestion and Event Bus (Append-Only PostgreSQL).
 - Polymarket Oracle Resolution (`watcher.ts` / cron).
 - Skill Engine (Builder Reputation, Lower Confidence Bound).
+- Executor Integration (BullMQ / Fastify).
+- Real-time Risk Engine (CLOB Live Pricing via Webhook/REST).
+- On-chain Settlement (BrierVault / CTF automation).
 
 **What is PENDING / OUT OF SCOPE:**
 - **No Tokenomics:** All legacy launchpad/token code has been deleted.
-- **Risk Engine Price Feed:** The WebSocket feed for Polymarket PERPS stop-loss is currently mocked. **Do not deploy real funds until this is wired.**
-- **Smart Contract Audits:** Vault contracts (`BrierVault.sol`) are strictly in Testnet (Polygon Amoy).
+- **Smart Contract Audits:** Vault contracts (`BrierVault.sol`) are currently deployed on Testnet (Polygon Amoy). External audit required before Mainnet liquidity.
 
 ---
 
