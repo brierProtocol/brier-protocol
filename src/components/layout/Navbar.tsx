@@ -6,6 +6,7 @@ import { useAccount } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { motion, AnimatePresence } from 'framer-motion'
 import MakerAvatar from '@/components/MakerAvatar'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 interface Notification {
   id: string
@@ -176,10 +177,11 @@ export default function Navbar() {
   // Docs trae su propio header (logo + search ⌘K + tabs) — sin navbar global encima
   if (pathname.startsWith('/docs')) return null
 
+  // Deploy lives inside the arena (/app) and Discover as a primary CTA, so it no
+  // longer needs a nav slot competing with the core views.
   const navLinks = [
     { href: '/leaderboard', label: 'Leaderboard' },
     { href: '/discover',    label: 'Discover'    },
-    { href: '/list-bot',    label: 'Deploy Bot'  },
     { href: '/dashboard',   label: 'Dashboard'   },
   ]
 
@@ -258,14 +260,7 @@ export default function Navbar() {
                       <Link href={`/maker/${account.address}`} className="font-sans text-[12px] font-semibold px-4 py-2 rounded-full border border-[#222] text-[#ccc] hover:text-white hover:border-[#444] transition-all no-underline hidden sm:flex items-center">
                         Profile
                       </Link>
-                      <button
-                        onClick={openAccountModal}
-                        type="button"
-                        aria-label="Account"
-                        className="rounded-[9px] p-[3px] bg-[#0d0d0d] border border-[#222] hover:border-primary/60 transition-all cursor-pointer flex items-center"
-                      >
-                        <MakerAvatar address={account.address} size={28} />
-                      </button>
+                      <AccountButton account={account} openAccountModal={openAccountModal} />
                     </div>
                   )
                 })()}
@@ -301,5 +296,20 @@ export default function Navbar() {
         )}
       </AnimatePresence>
     </nav>
+  )
+}
+
+function AccountButton({ account, openAccountModal }: { account: any, openAccountModal: () => void }) {
+  const user = useCurrentUser(account.address)
+  console.log('AccountButton render for address:', account.address, 'user state:', user)
+  return (
+    <button
+      onClick={openAccountModal}
+      type="button"
+      aria-label="Account"
+      className="rounded-[9px] p-[3px] bg-[#0d0d0d] border border-[#222] hover:border-primary/60 transition-all cursor-pointer flex items-center"
+    >
+      <MakerAvatar address={account.address} pfpUrl={user?.pfpUrl} size={28} />
+    </button>
   )
 }

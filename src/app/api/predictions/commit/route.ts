@@ -1,86 +1,103 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import crypto from 'crypto'
+import { decryptApiKey } from '@/lib/crypto'
+import { captureMarket } from '@/lib/market-data'
+
+function recoverSecret(stored: string): string | null {
+  const parts = stored.split('.')
+  if (parts.length === 3) {
+    try { return decryptApiKey(parts[0], parts[1], parts[2]) } catch { return null }
+  }
+  return stored
+}
 
 export async function POST(req: NextRequest) {
   try {
     const apiKey = req.headers.get('x-api-key')
     const timestamp = req.headers.get('x-timestamp')
     const signature = req.headers.get('x-signature')
-    
-    // During local dev, we could bypass if needed, but we want to enforce it.
+
     if (!apiKey || !timestamp || !signature) {
-      return NextResponse.json({ error: 'Missing security headers: x-api-key, x-timestamp, x-signature' }, { status: 401 })
+      return NextResponse.json({ error: 'Missing security headers' }, { status: 401 })
     }
 
-    // 1. Replay Attack Protection (5 minute window)
-    const now = Date.now()
-    if (Math.abs(now - Number(timestamp)) > 5 * 60 * 1000) {
+    if (Math.abs(Date.now() - Number(timestamp)) > 5 * 60 * 1000) {
       return NextResponse.json({ error: 'Timestamp is stale or invalid' }, { status: 401 })
     }
 
-    // 2. Fetch Bot Secret
-    const bot = await prisma.bot.findUnique({
-      where: { apiKey }
-    })
-    
+    const bot = await prisma.bot.findUnique({ where: { apiKey } })
     if (!bot || !bot.apiSecret) {
       return NextResponse.json({ error: 'Invalid API Key' }, { status: 401 })
     }
+    const secret = recoverSecret(bot.apiSecret)
+    if (!secret) {
+      return NextResponse.json({ error: 'Key error — please rotate your API key' }, { status: 401 })
+    }
 
-    // 3. Verify HMAC-SHA256 Signature
-    // Read raw body as text to ensure accurate hashing
     const rawBody = await req.text()
-    
-    const computedSignature = crypto
-      .createHmac('sha256', bot.apiSecret)
-      .update(timestamp + rawBody)
-      .digest('hex')
-      
-    if (computedSignature !== signature) {
+    const expected = crypto.createHmac('sha256', secret).update(timestamp + rawBody).digest()
+    let provided: Buffer
+    try { provided = Buffer.from(signature, 'hex') } catch { return NextResponse.json({ error: 'Invalid signature' }, { status: 401 }) }
+    if (expected.length !== provided.length || !crypto.timingSafeEqual(expected, provided)) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
-    // 4. Rate Limiting Update (basic)
-    await prisma.bot.update({
-      where: { id: bot.id },
-      data: { rateLimitCount: { increment: 1 } }
-    })
-
-    // 5. Process Payload
     const body = JSON.parse(rawBody)
-    const { marketId, forecast, marketTitle = "Unknown Market" } = body
-    const botId = bot.id
-    
-    // FETCH REAL-TIME CLOB MIDPOINT
-    // In production, this calls Polymarket API or directly reads orderbook.
-    // For MVP, we simulate a market probability close to the bot's forecast to reflect reality.
-    // If we want a strict edge case, we can randomly offset it by +/- 0.05
-    const noise = (Math.random() * 0.1) - 0.05 // -0.05 to +0.05
-    let simulatedMidpoint = forecast + noise
-    simulatedMidpoint = Math.max(0.01, Math.min(0.99, simulatedMidpoint))
+    const { marketId, conditionId = "", side = "YES", confidence, marketTitle = 'Unknown Market' } = body
+    if (!marketId || typeof marketId !== 'string') {
+      return NextResponse.json({ error: 'marketId is required' }, { status: 400 })
+    }
+    const f = Number(confidence || body.forecast) // fallback for legacy bots
+    if (!Number.isFinite(f) || f <= 0 || f >= 1) {
+      return NextResponse.json({ error: 'confidence must be a number strictly between 0 and 1' }, { status: 400 })
+    }
 
-    // SAVE PREDICTION
-    const prediction = await prisma.prediction.create({
-      data: {
-        botId,
-        marketId,
-        marketTitle,
-        forecast,
-        marketMidpoint: simulatedMidpoint,
-        outcome: 'PENDING'
+    const snap = await captureMarket(marketId)
+    if (snap.state === 'closed') {
+      return NextResponse.json({ error: 'Market already closed' }, { status: 409 })
+    }
+
+    let marketMidpoint = snap.pYes
+    let liquidity = snap.liquidity || 0
+    let devFallback = false
+    if (marketMidpoint === null) {
+      if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json({ error: 'Could not capture the market price right now. Please retry.' }, { status: 503 })
       }
+      marketMidpoint = 0.5
+      devFallback = true
+      console.warn('[commit] DEV market fallback midpoint=0.5 (CLOB unreachable). NOT used in production.')
+    }
+
+    // append-only prediction insertion
+    const prediction = await prisma.prediction.create({
+      data: { 
+        botId: bot.id, 
+        builderId: bot.walletAddress,
+        marketId, 
+        conditionId,
+        side,
+        marketTitle, 
+        confidence: f, 
+        marketProbabilityAtCommit: marketMidpoint, 
+        liquidity,
+        status: 'PENDING' 
+      },
     })
+    
+    prisma.bot.update({ where: { id: bot.id }, data: { rateLimitCount: { increment: 1 } } }).catch(() => {})
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Prediction committed to Reputation Layer',
+    return NextResponse.json({
+      success: true,
+      message: 'Prediction committed',
       predictionId: prediction.id,
-      capturedMarketMidpoint: simulatedMidpoint
+      capturedMarketMidpoint: marketMidpoint,
+      ...(devFallback ? { devFallback: true, note: 'TEST midpoint' } : {}),
     }, { status: 200 })
-
+    
   } catch (error: any) {
     console.error('[API] Commit Error:', error)
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }

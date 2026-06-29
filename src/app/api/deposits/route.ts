@@ -3,13 +3,13 @@ import { prisma } from '@/lib/db/prisma';
 import { ethers } from 'ethers';
 import { notifyDeposit } from '@/lib/notifications';
 import { FEATURES } from '@/lib/features';
+import { DEPOSIT_RPC_URL as RPC_URL, USDC_ADDRESS_ENV, USDC_DECIMALS } from '@/constants/contracts';
+import { depositBlockReason } from '@/lib/vault-lifecycle';
 
 // Direccion del contrato USDC esperado. Si se define (USDC_ADDRESS_ENV), SOLO se aceptan
 // transferencias de ese token (evita depositar un ERC20 falso e inflar el TVL).
 // undefined => validacion de token deshabilitada.
 const USDC_ADDRESS = process.env.USDC_ADDRESS?.toLowerCase();
-const RPC_URL = process.env.RPC_URL || 'https://polygon-rpc.com';
-const USDC_DECIMALS = 6;
 
 // ERC20 Transfer Event Signature
 const TRANSFER_EVENT_SIG = ethers.id('Transfer(address,address,uint256)');
@@ -113,7 +113,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Save deposit to database
+    // LIFECYCLE + CAPACITY: un vault cerrado (black swan) o lleno no acepta depósitos.
+    // Sobre-llenar diluye a los que ya entraron; un vault cerrado solo permite claim.
+    const blocked = depositBlockReason(bot);
+    if (blocked) {
+      return NextResponse.json({ error: blocked }, { status: 409 });
+    }
+
+    // SHARES (ERC-4626 mirror): se mintean al NAV vigente ANTES de este depósito.
+    // navPerShare = currentTVL / totalShares. En génesis (totalShares == 0) el
+    // primer depositante entra 1:1. La ganancia/pérdida posterior se refleja en el
+    // NAV, no en el número de shares: cada share vale más (o menos) USDC con el tiempo.
+    const navPerShare = bot.totalShares > 0 ? bot.currentTVL / bot.totalShares : 1;
+    const sharesMinted = realAmountUsdc / navPerShare;
+    const riskMode = mode || 'CONSERVATIVE';
+
+    // Identidad del inversor (cero-fricción: wallet = user). Aseguramos que exista
+    // el User antes de crear la posición, que sí tiene FK a User.
+    await prisma.user.upsert({
+      where: { walletAddress: depositorWallet },
+      update: {},
+      create: { walletAddress: depositorWallet },
+    });
+
+    // 4. Guardar el depósito (con txHash para el anti-replay).
     let deposit;
     try {
       deposit = await prisma.vaultDeposit.create({
@@ -122,7 +145,9 @@ export async function POST(request: NextRequest) {
           txHash: normalizedTxHash,
           depositorWallet,
           amountUsdc: realAmountUsdc,
-          mode: mode || 'CONSERVATIVE',
+          shares: sharesMinted,
+          kind: 'DEPOSIT',
+          mode: riskMode,
           active: true,
           totalProfitEarned: 0
         }
@@ -135,12 +160,31 @@ export async function POST(request: NextRequest) {
       throw e;
     }
 
-
-    // 5. Incrementar el TVL del bot con el monto REAL
-    await prisma.bot.update({
-      where: { id: botId },
-      data: { currentTVL: { increment: realAmountUsdc } },
-    });
+    // 5. Subir TVL + shares del bot y consolidar la posición agregada del inversor.
+    await prisma.$transaction([
+      prisma.bot.update({
+        where: { id: botId },
+        data: {
+          currentTVL: { increment: realAmountUsdc },
+          totalShares: { increment: sharesMinted },
+        },
+      }),
+      prisma.vaultPosition.upsert({
+        where: { userWallet_botId: { userWallet: depositorWallet, botId } },
+        update: {
+          shares: { increment: sharesMinted },
+          costBasisUsdc: { increment: realAmountUsdc },
+          mode: riskMode,
+        },
+        create: {
+          userWallet: depositorWallet,
+          botId,
+          shares: sharesMinted,
+          costBasisUsdc: realAmountUsdc,
+          mode: riskMode,
+        },
+      }),
+    ]);
 
     // Notificar al creador
     if (bot.walletAddress) {

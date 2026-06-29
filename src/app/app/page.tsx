@@ -62,7 +62,7 @@ function ReadinessBar({ p }: { p: ShadowProgress }) {
       <div className="grid grid-cols-3 gap-px bg-[#141414] border border-[#141414]">
         <Gate label="RESOLVED" value={`${p.resolved}/${SHADOW_RESOLVED_TARGET}`} pass={p.resolvedPass} />
         <Gate label="DAYS" value={`${p.days}/${SHADOW_DAYS_TARGET}`} pass={p.daysPass} />
-        <Gate label="BRIER" value={p.brier !== null ? p.brier.toFixed(3) : 'BUILDING'} pass={p.brierPass} />
+        <Gate label="LCB" value={p.lcb !== null ? p.lcb.toFixed(3) : 'BUILDING'} pass={p.lcbPass} />
       </div>
     </div>
   )
@@ -73,7 +73,7 @@ function ReadinessBar({ p }: { p: ShadowProgress }) {
 function LiveVitals({ p, full = false }: { p: ShadowProgress; full?: boolean }) {
   return (
     <div className={`grid ${full ? 'grid-cols-4' : 'grid-cols-3'} gap-px bg-[#141414] border border-[#141414]`}>
-      <Gate label="BRIER" value={p.brier !== null ? p.brier.toFixed(3) : '—'} pass={p.brierPass} />
+      <Gate label="LCB" value={p.lcb !== null ? p.lcb.toFixed(3) : '—'} pass={p.lcbPass} />
       <Gate label="PREDICTIONS" value={p.resolved > 0 ? p.resolved.toLocaleString() : '—'} pass={false} />
       {full && <Gate label="WIN RATE" value={p.winRate !== null && p.winRate > 0 ? `${(p.winRate * 100).toFixed(0)}%` : '—'} pass={false} />}
       <Gate label="VAULT TVL" value={p.tvl > 0 ? `$${(p.tvl / 1000).toFixed(1)}K` : '—'} pass={false} />
@@ -185,9 +185,9 @@ export default function Home() {
                         <div className="absolute -inset-4 rounded-full" style={{ background: 'radial-gradient(circle, rgba(255,215,0,0.18), transparent 70%)' }} />
                         {champ.pfpUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={champ.pfpUrl} alt={champ.name} className="relative w-[120px] h-[120px] object-cover border border-[#FFD700]/30" />
+                          <img src={champ.pfpUrl} alt={champ.name} className="relative w-[120px] h-[120px] object-cover rounded-full border border-[#FFD700]/30" />
                         ) : (
-                          <div className="relative"><BotIrisAvatar {...botEye(champ)} size={120} /></div>
+                          <div className="relative transition-transform duration-500 group-hover:scale-105"><BotIrisAvatar {...botEye(champ)} size={120} /></div>
                         )}
                       </div>
                       <div className="mt-4 font-sans font-extrabold text-[56px] leading-none text-[#FFD700]" style={{ textShadow: '0 0 34px rgba(255,215,0,0.4)' }}>1</div>
@@ -252,9 +252,11 @@ export default function Home() {
                         <div className="flex items-center justify-center py-4">
                           {bot.pfpUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={bot.pfpUrl} alt={bot.name} className="w-[72px] h-[72px] object-cover border border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
+                            <img src={bot.pfpUrl} alt={bot.name} className="w-[72px] h-[72px] object-cover rounded-full border border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
                           ) : (
-                            <BotIrisAvatar {...botEye(bot)} size={72} />
+                            <span className="transition-transform duration-300 group-hover:scale-110">
+                              <BotIrisAvatar {...botEye(bot)} size={72} />
+                            </span>
                           )}
                         </div>
 

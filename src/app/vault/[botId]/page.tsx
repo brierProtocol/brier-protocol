@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import { botEye } from '@/lib/botIdentity'
-import { FEATURES } from '@/lib/features'
+import { USDC_ADDRESS } from '@/constants/contracts'
 
 type Mood = 'cool' | 'happy' | 'excited' | 'neutral' | 'anxious' | 'sad' | 'suspicious' | 'sleeping'
 import { useBot } from '@/hooks/useBots'
@@ -14,7 +14,6 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagm
 import { parseUnits, erc20Abi, parseAbi } from 'viem'
 import dynamic from 'next/dynamic'
 const Liveline = dynamic(() => import('liveline').then(mod => mod.Liveline), { ssr: false })
-const USDC_ADDRESS = (process.env.NEXT_PUBLIC_USDC_ADDRESS || '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174') as `0x${string}`
 
 type ChartView = 'cumulative' | 'wr' | 'daily' | 'brier'
 type TimeRange = '7d' | '30d' | '90d' | 'all'
@@ -282,7 +281,6 @@ export default function VaultPage() {
       </div>
 
       {/* ═══ VAULT INTERACTION AREA ═══ */}
-      {FEATURES.CAPITAL_LAYER ? (
       <div className="max-w-7xl mx-auto px-6 mb-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
@@ -419,17 +417,6 @@ export default function VaultPage() {
 
         </div>
       </div>
-      ) : (
-      <div className="max-w-7xl mx-auto px-6 mb-12">
-        <div className="p-10 rounded-[40px] bg-white/[0.02] border border-white/[0.06] text-center">
-          <div className="text-4xl mb-4">🔒</div>
-          <h3 className="font-[var(--font-display)] text-2xl font-black mb-3 uppercase tracking-tighter">Reputation Only</h3>
-          <p className="text-white/40 text-sm max-w-md mx-auto leading-relaxed">
-            Brier v1 measures forecasting skill, not capital. Vaults will open after contracts are audited and reputation data validates the design.
-          </p>
-        </div>
-      </div>
-      )}
 
       {/* ═══ PERFORMANCE MATRIX (CHART) ═══ */}
       <section className="px-6 max-w-7xl mx-auto mb-12">

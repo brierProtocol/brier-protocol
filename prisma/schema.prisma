@@ -9,182 +9,144 @@ datasource db {
 }
 
 model Bot {
-  id              String        @id @default(cuid())
-  slug            String        @unique
-  name            String
-  description     String?
-  tagline         String?       
-  color           String        @default("#0A0A0A")
-  mood            String        @default("neutral")
-  
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String?
+  tagline     String?
+  color       String  @default("#0A0A0A")
+  mood        String  @default("neutral")
+
   // Status state machine
-  status          String        @default("PAPER")
-  tier            String        @default("NONE")
-  pfpUrl          String?
-  avatarId        String        @default("void-eye")
-  eyeShape        String        @default("round")     // round | aperture | cat | diamond | scanner | ring
-  
+  status   String  @default("PAPER")
+  tier     String  @default("NONE")
+  pfpUrl   String?
+  avatarId String  @default("void-eye")
+  eyeShape String  @default("round") // round | aperture | cat | diamond | scanner | ring
+
   // --- NUEVA TAXONOMÍA INSTITUCIONAL (PERPS) ---
-  marketType      String        @default("SPOT")      // SPOT | PERP
-  resolution      String        @default("EPOCH")     // HFT | SCALP | SWING | EPOCH
-  mandate         String        @default("DIRECTIONAL") // DIRECTIONAL | DELTA-NEUTRAL
-  maxLeverage     Float         @default(1.0)
+  marketType  String @default("SPOT") // SPOT | PERP
+  resolution  String @default("EPOCH") // HFT | SCALP | SWING | EPOCH
+  mandate     String @default("DIRECTIONAL") // DIRECTIONAL | DELTA-NEUTRAL
+  maxLeverage Float  @default(1.0)
   // ---------------------------------------------
 
   // Polymarket categories this bot targets (e.g. ["crypto","politics"])
-  categories      String[]      @default([])
+  categories         String[]  @default([])
   // Categories DERIVED from the markets the wallet actually traded (on-chain
   // truth). When present, the catalog trusts these over the declared ones.
-  verifiedCategories String[]   @default([])
-  lastIndexedAt   DateTime?
+  verifiedCategories String[]  @default([])
+  lastIndexedAt      DateTime?
+  // Last bot heartbeat (spec §2.2: bots emit every ~4s). The dashboard reads this
+  // and shows "stale" if none arrived within HEARTBEAT_STALE_MS. Null = never
+  // reported / not operating. See src/lib/heartbeat.ts.
+  lastHeartbeatAt    DateTime?
 
-  walletAddress   String
-  vaultAddress    String?
-  skinInGame      Float         @default(0)
-  vaultCap        Float         @default(0)
-  currentTVL      Float         @default(0)
-  vaultOpen       Boolean       @default(false)
-  strategyType    String        @default("hybrid")
-  
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
-  // Security & API
-  apiKey          String?       @unique
-  apiSecret       String?
-  rateLimitCount  Int           @default(0)
-  
-  // Relations
-  markets         BotMarket[]
-  trades          TradeEvent[]
-  scores          BotScore[]
-  deposits        VaultDeposit[]
-  incubationLogs  IncubationLog[]
-  pnlSnapshots    PnlSnapshot[]
-  polyConnection  PolyConnection?
-  kalshiConnection KalshiConnection?
-  comments        Comment[]
-  hearts          Heart[]
-  predictions     Prediction[]
-  token           BotToken?
+  walletAddress    String
+  // Maker/builder wallet that PUBLISHED the bot. Distinct from walletAddress,
+  // which can hold the bot's Polymarket execution wallet. FK to User so the maker
+  // is a first-class identity. Nullable so a bot can exist before its maker links.
+  ownerWallet      String?
+  vaultAddress     String?
+  skinInGame       Float     @default(0)
+  vaultCap         Float     @default(0)
+  currentTVL       Float     @default(0)
+  // ERC-4626 vault shares minted (off-chain mirror). navPerShare = currentTVL / totalShares.
+  totalShares      Float     @default(0)
+  vaultOpen        Boolean   @default(false)
+  // Vault terminal state (Darwinism black-swan): once set, the vault is CLOSED —
+  // no new deposits; depositors can only claim (redeem at current NAV). Set by the
+  // risk engine via closeVault() — see src/lib/vault-lifecycle.ts.
+  vaultClosedAt    DateTime?
+  vaultCloseReason String? // CIRCUIT_BREAKER | DRAWDOWN_BREACH | MANUAL
+  strategyType     String    @default("hybrid")
 
-  @@index([walletAddress])
-  @@index([status])       // FIX-5: leaderboard filters by status constantly
-  @@index([tier])         // FIX-5: tier filtering
-}
-
-// ─────────────────────────────────────────────────────────────
-// LAUNCHPAD — each bot has a tokenized "conviction market".
-// During shadow it trades on a virtual bonding curve; on Tier-1 it graduates.
-// ─────────────────────────────────────────────────────────────
-model BotToken {
-  id            String   @id @default(cuid())
-  botId         String   @unique
-  bot           Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
-
-  ticker        String                         // e.g. ADAN
-  name          String                         // display name
-
-  // Virtual bonding-curve state (off-chain MVP; on-chain later)
-  // Pump.fun-style: fixed 1B total supply, constant-product virtual reserves
-  supply        Float    @default(0)           // tokens SOLD from the curve
-  reserve       Float    @default(0)           // real virtual-USDC collected
-  basePrice     Float    @default(0.0001)      // LEGACY (old linear curve) — unused
-  slope         Float    @default(0.000000005) // LEGACY (old linear curve) — unused
-  graduationMcap Float   @default(50000)       // mcap that triggers graduation → vault
-
-  status        String   @default("BONDING")   // BONDING | GRADUATED
-  holdersCount  Int      @default(0)
-
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  trades        TokenTrade[]
-  holdings      TokenHolding[]
-
-  @@index([status])
-}
-
-model TokenTrade {
-  id         String   @id @default(cuid())
-  tokenId    String
-  token      BotToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
-
-  wallet     String
-  side       String                         // BUY | SELL
-  usdc       Float                          // virtual USDC in/out
-  shares     Float                          // shares minted/burned
-  priceAfter Float                          // curve price after the trade
-  createdAt  DateTime @default(now())
-
-  @@index([tokenId, createdAt])
-  @@index([wallet])
-}
-
-model TokenHolding {
-  id        String   @id @default(cuid())
-  tokenId   String
-  token     BotToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
-  wallet    String
-  shares    Float    @default(0)
+  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([tokenId, wallet])
+  // Security & API
+  apiKey         String? @unique
+  apiSecret      String?
+  rateLimitCount Int     @default(0)
+
+  // Relations
+  markets          BotMarket[]
+  trades           TradeEvent[]
+  scores           BotScore[]
+  deposits         VaultDeposit[]
+  positions        VaultPosition[]
+  distributions    Distribution[]
+  incubationLogs   IncubationLog[]
+  pnlSnapshots     PnlSnapshot[]
+  polyConnection   PolyConnection?
+  kalshiConnection KalshiConnection?
+  comments         Comment[]
+  hearts           Heart[]
+  predictions      Prediction[]
+  maker            User?             @relation("BotMaker", fields: [ownerWallet], references: [walletAddress])
+
+  @@index([walletAddress])
+  @@index([ownerWallet])
+  @@index([status]) // FIX-5: leaderboard filters by status constantly
+  @@index([tier]) // FIX-5: tier filtering
 }
 
 model BotMarket {
-  id        String   @id @default(cuid())
-  botId     String
-  bot       Bot      @relation(fields: [botId], references: [id])
-  
+  id    String @id @default(cuid())
+  botId String
+  bot   Bot    @relation(fields: [botId], references: [id])
+
   // Polymarket internal market ID
-  marketId  String
-  
+  marketId String
+
   // ACTIVE | WHITELISTED | BLACKLISTED
-  status    String   @default("WHITELISTED")
-  
+  status String @default("WHITELISTED")
+
   createdAt DateTime @default(now())
-  
+
   @@unique([botId, marketId])
 }
 
 model TradeEvent {
-  id               String   @id @default(cuid())
-  botId            String
-  bot              Bot      @relation(fields: [botId], references: [id])
-  
-  marketId         String
-  marketTitle      String
-  
+  id    String @id @default(cuid())
+  botId String
+  bot   Bot    @relation(fields: [botId], references: [id])
+
+  marketId    String
+  marketTitle String
+
   // YES | NO | LONG | SHORT
-  side             String
-  
+  side String
+
   // --- NUEVOS PARÁMETROS DE EJECUCIÓN PERP ---
-  actionType       String   @default("OPEN") // OPEN | CLOSE
-  leverage         Float    @default(1.0)
-  stopLossPrice    Float?
-  takeProfitPrice  Float?
+  actionType      String @default("OPEN") // OPEN | CLOSE
+  leverage        Float  @default(1.0)
+  stopLossPrice   Float?
+  takeProfitPrice Float?
   // -------------------------------------------
 
-  amount           Float
-  entryPrice       Float
-  resolvedPrice    Float    @default(0)
-  
+  amount        Float
+  entryPrice    Float
+  resolvedPrice Float @default(0)
+
   // WIN | LOSS | PENDING | LIQUIDATED
-  outcome          String   @default("PENDING")
-  brierContrib     Float    @default(0)
-  
-  executionWallet  String
-  fraudFlag        Boolean  @default(false)
-  
-  timestamp        DateTime @default(now())
-  resolvedAt       DateTime?
-  
-  source           String   @default("POLYMARKET")
-  externalTradeId  String?
+  outcome      String @default("PENDING")
+  brierContrib Float  @default(0)
+
+  executionWallet String
+  fraudFlag       Boolean @default(false)
+
+  timestamp  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  source          String  @default("POLYMARKET")
+  externalTradeId String?
 
   // Polymarket CTF condition id — required for on-chain redeem/settlement.
-  conditionId      String?
+  conditionId String?
+
+  // Timestamp when this trade was booked into the vault PnL (set by Felipe's CTO work).
+  vaultBookedAt DateTime?
 
   @@unique([source, externalTradeId])
   @@index([botId, outcome])
@@ -194,87 +156,164 @@ model TradeEvent {
 }
 
 model BotScore {
-  id           String   @id @default(cuid())
-  botId        String
-  bot          Bot      @relation(fields: [botId], references: [id])
-  
+  id    String @id @default(cuid())
+  botId String
+  bot   Bot    @relation(fields: [botId], references: [id])
+
   // Cumulative Brier Score — lower is better
-  brierScore   Float
-  
+  brierScore Float
+
   // Win rate over last 100 trades (0.0 to 1.0)
-  winRate      Float
-  
+  winRate Float
+
   // Sharpe ratio of returns
-  sharpe       Float    @default(0)
-  
+  sharpe Float @default(0)
+
   // Total resolved trades
-  totalTrades  Int      @default(0)
-  
+  totalTrades Int @default(0)
+
   // Total USDC wagered
-  totalVolume  Float    @default(0)
-  
+  totalVolume Float @default(0)
+
   // Max drawdown in history (as negative %, e.g. -0.18 = -18%)
-  maxDrawdown  Float    @default(0)
-  
+  maxDrawdown Float @default(0)
+
+  // ── Reputation layer (skill vs market, from src/lib/skill-engine) ──
+  // relativeSkill = mean(marketBrier − botBrier): >0 beats the market.
+  // lcb = lower confidence bound (anti-sybil: luck doesn't top the board).
+  // reputationScore = lcb normalized to 0..100 (the public headline number).
+  // resolvedPredictions = how many resolved predictions this is computed from.
+  relativeSkill       Float?
+  lcb                 Float?
+  reputationScore     Float?
+  resolvedPredictions Int    @default(0)
+
   // Daily snapshot. One record per bot per day.
   snapshotDate DateTime @default(now())
-  
-  isLatest     Boolean  @default(true)
+
+  isLatest Boolean @default(true)
 
   @@unique([botId, snapshotDate])
 }
 
 model VaultDeposit {
-  id               String    @id @default(cuid())
-  botId            String
-  bot              Bot       @relation(fields: [botId], references: [id])
+  id    String @id @default(cuid())
+  botId String
+  bot   Bot    @relation(fields: [botId], references: [id])
 
   // SECURITY: on-chain transaction hash — enforces single-use per deposit (replay protection)
-  txHash           String?   @unique
+  txHash String? @unique
 
-  depositorWallet  String
-  amountUsdc       Float
+  depositorWallet String
+  amountUsdc      Float
 
+  // ERC-4626 vault shares minted for this deposit (off-chain mirror of the on-chain mint).
+  shares Float @default(0)
+
+  // DEPOSIT | REDEEM — ledger entry type. Today only DEPOSIT rows are written here;
+  // redeems update VaultPosition and flip active=false (see /api/withdraw).
+  kind String @default("DEPOSIT")
 
   // CONSERVATIVE | DEGEN
-  mode             String    @default("CONSERVATIVE")
-  
+  mode String @default("CONSERVATIVE")
+
   // Active deposit status
-  active           Boolean   @default(true)
-  
+  active Boolean @default(true)
+
   // Cumulative profit earned by this depositor
-  totalProfitEarned Float    @default(0)
-  
-  depositedAt      DateTime  @default(now())
-  exitedAt         DateTime?
-  exitReason       String?   // MANUAL | CIRCUIT_BREAKER | CONSERVATIVE_TRIGGER | VAULT_SUSPENDED
+  totalProfitEarned Float @default(0)
+
+  depositedAt DateTime  @default(now())
+  exitedAt    DateTime?
+  exitReason  String? // MANUAL | CIRCUIT_BREAKER | CONSERVATIVE_TRIGGER | VAULT_SUSPENDED
+
+  @@index([depositorWallet])
+  @@index([botId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// VAULT POSITION — aggregated holding of ONE investor in ONE bot's vault.
+// This is the source of truth for the user's dashboard portfolio (Total
+// Balance, Invested Capital, Active Bots). VaultDeposit stays the raw on-chain
+// ledger; VaultPosition is the rolled-up, share-based view per (user, bot).
+// ─────────────────────────────────────────────────────────────
+model VaultPosition {
+  id String @id @default(cuid())
+
+  // Investor identity. Wallet = user (cero-fricción onboarding). FK is safe here
+  // because this is a new table; deposit/withdraw upsert the User first.
+  userWallet String
+  user       User   @relation(fields: [userWallet], references: [walletAddress])
+
+  botId String
+  bot   Bot    @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  // ERC-4626 vault shares this user currently holds in this bot's vault.
+  shares          Float @default(0)
+  // USDC paid in for the shares still held (cost basis). Drops proportionally on redeem.
+  costBasisUsdc   Float @default(0)
+  // PnL booked on redeems. Unrealized PnL = shares * navPerShare - costBasisUsdc.
+  realizedPnlUsdc Float @default(0)
+
+  // CONSERVATIVE | DEGEN — risk mode the user chose for this vault.
+  mode String @default("CONSERVATIVE")
+
+  firstDepositAt DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userWallet, botId])
+  @@index([botId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// DISTRIBUTION — one profit-split event. When a settlement books POSITIVE profit
+// for a bot, it is split 60/30/10 (depositors / builder / protocol). Losses are
+// NOT distributed — they hit NAV directly (Darwinism). Cuts are stored as concrete
+// USDC amounts so reporting stays exact even if the rates ever change.
+// ─────────────────────────────────────────────────────────────
+model Distribution {
+  id    String @id @default(cuid())
+  botId String
+  bot   Bot    @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  grossProfitUsdc Float // total profit booked in this settlement (always > 0)
+  depositorCut    Float // 60%
+  builderCut      Float // 30% — accrues to the bot's maker (Bot.ownerWallet)
+  protocolCut     Float // 10%
+
+  // Optional link to the settlement/trade that produced the profit.
+  sourceTradeId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([botId, createdAt])
 }
 
 model IncubationLog {
-  id          String   @id @default(cuid())
-  botId       String
-  bot         Bot      @relation(fields: [botId], references: [id])
-  
-  fromStatus  String
-  toStatus    String
-  
-  reason      String
-  
+  id    String @id @default(cuid())
+  botId String
+  bot   Bot    @relation(fields: [botId], references: [id])
+
+  fromStatus String
+  toStatus   String
+
+  reason String
+
   // Snapshot of key metrics at time of transition
   brierAtTransition   Float?
   winRateAtTransition Float?
   tradesAtTransition  Int?
-  
+
   triggeredAt DateTime @default(now())
-  
+
   // AUTOMATIC | MANUAL | CIRCUIT_BREAKER
-  triggeredBy String   @default("AUTOMATIC")
+  triggeredBy String @default("AUTOMATIC")
 }
 
 model CronLog {
   id               String   @id @default(cuid())
-  job              String   // sync_polymarket | evaluate_incubation | snapshot_scores
-  status           String   // SUCCESS | FAILED | PARTIAL
+  job              String // sync_polymarket | evaluate_incubation | snapshot_scores
+  status           String // SUCCESS | FAILED | PARTIAL
   errorMessage     String?
   recordsProcessed Int      @default(0)
   durationMs       Int      @default(0)
@@ -282,34 +321,34 @@ model CronLog {
 }
 
 model PolyConnection {
-  id              String   @id @default(cuid())
-  botId           String   @unique
-  bot             Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+  id              String    @id @default(cuid())
+  botId           String    @unique
+  bot             Bot       @relation(fields: [botId], references: [id], onDelete: Cascade)
   walletAddress   String
-  lastBlockSynced BigInt   @default(0)
+  lastBlockSynced BigInt    @default(0)
   lastSyncAt      DateTime?
 }
 
 model KalshiConnection {
-  id              String   @id @default(cuid())
-  botId           String   @unique
-  bot             Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
-  encryptedKey    String
-  keyIv           String
-  keyAuthTag      String
-  kalshiUserId    String
-  lastSyncAt      DateTime?
-  syncStatus      String   @default("idle")
+  id           String    @id @default(cuid())
+  botId        String    @unique
+  bot          Bot       @relation(fields: [botId], references: [id], onDelete: Cascade)
+  encryptedKey String
+  keyIv        String
+  keyAuthTag   String
+  kalshiUserId String
+  lastSyncAt   DateTime?
+  syncStatus   String    @default("idle")
 }
 
 model PnlSnapshot {
-  id              String   @id @default(cuid())
-  botId           String
-  bot             Bot      @relation(fields: [botId], references: [id])
-  date            DateTime
-  pnlUsd          Float
-  cumulativePnl   Float
-  tradesCount     Int
+  id            String   @id @default(cuid())
+  botId         String
+  bot           Bot      @relation(fields: [botId], references: [id])
+  date          DateTime
+  pnlUsd        Float
+  cumulativePnl Float
+  tradesCount   Int
 
   @@unique([botId, date])
 }
@@ -326,46 +365,68 @@ model Comment {
 }
 
 model User {
-  walletAddress String   @id
-  handle        String?  @unique
+  walletAddress String  @id
+  handle        String? @unique
   name          String?
   bio           String?
   pfpUrl        String?
 
   // Linked X (Twitter) account. xHandle is stored without the leading @.
   // xVerified flips true only once we run real OAuth; manual links stay false.
-  xHandle       String?
-  xVerified     Boolean  @default(false)
+  xHandle   String?
+  xVerified Boolean @default(false)
 
-  createdAt     DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  followers     Follow[] @relation("Followers")
-  following     Follow[] @relation("Following")
-  comments      Comment[]
+  followers       Follow[]             @relation("Followers")
+  following       Follow[]             @relation("Following")
+  comments        Comment[]
+  vaultPositions  VaultPosition[]
+  botsOwned       Bot[]                @relation("BotMaker")
+  equitySnapshots UserEquitySnapshot[]
+}
+
+// ─────────────────────────────────────────────────────────────
+// USER EQUITY SNAPSHOT — one daily point of an investor's portfolio, taken by the
+// snapshot-equity cron. Powers the dashboard's [30D_EQUITY_CURVE] and an honest
+// EST. APY (annualized from the real holding period) without recomputing on read.
+// ─────────────────────────────────────────────────────────────
+model UserEquitySnapshot {
+  id         String @id @default(cuid())
+  userWallet String
+  user       User   @relation(fields: [userWallet], references: [walletAddress])
+
+  date         DateTime // daily granularity (one row per user per day)
+  balanceUsdc  Float // TOTAL BALANCE that day (shares × navPerShare)
+  investedUsdc Float // cost basis still at work that day
+  pnlUsdc      Float // all-time PnL that day (unrealized + realized)
+
+  @@unique([userWallet, date])
+  @@index([userWallet, date])
 }
 
 model Follow {
   id          String @id @default(cuid())
   followerId  String
   followingId String
-  
-  follower    User @relation("Following", fields: [followerId], references: [walletAddress])
-  following   User @relation("Followers", fields: [followingId], references: [walletAddress])
-  
-  createdAt   DateTime @default(now())
-  
+
+  follower  User @relation("Following", fields: [followerId], references: [walletAddress])
+  following User @relation("Followers", fields: [followingId], references: [walletAddress])
+
+  createdAt DateTime @default(now())
+
   @@unique([followerId, followingId])
 }
 
 model Heart {
-  id        String @id @default(cuid())
-  userId    String
-  botId     String 
-  
-  bot       Bot    @relation(fields: [botId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(cuid())
+  userId String
+  botId  String
+
+  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
-  
+
   @@unique([userId, botId])
 }
 
@@ -378,7 +439,7 @@ model Notification {
   metadata      String?
   read          Boolean  @default(false)
   createdAt     DateTime @default(now())
-  
+
   @@index([walletAddress, read])
 }
 
@@ -389,21 +450,51 @@ model Waitlist {
 }
 
 model Prediction {
-  id              String   @id @default(cuid())
-  botId           String
-  bot             Bot      @relation(fields: [botId], references: [id])
-  marketId        String
-  marketTitle     String
-  
-  forecast        Float    // Bot's submitted probability (0 to 1)
-  marketMidpoint  Float    // Market probability at the exact time of commit
-  
-  // PENDING | WIN | LOSS | VOID
-  outcome         String   @default("PENDING")
-  resolvedAt      DateTime?
-  
-  createdAt       DateTime @default(now())
-  
-  @@index([botId, outcome])
+  id          String @id @default(cuid())
+  botId       String
+  bot         Bot    @relation(fields: [botId], references: [id])
+  builderId   String
+  marketId    String
+  marketTitle String
+  conditionId String @default("")
+  side        String
+
+  confidence                Float
+  marketProbabilityAtCommit Float
+  liquidity                 Float @default(0)
+
+  status     String  @default("PENDING") // PENDING | WIN | LOSS | VOID
+  resolution String?
+
+  timestamp DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([botId, status])
   @@index([marketId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// EVENT BUS — append-only log of everything that happens in the protocol.
+// The single source of truth that every future consumer (alerts, analytics,
+// dashboards, oracle, audits) reads from. NEVER deleted: the history is the asset.
+// ─────────────────────────────────────────────────────────────
+model ProtocolEvent {
+  id String @id @default(cuid())
+
+  // Event type — see EVENT_TYPES in src/lib/events/bus.ts (the canonical list).
+  // e.g. PredictionResolved | ScoreUpdated | VaultPaused | CapitalDeposited
+  type String
+
+  // Optional subjects the event is about (indexed for fast per-agent/vault queries).
+  botId        String?
+  vaultAddress String?
+
+  // Full event body. JSON so new event types add fields without a migration.
+  payload Json
+
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([botId, createdAt])
+  @@index([vaultAddress, createdAt])
 }

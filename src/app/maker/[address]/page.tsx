@@ -66,7 +66,6 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
   const [tab, setTab] = useState<'portfolio' | 'bots'>('portfolio')
   const [socialModal, setSocialModal] = useState<null | 'followers' | 'following'>(null)
   const [copied, setCopied] = useState(false)
-  const [xOpen, setXOpen] = useState(false)
 
   const [isEditing, setIsEditing] = useState(false)
   const [editHandle, setEditHandle] = useState('')
@@ -85,7 +84,7 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
         const [uRes, fRes, botsRes, dRes] = await Promise.all([
           fetch(`/api/users?address=${makerAddress}`),
           fetch(`/api/follows?address=${makerAddress}${activeUser ? `&viewerId=${activeUser}` : ''}`),
-          fetch('/api/bots'),
+          fetch(`/api/bots?owner=${makerAddress}`),
           fetch(`/api/dashboard?address=${makerAddress}`),
         ])
         if (!alive) return
@@ -98,7 +97,7 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
         }
         if (botsRes.ok) {
           const all = await botsRes.json()
-          if (Array.isArray(all)) setBots(all.filter((b: any) => (b.walletAddress || b.builder)?.toLowerCase() === makerAddress))
+          if (Array.isArray(all)) setBots(all)
         }
         if (dRes.ok) {
           const d = await dRes.json()
@@ -108,6 +107,20 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
       } catch (e) { console.error(e) } finally { if (alive) setLoading(false) }
     }
     load()
+
+    // Check for OAuth return params
+    if (typeof window !== 'undefined') {
+      const search = new URLSearchParams(window.location.search)
+      if (search.get('x_linked') === 'true') {
+        setTimeout(() => showToast('X account successfully linked and verified!'), 500)
+        // clean up URL
+        window.history.replaceState({}, '', window.location.pathname)
+      } else if (search.get('error')) {
+        setTimeout(() => showToast(`X linking failed: ${search.get('error')}`), 500)
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    }
+
     return () => { alive = false }
   }, [makerAddress, activeUser])
 
@@ -159,11 +172,9 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
     } catch { setFollowed(prev); setFollowersList(prevList); showToast('Could not update follow. Try again.') }
   }
 
-  const saveX = async (handle: string | null) => {
-    if (!activeUser) return
-    const res = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: activeUser, xHandle: handle }) })
-    if (res.ok) { const u = await res.json(); setProfile(u); showToast(handle ? 'X linked.' : 'X unlinked.') }
-    else showToast('Could not link X.')
+  const initiateXLink = () => {
+    if (!activeUser) return showToast('Connect your wallet first.')
+    window.location.href = `/api/auth/twitter?wallet=${activeUser}`
   }
 
   const handleSaveProfile = async () => {
@@ -226,7 +237,7 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
               <div className="flex items-center gap-2">
                 {isOwner ? (
                   <>
-                    <button onClick={() => setXOpen(true)} className="inline-flex items-center gap-2 rounded-full border border-[#262630] px-4 py-2 text-[12px] font-semibold text-[#ddd] hover:border-[#3a3a44] hover:text-white transition-colors">
+                    <button onClick={initiateXLink} className="inline-flex items-center gap-2 rounded-full border border-[#262630] px-4 py-2 text-[12px] font-semibold text-[#ddd] hover:border-[#3a3a44] hover:text-white transition-colors">
                       <XLogo size={13} /> {xHandle ? 'Manage X' : 'Connect X'}
                     </button>
                     <button onClick={() => { setIsEditing(v => !v); setEditHandle(profile?.handle || ''); setEditName(profile?.name || ''); setEditBio(profile?.bio || ''); setEditPfp(profile?.pfpUrl || '') }}
@@ -250,8 +261,8 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
                 {profile?.handle && hasName && <span className="font-mono text-[13px] text-[#8a8a94]">@{profile.handle}</span>}
                 {xHandle && (
                   <a href={`https://x.com/${xHandle}`} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[#262630] px-2.5 py-1 text-[11px] text-[#ddd] hover:border-[#3a3a44] hover:text-white no-underline transition-colors">
-                    <XLogo size={11} /> {xHandle}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[#262630] px-2.5 py-1 text-[11px] text-[#ddd] hover:border-[#3a3a44] hover:text-white no-underline transition-colors" title={profile?.xVerified ? 'Verified via X' : ''}>
+                    <XLogo size={11} /> {xHandle} {profile?.xVerified && <span className="text-primary ml-0.5">✓</span>}
                   </a>
                 )}
               </div>
@@ -492,8 +503,6 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
           </motion.div>
         )}
       </AnimatePresence>
-
-      <ConnectXModal open={xOpen} initial={xHandle} onClose={() => setXOpen(false)} onSave={saveX} />
 
       {toast && (
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="fixed bottom-8 right-8 z-[9999] bg-[#0d0d0d] border border-primary/40 text-white text-[13px] px-4 py-2.5 rounded-xl shadow-[0_0_24px_rgba(255,42,77,0.25)]">{toast}</motion.div>

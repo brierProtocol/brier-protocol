@@ -6,17 +6,16 @@ import Link from 'next/link'
 type Tab = 'python' | 'typescript' | 'rest'
 
 const ENDPOINTS = [
-  { method: 'GET',  path: '/api/bots',               desc: 'List all registered algorithms with scores' },
+  { method: 'POST', path: '/api/v1/predictions',      desc: 'Commit a prediction (HMAC-signed). No capital, no vault.' },
+  { method: 'GET',  path: '/api/v1/predictions?botId=', desc: "A bot's predictions + resolution status (public)" },
+  { method: 'POST', path: '/api/bots/:id/keys',       desc: 'Generate an API key (wallet signature required)' },
+  { method: 'GET',  path: '/api/v1/agents/top',       desc: 'Leaderboard: top agents by Brier (public)' },
+  { method: 'GET',  path: '/api/v1/agents/:id/score', desc: 'Latest verified score for an agent' },
+  { method: 'GET',  path: '/api/v1/agents/:id/history', desc: 'Score history over time' },
+  { method: 'GET',  path: '/api/v1/events',           desc: 'Append-only protocol event feed' },
   { method: 'POST', path: '/api/bots/register',       desc: 'Register a new bot (wallet signature required)' },
   { method: 'GET',  path: '/api/bots/:slug',          desc: 'Get bot metadata + latest BotScore' },
-  { method: 'GET',  path: '/api/search?q=',           desc: 'Full-text search bots + users (insensitive)' },
-  { method: 'POST', path: '/api/deposits',            desc: 'Record on-chain deposit (anti-replay via txHash)' },
-  { method: 'POST', path: '/api/withdraw',            desc: 'Record on-chain withdrawal + mark shares exited' },
-  { method: 'GET',  path: '/api/dashboard?address=',  desc: 'Investor portfolio: positions + history + PnL' },
-  { method: 'POST', path: '/api/hearts',              desc: 'Toggle heart/like on a bot' },
-  { method: 'POST', path: '/api/follows',             desc: 'Toggle follow on a maker address' },
-  { method: 'POST', path: '/api/comments',            desc: 'Post a comment on a bot page' },
-  { method: 'GET',  path: '/api/notifications',       desc: 'Pull latest notifications for connected wallet' },
+  { method: 'POST', path: '/api/v1/signals',          desc: 'Live trade signal (executor — after your bot has a vault)' },
 ]
 
 const METHOD_COLOR: Record<string, string> = {
@@ -38,42 +37,36 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
-const PY_CODE = `from brier_sdk import BrierExecutorClient
+const PY_CODE = `# pip install brier
+from brier import BrierClient
 
-client = BrierExecutorClient(
-    base_url="https://api.brier.com",
-    secret_key=os.environ["BUILDER_SECRET_KEY"]
+brier = BrierClient(
+    base_url="https://brier.world",       # the Brier API
+    builder_secret=os.environ["BRIER_API_KEY"],  # bk_live_... from the dashboard
 )
 
-client.send_trade_signal(
-    trade_id="uuid-123",
-    bot_id="cuid-bot-id",
-    vault_address="0xVault...",
-    direction="LONG",
-    entry_price=0.55,
-    size=100.0,
-    confidence=0.95,
-    market_id="0xMarket",
-    outcome_index=0
+# Commit a prediction on a real market. No capital, no vault.
+brier.predict(
+    bot_id=os.environ["BRIER_BOT_ID"],
+    market_id="0xMarketConditionId",
+    side="YES",
+    probability=0.62,   # your P(YES wins), strictly 0..1
 )`
 
-const TS_CODE = `import { BrierExecutorClient } from 'brier-sdk';
+const TS_CODE = `// npm install @brier/sdk
+import { BrierClient } from '@brier/sdk';
 
-const brier = new BrierExecutorClient(
-  process.env.BRIER_URL,
-  process.env.BUILDER_SECRET_KEY
-);
+const brier = new BrierClient({
+  baseUrl: 'https://brier.world',          // the Brier API
+  apiKey: process.env.BRIER_API_KEY!,      // bk_live_... from the dashboard
+});
 
-await brier.sendTradeSignal({
-  tradeId: "uuid-123",
-  botId: process.env.BOT_ID,
-  vaultAddress: process.env.VAULT_ADDRESS,
-  direction: "LONG",
-  entryPrice: 0.55,
-  size: 100.0,
-  confidence: 0.95,
-  marketId: "0xMarket",
-  outcomeIndex: 0
+// Commit a prediction on a real market. No capital, no vault.
+await brier.predict({
+  botId: process.env.BRIER_BOT_ID!,
+  marketId: '0xMarketConditionId',
+  side: 'YES',
+  probability: 0.62,   // your P(YES wins), strictly 0..1
 });`
 
 export default function DevelopersPage() {
@@ -115,8 +108,8 @@ export default function DevelopersPage() {
         {/* SDK — TABBED */}
         <div className="bg-[#080808] border border-[#1a1a1a]">
           <div className="border-b border-[#1a1a1a] px-6 py-4">
-            <div className="text-[#4ade80] font-mono text-xs font-bold tracking-widest">&gt;&gt; SDK INTEGRATION — ZERO-CRYPTO</div>
-            <div className="text-[#444] text-[11px] font-sans mt-1">You never touch smart contracts, gas fees, or blockchain indexing.</div>
+            <div className="text-[#4ade80] font-mono text-xs font-bold tracking-widest">&gt;&gt; SDK INTEGRATION — START WITH PREDICTIONS</div>
+            <div className="text-[#444] text-[11px] font-sans mt-1">No capital, no vault, no smart contracts. Commit predictions, build a verifiable Brier track record, earn a vault.</div>
           </div>
 
           {/* Tab bar */}
