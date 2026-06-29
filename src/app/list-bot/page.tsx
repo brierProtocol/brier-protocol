@@ -281,58 +281,7 @@ export default function ListBotPage() {
               </div>
             </div>
 
-            {/* category chips */}
-            <div className="mb-7">
-              <label className="block text-[12px] font-sans font-semibold text-[#bbb] mb-1.5">
-                Market categories <span className="text-[#555] font-normal">(select all that apply)</span>
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {CATEGORIES.map(c => {
-                  const selected = formData.categories.includes(c.id)
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => {
-                        const next = selected
-                          ? formData.categories.filter(x => x !== c.id)
-                          : [...formData.categories, c.id]
-                        setFormData({ ...formData, categories: next })
-                      }}
-                      className={`px-3.5 py-1.5 rounded-full font-mono text-[11px] tracking-[0.08em] uppercase border transition-all cursor-pointer ${
-                        selected
-                          ? 'border-primary/60 bg-primary/10 text-primary shadow-[0_0_10px_rgba(255,42,77,0.14)]'
-                          : 'border-[#1f1f1f] bg-[#060607] text-[#666] hover:border-[#333] hover:text-[#999]'
-                      }`}
-                    >
-                      {c.label}
-                    </button>
-                  )
-                })}
-              </div>
-              <div className="mt-2 text-[11px] text-[#555]">Routes your bot to the right audiences in the catalog.</div>
-            </div>
 
-            {/* vault capacity — the max USDC this strategy can absorb before its edge decays.
-                Empty = uncapped. When TVL reaches this, the vault stops taking new deposits. */}
-            <div className="mb-7">
-              <label className="block text-[12px] font-sans font-semibold text-[#bbb] mb-2">
-                Vault capacity <span className="text-[#555] font-normal">(USDC, optional)</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#555] font-mono text-[13px]">$</span>
-                <input
-                  type="number"
-                  min={0}
-                  step={1000}
-                  value={formData.vaultCap}
-                  onChange={e => setFormData({ ...formData, vaultCap: e.target.value })}
-                  placeholder="e.g. 250000"
-                  className={`${INPUT_CLS} pl-8`}
-                />
-              </div>
-              <div className="mt-2 text-[11px] text-[#555]">The most capital your edge can handle before slippage eats it. Past this, deposits close. Leave empty to stay open while you find the ceiling.</div>
-            </div>
 
             {/* signature art — generative from the name (do not change) */}
             <div className="mb-8 flex items-center gap-4 rounded-xl border border-[#161616] bg-[#070708] p-4">

@@ -1,14 +1,8 @@
-// Closes the reputation loop: resolves PENDING predictions against the real market,
-// then scores each bot vs the market with the skill engine (LCB, anti-sybil).
-//
-// Vercel cron: {"path": "/api/cron/resolve-and-score", "schedule": "0 * * * *"} (hourly)
-//
-// Without this, predictions stay PENDING forever and reputation never updates —
-// this is what makes Brier work end to end.
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { resolveMarket } from '@/lib/market-data'
-import { calculateRelativeSkillWithLCB, LegacyResolvedPrediction } from '@/lib/skill-engine'
+import { botReputation, ResolvedPrediction } from '@/lib/skill-engine'
+import { checkStatusTransitions } from '@/lib/incubation'
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -19,7 +13,7 @@ export async function GET(req: NextRequest) {
   try {
     // ── 1. RESOLVE ── group PENDING predictions by market so we hit the CLOB once each.
     const pending = await prisma.prediction.findMany({
-      where: { outcome: 'PENDING' },
+      where: { status: 'PENDING' },
       select: { marketId: true },
       distinct: ['marketId'],
     })
@@ -28,10 +22,10 @@ export async function GET(req: NextRequest) {
     let resolvedPreds = 0
     for (const { marketId } of pending) {
       const r = await resolveMarket(marketId)
-      if (!r.resolved) continue // still open / CLOB unreachable → leave PENDING, retry next run
+      if (!r.resolved) continue // still open / CLOB unreachable
       const upd = await prisma.prediction.updateMany({
-        where: { marketId, outcome: 'PENDING' },
-        data: { outcome: r.yesWon ? 'YES' : 'NO', resolvedAt: new Date() },
+        where: { marketId, status: 'PENDING' },
+        data: { status: r.yesWon ? 'WIN' : 'LOSS', resolution: r.yesWon ? 'YES' : 'NO' },
       })
       resolvedMarkets++
       resolvedPreds += upd.count
@@ -39,27 +33,30 @@ export async function GET(req: NextRequest) {
 
     // ── 2. SCORE ── every bot that has at least one resolved prediction.
     const botsWithResolved = await prisma.prediction.findMany({
-      where: { outcome: { in: ['YES', 'NO'] } },
+      where: { status: { in: ['WIN', 'LOSS'] } },
       select: { botId: true },
       distinct: ['botId'],
     })
 
     const today = new Date()
     today.setUTCHours(0, 0, 0, 0)
-    const scored: { botId: string; reputation: number; n: number }[] = []
+    const scored: { botId: string; lcb: number; n: number }[] = []
 
     for (const { botId } of botsWithResolved) {
       const preds = await prisma.prediction.findMany({
-        where: { botId, outcome: { in: ['YES', 'NO'] } },
-        select: { forecast: true, marketMidpoint: true, outcome: true },
+        where: { botId, status: { in: ['WIN', 'LOSS'] } },
+        select: { confidence: true, marketProbabilityAtCommit: true, status: true, liquidity: true },
       })
-      const resolved: LegacyResolvedPrediction[] = preds.map(p => ({
-        forecast: p.forecast,
-        marketMidpoint: p.marketMidpoint,
-        outcome: (p.outcome === 'WIN' ? 1 : 0) as 1 | 0,
+      
+      const resolved: ResolvedPrediction[] = preds.map(p => ({
+        pBot: p.confidence,
+        pMarket: p.marketProbabilityAtCommit,
+        outcome: (p.status === 'WIN' ? 1 : 0) as 1 | 0,
+        liquidity: p.liquidity,
       }))
 
-      const skill = calculateRelativeSkillWithLCB(resolved)
+      const rep = botReputation(resolved)
+      const winRate = resolved.length > 0 ? resolved.filter(p => p.outcome === 1).length / resolved.length : 0
 
       await prisma.$transaction([
         prisma.botScore.updateMany({ where: { botId, isLatest: true }, data: { isLatest: false } }),
@@ -67,27 +64,32 @@ export async function GET(req: NextRequest) {
           where: { botId_snapshotDate: { botId, snapshotDate: today } },
           create: {
             botId,
-            brierScore: skill.botBrier,
-            winRate: 0,
-            relativeSkill: skill.relativeSkill,
-            lcb: skill.lcb,
-            reputationScore: skill.normalizedScore,
-            resolvedPredictions: resolved.length,
+            brierScore: rep.skill,
+            winRate: winRate,
+            relativeSkill: rep.skill,
+            lcb: rep.lcb,
+            reputationScore: rep.skill,
+            resolvedPredictions: rep.n,
+            totalTrades: rep.n,
             snapshotDate: today,
             isLatest: true,
           },
           update: {
-            brierScore: skill.botBrier,
-            relativeSkill: skill.relativeSkill,
-            lcb: skill.lcb,
-            reputationScore: skill.normalizedScore,
-            resolvedPredictions: resolved.length,
+            brierScore: rep.skill,
+            winRate: winRate,
+            relativeSkill: rep.skill,
+            lcb: rep.lcb,
+            reputationScore: rep.skill,
+            resolvedPredictions: rep.n,
+            totalTrades: rep.n,
             isLatest: true,
           },
         }),
       ])
+      
+      await checkStatusTransitions(botId).catch(() => {})
 
-      scored.push({ botId, reputation: Number(skill.normalizedScore.toFixed(1)), n: resolved.length })
+      scored.push({ botId, lcb: Number(rep.lcb.toFixed(4)), n: rep.n })
     }
 
     return NextResponse.json({ ok: true, resolvedMarkets, resolvedPredictions: resolvedPreds, scored })
