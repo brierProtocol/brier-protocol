@@ -23,12 +23,64 @@ export async function GET(req: NextRequest) {
     for (const { marketId } of pending) {
       const r = await resolveMarket(marketId)
       if (!r.resolved) continue // still open / CLOB unreachable
+      
       const upd = await prisma.prediction.updateMany({
         where: { marketId, status: 'PENDING' },
         data: { status: r.yesWon ? 'WIN' : 'LOSS', resolution: r.yesWon ? 'YES' : 'NO' },
       })
       resolvedMarkets++
       resolvedPreds += upd.count
+
+      // --- INTEGRACIÓN EXECUTOR (SETTLEMENT) ---
+      try {
+        const pendingTrades = await prisma.tradeEvent.findMany({
+          where: { marketId, outcome: 'PENDING' }
+        })
+        
+        for (const trade of pendingTrades) {
+          // Calculate payout (simplified for MVP: if win, payout = amount * (1/entryPrice). If loss, 0)
+          // Note: entryPrice must be > 0
+          let payout = 0;
+          if ((trade.side === 'YES' && r.yesWon) || (trade.side === 'NO' && !r.yesWon)) {
+             payout = trade.entryPrice > 0 ? trade.amount / trade.entryPrice : trade.amount;
+          }
+
+          const executorUrl = process.env.EXECUTOR_URL || 'http://127.0.0.1:3001'
+          const executorSecret = process.env.BUILDER_SECRET_KEY || 'your-64-char-hex-secret'
+          const t = Date.now().toString()
+          
+          const executorBody = JSON.stringify({
+            tradeId: trade.id,
+            botId: trade.botId,
+            vaultAddress: trade.executionWallet,
+            ctfAddress: process.env.CTF_EXCHANGE_ADDRESS || '0x4bFB41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E', // standard polymarket CTF
+            conditionId: trade.conditionId || "",
+            collateralToken: process.env.USDC_ADDRESS || '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
+            indexSets: trade.side === 'YES' ? [1] : [2], // 1 for YES, 2 for NO (usually)
+            payout: payout
+          })
+
+          const sig = require('crypto').createHmac('sha256', executorSecret).update(t + executorBody).digest('hex')
+
+          await fetch(`${executorUrl}/api/v1/settle`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-timestamp': t,
+              'x-signature': sig,
+            },
+            body: executorBody
+          }).catch(err => console.error('[resolve] Executor settle error (network):', err))
+          
+          await prisma.tradeEvent.update({
+             where: { id: trade.id },
+             data: { outcome: payout > 0 ? 'WIN' : 'LOSS', resolvedPrice: r.yesWon ? 1 : 0, resolvedAt: new Date() }
+          })
+        }
+      } catch (e) {
+        console.error('[resolve] Executor settlement integration error:', e)
+      }
+      // -----------------------------------------
     }
 
     // ── 2. SCORE ── every bot that has at least one resolved prediction.

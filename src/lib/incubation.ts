@@ -33,6 +33,13 @@ export async function checkStatusTransitions(botId: string) {
         vaultAddress = await createVaultForBot({
           id: bot.id, slug: bot.slug, name: bot.name, walletAddress: bot.walletAddress, vaultCap: 500000,
         })
+        
+        // MVP Fix: If Vault deployment fails on-chain, do not graduate the bot to a phantom state.
+        // Returning here ensures the cron will attempt to deploy it again in the next tick.
+        if (!vaultAddress) {
+            console.error(`[Incubation] Vault deployment failed for bot ${botId}. Aborting transition.`);
+            return;
+        }
       }
 
       await prisma.$transaction([

@@ -86,6 +86,40 @@ export async function POST(req: NextRequest) {
       },
     })
     
+    // --- INTEGRACIÓN EXECUTOR (LIVE PHASE) ---
+    if (bot.vaultOpen && bot.vaultAddress) {
+      try {
+        const executorUrl = process.env.EXECUTOR_URL || 'http://127.0.0.1:3001'
+        const executorSecret = process.env.BUILDER_SECRET_KEY || 'your-64-char-hex-secret'
+        const t = Date.now().toString()
+        const executorBody = JSON.stringify({
+          tradeId: prediction.id,
+          botId: bot.id,
+          vaultAddress: bot.vaultAddress,
+          direction: side === 'YES' ? 'LONG' : 'SHORT',
+          entryPrice: marketMidpoint,
+          size: 10, // MVP: Fixed size for now. Later: dynamic sizing via Risk Engine
+          confidence: f,
+          marketId,
+          outcomeIndex: side === 'YES' ? 0 : 1,
+        })
+        const sig = crypto.createHmac('sha256', executorSecret).update(t + executorBody).digest('hex')
+
+        await fetch(`${executorUrl}/api/v1/signals`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-timestamp': t,
+            'x-signature': sig,
+          },
+          body: executorBody
+        }).catch(err => console.error('[commit] Executor push error (network):', err))
+      } catch (e) {
+        console.error('[commit] Executor integration error:', e)
+      }
+    }
+    // -----------------------------------------
+
     prisma.bot.update({ where: { id: bot.id }, data: { rateLimitCount: { increment: 1 } } }).catch(() => {})
 
     return NextResponse.json({
