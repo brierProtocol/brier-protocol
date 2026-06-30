@@ -80,6 +80,7 @@ model Bot {
   pnlSnapshots     PnlSnapshot[]
   polyConnection   PolyConnection?
   kalshiConnection KalshiConnection?
+  token            BotToken?
   comments         Comment[]
   hearts           Heart[]
   predictions      Prediction[]
@@ -497,4 +498,60 @@ model ProtocolEvent {
   @@index([type, createdAt])
   @@index([botId, createdAt])
   @@index([vaultAddress, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// BONDING-CURVE TOKEN (de la línea main): cada bot puede emitir un token
+// estilo pump.fun. Off-chain MVP. Convive con el resto del modelo de vaults.
+// ─────────────────────────────────────────────────────────────
+model BotToken {
+  id            String   @id @default(cuid())
+  botId         String   @unique
+  bot           Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  ticker         String                         // e.g. ADAN
+  name           String                         // display name
+  supply         Float    @default(0)           // tokens SOLD from the curve
+  reserve        Float    @default(0)           // real virtual-USDC collected
+  basePrice      Float    @default(0.0001)      // LEGACY (old linear curve) — unused
+  slope          Float    @default(0.000000005) // LEGACY (old linear curve) — unused
+  graduationMcap Float    @default(50000)       // mcap that triggers graduation → vault
+
+  status         String   @default("BONDING")   // BONDING | GRADUATED
+  holdersCount   Int      @default(0)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  trades         TokenTrade[]
+  holdings       TokenHolding[]
+
+  @@index([status])
+}
+
+model TokenTrade {
+  id         String   @id @default(cuid())
+  tokenId    String
+  token      BotToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  wallet     String
+  side       String                         // BUY | SELL
+  usdc       Float                          // virtual USDC in/out
+  shares     Float                          // shares minted/burned
+  priceAfter Float                          // curve price after the trade
+  createdAt  DateTime @default(now())
+
+  @@index([tokenId, createdAt])
+  @@index([wallet])
+}
+
+model TokenHolding {
+  id        String   @id @default(cuid())
+  tokenId   String
+  token     BotToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  wallet    String
+  shares    Float    @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([tokenId, wallet])
 }
