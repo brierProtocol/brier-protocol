@@ -62,7 +62,7 @@ function ReadinessBar({ p }: { p: ShadowProgress }) {
       <div className="grid grid-cols-3 gap-px bg-[#141414] border border-[#141414]">
         <Gate label="RESOLVED" value={`${p.resolved}/${SHADOW_RESOLVED_TARGET}`} pass={p.resolvedPass} />
         <Gate label="DAYS" value={`${p.days}/${SHADOW_DAYS_TARGET}`} pass={p.daysPass} />
-        <Gate label="BRIER" value={p.brier !== null ? p.brier.toFixed(3) : 'BUILDING'} pass={p.brierPass} />
+        <Gate label="LCB" value={p.lcb !== null ? p.lcb.toFixed(3) : 'BUILDING'} pass={p.lcbPass} />
       </div>
     </div>
   )
@@ -73,7 +73,7 @@ function ReadinessBar({ p }: { p: ShadowProgress }) {
 function LiveVitals({ p, full = false }: { p: ShadowProgress; full?: boolean }) {
   return (
     <div className={`grid ${full ? 'grid-cols-4' : 'grid-cols-3'} gap-px bg-[#141414] border border-[#141414]`}>
-      <Gate label="BRIER" value={p.brier !== null ? p.brier.toFixed(3) : '—'} pass={p.brierPass} />
+      <Gate label="LCB" value={p.lcb !== null ? p.lcb.toFixed(3) : '—'} pass={p.lcbPass} />
       <Gate label="PREDICTIONS" value={p.resolved > 0 ? p.resolved.toLocaleString() : '—'} pass={false} />
       {full && <Gate label="WIN RATE" value={p.winRate !== null && p.winRate > 0 ? `${(p.winRate * 100).toFixed(0)}%` : '—'} pass={false} />}
       <Gate label="VAULT TVL" value={p.tvl > 0 ? `$${(p.tvl / 1000).toFixed(1)}K` : '—'} pass={false} />

@@ -3,7 +3,18 @@ import { prisma } from '@/lib/db/prisma';
 
 export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const owner = searchParams.get('owner');
+
+    const whereClause = owner ? {
+      OR: [
+        { walletAddress: { equals: owner, mode: 'insensitive' as const } },
+        { ownerWallet: { equals: owner, mode: 'insensitive' as const } }
+      ]
+    } : {};
+
     const bots = await prisma.bot.findMany({
+      where: whereClause,
       orderBy: { createdAt: 'desc' },
       include: {
         scores: {

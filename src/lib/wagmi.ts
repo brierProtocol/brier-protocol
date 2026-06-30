@@ -1,9 +1,11 @@
 import { createConfig, http } from 'wagmi'
-import { polygonAmoy } from 'wagmi/chains'
 import { injected, walletConnect } from '@wagmi/connectors'
+import { ACTIVE_CHAIN, DEPOSIT_RPC_URL } from '@/constants/contracts'
 
+// Network is env-driven (see ACTIVE_CHAIN / DEPOSIT_RPC_URL in constants/contracts):
+// Amoy testnet by default, Polygon mainnet when NEXT_PUBLIC_CHAIN_ID=137.
 export const wagmiConfig = createConfig({
-  chains: [polygonAmoy],
+  chains: [ACTIVE_CHAIN],
   connectors: [
     injected(),
     walletConnect({
@@ -11,8 +13,6 @@ export const wagmiConfig = createConfig({
     }),
   ],
   transports: {
-    [polygonAmoy.id]: http(
-      process.env.NEXT_PUBLIC_AMOY_RPC_URL || 'https://rpc-amoy.polygon.technology'
-    ),
+    [ACTIVE_CHAIN.id]: http(DEPOSIT_RPC_URL),
   },
 })

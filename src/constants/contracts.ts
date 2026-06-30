@@ -4,6 +4,16 @@
 // Amoy (dev) or Polygon mainnet (prod). NOTE: only NEXT_PUBLIC_* vars are
 // readable inside client components.
 
+import { polygon, polygonAmoy } from 'wagmi/chains'
+import type { Chain } from 'viem'
+
+// Active EVM chain, selected by env so one build targets Amoy (dev) or Polygon
+// mainnet (prod). Defaults to Amoy testnet — a missing/invalid value must NOT
+// silently point real wallets at mainnet. When set to 137 (Polygon), also set
+// NEXT_PUBLIC_DEPOSIT_RPC_URL + NEXT_PUBLIC_USDC_ADDRESS to mainnet values.
+export const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID) || polygonAmoy.id
+export const ACTIVE_CHAIN: Chain = CHAIN_ID === polygon.id ? polygon : polygonAmoy
+
 // Raw USDC address from env — may be `undefined`. `undefined` means
 // "not configured", which the deposit/withdraw routes treat as
 // "token validation disabled" (don't give this a fallback: a fallback would
