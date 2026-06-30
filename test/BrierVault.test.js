@@ -392,6 +392,39 @@ describe("BrierVault Industrial v4 — Full Test Suite", function () {
         .withArgs(tradeId(60));
     });
 
+    it("Should write off the locked capital (release the accounting lock)", async function () {
+      const deposit = ethers.parseEther("10000");
+      const tradeAmount = ethers.parseEther("1000");
+      await brierVault.connect(whale).deposit(deposit, whale.address);
+      await executeTrade(61, tradeAmount);
+
+      // Before: capital is locked and counted in totalAssets.
+      expect(await brierVault.activeLockedCapital()).to.equal(tradeAmount);
+      expect(await brierVault.totalAssets()).to.equal(deposit);
+
+      await expect(brierVault.connect(daemon).markTradeStale(tradeId(61)))
+        .to.emit(brierVault, "TradeWrittenOff")
+        .withArgs(tradeId(61), tradeAmount);
+
+      // After: the lock is released, the loss is realized against totalAssets,
+      // and idleCapital is NOT inflated (the USDC already left the vault).
+      expect(await brierVault.tradeLockedCapital(tradeId(61))).to.equal(0n);
+      expect(await brierVault.activeLockedCapital()).to.equal(0n);
+      expect(await brierVault.idleCapital()).to.equal(deposit - tradeAmount);
+      expect(await brierVault.totalAssets()).to.equal(deposit - tradeAmount);
+    });
+
+    it("Should reject re-settlement of a written-off trade (write-off is terminal)", async function () {
+      const deposit = ethers.parseEther("10000");
+      await brierVault.connect(whale).deposit(deposit, whale.address);
+      await executeTrade(62, ethers.parseEther("1000"));
+      await brierVault.connect(daemon).markTradeStale(tradeId(62));
+
+      await expect(
+        brierVault.connect(daemon).settleMarket(tradeId(62), ethers.parseEther("1500"))
+      ).to.be.revertedWith("BrierVault: trade not found or already settled");
+    });
+
     it("Should revert markTradeStale for non-existent trade", async function () {
       await expect(
         brierVault.connect(daemon).markTradeStale(tradeId(999))

@@ -50,6 +50,7 @@ contract BrierVault is Initializable, ERC4626Upgradeable, OwnableUpgradeable, Pa
     event TradeSettled(bytes32 indexed tradeId, uint256 payout, bool profitable);
     event FeesDistributed(uint256 builderFee, uint256 platformFee, uint256 depositorProfit);
     event TradeStale(bytes32 indexed tradeId);
+    event TradeWrittenOff(bytes32 indexed tradeId, uint256 amount);
     event DaemonUpdated(address indexed oldDaemon, address indexed newDaemon);
     event MaxCapacityUpdated(uint256 newCapacity);
     event CircuitBreakerTriggered(uint256 slashedAmount);
@@ -193,9 +194,34 @@ contract BrierVault is Initializable, ERC4626Upgradeable, OwnableUpgradeable, Pa
         }
     }
 
+    /**
+     * @notice Writes off a trade whose on-chain collateral is unrecoverable.
+     * @dev On executeTrade the USDC LEAVES the vault into the CTF. If that position
+     *      gets stuck or is lost, the collateral is gone from the vault. Before this
+     *      fix, markTradeStale only emitted an event: tradeLockedCapital[tradeId] and
+     *      activeLockedCapital stayed inflated forever, so totalAssets() over-reported
+     *      and the last LPs to redeem could be left unable to withdraw.
+     *
+     *      The honest fix is a write-off: clear the per-trade lock and reduce
+     *      activeLockedCapital, realizing the loss against totalAssets so shares are
+     *      priced truthfully. We deliberately do NOT credit idleCapital — that USDC is
+     *      not in the vault, so crediting idle would let idleCapital exceed the real
+     *      balance and break withdrawals. The loss is socialized across shareholders,
+     *      which is the correct ERC4626 behavior for a realized loss.
+     *
+     *      Write-off is terminal: a written-off trade can no longer be settled. If the
+     *      CTF position ever does pay out, the redeemed USDC lands in the vault as a
+     *      safe surplus (balance > totalAssets) that an admin recovery can later book.
+     */
     function markTradeStale(bytes32 tradeId) external onlyExecutor {
-        require(tradeLockedCapital[tradeId] > 0, "BrierVault: trade not active");
+        uint256 locked = tradeLockedCapital[tradeId];
+        require(locked > 0, "BrierVault: trade not active");
+
+        tradeLockedCapital[tradeId] = 0;
+        activeLockedCapital -= locked;
+
         emit TradeStale(tradeId);
+        emit TradeWrittenOff(tradeId, locked);
     }
 
     // =========================================================
