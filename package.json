@@ -7,20 +7,24 @@
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
-    "db:seed": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts",
-    "db:seed:adan": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-adan.ts",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "ts-node prisma/seed.ts",
+    "db:seed:adan": "ts-node prisma/seed-adan.ts",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
-    "db:reset": "prisma db push --force-reset && npm run db:seed",
+    "db:reset": "prisma migrate reset",
     "compile:contracts": "hardhat compile",
     "test:contracts": "hardhat test",
     "test:scoring": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"customConditions\":null,\"esModuleInterop\":true}' ts-node scripts/test-scoring.ts",
     "deploy:mumbai": "npx hardhat compile && npx ts-node scripts/deploy-mumbai.ts",
     "deploy:amoy": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"customConditions\":null}' hardhat run scripts/deploy-amoy.ts --network polygonAmoy",
-    "deploy:hardhat": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"customConditions\":null}' hardhat run scripts/deploy-amoy.ts"
+    "deploy:hardhat": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"customConditions\":null}' hardhat run scripts/deploy-amoy.ts",
+    "test:connect": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"customConditions\":null,\"esModuleInterop\":true}' ts-node scripts/test-bot-connection.ts",
+    "test:skill": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"customConditions\":null,\"esModuleInterop\":true}' ts-node scripts/test-skill.ts"
   },
   "prisma": {
-    "seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts"
+    "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@openzeppelin/contracts": "5.0.2",
@@ -30,6 +34,8 @@
     "@supabase/supabase-js": "^2.106.2",
     "@tanstack/react-query": "^5.100.9",
     "@types/three": "^0.184.1",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "@wagmi/connectors": "^8.0.15",
     "alchemy-sdk": "^3.6.5",
     "ethers": "^6.16.0",
