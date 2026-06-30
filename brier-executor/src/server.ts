@@ -60,6 +60,15 @@ fastify.addHook('onRequest', async (req, reply) => {
   }
 });
 
+// Global rate limit (distributed via the existing Redis) on every route — health,
+// signals and settle. The /signals handler keeps its own stricter per-signature
+// limiter on top of this baseline.
+await fastify.register(import('@fastify/rate-limit'), {
+  max: 120,
+  timeWindow: '1 minute',
+  redis,
+});
+
 fastify.get('/health', async () => ({
   status: 'ok',
   uptime: Math.floor(process.uptime()),

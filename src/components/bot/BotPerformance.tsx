@@ -17,6 +17,10 @@ interface Props {
   maxDrawdown?: number | null
   totalTrades?: number | null
   live?: boolean
+  title?: string
+  subtitle?: string
+  mode?: 'money' | 'score'
+  info?: string
 }
 
 // Brier palette — no teal/turquoise. Profit reads acid-lime, loss reads crimson.
@@ -35,31 +39,25 @@ const fmtMoney = (v: number) => {
   if (a >= 1000) return `${sign}$${(a / 1000).toFixed(1)}K`
   return `${sign}$${Math.round(a)}`
 }
+
+const fmtScore = (v: number) => {
+  const sign = v < 0 ? '-' : v > 0 ? '+' : ''
+  return `${sign}${Math.abs(v).toFixed(3)}`
+}
 const fmtDate = (t: number) => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
-// Catmull-Rom → cubic bezier, giving the smooth "didactic" curve Liveline draws.
-function smoothPath(pts: { x: number; y: number }[]): string {
-  if (pts.length < 2) return ''
-  let d = `M ${pts[0].x},${pts[0].y}`
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] || pts[i]
-    const p1 = pts[i]
-    const p2 = pts[i + 1]
-    const p3 = pts[i + 2] || p2
-    const c1x = p1.x + (p2.x - p0.x) / 6
-    const c1y = p1.y + (p2.y - p0.y) / 6
-    const c2x = p2.x - (p3.x - p1.x) / 6
-    const c2y = p2.y - (p3.y - p1.y) / 6
-    d += ` C ${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`
-  }
-  return d
+// Linear path for precise, glitch-free financial rendering
+function buildLinearPath(pts: { x: number; y: number }[]): string {
+  if (pts.length === 0) return ''
+  return `M ${pts[0].x},${pts[0].y} ` + pts.slice(1).map(p => `L ${p.x},${p.y}`).join(' ')
 }
 
 const Empty = () => <span className="text-[#333]">·</span>
 
-export default function BotPerformance({ snapshots, winRate, sharpe, maxDrawdown, totalTrades, live }: Props) {
+export default function BotPerformance({ snapshots, winRate, sharpe, maxDrawdown, totalTrades, live, title = 'Performance', subtitle = 'cumulative P&L since inception', mode = 'money', info }: Props) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [hoverIdx, setHoverIdx] = useState<number | null>(null)
+  const [showInfo, setShowInfo] = useState(false)
 
   const model = useMemo(() => {
     const raw = (snapshots || [])
@@ -94,7 +92,7 @@ export default function BotPerformance({ snapshots, winRate, sharpe, maxDrawdown
   const changeAbs = model ? model.last - model.first : 0
   const changePct = model && model.first !== 0 ? (changeAbs / Math.abs(model.first)) * 100 : 0
 
-  const line = model ? smoothPath(model.pts) : ''
+  const line = model ? buildLinearPath(model.pts) : ''
   const area = model ? `${line} L ${model.pts[model.pts.length - 1].x},${H - PAD.b} L ${model.pts[0].x},${H - PAD.b} Z` : ''
 
   const yTicks = model ? Array.from(new Set([model.maxV, 0, model.minV])) : []
@@ -111,22 +109,25 @@ export default function BotPerformance({ snapshots, winRate, sharpe, maxDrawdown
 
   const active = model && hoverIdx != null ? model.pts[hoverIdx] : null
 
-  const statCells = [
-    { k: 'Win rate', v: winRate != null ? `${(winRate * 100).toFixed(1)}%` : null },
-    { k: 'Sharpe', v: sharpe != null ? sharpe.toFixed(2) : null },
-    { k: 'Max drawdown', v: maxDrawdown != null ? `-${(Math.abs(maxDrawdown) * 100).toFixed(1)}%` : null },
-    { k: 'Resolved', v: totalTrades != null ? totalTrades.toLocaleString() : null },
-  ]
-
   return (
     <div className="rounded-2xl border border-[#161620] bg-[#06060a] overflow-hidden">
       {/* header */}
-      <div className="flex items-end justify-between px-5 pt-5 pb-3.5">
+      <div className="flex items-end justify-between px-5 pt-5 pb-3.5 relative">
         <div>
-          <div className="font-mono text-[10px] tracking-[0.24em] uppercase text-[#5a5a66] mb-2">Performance</div>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="font-mono text-[10px] tracking-[0.24em] uppercase text-[#5a5a66]">{title}</div>
+            {info && (
+              <button 
+                onClick={() => setShowInfo(!showInfo)}
+                className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold font-mono transition-colors ${showInfo ? 'bg-primary text-black border-primary' : 'bg-transparent text-[#666] border-[#444] hover:border-primary hover:text-primary'}`}
+              >
+                ?
+              </button>
+            )}
+          </div>
           <div className="flex items-baseline gap-3">
             <span className="font-sans font-black text-[34px] leading-none tracking-[-0.03em] tabular-nums" style={{ color: model ? accent : '#3a3a44' }}>
-              {model ? fmtMoney(active ? active.v : model.last) : '—'}
+              {model ? (mode === 'money' ? fmtMoney(active ? active.v : model.last) : fmtScore(active ? active.v : model.last)) : '—'}
             </span>
             {model && (
               <span className="font-mono text-[13px] font-bold tabular-nums" style={{ color: accent }}>
@@ -135,16 +136,25 @@ export default function BotPerformance({ snapshots, winRate, sharpe, maxDrawdown
             )}
           </div>
           <div className="font-mono text-[10px] text-[#48484f] mt-1.5 tracking-wide">
-            {active ? fmtDate(active.t) : 'cumulative P&L since inception'}
+            {active ? fmtDate(active.t) : subtitle}
           </div>
         </div>
         {model && (
           <div className="text-right">
             <div className="font-mono text-[10px] tracking-[0.16em] uppercase text-[#48484f] mb-1">Net</div>
-            <div className="font-mono text-[15px] font-bold tabular-nums" style={{ color: accent }}>{fmtMoney(changeAbs)}</div>
+            <div className="font-mono text-[15px] font-bold tabular-nums" style={{ color: accent }}>{mode === 'money' ? fmtMoney(changeAbs) : fmtScore(changeAbs)}</div>
           </div>
         )}
       </div>
+
+      {/* info panel */}
+      {showInfo && info && (
+        <div className="px-5 pb-3">
+          <div className="rounded-lg border-l-2 border-primary bg-[#0a0a0f] p-3 text-[12px] text-[#a6a6b0] leading-relaxed">
+            {info}
+          </div>
+        </div>
+      )}
 
       {/* chart */}
       {model ? (
@@ -168,19 +178,23 @@ export default function BotPerformance({ snapshots, winRate, sharpe, maxDrawdown
           {yTicks.map((v, i) => (
             <g key={i}>
               <line x1={PAD.l} y1={yOf(v)} x2={W - PAD.r} y2={yOf(v)} stroke={v === 0 ? '#ffffff18' : '#ffffff0a'} strokeWidth="1" strokeDasharray={v === 0 ? '0' : '3 5'} />
-              <text x={PAD.l - 8} y={yOf(v) + 3} textAnchor="end" fill="#52525c" fontSize="10" fontFamily="monospace">{fmtMoney(v)}</text>
+              <text x={PAD.l - 8} y={yOf(v) + 3} textAnchor="end" fill="#52525c" fontSize="10" fontFamily="monospace">{mode === 'money' ? fmtMoney(v) : fmtScore(v)}</text>
             </g>
           ))}
 
           {/* x labels */}
-          {[0, Math.floor(model.pts.length / 2), model.pts.length - 1].map((idx, i) => (
-            <text key={i} x={model.pts[idx].x} y={H - 8} textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'} fill="#3f3f48" fontSize="9" fontFamily="monospace">
-              {fmtDate(model.pts[idx].t)}
-            </text>
-          ))}
+          {[0, Math.floor(model.pts.length / 2), model.pts.length - 1].map((idx, i) => {
+            const isLast = i === 2
+            const dateStr = isLast ? 'Today' : fmtDate(model.pts[idx].t)
+            return (
+              <text key={i} x={model.pts[idx].x} y={H - 8} textAnchor={i === 0 ? 'start' : isLast ? 'end' : 'middle'} fill="#3f3f48" fontSize="9" fontFamily="monospace">
+                {dateStr}
+              </text>
+            )
+          })}
 
           {/* area + line */}
-          <motion.path d={area} fill="url(#bp-fill)" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8, delay: 0.3 }} />
+          <motion.path d={area} fill="url(#bp-fill)" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }} />
           <motion.path
             d={line}
             fill="none"
@@ -189,19 +203,23 @@ export default function BotPerformance({ snapshots, winRate, sharpe, maxDrawdown
             strokeLinecap="round"
             strokeLinejoin="round"
             vectorEffect="non-scaling-stroke"
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: 1 }}
-            transition={{ duration: 1.4, ease: 'easeInOut' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8 }}
             style={{ filter: `drop-shadow(0 0 6px ${accent}55)` }}
           />
 
           {/* end pulse dot */}
           {!active && (
-            <>
+            <motion.g
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >
               <motion.circle cx={model.pts[model.pts.length - 1].x} cy={model.pts[model.pts.length - 1].y} r="9" fill={accent} opacity="0.18"
                 animate={{ r: [6, 13, 6], opacity: [0.25, 0, 0.25] }} transition={{ duration: 2.2, repeat: Infinity }} />
               <circle cx={model.pts[model.pts.length - 1].x} cy={model.pts[model.pts.length - 1].y} r="3.5" fill={accent} />
-            </>
+            </motion.g>
           )}
 
           {/* hover crosshair */}
@@ -216,20 +234,10 @@ export default function BotPerformance({ snapshots, winRate, sharpe, maxDrawdown
         <div className="grid place-items-center text-center px-6" style={{ height: 200 }}>
           <div>
             <div className="text-[13px] text-[#6a6a74] font-sans">The curve draws itself as predictions resolve.</div>
-            <div className="text-[11px] text-[#3f3f48] font-mono mt-1.5">no settled P&L yet</div>
+            <div className="text-[11px] text-[#3f3f48] font-mono mt-1.5">not enough data yet</div>
           </div>
         </div>
       )}
-
-      {/* stats */}
-      <div className="grid grid-cols-4 gap-px bg-[#13131b] border-t border-[#13131b]">
-        {statCells.map(m => (
-          <div key={m.k} className="bg-[#06060a] px-3.5 py-3">
-            <div className="text-[#4a4a54] text-[9px] font-mono tracking-[0.14em] uppercase mb-1.5">{m.k}</div>
-            <div className="font-sans font-bold text-[15px] tabular-nums text-[#f0f0f4]">{m.v ?? <Empty />}</div>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }

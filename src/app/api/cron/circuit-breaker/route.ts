@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { ethers } from 'ethers'
+import { recordCronRun, captureError } from '@/lib/observability'
 
 const DETERIORATION_THRESHOLD = 0.08
 const PAUSE_ABI = ['function pause() external', 'function paused() view returns (bool)']
@@ -92,6 +93,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    await recordCronRun('circuit_breaker', errors.length ? 'PARTIAL' : 'SUCCESS', { records: triggered.length, error: errors.join('; ') || undefined })
     return NextResponse.json({
       ok: true,
       checked: bots.length,
@@ -100,7 +102,8 @@ export async function GET(req: NextRequest) {
       errors,
     })
   } catch (err: any) {
-    console.error('[cron/circuit-breaker]', err)
+    captureError(err, { cron: 'circuit_breaker' })
+    await recordCronRun('circuit_breaker', 'FAILED', { error: err?.message })
     return NextResponse.json({ error: err?.message || 'circuit-breaker cron failed' }, { status: 500 })
   }
 }

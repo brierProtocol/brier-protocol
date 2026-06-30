@@ -50,7 +50,7 @@ Goal: the executor places real Polymarket orders. **Real money — do PHASE 3 fi
 ## PHASE 3 — Before touching real funds (non-negotiable)
 - [ ] **Smart-contract audit** (the 21 tests are a floor, not an audit).
 - [ ] Move factory/vault admin to a **Gnosis Safe multisig** (not an EOA).
-- [ ] Real `NEXT_PUBLIC_WC_PROJECT_ID` (cloud.walletconnect.com) for mobile wallets.
+- [ ] Real `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` (cloud.walletconnect.com) for mobile wallets.
 - [ ] Legal review of `/terms` and `/privacy` (currently templates).
 - [ ] Error monitoring (Sentry) + API rate limiting.
 
@@ -61,7 +61,7 @@ Goal: the executor places real Polymarket orders. **Real money — do PHASE 3 fi
 | `ENCRYPTION_SECRET` (32-byte hex) | Vercel | API-key encryption |
 | `CRON_SECRET` | Vercel | protect /api/cron/* |
 | `BUILDER_SECRET_KEY` | Vercel/executor | HMAC trade signals |
-| `NEXT_PUBLIC_WC_PROJECT_ID` | Vercel | WalletConnect (mobile) |
+| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | Vercel | WalletConnect (mobile) |
 | `ALCHEMY_API_KEY` | Vercel | RPC |
 | `PRIVATE_KEY` / `DEPLOYER_PRIVATE_KEY` | local `.env` | contract deploy |
 | `VAULT_FACTORY_ADDRESS` / `NEXT_PUBLIC_VAULT_FACTORY_ADDRESS` | both | vault creation |

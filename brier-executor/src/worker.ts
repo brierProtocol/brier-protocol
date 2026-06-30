@@ -5,6 +5,31 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const Redis = require('ioredis');
 const BrierVaultArtifact = require('../../artifacts_contracts/contracts/BrierVault.sol/BrierVault.json');
+const crypto = require('crypto');
+
+// Helper to sync trade to Postgres via Webhook
+async function syncToPostgres(payload: unknown) {
+    try {
+        const url = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3000';
+        const secret = process.env.BUILDER_SECRET_KEY || 'your-64-char-hex-secret';
+        const t = Date.now().toString();
+        const body = JSON.stringify(payload);
+        const sig = crypto.createHmac('sha256', secret).update(t + body).digest('hex');
+        
+        await fetch(`${url}/api/v1/trades/sync`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-timestamp': t,
+                'x-signature': sig
+            },
+            body
+        });
+    } catch (e) {
+        console.error('[Executor Sync] Failed to sync trade to DB:', e);
+    }
+}
+
 
 const redisConfig = { host: process.env.REDIS_HOST || '127.0.0.1', port: Number(process.env.REDIS_PORT) || 6379 };
 const redis = new Redis(redisConfig);
@@ -42,6 +67,17 @@ const executionWorker = new Worker('trade-signals', async job => {
         const tx = await vaultContract.executeTrade(tradeIdBytes32, marketIdBytes32, outcomeArray, ethers.parseUnits(size.toString(), 6));
         await tx.wait();
         console.log(`[Executor] Spot Trade ${tradeId} confirmed: ${tx.hash}`);
+        
+        await syncToPostgres({
+            tradeId,
+            botId,
+            marketId,
+            side: outcomeIndex === 0 ? 'YES' : 'NO',
+            amount: size,
+            entryPrice: worstPrice || 0.5,
+            executionWallet: vaultAddress,
+            outcome: 'PENDING'
+        });
 
     } else if (marketType === 'PERP') {
         // --- NUEVA LÓGICA PERP (CLOB Polymarket) ---
@@ -68,6 +104,17 @@ const executionWorker = new Worker('trade-signals', async job => {
                 vaultAddress: vaultAddress
             });
             console.log(`[Perp Engine] CLOB order ${result.orderId} → ${result.status}. SL: ${stopLossPrice}`);
+            
+            await syncToPostgres({
+                tradeId,
+                botId,
+                marketId,
+                side: direction,
+                amount: size,
+                entryPrice: worstPrice || 0.5,
+                executionWallet: vaultAddress,
+                outcome: 'PENDING'
+            });
         } else if (actionType === 'CLOSE') {
             console.log(`[Perp Engine] Executing Market CLOSE for ${tradeId}...`);
             const result = await closePerpPosition({
@@ -138,7 +185,19 @@ setInterval(async () => {
         for (const key of keys) {
             const trade = await redis.hgetall(key);
             if (trade.status === 'active_perp') {
-                const currentLivePrice = 0.50; // Mock: precio obtenido vía WS
+                let currentLivePrice = 0.50;
+                try {
+                    // Fetch real-time midpoint from Polymarket CLOB
+                    const res = await fetch(`https://clob.polymarket.com/midpoint?token_id=${trade.marketId}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && data.mid) {
+                            currentLivePrice = parseFloat(data.mid);
+                        }
+                    }
+                } catch (err) {
+                    console.error('[Risk Engine] Failed to fetch live price for', trade.marketId, err instanceof Error ? err.message : err);
+                }
                 
                 // Si el precio cruza el Stop Loss, DISPARAR MARKET CLOSE INMEDIATO
                 if (trade.stopLoss && parseFloat(trade.stopLoss) > 0) {

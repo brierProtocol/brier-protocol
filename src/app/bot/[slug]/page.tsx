@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState, useEffect, useMemo } from 'react'
+import { use, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
@@ -9,14 +9,16 @@ import BotUplink from '@/components/bot/BotUplink'
 import BotPerformance from '@/components/bot/BotPerformance'
 import VaultGlass from '@/components/bot/VaultGlass'
 import { botEye, codename } from '@/lib/botIdentity'
+import { FEATURES } from '@/lib/features'
 import { useAccount } from 'wagmi'
 import { ethers } from 'ethers'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCountUp } from '@/hooks/useCountUp'
 import { PostBody } from '@/components/bot/PostBody'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 import {
   shadowProgress, phaseMeta,
-  SHADOW_RESOLVED_TARGET, SHADOW_DAYS_TARGET, SHADOW_BRIER_TARGET,
+  SHADOW_RESOLVED_TARGET, SHADOW_DAYS_TARGET, SHADOW_LCB_TARGET,
 } from '@/lib/botProgress'
 
 interface Post {
@@ -40,6 +42,10 @@ function txOf(t: any): string | null {
 }
 
 const Empty = () => <span className="text-[#333]">·</span>
+
+const Panel = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
+  <div className={`rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden ${className}`}>{children}</div>
+)
 
 export default function BotProfilePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
@@ -66,11 +72,10 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const [savingBot, setSavingBot] = useState(false)
 
   const { address, isConnected } = useAccount()
+  const currentUser = useCurrentUser(address)
   const isOwner = !!(isConnected && address && bot && bot.builder?.toLowerCase() === address.toLowerCase())
 
   const animatedTVL = useCountUp(bot?.tvl || 0)
-  // capDeclared = el cap real del maker (0 = Open / sin tope). vaultCap = fallback solo
-  // para el vaso visual (que no se rompa con 0). El gating y los labels usan el real.
   const capDeclared = bot?.vaultCap || 0
   const vaultCap = capDeclared || 50000
   const isCapped = capDeclared > 0
@@ -79,11 +84,12 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 4000) }
 
   useEffect(() => {
-    fetch(`/api/bots/${slug}`)
+    fetch(`/api/bots/${slug}?t=${Date.now()}`)
       .then(res => res.ok ? res.json() : null)
       .then(dbBot => {
         if (!dbBot) { setLoading(false); return }
-        const s = dbBot.scores?.[0] ?? null
+        const s = dbBot.scores?.length > 0 ? dbBot.scores[dbBot.scores.length - 1] : null
+        
         const mapped = {
           id: dbBot.id, name: dbBot.name, builder: dbBot.walletAddress, tagline: dbBot.tagline,
           pfpUrl: dbBot.pfpUrl, maker: dbBot.user || null,
@@ -94,21 +100,25 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           sharePrice: dbBot.liveNav?.sharePrice ?? 1,
           categories: dbBot.verifiedCategories?.length ? dbBot.verifiedCategories : (dbBot.categories || []),
           verified: !!dbBot.verifiedCategories?.length,
-          brierScore: s?.brierScore ?? null, winRate: s?.winRate ?? null, sharpe: s?.sharpe ?? null,
+          brierScore: s?.brierScore ?? null, winRate: s?.winRate ?? null, sharpe: s?.sharpe ?? null, lcb: s?.lcb ?? null,
           maxDrawdown: s?.maxDrawdown ?? null, totalTrades: s?.totalTrades ?? 0, totalVolume: s?.totalVolume ?? null,
-          pnlSnapshots: dbBot.pnlSnapshots || [], tradesIndexed: dbBot._count?.trades ?? (dbBot.trades?.length ?? 0),
+          allScores: dbBot.scores || [],
+          predictions: dbBot.predictions || [],
+          pnlSnapshots: dbBot.pnlSnapshots || [],
+          tradesIndexed: dbBot._count?.trades ?? (dbBot.trades?.length ?? 0),
+          skinInGame: dbBot.skinInGame || 0,
+          categoriesData: dbBot.categoriesData || [],
         }
         setBot(mapped)
         setEditName(mapped.name); setEditTagline(mapped.tagline || ''); setEditDesc(mapped.description || ''); setEditPfp(mapped.pfpUrl || '')
         setHearts(dbBot._count?.hearts || 0)
-        setTrades(dbBot.trades || [])
+        setTrades(mapped.predictions.length ? mapped.predictions : (dbBot.trades || []))
         setLoading(false)
         fetch(`/api/comments?botId=${mapped.id}`).then(r => r.json()).then(d => { if (Array.isArray(d)) setPosts(d) })
       })
       .catch(() => setLoading(false))
   }, [slug])
 
-  // load whether the current wallet already liked this bot
   useEffect(() => {
     if (!bot?.id || !address) return
     fetch(`/api/hearts?botId=${bot.id}&userId=${address}`)
@@ -119,7 +129,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
 
   const toggleHeart = async () => {
     if (!isConnected || !address) return showToast('Connect your wallet to like.')
-    // Optimistic flip so the button responds instantly.
     const prevHearted = hearted, prevHearts = hearts
     const nextHearted = !hearted
     setHearted(nextHearted)
@@ -132,7 +141,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
       setHearted(d.status === 'hearted')
       if (typeof d.count === 'number') setHearts(d.count)
     } catch {
-      // Roll back on failure.
       setHearted(prevHearted); setHearts(prevHearts)
       showToast('Could not save your like. Try again.')
     }
@@ -142,7 +150,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     if (!postText.trim()) return
     if (!isConnected || !address) return showToast('Connect your wallet to comment.')
     const res = await fetch('/api/comments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ botId: bot.id, wallet: address, text: postText.trim() }) })
-    if (res.ok) { const c = await res.json(); setPosts([{ ...c, user: null }, ...posts]); setPostText('') }
+    if (res.ok) { const c = await res.json(); setPosts([c, ...posts]); setPostText('') }
     else showToast('Could not post comment.')
   }
 
@@ -180,58 +188,59 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     finally { setDepositing(false) }
   }
 
-  if (loading) return <div className="min-h-screen bg-[#030303] text-[#666] grid place-items-center font-sans text-sm">Loading…</div>
+  if (loading) return <div className="min-h-screen bg-[#030303] text-[#666] grid place-items-center font-sans text-sm">Validating Identity...</div>
   if (!bot) return notFound()
 
   // ── derivations ──
   const sp = shadowProgress({
     status: bot.status, createdAt: bot.createdAt, vaultOpen: bot.vaultOpen, currentTVL: bot.tvl,
-    scores: [{ brierScore: bot.brierScore ?? undefined, winRate: bot.winRate ?? undefined, totalTrades: bot.totalTrades }],
+    scores: [{ lcb: bot.lcb ?? undefined, brierScore: bot.brierScore ?? undefined, winRate: bot.winRate ?? undefined, totalTrades: bot.totalTrades }],
     tradesIndexed: bot.tradesIndexed,
   })
   const pm = phaseMeta(sp)
   const eye = botEye({ slug, id: bot.id, name: bot.name, color: bot.color, eyeShape: bot.eyeShape })
-  const b = bot.brierScore
-  const grade = b == null ? null
-    : b <= 0.15 ? { t: 'ORACLE', c: '#c8ff00' }
-    : b <= 0.25 ? { t: 'CALIBRATED', c: '#eef0f6' }
-    : b <= 0.40 ? { t: 'LEARNING', c: '#8b7bff' }
-    : { t: 'NOISE', c: '#ff5570' }
+  
+  const lcb = bot.lcb ?? 0
+  const brierSkill = bot.brierScore ?? 0
+  const winRate = bot.winRate ?? 0
+  const tradesCount = bot.totalTrades ?? 0
 
-  const wins = trades.filter(t => t.outcome === 'WIN').length
-  const losses = trades.filter(t => t.outcome === 'LOSS').length
-  const pending = trades.filter(t => t.outcome === 'PENDING').length
+  const hasVerifiedPerformance = tradesCount >= 100
+  const hasVerifiedReputation = lcb > 0
+
+  // We map the historical LCB scores into snapshots for the BotPerformance chart
+  const lcbSnapshots = bot.allScores?.map((s: any) => ({
+    cumulativePnl: s.lcb,
+    date: s.snapshotDate
+  })) || []
+
+  const wins = trades.filter(t => t.status === 'WIN' || t.outcome === 'WIN').length
+  const losses = trades.filter(t => t.status === 'LOSS' || t.outcome === 'LOSS').length
+  const pending = trades.filter(t => t.status === 'PENDING' || t.outcome === 'PENDING').length
   const navValues: number[] = (bot.pnlSnapshots || []).map((s: any) => s.cumulativePnl ?? s.pnlUsd).filter((v: any) => typeof v === 'number')
-  // Vault delta is NAV return (share price), not raw PnL — cumulative PnL starts
-  // at 0, so a percentage off it is meaningless. Fall back to PnL% only when the
-  // baseline is a real non-zero figure.
   const navStart = navValues[0] ?? 0
-  const navDelta = bot.sharePrice && bot.sharePrice !== 1
-    ? (bot.sharePrice - 1) * 100
-    : (navValues.length > 1 && Math.abs(navStart) > 1 ? ((navValues[navValues.length - 1] - navStart) / Math.abs(navStart)) * 100 : 0)
+  const navDelta = bot.sharePrice && bot.sharePrice !== 1 ? (bot.sharePrice - 1) * 100 : (navValues.length > 1 && Math.abs(navStart) > 1 ? ((navValues[navValues.length - 1] - navStart) / Math.abs(navStart)) * 100 : 0)
   const roi = bot.sharePrice && bot.sharePrice !== 1 ? navDelta : null
-  const uplink = bot.tradesIndexed > 0 ? 'live' : 'awaiting'
+  const uplink = (bot.tradesIndexed > 0 || trades.length > 0) ? 'live' : 'awaiting'
   const lastFill = trades.length ? relDay(trades[0].timestamp) : null
 
   const VIOLET = '#8b7bff', TEAL = '#c8ff00'
   const criteria = [
     { label: 'Resolved predictions', val: `${sp.resolved} / ${SHADOW_RESOLVED_TARGET}`, ok: sp.resolvedPass, pct: Math.min(1, sp.resolved / SHADOW_RESOLVED_TARGET) },
-    { label: 'Brier score', val: sp.brier != null ? `${sp.brier.toFixed(3)} · ≤ ${SHADOW_BRIER_TARGET.toFixed(2)}` : `≤ ${SHADOW_BRIER_TARGET.toFixed(2)}`, ok: sp.brierPass, pct: sp.brier == null ? 0 : Math.min(1, Math.max(0, (0.4 - sp.brier) / (0.4 - SHADOW_BRIER_TARGET))) },
+    { label: 'Edge over market', val: sp.lcb != null ? `LCB ${sp.lcb.toFixed(3)} > 0` : `> 0 LCB`, ok: sp.lcbPass, pct: sp.lcb == null ? 0 : Math.min(1, Math.max(0, (sp.lcb + 0.1) / 0.1)) },
     { label: 'Days live', val: `${sp.days} / ${SHADOW_DAYS_TARGET}`, ok: sp.daysPass, pct: Math.min(1, sp.days / SHADOW_DAYS_TARGET) },
   ]
   const clearedCount = criteria.filter(c => c.ok).length
 
+  // Cleaned up stats for "Proof of edge" section
   const stats = [
+    { k: 'LCB (Reputation)', v: lcb > 0 ? lcb.toFixed(4) : '—', info: 'Lower Confidence Bound. The pessimistic lower bound of its skill. Tells us whether the agent is actually smart or just lucky.' },
     { k: 'Win rate', v: bot.winRate != null ? `${(bot.winRate * 100).toFixed(1)}%` : null, info: 'Share of resolved predictions it got right.' },
     { k: 'ROI', v: roi != null ? `${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%` : null, info: 'Return on the vault capital since it opened.' },
     { k: 'Max drawdown', v: bot.maxDrawdown != null ? `-${(Math.abs(bot.maxDrawdown) * 100).toFixed(1)}%` : null, info: 'The worst peak-to-trough drop in value. Smaller is safer.' },
     { k: 'Resolved', v: bot.totalTrades ? bot.totalTrades.toLocaleString() : null, info: 'Predictions that have settled — the sample size behind the score.' },
-    { k: 'Volume', v: bot.totalVolume != null ? fmtUSD(bot.totalVolume) : null, info: 'Total USDC it has traded.' },
     { k: 'Sharpe', v: bot.sharpe != null ? bot.sharpe.toFixed(2) : null, info: 'Return per unit of risk. Higher means steadier, less jumpy gains.' },
   ]
-
-  const Panel = ({ children, className = '' }: { children: React.ReactNode; className?: string }) =>
-    <div className={`rounded-2xl border border-[#1a1a1a] bg-[#080809] ${className}`}>{children}</div>
 
   return (
     <div className="min-h-screen bg-[#030303] font-sans text-[#e8e8e8]">
@@ -239,7 +248,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
 
         {/* top bar */}
         <div className="flex items-center justify-between mb-6 text-[12px]">
-          <Link href="/discover" className="text-[#777] hover:text-white transition-colors no-underline">← The catalog</Link>
+          <Link href="/discover" className="text-[#777] hover:text-white transition-colors no-underline">← The Catalog</Link>
           {isOwner && (
             <button onClick={() => setIsEditing(v => !v)} className="font-sans text-[12px] font-semibold px-3.5 py-1.5 rounded-full border border-[#222] text-[#ccc] hover:border-[#444] hover:text-white transition-all">
               {isEditing ? 'Close editor' : 'Edit profile'}
@@ -247,8 +256,128 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           )}
         </div>
 
-        {/* ── VAULT (full width, first thing you see) ── */}
-        <div className="rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden mb-6">
+        {/* ── HEADER: AVATAR, NAME, BADGES ── */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-8">
+          <div className="flex items-center gap-6">
+            <div className="relative shrink-0">
+              {bot.pfpUrl ? (
+                <div className="rounded-2xl overflow-hidden border border-[#222]">
+                  <img src={bot.pfpUrl} alt={bot.name} className="w-[100px] h-[100px] object-cover" />
+                </div>
+              ) : (
+                <>
+                  <motion.div
+                    className="absolute rounded-full blur-3xl pointer-events-none"
+                    style={{ inset: '-20px', background: `radial-gradient(circle, ${eye.accentColor}40 0%, transparent 70%)` }}
+                    animate={{ opacity: [0.3, 0.7, 0.3] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                  />
+                  <BotIrisAvatar {...eye} size={100} />
+                </>
+              )}
+            </div>
+            
+            <div className="flex-1 min-w-0">
+              <h1 className="text-white font-black text-[38px] tracking-[-0.03em] m-0 leading-none mb-2">
+                {bot.name}
+              </h1>
+              {bot.tagline && (
+                <div className="text-[#888] italic text-[15px] mb-4">
+                  {bot.tagline}
+                </div>
+              )}
+              
+              <div className="flex items-center gap-3 mb-4">
+                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#555]">Builder ID</span>
+                <MakerAvatar address={bot.builder || ''} pfpUrl={bot.maker?.pfpUrl} size={20} square />
+                <span className="font-mono text-[12px] text-[#ccc]">{bot.maker?.handle ? `@${bot.maker.handle}` : (bot.builder?.slice(0,6) + '...' + bot.builder?.slice(-4))}</span>
+                
+                {/* Builder links */}
+                <div className="flex items-center gap-3 ml-2 border-l border-[#333] pl-4">
+                  {bot.maker?.xHandle ? (
+                    <a href={`https://x.com/${bot.maker.xHandle}`} target="_blank" rel="noopener noreferrer" className="text-[#555] hover:text-white transition-colors">
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-[14px] h-[14px]"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    </a>
+                  ) : (
+                    <span className="text-[#333]"><svg viewBox="0 0 24 24" fill="currentColor" className="w-[14px] h-[14px]"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span>
+                  )}
+                  <a href="#" className="text-[#333] hover:text-white transition-colors" title="Github (Pending)">
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-[14px] h-[14px]"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z"/></svg>
+                  </a>
+                  <a href="#" className="text-[#333] hover:text-white transition-colors" title="Website (Pending)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-[14px] h-[14px]"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"></path></svg>
+                  </a>
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-3 mt-4">
+                {(hasVerifiedPerformance && hasVerifiedReputation) ? (
+                  <div className="px-3.5 py-1.5 rounded text-[10px] font-mono font-bold tracking-widest uppercase border bg-[#c8ff00]/10 text-[#c8ff00] border-[#c8ff00]/30 shadow-[0_0_12px_rgba(200,255,0,0.15)] flex items-center gap-2">
+                    <span className="text-[14px] leading-none">⬡</span> Brier Verified
+                  </div>
+                ) : (
+                  <div className="px-3.5 py-1.5 rounded text-[10px] font-mono font-bold tracking-widest uppercase border bg-[#222] text-[#666] border-[#333]">
+                    Pending Verification
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="relative shrink-0 md:self-end">
+            <button onClick={toggleHeart} className={`flex items-center gap-2.5 px-5 py-3 rounded-xl border transition-all cursor-pointer ${hearted ? 'border-primary bg-primary/10 text-primary' : 'border-[#1a1a1a] bg-[#070707] text-[#888] hover:border-primary/50 hover:text-primary'}`}>
+              <motion.span key={hearted ? 'on' : 'off'} initial={{ scale: 0.6 }} animate={{ scale: hearted ? [1.4, 1] : 1 }} transition={{ duration: 0.35 }} className="text-lg leading-none">{hearted ? '♥' : '♡'}</motion.span>
+              <span className="font-mono font-bold text-lg tabular-nums leading-none">{hearts}</span>
+            </button>
+            <AnimatePresence>
+              {confettiBurst > 0 && (['#ff2a4d','#c8ff00','#8b7bff','#ffd400','#ffffff','#ff5ccd','#4285f0','#eaff00'] as const).flatMap((color, ci) =>
+                [0, 1, 2].map((j) => {
+                  const angle = ((ci * 3 + j) / 24) * Math.PI * 2
+                  const dist = 48 + j * 22
+                  return (
+                    <motion.span
+                      key={`cf-${confettiBurst}-${ci}-${j}`}
+                      className="absolute pointer-events-none"
+                      style={{ width: 5 + (j % 3) * 2, height: 4 + (ci % 2) * 3, background: color, borderRadius: ci % 3 === 0 ? '50%' : '1px', left: '50%', top: '50%' }}
+                      initial={{ opacity: 1, x: -3, y: -3, rotate: 0, scale: 1 }}
+                      animate={{ opacity: 0, x: Math.cos(angle) * dist, y: Math.sin(angle) * dist - 28, rotate: 200 * (ci % 2 ? 1 : -1), scale: 0.2 }}
+                      transition={{ duration: 0.75 + j * 0.08, ease: 'easeOut' }}
+                      onAnimationComplete={() => { if (ci === 7 && j === 2) setConfettiBurst(0) }}
+                    />
+                  )
+                })
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {bot.description && <p className="text-[14px] leading-relaxed text-[#9a9a9a] mb-5 max-w-3xl whitespace-pre-wrap">{bot.description}</p>}
+        
+        {bot.categoriesData?.length > 0 && (
+          <div className="flex flex-wrap gap-2.5 mb-10">
+            {bot.categoriesData.map((c: any) => (
+              <div key={c.name} className="flex items-center gap-2 bg-[#0c0c0c] border border-[#1a1a1a] rounded px-3 py-1.5 font-mono text-[11px] text-[#888]">
+                <span className="text-white font-bold">{Math.round(c.volumePct)}%</span>
+                <span className="uppercase">{c.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {isOwner && isEditing && (
+          <Panel className="mb-8 p-5">
+            <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-4">Edit profile</div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <label className="block"><span className="text-[12px] text-[#bbb] font-semibold">Name</span><input value={editName} onChange={e => setEditName(e.target.value)} className="mt-1.5 w-full bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50" /></label>
+              <label className="block"><span className="text-[12px] text-[#bbb] font-semibold">Tagline</span><input value={editTagline} onChange={e => setEditTagline(e.target.value)} className="mt-1.5 w-full bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50" /></label>
+              <label className="block sm:col-span-2"><span className="text-[12px] text-[#bbb] font-semibold">Bio</span><textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} className="mt-1.5 w-full h-24 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50 resize-y" /></label>
+            </div>
+            <button onClick={handleSaveBot} disabled={savingBot} className="mt-4 rounded-full bg-primary text-[#030303] font-bold text-[13px] px-6 py-2.5 disabled:opacity-50 hover:shadow-[0_0_18px_rgba(255,42,77,0.4)] transition-all">{savingBot ? 'Saving…' : 'Save changes'}</button>
+          </Panel>
+        )}
+
+        {/* ── VAULT (full width) ── */}
+        <div className="rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden mb-8">
           <div className="flex flex-col sm:flex-row items-stretch">
             <div className="sm:w-[280px] shrink-0 p-5 sm:border-r border-b sm:border-b-0 border-[#141414]">
               <div className="flex items-center justify-between mb-3">
@@ -275,11 +404,11 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                     : `Vault unlocks after the shadow gate. ${sp.resolved}/${SHADOW_RESOLVED_TARGET} resolved`}
                 </div>
               </div>
-              <div className="mt-5 grid grid-cols-3 gap-4 border-t border-[#141420] pt-4">
+              <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-4 border-t border-[#141420] pt-4">
                 {[
                   { k: 'Capacity', v: isCapped ? fmtUSD(capDeclared) : 'Open' },
-                  { k: 'Profit split', v: '60 / 30 / 10' },
                   { k: sp.live ? 'Phase' : 'Progress', v: sp.live ? 'LIVE' : `${Math.round(sp.pct * 100)}%` },
+                  { k: "Maker's Skin in the Game", v: fmtUSD(bot.skinInGame || 0) },
                 ].map(m => (
                   <div key={m.k}>
                     <div className="font-mono text-[9px] text-[#48484f] tracking-[0.14em] uppercase mb-1">{m.k}</div>
@@ -289,7 +418,12 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               </div>
               {sp.live && (
                 <div className="mt-4">
-                  {atCapacity ? (
+                  {!FEATURES.CAPITAL_LAYER ? (
+                    <div className="rounded-lg border border-[#1a1a1a] bg-[#0c0c0c] p-3 text-center text-[12px] text-[#888] font-sans">
+                      <span className="font-bold text-white mb-1 block">Shadow Phase</span>
+                      Capital Layer disabled. Building reputation on-chain.
+                    </div>
+                  ) : atCapacity ? (
                     <div className="rounded-lg border border-primary/30 p-2.5 text-center font-mono text-[11px] text-primary tracking-widest">AT CAPACITY · DEPOSITS CLOSED</div>
                   ) : !isConnected ? (
                     <div className="text-[12px] text-[#666]">Connect your wallet to deposit.</div>
@@ -305,161 +439,27 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           </div>
         </div>
 
-        {/* ── HERO ── */}
-        <div className="flex items-start justify-between gap-6 flex-wrap mb-6">
-          <div className="flex items-start gap-5 min-w-0">
-            {/* bot avatar — free creature, no container, just glow */}
-            <div className="relative shrink-0">
-              {bot.pfpUrl ? (
-                <div className="rounded-xl overflow-hidden border border-[#1a1a1a]">
-                  <img src={bot.pfpUrl} alt={bot.name} className="w-[64px] h-[64px] object-cover" />
-                </div>
-              ) : (
-                <>
-                  <motion.div
-                    className="absolute rounded-full blur-2xl pointer-events-none"
-                    style={{ inset: '-16px', background: `radial-gradient(circle, ${eye.accentColor}50 0%, transparent 70%)` }}
-                    animate={{ opacity: [0.5, 0.85, 0.5] }}
-                    transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
-                  />
-                  <BotIrisAvatar {...eye} size={64} />
-                </>
-              )}
-            </div>
-
-            <div className="min-w-0">
-              {/* name + phase + grade */}
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-white font-black text-[34px] tracking-[-0.04em] m-0 leading-[0.95]">{bot.name}</h1>
-                {/* phase badge — sharp terminal style */}
-                <span
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-mono font-bold tracking-[0.2em] rounded-[3px]"
-                  style={{ color: pm.color, background: `${pm.color}0e`, borderLeft: `2px solid ${pm.color}` }}
-                >
-                  {pm.tag === 'SHADOW' && (
-                    <span className="inline-flex gap-[2px]">
-                      {[0, 1, 2].map(i => (
-                        <motion.span key={i} className="w-[3px] h-[10px] rounded-sm" style={{ background: pm.color }}
-                          animate={{ opacity: [0.25, 1, 0.25] }} transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.18 }} />
-                      ))}
-                    </span>
-                  )}
-                  {pm.tag === 'NEW' && (
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: pm.color }} />
-                  )}
-                  {pm.tag}
-                </span>
-                {/* grade badge — text-only, no pill */}
-                {grade && (
-                  <span
-                    className="text-[9px] font-mono font-bold tracking-[0.22em] border-b pb-px"
-                    style={{ color: grade.c, borderColor: `${grade.c}66` }}
-                  >
-                    {grade.t}
-                  </span>
-                )}
-              </div>
-
-              {/* Brier score — headline metric, no repeated 'lower is better' */}
-              {b != null ? (
-                <div className="flex items-baseline gap-2 mt-3">
-                  <span className="font-sans font-black text-[40px] leading-none tracking-[-0.04em] tabular-nums" style={{ color: grade?.c || '#aaa' }}>
-                    {b.toFixed(3)}
-                  </span>
-                  <span className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-[#5a5a64]">brier</span>
-                </div>
-              ) : (
-                <div className="font-mono text-[12px] text-[#5a5a64] mt-3">Awaiting first resolved prediction</div>
-              )}
-
-              {bot.tagline && <div className="text-[#a6a6b0] text-[14px] mt-2.5 font-medium">{bot.tagline}</div>}
-
-              {/* builder + categories — square portrait, clickable name, no pill */}
-              <div className="flex items-center gap-3 mt-4 flex-wrap">
-                {bot.builder && (
-                  <span className="inline-flex items-center gap-2.5">
-                    <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#48484f]">by</span>
-                    <MakerAvatar address={bot.builder} pfpUrl={bot.maker?.pfpUrl} size={24} square />
-                    <Link href={`/maker/${bot.builder}`} className="font-sans text-[13px] font-bold text-[#e4e4ea] hover:text-white no-underline border-b border-transparent hover:border-white/40 transition-colors">
-                      {makerLabel(bot.maker, bot.builder)}
-                    </Link>
-                  </span>
-                )}
-                {bot.categories?.slice(0, 3).map((c: string) => (
-                  <span key={c} className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#8a8a94] border border-[#1f1f28] rounded-[4px] px-2.5 py-1">{c}</span>
-                ))}
-                {bot.verified && (
-                  <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-[#c8ff00]/90">on-chain verified</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* like + confetti */}
-          <div className="relative shrink-0">
-            <button onClick={toggleHeart} className={`flex items-center gap-2.5 px-5 py-3 rounded-xl border transition-all cursor-pointer ${hearted ? 'border-primary bg-primary/10 text-primary' : 'border-[#1a1a1a] bg-[#070707] text-[#888] hover:border-primary/50 hover:text-primary'}`}>
-              <motion.span key={hearted ? 'on' : 'off'} initial={{ scale: 0.6 }} animate={{ scale: hearted ? [1.4, 1] : 1 }} transition={{ duration: 0.35 }} className="text-lg leading-none">{hearted ? '♥' : '♡'}</motion.span>
-              <span className="font-mono font-bold text-lg tabular-nums leading-none">{hearts}</span>
-            </button>
-            <AnimatePresence>
-              {confettiBurst > 0 && (['#ff2a4d','#c8ff00','#8b7bff','#ffd400','#ffffff','#ff5ccd','#4285f0','#eaff00'] as const).flatMap((color, ci) =>
-                [0, 1, 2].map((j) => {
-                  const angle = ((ci * 3 + j) / 24) * Math.PI * 2
-                  const dist = 48 + j * 22
-                  return (
-                    <motion.span
-                      key={`cf-${confettiBurst}-${ci}-${j}`}
-                      className="absolute pointer-events-none"
-                      style={{ width: 5 + (j % 3) * 2, height: 4 + (ci % 2) * 3, background: color, borderRadius: ci % 3 === 0 ? '50%' : '1px', left: '50%', top: '50%' }}
-                      initial={{ opacity: 1, x: -3, y: -3, rotate: 0, scale: 1 }}
-                      animate={{ opacity: 0, x: Math.cos(angle) * dist, y: Math.sin(angle) * dist - 28, rotate: 200 * (ci % 2 ? 1 : -1), scale: 0.2 }}
-                      transition={{ duration: 0.75 + j * 0.08, ease: 'easeOut' }}
-                      onAnimationComplete={() => { if (ci === 7 && j === 2) setConfettiBurst(0) }}
-                    />
-                  )
-                })
-              )}
-              {likeFx > 0 && [...Array(4)].map((_, i) => (
-                <motion.span key={`${likeFx}-${i}`} className="absolute left-1/2 top-2 text-primary text-sm pointer-events-none"
-                  initial={{ opacity: 1, y: 0, x: 0 }} animate={{ opacity: 0, y: -44 - i * 7, x: (i - 1.5) * 12 }} transition={{ duration: 0.85, ease: 'easeOut' }}
-                  onAnimationComplete={() => { if (i === 3) setLikeFx(0) }}>♥</motion.span>
-              ))}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {bot.description && <p className="text-[14px] leading-relaxed text-[#9a9a9a] mb-8 max-w-3xl whitespace-pre-wrap">{bot.description}</p>}
-
-        {isOwner && isEditing && (
-          <Panel className="mb-8 p-5">
-            <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-4">Edit profile</div>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <label className="block"><span className="text-[12px] text-[#bbb] font-semibold">Name</span><input value={editName} onChange={e => setEditName(e.target.value)} className="mt-1.5 w-full bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50" /></label>
-              <label className="block"><span className="text-[12px] text-[#bbb] font-semibold">Tagline</span><input value={editTagline} onChange={e => setEditTagline(e.target.value)} className="mt-1.5 w-full bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50" /></label>
-              <label className="block sm:col-span-2"><span className="text-[12px] text-[#bbb] font-semibold">Bio</span><textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} className="mt-1.5 w-full h-24 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50 resize-y" /></label>
-            </div>
-            <button onClick={handleSaveBot} disabled={savingBot} className="mt-4 rounded-full bg-primary text-[#030303] font-bold text-[13px] px-6 py-2.5 disabled:opacity-50 hover:shadow-[0_0_18px_rgba(255,42,77,0.4)] transition-all">{savingBot ? 'Saving…' : 'Save changes'}</button>
-          </Panel>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5 items-start">
-          {/* LEFT */}
-          <div className="flex flex-col gap-5 min-w-0">
-
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
+          {/* LEFT COLUMN */}
+          <div className="flex flex-col gap-6 min-w-0">
             {/* signal — live connection visual */}
             <BotUplink eye={eye} status={uplink} lastFill={lastFill} resolved={sp.resolved} />
 
-            {/* performance — Liveline real-time-style P&L curve */}
-            <BotPerformance
-              snapshots={bot.pnlSnapshots}
-              winRate={bot.winRate}
-              sharpe={bot.sharpe}
-              maxDrawdown={bot.maxDrawdown}
-              totalTrades={bot.totalTrades}
-              live={sp.live}
+            {/* performance — Liveline real-time-style Reputation (LCB) curve */}
+            <BotPerformance 
+              title="Reputation Tracker (LCB)" 
+              subtitle="historical relative skill"
+              mode="score" 
+              snapshots={lcbSnapshots} 
+              winRate={bot.winRate} 
+              sharpe={bot.sharpe} 
+              maxDrawdown={bot.maxDrawdown} 
+              totalTrades={bot.totalTrades} 
+              live={sp.live} 
+              info="Reputation (LCB) is mathematically derived from the agent's Brier Score compared against the Polymarket consensus. It measures relative skill: a score > 0 means the agent consistently beats the market average. It uses a Lower Confidence Bound to ensure luck isn't rewarded."
             />
 
-            {/* trade history */}
+            {/* trade history (Order Book) */}
             <Panel>
               <div className="px-5 py-3.5 border-b border-[#141414]">
                 <div className="flex items-center justify-between mb-2.5">
@@ -481,14 +481,15 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 <div className="max-h-[360px] overflow-y-auto">
                   {trades.map((t, i) => {
                     const tx = txOf(t); const yes = t.side === 'YES' || t.side === 'LONG'
-                    const oc = t.outcome === 'WIN' ? TEAL : t.outcome === 'LOSS' ? '#ff5570' : VIOLET
+                    const status = t.status || t.outcome
+                    const oc = status === 'WIN' ? TEAL : status === 'LOSS' ? '#ff5570' : VIOLET
                     return (
                       <div key={t.id || i} className="flex items-center gap-3 px-5 py-2.5 border-b border-[#101010] hover:bg-[#0b0b0b] transition-colors" style={{ borderLeft: `2px solid ${oc}` }}>
                         <span className="font-mono text-[10px] text-[#555] w-12 shrink-0 tabular-nums">{relDay(t.timestamp)}</span>
                         <span className="flex-1 min-w-0 text-[12px] text-[#bbb] truncate">{tx ? <a href={`https://polygonscan.com/tx/${tx}`} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors no-underline">{t.marketTitle} <span className="text-[#444] text-[9px]">↗</span></a> : t.marketTitle}</span>
                         <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ color: yes ? TEAL : '#ff5570', background: yes ? `${TEAL}14` : '#ff557014' }}>{t.side}</span>
-                        <span className="font-mono text-[11px] text-[#999] w-9 text-right tabular-nums shrink-0">{((t.entryPrice ?? 0) * 100).toFixed(0)}¢</span>
-                        <span className="font-mono text-[9px] font-bold w-14 text-right shrink-0" style={{ color: oc }}>{t.outcome}</span>
+                        <span className="font-mono text-[11px] text-[#999] w-9 text-right tabular-nums shrink-0">{((t.confidence || t.entryPrice || 0) * 100).toFixed(0)}¢</span>
+                        <span className="font-mono text-[9px] font-bold w-14 text-right shrink-0" style={{ color: oc }}>{status}</span>
                       </div>
                     )
                   })}
@@ -508,7 +509,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               <div className="px-5 py-4 border-b border-[#141414] bg-[#050507]">
                 {isConnected && address ? (
                   <div className="flex gap-3">
-                    <MakerAvatar address={address} size={36} square />
+                    <MakerAvatar address={address} pfpUrl={currentUser?.pfpUrl} size={36} square />
                     <div className="flex-1">
                       <textarea value={postText} onChange={e => setPostText(e.target.value)} maxLength={500} placeholder="Is this edge real? Share your read, cite the tape, call the top…" className="w-full h-[68px] bg-[#0a0a0c] border border-[#1f1f28] rounded-lg px-3.5 py-2.5 text-[13px] text-white outline-none focus:border-primary/50 resize-y placeholder:text-[#4a4a54] leading-relaxed" />
                       <div className="flex items-center justify-between mt-2">
@@ -543,9 +544,8 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             </Panel>
           </div>
 
-          {/* RIGHT */}
-          <div className="flex flex-col gap-5">
-
+          {/* RIGHT COLUMN */}
+          <div className="flex flex-col gap-6">
             {/* eligibility */}
             <Panel className="p-5">
               <div className="flex items-center justify-between mb-2">
@@ -575,6 +575,15 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               </div>
             </Panel>
 
+            {/* financial performance — real-time PnL curve */}
+            <BotPerformance 
+              title="Financial Performance" 
+              mode="money" 
+              snapshots={bot.pnlSnapshots} 
+              live={sp.live} 
+              info="The cumulative net profit of the Vault in USDC. This tracks actual settled payouts on-chain and fluctuates as predictions resolve."
+            />
+
             {/* proof of edge */}
             <Panel className="p-5">
               <div className="flex items-center justify-between mb-3">
@@ -582,22 +591,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 <span className="font-mono text-[9px] text-[#3f3f48] tracking-[0.16em] uppercase">tap a stat</span>
               </div>
 
-              {/* featured Brier — this is where 'lower is better' lives now */}
-              <button
-                onClick={() => setActiveStat(s => s === 'Brier' ? null : 'Brier')}
-                className="w-full text-left rounded-lg border border-[#1a1a22] bg-[#08080c] px-4 py-3 mb-2.5 hover:border-[#2a2a34] transition-colors"
-              >
-                <div className="flex items-baseline justify-between">
-                  <span className="font-mono text-[9px] tracking-[0.18em] uppercase text-[#5a5a64]">Brier score</span>
-                  <span className="font-mono text-[9px] text-[#3f3f48]">lower is better</span>
-                </div>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="font-sans font-black text-[28px] leading-none tabular-nums" style={{ color: grade?.c || '#7a7a84' }}>{b != null ? b.toFixed(3) : '—'}</span>
-                  {grade && <span className="font-mono text-[10px] font-bold tracking-[0.16em]" style={{ color: grade.c }}>{grade.t}</span>}
-                </div>
-              </button>
-
-              {/* stat grid — each cell is interactive */}
               <div className="grid grid-cols-2 gap-px bg-[#13131b] border border-[#13131b] rounded-lg overflow-hidden">
                 {stats.map(m => {
                   const open = activeStat === m.k
@@ -617,7 +610,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 })}
               </div>
 
-              {/* interactive definition reveal */}
               <AnimatePresence mode="wait">
                 {activeStat && (
                   <motion.div
@@ -629,20 +621,15 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                   >
                     <div className="mt-2.5 rounded-lg border-l-2 border-primary/50 bg-[#0a0a0e] px-3.5 py-2.5 text-[12px] text-[#b4b4be] leading-relaxed">
                       <span className="text-white font-bold">{activeStat}</span>{' '}
-                      {activeStat === 'Brier'
-                        ? '— how calibrated its probabilities are. 0 is perfect, 0.25 is a coin flip, 1 is always wrong. Lower means sharper foresight.'
-                        : `— ${stats.find(s => s.k === activeStat)?.info}`}
+                      {`— ${stats.find(s => s.k === activeStat)?.info}`}
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
-
-              {bot.totalTrades > 0 && bot.totalTrades < SHADOW_RESOLVED_TARGET && (
-                <div className="text-[11px] mt-3 leading-relaxed" style={{ color: VIOLET }}>Low sample. Brier needs {SHADOW_RESOLVED_TARGET} resolved predictions for confidence.</div>
-              )}
             </Panel>
           </div>
         </div>
+
       </div>
 
       {toast && (

@@ -1,9 +1,9 @@
 const REQUIRED_ENV_VARS = [
-  'DATABASE_URL',
-  'ENCRYPTION_SECRET',
-  'ALCHEMY_API_KEY',
-  'NEXT_PUBLIC_WC_PROJECT_ID',
-  'CRON_SECRET'
+  'DATABASE_URL',          // pooled connection (pgbouncer) used by the app at runtime
+  'DIRECT_URL',            // direct connection used by `prisma migrate deploy`
+  'ENCRYPTION_SECRET',     // AES-256-GCM key for stored API credentials (lib/crypto.ts)
+  'NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID', // WalletConnect project id (read by lib/wagmi.ts)
+  'CRON_SECRET'            // auth for /api/cron/* (score, settle, status, sync)
 ];
 
 export function validateEnv() {
