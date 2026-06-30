@@ -8,7 +8,7 @@ const BrierVaultArtifact = require('../../artifacts_contracts/contracts/BrierVau
 const crypto = require('crypto');
 
 // Helper to sync trade to Postgres via Webhook
-async function syncToPostgres(payload) {
+async function syncToPostgres(payload: unknown) {
     try {
         const url = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3000';
         const secret = process.env.BUILDER_SECRET_KEY || 'your-64-char-hex-secret';
@@ -196,7 +196,7 @@ setInterval(async () => {
                         }
                     }
                 } catch (err) {
-                    console.error('[Risk Engine] Failed to fetch live price for', trade.marketId, err.message);
+                    console.error('[Risk Engine] Failed to fetch live price for', trade.marketId, err instanceof Error ? err.message : err);
                 }
                 
                 // Si el precio cruza el Stop Loss, DISPARAR MARKET CLOSE INMEDIATO
