@@ -143,32 +143,6 @@ export interface BotListItem extends Bot {
   tradesIndexed?: number
 }
 
-// Shape returned by GET /api/tokens (launchpad bonding-curve cards).
-export interface LaunchpadToken {
-  botId: string
-  slug: string
-  botName: string
-  color: string
-  eyeShape: string
-  pfpUrl: string | null
-  botStatus: string
-  makerWallet: string
-  makerHandle: string | null
-  makerName: string | null
-  ticker: string
-  name: string
-  status: string
-  price: number
-  marketCap: number
-  progress: number
-  supply: number
-  holders: number
-  trades: number
-  brier: number | null
-  resolvedTrades: number
-  createdAt: string
-}
-
 export interface DashboardData {
   portfolioValue: number
   totalDeposited: number

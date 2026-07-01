@@ -100,7 +100,6 @@ export async function POST(req: NextRequest) {
       data: { botId: bot.id, walletAddress: finalWallet },
     }).catch(() => {})
 
-    // Token launch is a separate, owner-initiated step (POST /api/tokens)
     return NextResponse.json({
       ok: true,
       botId: bot.id,
