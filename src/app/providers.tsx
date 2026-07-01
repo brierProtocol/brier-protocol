@@ -7,7 +7,7 @@ import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit'
 import { ReactNode, useState } from 'react'
 
 // Use the newly created Wagmi Production config
-import { wagmiConfig } from './wagmi'
+import { wagmiConfig } from '@/lib/wagmi'
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient())
