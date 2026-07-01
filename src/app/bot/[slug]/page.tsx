@@ -42,6 +42,24 @@ function txOf(t: any): string | null {
 
 const Empty = () => <span className="text-[#333]">·</span>
 
+// Defined at MODULE level (not inside the component) — a component redefined on
+// every render gets a new identity, so React remounts its subtree and inputs lose
+// focus after one keystroke. That was the "can only type one letter" comment bug.
+const Panel = ({ children, className = '' }: { children: React.ReactNode; className?: string }) =>
+  <div className={`rounded-2xl border border-[#1a1a1a] bg-[#080809] ${className}`}>{children}</div>
+
+// Tiny inline sparkline for the Brier trajectory (no external chart dep).
+const Sparkline = ({ values, color }: { values: number[]; color: string }) => {
+  if (values.length < 2) return null
+  const w = 92, h = 24, min = Math.min(...values), max = Math.max(...values), span = max - min || 1
+  const pts = values.map((v, i) => `${(i / (values.length - 1)) * w},${h - ((v - min) / span) * h}`).join(' ')
+  return (
+    <svg width={w} height={h} aria-hidden>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export default function BotProfilePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
 
@@ -264,21 +282,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     { k: 'Volume', v: bot.totalVolume != null ? fmtUSD(bot.totalVolume) : null, info: 'Total USDC it has traded.' },
     { k: 'Sharpe', v: bot.sharpe != null ? bot.sharpe.toFixed(2) : null, info: 'Return per unit of risk. Higher means steadier, less jumpy gains.' },
   ]
-
-  const Panel = ({ children, className = '' }: { children: React.ReactNode; className?: string }) =>
-    <div className={`rounded-2xl border border-[#1a1a1a] bg-[#080809] ${className}`}>{children}</div>
-
-  // Tiny inline sparkline for the Brier trajectory (no external chart dep).
-  const Sparkline = ({ values, color }: { values: number[]; color: string }) => {
-    if (values.length < 2) return null
-    const w = 92, h = 24, min = Math.min(...values), max = Math.max(...values), span = max - min || 1
-    const pts = values.map((v, i) => `${(i / (values.length - 1)) * w},${h - ((v - min) / span) * h}`).join(' ')
-    return (
-      <svg width={w} height={h} aria-hidden>
-        <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-[#030303] font-sans text-[#e8e8e8]">
