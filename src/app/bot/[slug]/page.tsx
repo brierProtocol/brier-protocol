@@ -113,7 +113,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         setBot(mapped)
         setEditName(mapped.name); setEditTagline(mapped.tagline || ''); setEditDesc(mapped.description || ''); setEditPfp(mapped.pfpUrl || '')
         setHearts(dbBot._count?.hearts || 0)
-        setTrades(mapped.predictions.length ? mapped.predictions : (dbBot.trades || []))
+        setTrades(mapped.predictions || [])
         setLoading(false)
         fetch(`/api/comments?botId=${mapped.id}`).then(r => r.json()).then(d => { if (Array.isArray(d)) setPosts(d) })
       })
