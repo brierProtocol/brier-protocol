@@ -98,6 +98,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           brierScore: s?.brierScore ?? null, winRate: s?.winRate ?? null, sharpe: s?.sharpe ?? null,
           maxDrawdown: s?.maxDrawdown ?? null, totalTrades: s?.totalTrades ?? 0, totalVolume: s?.totalVolume ?? null,
           pnlSnapshots: dbBot.pnlSnapshots || [], tradesIndexed: dbBot._count?.trades ?? (dbBot.trades?.length ?? 0),
+          lastHeartbeatAt: dbBot.lastHeartbeatAt ?? null, liveActivity: dbBot.liveActivity ?? null,
         }
         setBot(mapped)
         setEditName(mapped.name); setEditTagline(mapped.tagline || ''); setEditDesc(mapped.description || ''); setEditPfp(mapped.pfpUrl || '')
@@ -107,6 +108,18 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         fetch(`/api/comments?botId=${mapped.id}`).then(r => r.json()).then(d => { if (Array.isArray(d)) setPosts(d) })
       })
       .catch(() => setLoading(false))
+  }, [slug])
+
+  // Live liveness poll — refresh heartbeat + activity every 5s so the profile
+  // shows the bot as operating/offline in near real time (the bot beats ~4s).
+  useEffect(() => {
+    if (!slug) return
+    const tick = () => fetch(`/api/bots/${slug}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setBot((prev: any) => prev ? { ...prev, lastHeartbeatAt: d.lastHeartbeatAt ?? null, liveActivity: d.liveActivity ?? null } : prev) })
+      .catch(() => {})
+    const id = setInterval(tick, 5000)
+    return () => clearInterval(id)
   }, [slug])
 
   // load whether the current wallet already liked this bot
@@ -185,6 +198,8 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   if (!bot) return notFound()
 
   // ── derivations ──
+  // Operating vs offline: a beat within the last 12s (3 missed ~4s beats) = live.
+  const isOnline = !!(bot.lastHeartbeatAt && Date.now() - new Date(bot.lastHeartbeatAt).getTime() < 12_000)
   const sp = shadowProgress({
     status: bot.status, createdAt: bot.createdAt, vaultOpen: bot.vaultOpen, currentTVL: bot.tvl,
     scores: [{ brierScore: bot.brierScore ?? undefined, winRate: bot.winRate ?? undefined, totalTrades: bot.totalTrades }],
@@ -379,6 +394,20 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               )}
 
               {bot.tagline && <div className="text-[#a6a6b0] text-[14px] mt-2.5 font-medium">{bot.tagline}</div>}
+
+              {/* live status — operating/offline + what the bot is doing right now */}
+              <div className="flex items-center gap-2.5 mt-3">
+                <span className={`inline-flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] ${isOnline ? 'text-[#c8ff00]' : 'text-[#5a5a64]'}`}>
+                  <span className="relative flex w-2 h-2">
+                    {isOnline && <span className="absolute inline-flex w-full h-full rounded-full bg-[#c8ff00] opacity-60 animate-ping" />}
+                    <span className={`relative inline-flex w-2 h-2 rounded-full ${isOnline ? 'bg-[#c8ff00]' : 'bg-[#3a3a42]'}`} />
+                  </span>
+                  {isOnline ? 'Operating' : 'Offline'}
+                </span>
+                {isOnline && bot.liveActivity && (
+                  <span className="font-mono text-[11px] text-[#8a8a94] truncate max-w-[440px]">{bot.liveActivity}</span>
+                )}
+              </div>
 
               {/* builder + categories — square portrait, clickable name, no pill */}
               <div className="flex items-center gap-3 mt-4 flex-wrap">
