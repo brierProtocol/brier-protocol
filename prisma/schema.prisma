@@ -41,6 +41,8 @@ model Bot {
   // and shows "stale" if none arrived within HEARTBEAT_STALE_MS. Null = never
   // reported / not operating. See src/lib/heartbeat.ts.
   lastHeartbeatAt    DateTime?
+  liveActivity       String?
+  liveConstraints    String?
 
   walletAddress    String
   // Maker/builder wallet that PUBLISHED the bot. Distinct from walletAddress,

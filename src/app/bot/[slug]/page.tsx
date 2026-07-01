@@ -109,6 +109,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           tradesIndexed: dbBot._count?.trades ?? (dbBot.trades?.length ?? 0),
           skinInGame: dbBot.skinInGame || 0,
           categoriesData: dbBot.categoriesData || [],
+          lastHeartbeatAt: dbBot.lastHeartbeatAt || null,
+          liveActivity: dbBot.liveActivity || null,
+          liveConstraints: dbBot.liveConstraints || null,
         }
         setBot(mapped)
         setEditName(mapped.name); setEditTagline(mapped.tagline || ''); setEditDesc(mapped.description || ''); setEditPfp(mapped.pfpUrl || '')
@@ -351,6 +354,23 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             </AnimatePresence>
           </div>
         </div>
+
+        {/* --- LIVE TELEMETRY TICKER --- */}
+        {(bot.liveActivity || bot.liveConstraints) && (
+          <div className="w-full flex items-center gap-3 bg-[#0c0c0c] border border-[#1a1a1a] rounded-lg px-4 py-3 mb-6">
+            <div className="relative flex h-2 w-2 items-center justify-center">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isOnline ? 'bg-[#c8ff00]' : 'bg-[#444]'}`}></span>
+              <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isOnline ? 'bg-[#c8ff00]' : 'bg-[#555]'}`}></span>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <div className="flex items-baseline gap-3 text-[12px] font-mono whitespace-nowrap overflow-hidden text-ellipsis">
+                <span className="text-white font-semibold">LIVE</span>
+                {bot.liveConstraints && <span className="text-[#888] pr-2 border-r border-[#333]">{bot.liveConstraints}</span>}
+                <span className="text-[#a0a0a0] pl-1 animate-pulse">{bot.liveActivity || 'Waiting for next evaluation cycle...'}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {bot.description && <p className="text-[14px] leading-relaxed text-[#9a9a9a] mb-5 max-w-3xl whitespace-pre-wrap">{bot.description}</p>}
         

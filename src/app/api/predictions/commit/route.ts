@@ -44,13 +44,13 @@ export async function POST(req: NextRequest) {
     }
 
     const body = JSON.parse(rawBody)
-    const { marketId, conditionId = "", side = "YES", confidence, marketTitle = 'Unknown Market' } = body
+    const { marketId, conditionId = "", side = "YES", confidence, marketTitle = 'Loading market metadata...', marketSlug = null, category = null } = body
     if (!marketId || typeof marketId !== 'string') {
       return NextResponse.json({ error: 'marketId is required' }, { status: 400 })
     }
     const f = Number(confidence || body.forecast) // fallback for legacy bots
-    if (!Number.isFinite(f) || f <= 0 || f >= 1) {
-      return NextResponse.json({ error: 'confidence must be a number strictly between 0 and 1' }, { status: 400 })
+    if (!Number.isFinite(f) || f < 0 || f > 1) {
+      return NextResponse.json({ error: 'confidence must be between 0 and 1' }, { status: 400 })
     }
 
     const snap = await captureMarket(marketId)
@@ -78,7 +78,10 @@ export async function POST(req: NextRequest) {
         marketId, 
         conditionId,
         side,
-        marketTitle, 
+        marketTitle: finalMarketTitle, 
+        marketSlug: metadata.slug || marketSlug,
+        marketCategory: metadata.category || category,
+        marketImage: metadata.image,
         confidence: f, 
         marketProbabilityAtCommit: marketMidpoint, 
         liquidity,

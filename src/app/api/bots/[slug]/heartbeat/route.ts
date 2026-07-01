@@ -16,7 +16,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     const bot = await prisma.bot.findUnique({ where: { slug }, select: { id: true } })
     if (!bot) return NextResponse.json({ error: 'Bot not found' }, { status: 404 })
 
-    await recordHeartbeat(bot.id)
+    let liveActivity: string | undefined
+    let liveConstraints: string | undefined
+    
+    // Parse body if present
+    try {
+      const text = await req.text()
+      if (text) {
+        const body = JSON.parse(text)
+        liveActivity = body.activity
+        liveConstraints = body.constraints
+      }
+    } catch (e) {
+      // Ignore body parse errors for backward compatibility
+    }
+
+    await recordHeartbeat(bot.id, liveActivity, liveConstraints)
     return NextResponse.json({ ok: true, at: new Date().toISOString() })
   } catch (e: any) {
     console.error('[heartbeat] error', e)
