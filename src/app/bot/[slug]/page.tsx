@@ -559,7 +559,14 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                   </div>
                   <div className="max-h-[360px] overflow-y-auto">
                     {(bot.predictions).map((p: any, i: number) => {
-                      const oc = p.outcome === 'WIN' ? TEAL : p.outcome === 'LOSS' ? '#ff5570' : VIOLET
+                      // Resolution stores YES/NO (the market outcome). The bot HIT if its
+                      // directional call (forecast ≷ 50%) matched the outcome. Legacy
+                      // WIN/LOSS rows are honored too.
+                      const resolved = ['YES', 'NO', 'WIN', 'LOSS'].includes(p.outcome)
+                      const hit = p.outcome === 'WIN' ? true : p.outcome === 'LOSS' ? false
+                        : resolved ? ((p.outcome === 'YES') === (p.forecast >= 0.5)) : null
+                      const label = !resolved ? 'PENDING' : hit ? 'HIT' : 'MISS'
+                      const oc = !resolved ? VIOLET : hit ? TEAL : '#ff5570'
                       const edge = (typeof p.forecast === 'number' && typeof p.marketMidpoint === 'number') ? (p.forecast - p.marketMidpoint) : null
                       return (
                         <div key={p.id || i} className="flex items-center gap-3 px-5 py-2.5 border-b border-[#101010] hover:bg-[#0b0b0b] transition-colors" style={{ borderLeft: `2px solid ${oc}` }}>
@@ -567,7 +574,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                           <span className="flex-1 min-w-0 text-[12px] text-[#bbb] truncate">{p.marketTitle}</span>
                           <span className="font-mono text-[11px] text-[#e8e8e8] w-12 text-right tabular-nums shrink-0">{Math.round((p.forecast ?? 0) * 100)}%</span>
                           <span className="font-mono text-[10px] w-12 text-right tabular-nums shrink-0" style={{ color: edge == null ? '#444' : edge >= 0 ? TEAL : '#ff5570' }}>{edge == null ? '·' : `${edge >= 0 ? '+' : ''}${Math.round(edge * 100)}%`}</span>
-                          <span className="font-mono text-[9px] font-bold w-14 text-right shrink-0" style={{ color: oc }}>{p.outcome}</span>
+                          <span className="font-mono text-[9px] font-bold w-14 text-right shrink-0" style={{ color: oc }}>{label}</span>
                         </div>
                       )
                     })}
