@@ -71,8 +71,16 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const [editDesc, setEditDesc] = useState('')
   const [editPfp, setEditPfp] = useState('')
   const [savingBot, setSavingBot] = useState(false)
+  const [now, setNow] = useState(Date.now())
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 5000)
+    return () => clearInterval(timer)
+  }, [])
 
   const { address, isConnected } = useAccount()
+
+  const isOnline = bot?.lastHeartbeatAt && (now - new Date(bot.lastHeartbeatAt).getTime() < 30000)
   const currentUser = useCurrentUser(address)
   const isOwner = !!(isConnected && address && bot && bot.builder?.toLowerCase() === address.toLowerCase())
 
