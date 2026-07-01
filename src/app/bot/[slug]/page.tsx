@@ -8,6 +8,7 @@ import MakerAvatar from '@/components/MakerAvatar'
 import BotUplink from '@/components/bot/BotUplink'
 import BotPerformance from '@/components/bot/BotPerformance'
 import VaultGlass from '@/components/bot/VaultGlass'
+import ApiKeysManager from '@/components/bot/ApiKeysManager'
 import { botEye, codename } from '@/lib/botIdentity'
 import { FEATURES } from '@/lib/features'
 import { useAccount } from 'wagmi'
@@ -375,6 +376,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             <button onClick={handleSaveBot} disabled={savingBot} className="mt-4 rounded-full bg-primary text-[#030303] font-bold text-[13px] px-6 py-2.5 disabled:opacity-50 hover:shadow-[0_0_18px_rgba(255,42,77,0.4)] transition-all">{savingBot ? 'Saving…' : 'Save changes'}</button>
           </Panel>
         )}
+
+        {/* ── Owner-only: connect your bot (API keys) ── */}
+        {isOwner && bot?.id && <ApiKeysManager botId={bot.id} />}
 
         {/* ── VAULT (full width) ── */}
         <div className="rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden mb-8">
