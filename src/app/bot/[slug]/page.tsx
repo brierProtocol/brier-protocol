@@ -49,14 +49,30 @@ const Panel = ({ children, className = '' }: { children: React.ReactNode; classN
 
 function normalizePrediction(t: any) {
   return {
+    ...t,
     botId: t.botId,
     marketId: t.marketId,
-    marketTitle: t.marketTitle && t.marketTitle !== "Unknown Market" ? t.marketTitle : "Market resolving...",
-    side: t.side,
+    marketTitle:
+      t.marketTitle &&
+      t.marketTitle !== "Unknown Market" &&
+      t.marketTitle !== "Loading market metadata..." &&
+      t.marketTitle !== "Market resolving..."
+        ? t.marketTitle
+        : null,
+
+    displayMarket:
+      t.marketTitle &&
+      t.marketTitle !== "Unknown Market" &&
+      t.marketTitle !== "Loading market metadata..." &&
+      t.marketTitle !== "Market resolving..."
+        ? t.marketTitle
+        : t.marketId || "Unknown Event",
+
+    side: t.side, // YES / NO
     confidence: Number(t.confidence ?? 0),
     marketProbabilityAtCommit: Number(t.marketProbabilityAtCommit ?? 0),
     status: t.status ?? "PENDING",
-    timestamp: new Date(t.timestamp),
+    timestamp: new Date(t.timestamp || t.createdAt || new Date()),
     resolvedAt: t.resolvedAt ? new Date(t.resolvedAt) : null,
     category: t.category ?? null,
     image: t.image ?? null,
@@ -488,7 +504,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               ) : (
                 <div className="max-h-[360px] overflow-y-auto">
                   {trades.slice(0, visibleCount).map((t, i) => {
-                      const displayTitle = t.marketTitle && t.marketTitle !== "Loading market metadata..." ? t.marketTitle : "Market resolving...";
+                      const displayTitle = t.displayMarket || t.marketId || "Unknown Event";
                       const yes = t.side === 'YES';
                       const status = t.status || 'PENDING';
                       
