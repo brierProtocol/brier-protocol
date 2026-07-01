@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { botReputation } from '@/lib/skill-engine';
+import { sanitizePrediction } from '@/lib/truthGuard';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,9 +40,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     }
 
     // ── PERFORMANCE METRICS ──
-    const allPredictions = [...bot.predictions].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const allPredictions = [...bot.predictions]
+      .sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .map(sanitizePrediction)
+      .filter(p => p !== null)
 
-    const resolvedPreds = allPredictions.filter(p => p.status === 'WIN' || p.status === 'LOSS');
+    const resolvedPreds = allPredictions.filter(p => p!.status === 'WIN' || p!.status === 'LOSS');
     const latestScore = bot.scores.length > 0 ? bot.scores[bot.scores.length - 1] : null;
     const latestPnl = bot.pnlSnapshots.length > 0 ? bot.pnlSnapshots[bot.pnlSnapshots.length - 1] : null;
 

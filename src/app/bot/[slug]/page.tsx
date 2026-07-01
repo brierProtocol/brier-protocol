@@ -468,12 +468,12 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               ) : (
                 <div className="max-h-[360px] overflow-y-auto">
                   {trades.map((t, i) => {
-                    const tx = txOf(t); const yes = t.side === 'YES' || t.side === 'LONG'
-                    const status = t.status || t.outcome
-                    const oc = status === 'WIN' ? TEAL : status === 'LOSS' ? '#ff5570' : VIOLET
-                      const confidence = t.confidence || t.entryPrice || 0;
-                      const prob = t.marketProbabilityAtCommit || 0;
-                      const edge = confidence - prob;
+                      const yes = t.side === 'YES';
+                      const status = t.status;
+                      const oc = status === 'WIN' ? TEAL : status === 'LOSS' ? '#ff5570' : VIOLET;
+                      const confidence = t.confidence;
+                      const prob = t.marketProbabilityAtCommit;
+                      const edge = t.edge;
                       const edgeFmt = (edge > 0 ? '+' : '') + (edge * 100).toFixed(1) + '%';
                       const fmtFull = (d: any) => d ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }).format(new Date(d)) + ' UTC' : '—';
                       
