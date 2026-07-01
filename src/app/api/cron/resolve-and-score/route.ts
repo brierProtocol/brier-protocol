@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { resolveMarket } from '@/lib/market-data'
 import { calculateRelativeSkillWithLCB, type ResolvedPrediction } from '@/lib/skill-engine'
+import { deriveVerifiedCategories } from '@/lib/marketCategories'
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -91,7 +92,20 @@ export async function GET(req: NextRequest) {
       scored.push({ botId, reputation: Number(skill.normalizedScore.toFixed(1)), n: resolved.length })
     }
 
-    return NextResponse.json({ ok: true, resolvedMarkets, resolvedPredictions: resolvedPreds, scored })
+    // ── 3. CATEGORIES ── derive each bot's category from WHERE it actually bets
+    // (its market titles). No maker ever picks a category; this is the honest signal.
+    const botsWithPreds = await prisma.prediction.findMany({ select: { botId: true }, distinct: ['botId'] })
+    let categorized = 0
+    for (const { botId } of botsWithPreds) {
+      const titles = await prisma.prediction.findMany({ where: { botId }, select: { marketTitle: true }, take: 500 })
+      const cats = deriveVerifiedCategories(titles.map(t => t.marketTitle))
+      if (cats.length) {
+        await prisma.bot.update({ where: { id: botId }, data: { verifiedCategories: cats } })
+        categorized++
+      }
+    }
+
+    return NextResponse.json({ ok: true, resolvedMarkets, resolvedPredictions: resolvedPreds, scored, categorized })
   } catch (err: any) {
     console.error('[cron/resolve-and-score]', err)
     return NextResponse.json({ error: err?.message || 'resolve-and-score failed' }, { status: 500 })

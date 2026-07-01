@@ -9,16 +9,6 @@ import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import MakerAvatar from '@/components/MakerAvatar'
 import { botEye } from '@/lib/botIdentity'
 
-const CATEGORIES: { id: string; label: string }[] = [
-  { id: 'politics', label: 'Politics' },
-  { id: 'crypto',   label: 'Crypto'   },
-  { id: 'sports',   label: 'Sports'   },
-  { id: 'economy',  label: 'Economy'  },
-  { id: 'culture',  label: 'Culture'  },
-  { id: 'tech',     label: 'Tech'     },
-  { id: 'world',    label: 'World'    },
-]
-
 const INPUT_CLS =
   'w-full bg-[#0a0a0a] border border-[#1f1f1f] text-white font-sans text-[14px] outline-none px-4 py-3 rounded-xl placeholder:text-[#555] transition-all focus:border-primary/50 focus:bg-[#0c0c0c] focus:shadow-[0_0_24px_rgba(255,42,77,0.08)] hover:border-[#2a2a2a]'
 
@@ -179,9 +169,9 @@ export default function ListBotPage() {
           {/* what comes next */}
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
-              { n: '01', t: 'Name it', d: 'Name, bio and market categories. Its signature art is born from the name.' },
+              { n: '01', t: 'Name it', d: 'Just a name and a bio. Brier detects category and sizing on its own.' },
               { n: '02', t: 'Connect it', d: 'Connect the wallet your bot trades with. One signature proves it is yours.' },
-              { n: '03', t: 'Open a vault', d: 'Brier watches it on Polymarket. 100 resolved, Brier 0.20, 21 days, then capital backs you.' },
+              { n: '03', t: 'Open a vault', d: 'Brier scores it on Polymarket. 100 resolved, positive skill vs market, 21 days, then capital backs you.' },
             ].map((s) => (
               <div key={s.n} className="rounded-xl border border-[#161616] bg-[#070708] p-4">
                 <div className="font-mono text-[11px] text-primary mb-2">{s.n}</div>
@@ -281,57 +271,18 @@ export default function ListBotPage() {
               </div>
             </div>
 
-            {/* category chips */}
-            <div className="mb-7">
-              <label className="block text-[12px] font-sans font-semibold text-[#bbb] mb-1.5">
-                Market categories <span className="text-[#555] font-normal">(select all that apply)</span>
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {CATEGORIES.map(c => {
-                  const selected = formData.categories.includes(c.id)
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => {
-                        const next = selected
-                          ? formData.categories.filter(x => x !== c.id)
-                          : [...formData.categories, c.id]
-                        setFormData({ ...formData, categories: next })
-                      }}
-                      className={`px-3.5 py-1.5 rounded-full font-mono text-[11px] tracking-[0.08em] uppercase border transition-all cursor-pointer ${
-                        selected
-                          ? 'border-primary/60 bg-primary/10 text-primary shadow-[0_0_10px_rgba(255,42,77,0.14)]'
-                          : 'border-[#1f1f1f] bg-[#060607] text-[#666] hover:border-[#333] hover:text-[#999]'
-                      }`}
-                    >
-                      {c.label}
-                    </button>
-                  )
-                })}
+            {/* Brier handles the scary decisions — no category or capacity to pick.
+                Category is detected from the markets the bot actually bets on;
+                vault capacity is computed from its proven track record. */}
+            <div className="mb-7 rounded-xl border border-[#161616] bg-[#070708] p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(255,42,77,0.7)]" />
+                <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#8a8a8a]">Brier handles the rest</span>
               </div>
-              <div className="mt-2 text-[11px] text-[#555]">Routes your bot to the right audiences in the catalog.</div>
-            </div>
-
-            {/* vault capacity — the max USDC this strategy can absorb before its edge decays.
-                Empty = uncapped. When TVL reaches this, the vault stops taking new deposits. */}
-            <div className="mb-7">
-              <label className="block text-[12px] font-sans font-semibold text-[#bbb] mb-2">
-                Vault capacity <span className="text-[#555] font-normal">(USDC, optional)</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#555] font-mono text-[13px]">$</span>
-                <input
-                  type="number"
-                  min={0}
-                  step={1000}
-                  value={formData.vaultCap}
-                  onChange={e => setFormData({ ...formData, vaultCap: e.target.value })}
-                  placeholder="e.g. 250000"
-                  className={`${INPUT_CLS} pl-8`}
-                />
+              <div className="flex flex-col gap-2.5 text-[13px] font-sans">
+                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> <span><span className="text-white font-semibold">Category</span> is detected automatically from the markets your bot bets on. No guessing.</span></div>
+                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> <span><span className="text-white font-semibold">Vault capacity</span> is computed from your proven track record and the liquidity of your markets, and grows as you prove more.</span></div>
               </div>
-              <div className="mt-2 text-[11px] text-[#555]">The most capital your edge can handle before slippage eats it. Past this, deposits close. Leave empty to stay open while you find the ceiling.</div>
             </div>
 
             {/* signature art — generative from the name (do not change) */}
@@ -468,7 +419,7 @@ await brier.predict({
               <div className="flex flex-col gap-2.5 text-[13px] font-sans">
                 <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Enters the <span className="text-white">shadow phase</span>: builds reputation, no outside capital at risk</div>
                 <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> The Skill Engine evaluates your commits against real resolutions</div>
-                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Vault gate: <span className="text-white">Reputation &gt; 50 · 21 days live</span></div>
+                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Vault gate: <span className="text-white">100 resolved · skill over market (LCB &gt; 0) · 21 days</span></div>
                 <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Capital Layer unlocks, you keep <span className="text-white">30% of the profits</span></div>
               </div>
             </div>

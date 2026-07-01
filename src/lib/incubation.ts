@@ -52,12 +52,20 @@ export async function checkStatusTransitions(botId: string) {
     const meetsTime = daysInShadow >= SHADOW_MIN_DAYS
 
     if (meetsVolume && meetsSkill && meetsTime) {
+      // Auto-size the vault from the bot's proven track record — never a number the
+      // maker had to guess. Grows with reputation; conservative on low sample.
+      const { computeVaultCapacity } = await import('./vault-capacity')
+      const vaultCap = computeVaultCapacity({
+        reputationScore: score.reputationScore,
+        resolvedPredictions: score.resolvedPredictions ?? resolved,
+      })
+
       // Deploy the bot's on-chain clone vault (no-op/null if factory not configured yet).
       let vaultAddress: string | null = null
       if (!bot.vaultAddress) {
         const { createVaultForBot } = await import('./vault-factory')
         vaultAddress = await createVaultForBot({
-          id: bot.id, slug: bot.slug, name: bot.name, walletAddress: bot.walletAddress, vaultCap: 500000,
+          id: bot.id, slug: bot.slug, name: bot.name, walletAddress: bot.walletAddress, vaultCap,
         })
       }
 
@@ -67,7 +75,8 @@ export async function checkStatusTransitions(botId: string) {
           data: {
             status: 'VAULT_ELIGIBLE_T1',
             tier: 'TIER1',
-            vaultCap: 500000,
+            vaultCap,
+            vaultOpen: true,
             ...(vaultAddress ? { vaultAddress } : {}),
           }
         }),
