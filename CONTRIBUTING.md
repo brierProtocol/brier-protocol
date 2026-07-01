@@ -1,7 +1,8 @@
 # Cómo trabajamos con Git
 
-Reorganizamos y limpiamos toda la base de código. De ahora en más trabajamos
-con ramas para no pisarnos ni romper la web. Es fácil — son 4 pasos.
+Trabajamos con ramas para no pisarnos ni romper la web. Es fácil — son unos pocos
+pasos, pero hay que respetarlos **siempre** (si no, las ramas se atrasan y después
+mergear es un dolor de cabeza).
 
 ## 🌳 Tenemos 2 ramas principales
 
@@ -11,26 +12,48 @@ con ramas para no pisarnos ni romper la web. Es fácil — son 4 pasos.
 > ⚠️ **Regla de oro:** NUNCA pushear directo a `main` ni a `dev`.
 > Todo entra por una rama propia + Pull Request.
 
-## 🔄 Primer paso (háganlo una vez)
+## 🔄 Antes de empezar CUALQUIER cosa — sincronizar
 
-Como cambió la estructura de carpetas, antes de seguir trabajando:
+El 90% de los problemas vienen de arrancar desde una copia vieja. Siempre:
 
 ```bash
 git checkout dev
 git pull origin dev
 ```
 
-## 🛠️ Cómo trabajar (cada cosa nueva)
+## 🛠️ El ciclo de cada tarea
 
+**1. Arrancá desde `dev` actualizado y creá tu rama:**
 ```bash
 git checkout dev
-git pull origin dev                 # arrancar siempre desde lo último
-git checkout -b feat/nombre-corto   # crear tu rama
-# ...trabajan, hacen commits...
-git push -u origin feat/nombre-corto
+git pull origin dev
+git checkout -b feat/nombre-corto
 ```
 
-Después, en GitHub, abren un **Pull Request de su rama → `dev`**.
+**2. Trabajás y vas commiteando de a poco:**
+```bash
+git add -A
+git commit -m "mensaje claro de qué hiciste"
+```
+
+**3. Si tardás más de un día, traé `dev` a tu rama seguido** (así resolvés
+conflictos chicos y temprano, no 48 commits después):
+```bash
+git pull origin dev
+```
+
+**4. Subís y abrís el Pull Request → `dev`:**
+```bash
+git push -u origin feat/nombre-corto
+```
+GitHub te da el link al pushear. Abrís el **PR de tu rama → `dev`** (nunca a `main`).
+
+**5. Se revisa y se mergea desde GitHub. Después limpiás:**
+```bash
+git checkout dev
+git pull origin dev
+git branch -d feat/nombre-corto     # borra tu rama local ya mergeada
+```
 
 ## 🏷️ Cómo nombrar las ramas
 
@@ -50,19 +73,27 @@ tu rama  →  PR  →  dev  (lo revisamos y juntamos)
                     └─ cuando dev está estable  →  PR  →  main  (release)
 ```
 
-## 🗳️ Política de merges (acuerdo del equipo)
+## 🔒 Protección de ramas (ya está activa)
 
-Propuesta para mantener `main` siempre estable:
+`main` está protegido con un ruleset en GitHub:
+- Para mergear a `main` se necesita **1 review de un code-owner** (Felipe o Benjamin).
+- **No podés aprobar tu propio PR** (regla de GitHub) → si vos abriste el PR,
+  lo aprueba el otro.
+- Felipe y Benjamin tienen **bypass de admin**: pueden mergear a `main` directo
+  cuando hace falta. La regla protege contra cualquier otro que se equivoque.
 
-- **Merge a `dev`:** lo puede hacer cualquiera del equipo (así `dev` avanza rápido).
-- **Merge a `main`:** lo hace **solo quien maneja el lado de código**, como paso
-  final revisado antes de publicar.
+`dev` avanza rápido: cualquiera del equipo puede mergear ahí (con su PR).
 
-**¿Están todos de acuerdo?** Si sí, se activa la protección de rama en GitHub
-para que quede aplicado automáticamente (aunque alguien se equivoque, GitHub no
-deja pushear directo a `main`).
+## 🚦 Las reglas de oro (para no repetir líos)
+
+1. **Pulleá `dev` SIEMPRE antes de empezar** — así tu rama nunca se atrasa.
+2. **Nunca trabajes directo en `main` ni `dev`** — siempre una rama aparte.
+3. **PRs chicos y seguidos** — no dejes una rama viva semanas; mergeá y borrala.
+4. **Traé `dev` a tu rama seguido** si tu trabajo dura varios días.
+5. **Nunca `push --force` a ramas compartidas**, ni **tocar la DB de producción a mano**.
 
 ---
 
 > Más contexto técnico del proyecto (stack, cómo correrlo, trampas conocidas):
 > ver [`CONTEXT.md`](./CONTEXT.md).
+> Checklists de auditoría (seguridad, DB, UX, calidad): ver [`AUDITS.md`](./AUDITS.md).
