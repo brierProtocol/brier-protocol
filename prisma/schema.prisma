@@ -48,7 +48,14 @@ model Bot {
   
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
-  
+
+  // Liveness / telemetry. The bot beats every ~4s; the UI shows it "operating"
+  // only if a beat arrived within HEARTBEAT_STALE_MS, else "stale". See
+  // src/lib/heartbeat.ts. liveActivity/liveConstraints feed the profile ticker.
+  lastHeartbeatAt DateTime?
+  liveActivity    String?
+  liveConstraints String?
+
   // Security & API
   apiKey          String?       @unique
   apiSecret       String?

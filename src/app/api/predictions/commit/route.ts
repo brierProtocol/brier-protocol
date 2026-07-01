@@ -52,13 +52,22 @@ export async function POST(req: NextRequest) {
 
     // 4. Validate payload
     const body = JSON.parse(rawBody)
-    const { marketId, forecast, marketTitle = 'Unknown Market' } = body
+    const { marketId, marketTitle = 'Unknown Market' } = body
     if (!marketId || typeof marketId !== 'string') {
       return NextResponse.json({ error: 'marketId is required' }, { status: 400 })
     }
-    const f = Number(forecast)
+    // Accept `forecast` (P(YES) directly) OR ADAN-native `confidence` + `side`,
+    // where confidence is the probability of the CHOSEN side. A NO/SHORT bet with
+    // confidence 0.85 means P(YES) = 0.15. Both forms score identically.
+    let rawForecast: unknown = body.forecast
+    if (rawForecast == null && body.confidence != null) {
+      const conf = Number(body.confidence)
+      const side = String(body.side || 'YES').toUpperCase()
+      rawForecast = side === 'NO' || side === 'SHORT' ? 1 - conf : conf
+    }
+    const f = Number(rawForecast)
     if (!Number.isFinite(f) || f <= 0 || f >= 1) {
-      return NextResponse.json({ error: 'forecast must be a number strictly between 0 and 1' }, { status: 400 })
+      return NextResponse.json({ error: 'forecast (or confidence) must be a number strictly between 0 and 1' }, { status: 400 })
     }
 
     // 5. Capture the REAL market baseline at commit (NOT a simulated one). This is
