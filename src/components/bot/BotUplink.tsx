@@ -47,7 +47,7 @@ export default function BotUplink({
       ref={containerRef}
       onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
-      className="relative rounded-2xl border border-[#141418] bg-[#040406] overflow-hidden"
+      className="relative rounded-2xl border border-[#16161e] bg-gradient-to-br from-[#0c0c14] via-[#08080d] to-[#050507] overflow-hidden"
     >
       {/* terminal dot grid */}
       <div className="absolute inset-0 pointer-events-none" style={{
@@ -86,25 +86,31 @@ export default function BotUplink({
             className="relative z-10 shrink-0 flex flex-col items-center"
             style={{ rotateX, rotateY, transformPerspective: 900 }}
           >
-            {/* halo */}
-            <div className="relative">
+            {/* premium HD portrait: soft radial disc + ring so the creature reads
+                as an intentional portrait, not floating on hard black */}
+            <div className="relative grid place-items-center w-[104px] h-[104px]">
+              {/* radial base disc */}
+              <div className="absolute inset-0 rounded-full" style={{
+                background: `radial-gradient(circle at 50% 42%, ${eye.accentColor}22 0%, ${eye.accentColor}0c 45%, transparent 72%)`,
+              }} />
+              {/* faint ring */}
+              <div className="absolute rounded-full" style={{ inset: '8px', border: `1px solid ${eye.accentColor}22`, boxShadow: `inset 0 0 24px ${eye.accentColor}10` }} />
+              {/* animated halo */}
               <motion.div
                 className="absolute rounded-full blur-2xl"
-                style={{
-                  inset: '-20px',
-                  background: `radial-gradient(circle, ${eye.accentColor}55 0%, transparent 70%)`,
-                }}
+                style={{ inset: '2px', background: `radial-gradient(circle, ${eye.accentColor}44 0%, transparent 68%)` }}
                 animate={{
-                  opacity: live ? [0.5, 0.9, 0.5] : [0.1, 0.2, 0.1],
-                  scale: live ? [0.85, 1.1, 0.85] : [0.7, 0.9, 0.7],
+                  opacity: live ? [0.5, 0.9, 0.5] : [0.12, 0.22, 0.12],
+                  scale: live ? [0.9, 1.08, 0.9] : [0.75, 0.9, 0.75],
                 }}
                 transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
               />
               <motion.div
+                className="relative"
                 animate={{ y: live ? [0, -5, 0] : 0 }}
                 transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
               >
-                <BotIrisAvatar {...eye} size={80} />
+                <BotIrisAvatar {...eye} size={84} />
               </motion.div>
             </div>
             <span className="font-mono text-[8px] tracking-[0.22em] text-[#3a3a4a] uppercase mt-2.5">Bot</span>

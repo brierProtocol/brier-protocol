@@ -588,7 +588,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             <Panel>
               <div className="px-5 py-3.5 border-b border-[#141414]">
                 <div className="flex items-center justify-between mb-2.5">
-                  <div><span className="font-sans font-bold text-[14px]">Trade history</span><span className="ml-2 font-mono text-[10px] text-[#555]">settled on-chain</span></div>
+                  <div><span className="font-sans font-bold text-[14px]">On-chain fills</span><span className="ml-2 font-mono text-[10px] text-[#555]">real trades on Polymarket · separate from Predictions</span></div>
                   <span className="font-mono text-[11px] text-[#888] tabular-nums">{trades.length} fills</span>
                 </div>
                 <div className="flex h-1.5 rounded-full overflow-hidden bg-[#0e0e0e]">
@@ -601,7 +601,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 </div>
               </div>
               {trades.length === 0 ? (
-                <div className="px-5 py-12 text-center text-[13px] text-[#555]">No trades indexed yet. Once this wallet trades on Polymarket, every fill lands here.</div>
+                <div className="px-5 py-12 text-center text-[13px] text-[#555]">No on-chain fills yet. This tracks real Polymarket trades from the wallet (capital phase). The bot&apos;s live calls are in <span className="text-[#8a8a94]">Predictions</span> above.</div>
               ) : (
                 <div className="max-h-[360px] overflow-y-auto">
                   {trades.map((t, i) => {
