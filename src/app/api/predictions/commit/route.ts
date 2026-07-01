@@ -89,8 +89,12 @@ export async function POST(req: NextRequest) {
     // --- INTEGRACIÓN EXECUTOR (LIVE PHASE) ---
     if (bot.vaultOpen && bot.vaultAddress) {
       try {
-        const executorUrl = process.env.EXECUTOR_URL || 'http://127.0.0.1:3001'
-        const executorSecret = process.env.BUILDER_SECRET_KEY || 'your-64-char-hex-secret'
+        const executorUrl = process.env.EXECUTOR_URL
+        const executorSecret = process.env.BUILDER_SECRET_KEY
+        
+        if (!executorUrl) throw new Error('Missing EXECUTOR_URL environment variable')
+        if (!executorSecret) throw new Error('Missing BUILDER_SECRET_KEY environment variable')
+        
         const t = Date.now().toString()
         const executorBody = JSON.stringify({
           tradeId: prediction.id,

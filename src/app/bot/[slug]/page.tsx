@@ -108,6 +108,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           tradesIndexed: dbBot._count?.trades ?? (dbBot.trades?.length ?? 0),
           skinInGame: dbBot.skinInGame || 0,
           categoriesData: dbBot.categoriesData || [],
+          lastHeartbeatAt: dbBot.lastHeartbeatAt || null,
         }
         setBot(mapped)
         setEditName(mapped.name); setEditTagline(mapped.tagline || ''); setEditDesc(mapped.description || ''); setEditPfp(mapped.pfpUrl || '')
@@ -221,13 +222,17 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const navStart = navValues[0] ?? 0
   const navDelta = bot.sharePrice && bot.sharePrice !== 1 ? (bot.sharePrice - 1) * 100 : (navValues.length > 1 && Math.abs(navStart) > 1 ? ((navValues[navValues.length - 1] - navStart) / Math.abs(navStart)) * 100 : 0)
   const roi = bot.sharePrice && bot.sharePrice !== 1 ? navDelta : null
-  const uplink = (bot.tradesIndexed > 0 || trades.length > 0) ? 'live' : 'awaiting'
+  
+  // A bot is ONLINE if it sent a heartbeat within the last 15 seconds.
+  const isOnline = bot.lastHeartbeatAt && (Date.now() - new Date(bot.lastHeartbeatAt).getTime() < 15000)
+  const uplink = isOnline ? 'live' : 'awaiting'
+  
   const lastFill = trades.length ? relDay(trades[0].timestamp) : null
 
   const VIOLET = '#8b7bff', TEAL = '#c8ff00'
   const criteria = [
     { label: 'Resolved predictions', val: `${sp.resolved} / ${SHADOW_RESOLVED_TARGET}`, ok: sp.resolvedPass, pct: Math.min(1, sp.resolved / SHADOW_RESOLVED_TARGET) },
-    { label: 'Edge over market', val: sp.lcb != null ? `LCB ${sp.lcb.toFixed(3)} > 0` : `> 0 LCB`, ok: sp.lcbPass, pct: sp.lcb == null ? 0 : Math.min(1, Math.max(0, (sp.lcb + 0.1) / 0.1)) },
+    { label: 'Edge over market', val: sp.brier != null ? `Brier ${sp.brier.toFixed(3)}` : `<= 0.20 Brier`, ok: sp.brierPass, pct: sp.brier == null ? 0 : Math.min(1, Math.max(0, (0.30 - sp.brier) / 0.10)) },
     { label: 'Days live', val: `${sp.days} / ${SHADOW_DAYS_TARGET}`, ok: sp.daysPass, pct: Math.min(1, sp.days / SHADOW_DAYS_TARGET) },
   ]
   const clearedCount = criteria.filter(c => c.ok).length
@@ -239,7 +244,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     { k: 'ROI', v: roi != null ? `${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%` : null, info: 'Return on the vault capital since it opened.' },
     { k: 'Max drawdown', v: bot.maxDrawdown != null ? `-${(Math.abs(bot.maxDrawdown) * 100).toFixed(1)}%` : null, info: 'The worst peak-to-trough drop in value. Smaller is safer.' },
     { k: 'Resolved', v: bot.totalTrades ? bot.totalTrades.toLocaleString() : null, info: 'Predictions that have settled — the sample size behind the score.' },
-    { k: 'Sharpe', v: bot.sharpe != null ? bot.sharpe.toFixed(2) : null, info: 'Return per unit of risk. Higher means steadier, less jumpy gains.' },
+    { k: 'Builder Rep', v: bot.maker?.reputation > 0 ? bot.maker.reputation.toFixed(4) : null, info: 'Aggregate LCB of all agents published by this builder.' },
   ]
 
   return (
@@ -289,25 +294,10 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               
               <div className="flex items-center gap-3 mb-4">
                 <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#555]">Builder ID</span>
-                <MakerAvatar address={bot.builder || ''} pfpUrl={bot.maker?.pfpUrl} size={20} square />
-                <span className="font-mono text-[12px] text-[#ccc]">{bot.maker?.handle ? `@${bot.maker.handle}` : (bot.builder?.slice(0,6) + '...' + bot.builder?.slice(-4))}</span>
-                
-                {/* Builder links */}
-                <div className="flex items-center gap-3 ml-2 border-l border-[#333] pl-4">
-                  {bot.maker?.xHandle ? (
-                    <a href={`https://x.com/${bot.maker.xHandle}`} target="_blank" rel="noopener noreferrer" className="text-[#555] hover:text-white transition-colors">
-                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-[14px] h-[14px]"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                    </a>
-                  ) : (
-                    <span className="text-[#333]"><svg viewBox="0 0 24 24" fill="currentColor" className="w-[14px] h-[14px]"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span>
-                  )}
-                  <a href="#" className="text-[#333] hover:text-white transition-colors" title="Github (Pending)">
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-[14px] h-[14px]"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z"/></svg>
-                  </a>
-                  <a href="#" className="text-[#333] hover:text-white transition-colors" title="Website (Pending)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-[14px] h-[14px]"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"></path></svg>
-                  </a>
-                </div>
+                <Link href={`/maker/${bot.builder || ''}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                  <MakerAvatar address={bot.builder || ''} pfpUrl={bot.maker?.pfpUrl} size={20} square />
+                  <span className="font-mono text-[12px] text-[#ccc]">{bot.maker?.handle ? `@${bot.maker.handle}` : (bot.builder?.slice(0,6) + '...' + bot.builder?.slice(-4))}</span>
+                </Link>
               </div>
               
               <div className="flex flex-wrap items-center gap-3 mt-4">
@@ -400,15 +390,13 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 </div>
                 <div className="font-mono text-[12px] mt-2.5 tracking-wide" style={{ color: sp.live ? '#6a6a74' : VIOLET }}>
                   {sp.live
-                    ? (isCapped ? `of ${fmtUSD(capDeclared)} capacity` : 'Open capacity · finding the ceiling')
+                    ? 'Scaling the capital ceiling'
                     : `Vault unlocks after the shadow gate. ${sp.resolved}/${SHADOW_RESOLVED_TARGET} resolved`}
                 </div>
               </div>
               <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-4 border-t border-[#141420] pt-4">
                 {[
-                  { k: 'Capacity', v: isCapped ? fmtUSD(capDeclared) : 'Open' },
                   { k: sp.live ? 'Phase' : 'Progress', v: sp.live ? 'LIVE' : `${Math.round(sp.pct * 100)}%` },
-                  { k: "Maker's Skin in the Game", v: fmtUSD(bot.skinInGame || 0) },
                 ].map(m => (
                   <div key={m.k}>
                     <div className="font-mono text-[9px] text-[#48484f] tracking-[0.14em] uppercase mb-1">{m.k}</div>
@@ -529,10 +517,14 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 <div className="flex flex-col">
                   {posts.map((p, i) => (
                     <div key={p.id || i} className="flex gap-3 px-5 py-4 border-b border-[#101010] last:border-b-0 hover:bg-[#070709] transition-colors">
-                      <MakerAvatar address={p.wallet} pfpUrl={p.user?.pfpUrl} size={36} square />
+                      <Link href={`/maker/${p.wallet}`} className="shrink-0 hover:opacity-80 transition-opacity">
+                        <MakerAvatar address={p.wallet} pfpUrl={p.user?.pfpUrl} size={36} square />
+                      </Link>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[13px] font-bold text-white">{personLabel(p.user, p.wallet)}</span>
+                          <Link href={`/maker/${p.wallet}`} className="text-[13px] font-bold text-white hover:text-primary transition-colors">
+                            {personLabel(p.user, p.wallet)}
+                          </Link>
                           <span className="font-mono text-[10px] text-[#48484f] tabular-nums">{relDay(p.createdAt) || 'now'}</span>
                         </div>
                         <div className="text-[13px] text-[#cfcfd6] leading-relaxed"><PostBody text={p.text} onQuoteClick={() => {}} /></div>

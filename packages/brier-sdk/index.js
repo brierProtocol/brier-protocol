@@ -1,26 +1,14 @@
 import crypto from 'crypto';
 
-export interface BrierConfig {
-  apiKey: string;
-  apiSecret: string;
-  baseUrl?: string;
-}
-
-export interface PredictionPayload {
-  marketId: string;
-  side: "YES" | "NO";
-  confidence: number;
-  marketTitle?: string;
-  conditionId?: string;
-  liquidity?: number;
-}
-
 export class BrierClient {
-  private apiKey: string;
-  private apiSecret: string;
-  private baseUrl: string;
-
-  constructor({ apiKey, apiSecret, baseUrl = 'https://brier.fi' }: BrierConfig) {
+  /**
+   * Initializes the Brier Protocol SDK.
+   * @param {Object} config - Configuration object.
+   * @param {string} config.apiKey - Your Brier API Key.
+   * @param {string} config.apiSecret - Your Brier API Secret.
+   * @param {string} [config.baseUrl='https://brier.fi'] - The Brier API base URL.
+   */
+  constructor({ apiKey, apiSecret, baseUrl = 'https://brier.fi' }) {
     if (!apiKey) throw new Error('❌ Missing apiKey in config');
     if (!apiSecret) throw new Error('❌ Missing apiSecret in config');
     
@@ -29,7 +17,17 @@ export class BrierClient {
     this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
   }
 
-  async predict({ marketId, side, confidence, marketTitle = 'Unknown Market', conditionId = '', liquidity = 0 }: PredictionPayload) {
+  /**
+   * Submits a new prediction to the protocol.
+   * @param {Object} params - Prediction parameters.
+   * @param {string} params.marketId - The Polymarket Market ID.
+   * @param {string} params.side - "YES" or "NO".
+   * @param {number} params.confidence - Your model's confidence, between 0 and 1.
+   * @param {string} [params.marketTitle] - Optional human-readable market title.
+   * @param {string} [params.conditionId] - Optional condition ID.
+   * @param {number} [params.liquidity] - Optional liquidity parameter.
+   */
+  async predict({ marketId, side, confidence, marketTitle = 'Unknown Market', conditionId = '', liquidity = 0 }) {
     if (!marketId) throw new Error('❌ Missing marketId');
     if (typeof confidence !== 'number' || confidence <= 0 || confidence >= 1) {
       throw new Error('❌ Invalid confidence value (must be > 0 and < 1)');
@@ -86,7 +84,7 @@ export class BrierClient {
         
         return data;
 
-      } catch (e: any) {
+      } catch (e) {
         attempt++;
         if (e.name === 'TimeoutError' || e.message.includes('fetch')) {
           if (attempt <= MAX_RETRIES) {

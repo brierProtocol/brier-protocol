@@ -63,10 +63,6 @@ export async function POST(req: NextRequest) {
     // Handle wallet uniqueness — allow multiple bots per wallet by suffixing
     const finalWallet = walletAddress.toLowerCase()
 
-    // Assign a random mood for the bot character
-    const moods = ['happy', 'confident', 'neutral', 'thinking', 'intense']
-    const mood = moods[Math.floor(Math.random() * moods.length)]
-
     // Ensure the maker exists as a first-class User BEFORE creating the bot:
     // Bot.ownerWallet is a FK to User, so the row must exist first.
     await prisma.user.upsert({
@@ -86,7 +82,6 @@ export async function POST(req: NextRequest) {
         avatarId: slug,
         eyeShape: chosenShape,
         pfpUrl: chosenPfp,
-        mood,
         status: 'PAPER',
         tier: 'NONE',
         walletAddress: finalWallet,

@@ -15,8 +15,7 @@ async function main() {
       slug: "score-test-bot-" + Date.now(),
       status: "PAPER",
       color: "#ffffff",
-      mood: "neutral",
-      walletAddress: "0x" + Date.now()
+            walletAddress: "0x" + Date.now()
     }
   });
   console.log(`> Bot created. Initial Status: ${bot.status}`);

@@ -45,8 +45,12 @@ export async function GET(req: NextRequest) {
              payout = trade.entryPrice > 0 ? trade.amount / trade.entryPrice : trade.amount;
           }
 
-          const executorUrl = process.env.EXECUTOR_URL || 'http://127.0.0.1:3001'
-          const executorSecret = process.env.BUILDER_SECRET_KEY || 'your-64-char-hex-secret'
+          const executorUrl = process.env.EXECUTOR_URL
+          const executorSecret = process.env.BUILDER_SECRET_KEY
+          
+          if (!executorUrl) throw new Error('Missing EXECUTOR_URL environment variable')
+          if (!executorSecret) throw new Error('Missing BUILDER_SECRET_KEY environment variable')
+
           const t = Date.now().toString()
           
           const executorBody = JSON.stringify({

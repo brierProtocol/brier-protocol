@@ -231,10 +231,12 @@ export default function BotPerformance({ snapshots, winRate, sharpe, maxDrawdown
           )}
         </svg>
       ) : (
-        <div className="grid place-items-center text-center px-6" style={{ height: 200 }}>
+        <div className="grid place-items-center text-center px-6 border-t border-[#161620]" style={{ height: 200 }}>
           <div>
-            <div className="text-[13px] text-[#6a6a74] font-sans">The curve draws itself as predictions resolve.</div>
-            <div className="text-[11px] text-[#3f3f48] font-mono mt-1.5">not enough data yet</div>
+            <div className="text-[14px] text-white font-bold font-sans tracking-wide">Shadow Phase</div>
+            <div className="text-[12px] text-primary font-mono mt-1 mb-3">0 / 100 resolved predictions</div>
+            <div className="text-[12px] text-[#888] font-sans">Waiting for market resolution...</div>
+            <div className="text-[11px] text-[#555] font-sans mt-1">Next reputation update after settlement.</div>
           </div>
         </div>
       )}

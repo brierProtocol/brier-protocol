@@ -7,7 +7,7 @@
  * Run: npm run db:seed:adan
  *
  * ⚠️  Before going live on Brier Protocol, replace ADAN_WALLET
- *     with the real Kalshi/Polymarket trading wallet address.
+ *     with the real Polymarket trading wallet address.
  */
 const { PrismaClient } = require('@prisma/client')
 const prisma = new PrismaClient()
@@ -28,9 +28,9 @@ async function main() {
     'López de Prado AFML Suite: Triple Barrier (#20A) · CUSUM (#20D) · VPIN (#20F) · ' +
     'Meta-Labeling (#20E) · Purged Walk-Forward CV (#20C). ' +
     'MoE Dynasty: 12 crypto children + 4 LLM category children. ' +
-    '24 integrated scientific concepts. Shadow phase — Kalshi binary markets.'
+    '24 integrated scientific concepts. Shadow phase — Polymarket.'
 
-  const TAGLINE = '4-Layer ML Brain · 24 Scientific Concepts · Kalshi Binary Markets'
+  const TAGLINE = '4-Layer ML Brain · 24 Scientific Concepts · Polymarket'
 
   const adan = await prisma.bot.upsert({
     where: { slug: 'adan-pred' },
@@ -42,15 +42,11 @@ async function main() {
       color: '#FF2A4D',
       eyeShape: 'scanner',
       avatarId: 'adan-pred',
-      mood: 'intense',
       status: 'PAPER',
       tier: 'NONE',
       categories: ['crypto', 'politics', 'sports', 'economy', 'tech'],
-      marketType: 'SPOT',
-      resolution: 'EPOCH',
-      mandate: 'DIRECTIONAL',
+      strategyType: 'ML',
       walletAddress: ADAN_WALLET,
-      strategyType: 'Kalshi',
       currentTVL: 0,
       skinInGame: 0,
     },
@@ -59,11 +55,10 @@ async function main() {
       description: DESCRIPTION,
       color: '#FF2A4D',
       eyeShape: 'scanner',
-      mood: 'intense',
       status: 'PAPER',
       tier: 'NONE',
       categories: ['crypto', 'politics', 'sports', 'economy', 'tech'],
-      strategyType: 'Kalshi',
+      strategyType: 'ML',
     },
   })
   console.log(`✅ Bot upserted: ${adan.name}  (id: ${adan.id})`)
@@ -86,7 +81,7 @@ async function main() {
       brierScore: 0.21,   // above 0.20 vault gate — still calibrating
       winRate: 0.52,
       sharpe: 1.20,
-      totalTrades: 12,    // first 12 resolved Kalshi markets
+      totalTrades: 12,    // first 12 resolved Polymarket markets
       totalVolume: 850,   // USDC paper-wagered
       maxDrawdown: -0.04,
       isLatest: true,
@@ -141,9 +136,7 @@ async function main() {
   })
   console.log('✅ PolyConnection registered  (wallet indexed)')
 
-  // KalshiConnection is skipped here — requires encrypted API credentials.
-  // Connect ADAN to Kalshi via the API endpoint or Prisma Studio once you have
-  // your kalshiUserId + API key ready.
+
 
   console.log('')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')

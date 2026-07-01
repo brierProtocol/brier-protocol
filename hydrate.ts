@@ -13,8 +13,7 @@ async function main() {
   await prisma.pnlSnapshot.deleteMany()
   await prisma.botMarket.deleteMany()
   await prisma.polyConnection.deleteMany()
-  await prisma.kalshiConnection.deleteMany()
-  await prisma.bot.deleteMany()
+    await prisma.bot.deleteMany()
 
   for (const b of bots) {
     await prisma.bot.create({
@@ -24,8 +23,7 @@ async function main() {
         name: b.name,
         tagline: b.tagline,
         color: b.color,
-        mood: b.mood,
-        status: b.status,
+                status: b.status,
         tier: b.tier,
         description: b.description,
         walletAddress: b.builder,

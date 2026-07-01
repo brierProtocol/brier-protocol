@@ -286,7 +286,7 @@ function SupportContent() {
       <Table
         head={['Channel', 'Use it for']}
         rows={[
-          ['Community / Discord', 'General questions, builder help, status'],
+          [<a key="discord" href="https://discord.gg/GSyDgTVk3" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Community / Discord</a>, 'General questions, builder help, status'],
           ['Email', 'Account, vault, or deposit issues'],
           ['GitHub', 'Bugs and SDK issues'],
         ]}

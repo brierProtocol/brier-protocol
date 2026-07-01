@@ -4,7 +4,7 @@
 
 export const SHADOW_RESOLVED_TARGET = 100
 export const SHADOW_DAYS_TARGET = 21
-export const SHADOW_LCB_TARGET = 0 // Needs to be > 0
+export const SHADOW_BRIER_TARGET = 0.20
 export const NEW_GRACE_DAYS = 3
 
 export interface BotLike {
@@ -35,11 +35,13 @@ export interface ShadowProgress {
   resolved: number
   days: number
   lcb: number | null
+  brier: number | null
   winRate: number | null
   tvl: number
   resolvedPass: boolean
   daysPass: boolean
   lcbPass: boolean
+  brierPass: boolean
   eligible: boolean
   phase: BotPhase
   tradesIndexed: number
@@ -49,6 +51,8 @@ export interface ShadowProgress {
 export function shadowProgress(b: BotLike): ShadowProgress {
   const score = b.scores?.[0] ?? null
   const resolved = score?.totalTrades ?? 0
+  const brierRaw = score?.brierScore ?? b.brierScore ?? null
+  const brier = resolved > 0 && typeof brierRaw === 'number' ? brierRaw : null
   const lcbRaw = score?.lcb ?? b.lcb ?? null
   const lcb = resolved > 0 && typeof lcbRaw === 'number' ? lcbRaw : null
   const winRate = score?.winRate ?? b.winRate ?? null
@@ -59,11 +63,12 @@ export function shadowProgress(b: BotLike): ShadowProgress {
 
   const resolvedPass = resolved >= SHADOW_RESOLVED_TARGET
   const daysPass = days >= SHADOW_DAYS_TARGET
-  const lcbPass = lcb !== null && lcb > SHADOW_LCB_TARGET
+  const brierPass = brier !== null && brier <= SHADOW_BRIER_TARGET
+  const lcbPass = lcb !== null && lcb > 0
 
   const rP = clamp01(resolved / SHADOW_RESOLVED_TARGET)
   const dP = clamp01(days / SHADOW_DAYS_TARGET)
-  const lP = lcb === null ? 0 : clamp01((lcb + 0.1) / (0.1)) // mapping LCB [-0.1, 0] to [0, 1] for progress
+  const bP = brier === null ? 0 : clamp01((0.30 - brier) / (0.30 - SHADOW_BRIER_TARGET))
 
   const live = isBotLive(b)
   const tradesIndexed = b.tradesIndexed ?? (resolved > 0 ? resolved : 0)
@@ -74,18 +79,18 @@ export function shadowProgress(b: BotLike): ShadowProgress {
   else phase = 'shadow'
 
   return {
-    live, resolved, days, lcb, winRate, tvl,
-    resolvedPass, daysPass, lcbPass,
-    eligible: resolvedPass && daysPass && lcbPass,
+    live, resolved, days, lcb, brier, winRate, tvl,
+    resolvedPass, daysPass, lcbPass, brierPass,
+    eligible: resolvedPass && daysPass && brierPass,
     phase, tradesIndexed,
-    pct: live ? 1 : (rP + dP + lP) / 3,
+    pct: live ? 1 : (rP + dP + bP) / 3,
   }
 }
 
 export function phaseMeta(p: ShadowProgress): { tag: string; color: string; metric: string } {
   switch (p.phase) {
     case 'live':
-      return { tag: 'LIVE', color: '#eef0f6', metric: p.lcb !== null ? `LCB ${p.lcb.toFixed(3)}` : 'VAULT OPEN' }
+      return { tag: 'LIVE', color: '#eef0f6', metric: p.brier !== null ? `Brier ${p.brier.toFixed(3)}` : 'VAULT OPEN' }
     case 'shadow':
       return { tag: 'SHADOW', color: '#8b7bff', metric: `${p.resolved}/${SHADOW_RESOLVED_TARGET}` }
     default:

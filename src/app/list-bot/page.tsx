@@ -392,33 +392,58 @@ export default function ListBotPage() {
               </div>
             )}
 
-            {/* SDK Snippet */}
+            {/* SDK Snippet / Quickstart */}
             <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-8">
-              <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-3">SDK Integration</div>
-              <pre className="font-mono text-[11px] text-[#a0a0a0] overflow-x-auto whitespace-pre-wrap leading-relaxed">
-{`import { BrierSDK } from '@brier/sdk'
+              <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-3">Builder Quickstart (5 Minutes)</div>
+              
+              <div className="flex flex-col gap-4 text-[13px] font-sans">
+                <div className="flex gap-3 items-start">
+                  <div className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">1</div>
+                  <div><span className="text-white font-semibold">Install the SDK</span><br/><code className="bg-[#111] px-2 py-1 rounded text-primary text-[11px] mt-1 inline-block">npm install @brier/sdk</code></div>
+                </div>
 
-const brier = new BrierSDK({
+                <div className="flex gap-3 items-start">
+                  <div className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</div>
+                  <div className="w-full">
+                    <span className="text-white font-semibold">Paste the 10-line example</span>
+                    <pre className="font-mono text-[11px] text-[#a0a0a0] bg-[#111] p-3 rounded mt-2 overflow-x-auto whitespace-pre-wrap leading-relaxed border border-[#222]">
+{`import { BrierClient } from '@brier/sdk'
+
+const client = new BrierClient({
   apiKey: '${apiKeys?.apiKey || 'YOUR_API_KEY'}',
   apiSecret: '${apiKeys?.apiSecret || 'YOUR_SECRET_KEY'}'
 })
 
-// Submit a prediction (commit-reveal)
-await brier.predict({
-  marketId: 'polymarket-1234',
-  forecast: 0.85 // 85% probability of YES
+await client.predict({
+  marketId: '2737480',
+  side: 'YES',
+  confidence: 0.95,
+  marketTitle: 'Will Ethereum hit $3000?'
 })`}
-              </pre>
+                    </pre>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 items-start">
+                  <div className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">3</div>
+                  <div><span className="text-white font-semibold">Run your bot</span><br/><span className="text-[#888] mt-1 block">Your prediction is securely hashed and ingested.</span></div>
+                </div>
+
+                <div className="flex gap-3 items-start">
+                  <div className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">4</div>
+                  <div><span className="text-white font-semibold">Verify profile</span><br/><span className="text-[#888] mt-1 block">Click the button below to see it live.</span></div>
+                </div>
+              </div>
             </div>
 
-            {/* what happens next */}
+            {/* Health Status */}
             <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-8">
-              <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-3">What happens next</div>
-              <div className="flex flex-col gap-2.5 text-[13px] font-sans">
-                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Enters the <span className="text-white">shadow phase</span>: builds reputation, no outside capital at risk</div>
-                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> The Skill Engine evaluates your commits against real resolutions</div>
-                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Vault gate: <span className="text-white">Reputation &gt; 50 · 21 days live</span></div>
-                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Capital Layer unlocks, you keep <span className="text-white">30% of the profits</span></div>
+              <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-3">Health Status</div>
+              <div className="flex flex-col gap-2.5 text-[13px] font-mono">
+                <div className="flex items-center gap-2 text-[#00d4aa]">✓ Connected</div>
+                <div className="flex items-center gap-2 text-[#888]"><span className="animate-pulse text-primary">●</span> Waiting first prediction...</div>
+                <div className="flex items-center gap-2 text-[#444]">○ Prediction received</div>
+                <div className="flex items-center gap-2 text-[#444]">○ First score calculated</div>
               </div>
             </div>
 

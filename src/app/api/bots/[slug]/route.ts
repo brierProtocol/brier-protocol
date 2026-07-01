@@ -2,14 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { botReputation } from '@/lib/skill-engine';
 
-function categorizeTitle(title: string): string {
-  const t = title.toLowerCase();
-  if (t.includes('bitcoin') || t.includes('btc') || t.includes('ethereum') || t.includes('eth') || t.includes('crypto') || t.includes('solana') || t.includes('token') || t.includes('defi')) return 'Crypto';
-  if (t.includes('election') || t.includes('trump') || t.includes('biden') || t.includes('democrat') || t.includes('republican') || t.includes('president') || t.includes('senate') || t.includes('house') || t.includes('vote') || t.includes('kamala')) return 'Politics';
-  if (t.includes('rate') || t.includes('fed') || t.includes('inflation') || t.includes('cpi') || t.includes('gdp') || t.includes('economy') || t.includes('interest')) return 'Macro';
-  if (t.includes('nba') || t.includes('nfl') || t.includes('soccer') || t.includes('football') || t.includes('tennis') || t.includes('champion') || t.includes('super bowl') || t.includes('world cup')) return 'Sports';
-  return 'Other';
-}
+export const dynamic = 'force-dynamic';
+
+
 
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
@@ -20,6 +15,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       include: {
         scores: { orderBy: { snapshotDate: 'asc' }, take: 90 },
         predictions: { orderBy: { timestamp: 'desc' } },
+        trades: { orderBy: { timestamp: 'desc' } },
         pnlSnapshots: { orderBy: { date: 'asc' }, take: 90 },
         _count: { select: { hearts: true } }
       }
@@ -29,69 +25,76 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
 
     const user = bot.walletAddress ? await prisma.user.findUnique({ where: { walletAddress: bot.walletAddress.toLowerCase() } }) : null;
 
-    // ── Quant DNA and Categories ──
-    const resolvedPreds = bot.predictions.filter(p => p.status === 'WIN' || p.status === 'LOSS');
-    
-    // Frequency
-    const firstPred = bot.predictions[bot.predictions.length - 1];
-    const daysActive = firstPred ? Math.max(1, (Date.now() - new Date(firstPred.timestamp).getTime()) / 86400000) : 1;
-    const frequency = bot.predictions.length / daysActive;
-    
-    // Horizon (using createdAt if resolvedAt is missing, or just simple average days)
-    // Predictions don't have resolvedAt stored directly in the current MVP schema, 
-    // so we assume time between timestamp and now for resolved ones, or use a heuristic.
-    // For now, let's mock it based on frequency as a proxy if we don't have exact resolution times.
-    const horizonLabel = frequency > 2 ? 'Short Horizon' : 'Long Horizon';
-    const frequencyLabel = frequency > 5 ? 'High Frequency' : 'Low Frequency';
-    
-    // Confidence
-    const avgConfidence = resolvedPreds.length > 0 
-      ? resolvedPreds.reduce((sum, p) => sum + (p.confidence > 0.5 ? p.confidence : (1 - p.confidence)), 0) / resolvedPreds.length 
-      : 0;
-    const confidenceLabel = avgConfidence > 0.8 ? 'High Conviction' : (avgConfidence > 0.6 ? 'Measured Conviction' : 'Balanced');
-
-    // Categories
-    const catMap = new Map<string, typeof resolvedPreds>();
-    for (const p of bot.predictions) {
-      const cat = categorizeTitle(p.marketTitle);
-      if (!catMap.has(cat)) catMap.set(cat, []);
-      catMap.get(cat)!.push(p);
+    let builderReputation = 0;
+    if (bot.ownerWallet) {
+      const allBots = await prisma.bot.findMany({
+        where: { ownerWallet: bot.ownerWallet },
+        include: { scores: { orderBy: { snapshotDate: 'desc' }, take: 1 } }
+      });
+      for (const b of allBots) {
+        if (b.scores.length > 0 && b.scores[0].lcb != null && b.scores[0].lcb > 0) {
+          builderReputation += b.scores[0].lcb;
+        }
+      }
     }
 
-    const categoriesData = Array.from(catMap.entries()).map(([name, preds]) => {
-      const resolved = preds.filter(p => p.status === 'WIN' || p.status === 'LOSS');
-      let skill = 0;
-      if (resolved.length > 0) {
-        const rp = resolved.map(p => ({
-          pBot: p.confidence, pMarket: p.marketProbabilityAtCommit, outcome: (p.status === 'WIN' ? 1 : 0) as 1 | 0, liquidity: p.liquidity
-        }));
-        skill = botReputation(rp).skill;
-      }
-      return {
-        name,
-        volumePct: bot.predictions.length > 0 ? (preds.length / bot.predictions.length) * 100 : 0,
-        skill: skill,
-        resolvedCount: resolved.length
-      };
-    }).sort((a, b) => b.volumePct - a.volumePct);
+    // ── PERFORMANCE METRICS ──
+    const allPredictions = [...bot.predictions].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-    // Current Rank calculation (mocked for this endpoint, real rank comes from leaderboard)
-    const rank = bot.tier === 'TIER1' ? 1 : bot.tier === 'TIER2' ? 2 : bot.tier === 'TIER3' ? 3 : 'Unranked';
+    const resolvedPreds = allPredictions.filter(p => p.status === 'WIN' || p.status === 'LOSS');
+    const latestScore = bot.scores.length > 0 ? bot.scores[bot.scores.length - 1] : null;
+    const latestPnl = bot.pnlSnapshots.length > 0 ? bot.pnlSnapshots[bot.pnlSnapshots.length - 1] : null;
 
     return NextResponse.json({
       ...bot,
-      user: user ? { handle: user.handle, name: user.name, pfpUrl: user.pfpUrl } : null,
-      quantDna: {
-        frequencyLabel,
-        horizonLabel,
-        confidenceLabel,
-        avgConfidence
+      predictions: allPredictions,
+      user: user ? { handle: user.handle, name: user.name, pfpUrl: user.pfpUrl, reputation: builderReputation } : null,
+      performance: {
+        roi: latestPnl && latestScore && latestScore.totalVolume > 0 ? (latestPnl.cumulativePnl / latestScore.totalVolume) * 100 : 0,
+        winRate: latestScore ? latestScore.winRate : 0,
+        predictions: allPredictions.length,
+        resolved: resolvedPreds.length,
+        pending: allPredictions.length - resolvedPreds.length
       },
-      categoriesData,
-      rank
+      reputation: {
+        lcb: latestScore ? latestScore.lcb : 0,
+        maxDrawdown: latestScore ? latestScore.maxDrawdown : 0
+      }
     });
   } catch (error) {
     console.error('Error fetching bot:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+  try {
+    const { slug } = await params;
+    const body = await request.json();
+    const { walletAddress, name, tagline, description, pfpUrl } = body;
+
+    const bot = await prisma.bot.findFirst({
+      where: { OR: [{ slug }, { id: slug }] }
+    });
+
+    if (!bot) return NextResponse.json({ error: 'Bot not found' }, { status: 404 });
+    if (bot.ownerWallet?.toLowerCase() !== walletAddress?.toLowerCase() && bot.walletAddress?.toLowerCase() !== walletAddress?.toLowerCase()) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const updated = await prisma.bot.update({
+      where: { id: bot.id },
+      data: {
+        name: name !== undefined ? name : bot.name,
+        tagline: tagline !== undefined ? tagline : bot.tagline,
+        description: description !== undefined ? description : bot.description,
+        pfpUrl: pfpUrl !== undefined ? pfpUrl : bot.pfpUrl,
+      }
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error('Error updating bot:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

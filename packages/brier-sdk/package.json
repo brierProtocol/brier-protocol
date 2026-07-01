@@ -1,15 +1,13 @@
 {
   "name": "@brier/sdk",
   "version": "1.0.0",
-  "description": "Official Brier Protocol SDK for node.js algorithms",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "description": "Brier Protocol Official Builder SDK",
+  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "build": "tsc"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "dependencies": {},
-  "devDependencies": {
-    "typescript": "^5.0.0"
-  },
+  "keywords": ["brier", "prediction", "markets", "polymarket"],
+  "author": "Brier Protocol",
   "license": "MIT"
 }

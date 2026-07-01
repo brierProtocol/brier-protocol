@@ -15,7 +15,6 @@ model Bot {
   description String?
   tagline     String?
   color       String  @default("#0A0A0A")
-  mood        String  @default("neutral")
 
   // Status state machine
   status   String  @default("PAPER")
@@ -24,12 +23,8 @@ model Bot {
   avatarId String  @default("void-eye")
   eyeShape String  @default("round") // round | aperture | cat | diamond | scanner | ring
 
-  // --- NUEVA TAXONOMÍA INSTITUCIONAL (PERPS) ---
-  marketType  String @default("SPOT") // SPOT | PERP
-  resolution  String @default("EPOCH") // HFT | SCALP | SWING | EPOCH
-  mandate     String @default("DIRECTIONAL") // DIRECTIONAL | DELTA-NEUTRAL
-  maxLeverage Float  @default(1.0)
-  // ---------------------------------------------
+  // ------------------------
+
 
   // Polymarket categories this bot targets (e.g. ["crypto","politics"])
   categories         String[]  @default([])
@@ -64,6 +59,13 @@ model Bot {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // ── Sybil / Clone Detection (Institutional Grade) ──
+  // If a maker deploys multiple bots with the exact same algorithm, the correlation engine
+  // flags them. isClone=true hides the bot from the public leaderboard.
+  isClone          Boolean @default(false)
+  cloneOfId        String?
+  correlationScore Float?
+
   // Security & API
   apiKey         String? @unique
   apiSecret      String?
@@ -79,7 +81,6 @@ model Bot {
   incubationLogs   IncubationLog[]
   pnlSnapshots     PnlSnapshot[]
   polyConnection   PolyConnection?
-  kalshiConnection KalshiConnection?
   comments         Comment[]
   hearts           Heart[]
   predictions      Prediction[]
@@ -329,17 +330,6 @@ model PolyConnection {
   lastSyncAt      DateTime?
 }
 
-model KalshiConnection {
-  id           String    @id @default(cuid())
-  botId        String    @unique
-  bot          Bot       @relation(fields: [botId], references: [id], onDelete: Cascade)
-  encryptedKey String
-  keyIv        String
-  keyAuthTag   String
-  kalshiUserId String
-  lastSyncAt   DateTime?
-  syncStatus   String    @default("idle")
-}
 
 model PnlSnapshot {
   id            String   @id @default(cuid())

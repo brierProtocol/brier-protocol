@@ -7,7 +7,9 @@ import { prisma } from '@/lib/db/prisma'
 export async function POST(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const key = req.headers.get('x-brier-key')
-    if (!process.env.BOT_INGEST_KEY || key !== process.env.BOT_INGEST_KEY) {
+    const validKey = process.env.BOT_INGEST_KEY
+    if (!validKey) throw new Error('Missing BOT_INGEST_KEY environment variable')
+    if (key !== validKey) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

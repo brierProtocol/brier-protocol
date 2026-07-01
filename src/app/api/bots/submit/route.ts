@@ -11,8 +11,8 @@ const CreateBotSchema = z.object({
   strategyType: z.string().min(2).max(100),
   description: z.string().min(20).max(500),
   // Step 2
-  source: z.enum(['KALSHI', 'POLYMARKET']),
-  kalshiApiKey: z.string().optional(),
+  source: z.enum(['POLYMARKET']),
+
   polyWalletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid Ethereum address").optional(),
   // Step 3
   builderCarry: z.number().min(0).max(30),
@@ -65,15 +65,6 @@ export async function POST(req: NextRequest) {
         },
       }
     })
-
-    // Connect data source
-    if (data.source === 'KALSHI' && data.kalshiApiKey) {
-      const encrypted = encryptApiKey(data.kalshiApiKey)
-      // Verify key works (Simulated for this demo)
-      await prisma.kalshiConnection.create({
-        data: { botId: bot.id, ...encrypted, kalshiUserId: 'fake-id' }
-      })
-    }
 
     if (data.source === 'POLYMARKET' && data.polyWalletAddress) {
       await prisma.polyConnection.create({

@@ -1,5 +1,5 @@
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query'
-import type { Bot } from '@/data/bots'
+// Type definition removed since mock data is deleted. Using any for now.
 
 export function useBots(sort = 'brier', filter = 'all', limit = 20) {
   return useInfiniteQuery({
@@ -18,7 +18,7 @@ export function useBots(sort = 'brier', filter = 'all', limit = 20) {
 }
 
 export function useBot(slug: string) {
-  return useQuery<Bot>({
+  return useQuery<any>({
     queryKey: ['bot', slug],
     queryFn: async () => {
       const res = await fetch(`/api/bots/${slug}`)

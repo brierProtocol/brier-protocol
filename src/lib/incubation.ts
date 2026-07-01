@@ -1,6 +1,6 @@
 import { prisma } from './db/prisma'
 import { FEATURES } from './features'
-import { SHADOW_RESOLVED_TARGET, SHADOW_DAYS_TARGET, SHADOW_LCB_TARGET } from './botProgress'
+import { SHADOW_RESOLVED_TARGET, SHADOW_DAYS_TARGET, SHADOW_BRIER_TARGET } from './botProgress'
 
 const T1_MAX_DRAWDOWN = 0.25
 const MS_PER_DAY = 1000 * 60 * 60 * 24
@@ -21,7 +21,7 @@ export async function checkStatusTransitions(botId: string) {
 
   if (bot.status === 'LIVE') {
     const meetsTrades = score.totalTrades >= SHADOW_RESOLVED_TARGET
-    const meetsLcb = score.lcb !== null && score.lcb > SHADOW_LCB_TARGET
+    const meetsLcb = score.brierScore !== null && score.brierScore <= SHADOW_BRIER_TARGET
     const meetsDrawdown = Math.abs(score.maxDrawdown) <= T1_MAX_DRAWDOWN
     const daysInShadow = (Date.now() - bot.createdAt.getTime()) / MS_PER_DAY
     const meetsTime = daysInShadow >= SHADOW_DAYS_TARGET
