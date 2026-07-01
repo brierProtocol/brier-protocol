@@ -3,6 +3,7 @@ import { Queue } from 'bullmq';
 import { createRequire } from 'module';
 import crypto from 'node:crypto';
 import { candidateSecrets, verifyAgainst } from './keys.js';
+import rateLimit from '@fastify/rate-limit';
 const require = createRequire(import.meta.url);
 const Redis = require('ioredis');
 
@@ -97,7 +98,7 @@ fastify.addHook('onRequest', async (req, reply) => {
 
 // Global rate limit (distributed via the existing Redis) on every route — health,
 // signals and settle. Per-bot HMAC auth still applies on top.
-await fastify.register(import('@fastify/rate-limit'), {
+await fastify.register(rateLimit, {
   max: 120,
   timeWindow: '1 minute',
   redis,
