@@ -5,14 +5,19 @@ import { useRef } from 'react'
 import BotIrisAvatar from './BotIrisAvatar'
 
 export default function BotUplink({
-  eye, status, lastFill, resolved,
+  eye, status, lastFill, resolved, online,
 }: {
   eye: { avatarId: string; accentColor: string; shape?: any }
   status: 'live' | 'awaiting'
   lastFill?: string | null
   resolved?: number
+  /** Real-time heartbeat state. When provided, drives the signal (the bot is
+   *  "transmitting" when its heartbeat is fresh, regardless of trade history). */
+  online?: boolean
 }) {
-  const live = status === 'live'
+  // Signal = the live heartbeat. Falls back to trade-derived status only if the
+  // heartbeat state was not passed in.
+  const live = online === undefined ? status === 'live' : online
   const accent = live ? '#c8ff00' : '#3a3a4a'
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -31,8 +36,8 @@ export default function BotUplink({
   function onMouseLeave() { rawX.set(0); rawY.set(0) }
 
   const metrics = [
-    { k: 'Status', v: live ? 'ONLINE' : 'OFFLINE', c: live ? '#c8ff00' : '#ff5570' },
-    { k: 'Signal', v: live ? 'ACTIVE' : 'SILENT', c: live ? '#c8ff00' : '#444' },
+    { k: 'Bot', v: live ? 'OPERATING' : 'OFFLINE', c: live ? '#c8ff00' : '#ff5570' },
+    { k: 'Signal', v: live ? 'LIVE' : 'SILENT', c: live ? '#c8ff00' : '#444' },
     { k: 'Last trade', v: lastFill || 'never', c: '#ccc' },
     { k: 'Resolved', v: resolved != null ? resolved.toLocaleString() : '0', c: '#8b7bff' },
   ]
@@ -205,7 +210,9 @@ export default function BotUplink({
           ))}
         </div>
         <div className="mt-3 text-[10px] text-[#333] font-mono leading-relaxed">
-          Inferred from on-chain activity. Brier tracks the wallet, not the machine.
+          {live
+            ? 'Live heartbeat from the bot. Predictions are scored on real resolutions.'
+            : 'No heartbeat. Start the bot with its credentials to bring the signal online.'}
         </div>
       </div>
     </div>

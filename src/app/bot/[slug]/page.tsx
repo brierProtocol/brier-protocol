@@ -249,9 +249,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
 
   const VIOLET = '#8b7bff', TEAL = '#c8ff00'
   const criteria = [
-    { label: 'Resolved predictions', val: `${sp.resolved} / ${SHADOW_RESOLVED_TARGET}`, ok: sp.resolvedPass, pct: Math.min(1, sp.resolved / SHADOW_RESOLVED_TARGET) },
-    { label: 'Skill vs market', val: sp.skill != null ? `LCB ${sp.skill >= 0 ? '+' : ''}${sp.skill.toFixed(3)}` : 'LCB > 0', ok: sp.skillPass, pct: sp.skill == null ? 0 : Math.min(1, Math.max(0, sp.skill / 0.10)) },
-    { label: 'Days live', val: `${sp.days} / ${SHADOW_DAYS_TARGET}`, ok: sp.daysPass, pct: Math.min(1, sp.days / SHADOW_DAYS_TARGET) },
+    { label: 'Resolved predictions', hint: 'How many of its predictions have settled. A big enough sample so the score is not luck.', val: `${sp.resolved} / ${SHADOW_RESOLVED_TARGET}`, ok: sp.resolvedPass, pct: Math.min(1, sp.resolved / SHADOW_RESOLVED_TARGET) },
+    { label: 'Skill vs market', hint: 'Does it beat the market price, not just call obvious outcomes. LCB (lower confidence bound) discounts luck: a few lucky calls will not pass it. This is why the gate is skill-vs-market, not raw Brier.', val: sp.skill != null ? `LCB ${sp.skill >= 0 ? '+' : ''}${sp.skill.toFixed(3)}` : 'LCB > 0', ok: sp.skillPass, pct: sp.skill == null ? 0 : Math.min(1, Math.max(0, sp.skill / 0.10)) },
+    { label: 'Days live', hint: 'Minimum time proving in the open, so a short hot streak cannot graduate to a vault.', val: `${sp.days} / ${SHADOW_DAYS_TARGET}`, ok: sp.daysPass, pct: Math.min(1, sp.days / SHADOW_DAYS_TARGET) },
   ]
   const clearedCount = criteria.filter(c => c.ok).length
 
@@ -527,7 +527,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           <div className="flex flex-col gap-5 min-w-0">
 
             {/* signal — live connection visual */}
-            <BotUplink eye={eye} status={uplink} lastFill={lastFill} resolved={sp.resolved} />
+            <BotUplink eye={eye} status={uplink} lastFill={lastFill} resolved={sp.resolved} online={isOnline} />
 
             {/* performance — Liveline real-time-style P&L curve */}
             <BotPerformance
@@ -543,11 +543,11 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 locked in before resolution. This is the live feed of "new bets". */}
             <Panel>
               <div className="px-5 py-3.5 border-b border-[#141414] flex items-center justify-between">
-                <div><span className="font-sans font-bold text-[14px]">Predictions</span><span className="ml-2 font-mono text-[10px] text-[#555]">committed live · scored on resolution</span></div>
+                <div><span className="font-sans font-bold text-[14px]">Predictions</span><span className="ml-2 font-mono text-[10px] text-[#555]">its live calls · HIT or MISS on resolution</span></div>
                 <span className="font-mono text-[11px] text-[#888] tabular-nums">{(bot.predictions || []).length}</span>
               </div>
               {(bot.predictions || []).length === 0 ? (
-                <div className="px-5 py-12 text-center text-[13px] text-[#555]">No predictions yet. When the bot commits a forecast it lands here instantly, locked in before the market resolves.</div>
+                <div className="px-5 py-12 text-center text-[13px] text-[#555]">No calls yet. The moment the bot makes a prediction it shows up here, then flips to HIT or MISS when the market resolves.</div>
               ) : (
                 <>
                   <div className="flex items-center gap-3 px-5 py-2 border-b border-[#101010] font-mono text-[9px] uppercase tracking-[0.14em] text-[#48484f]">
@@ -683,11 +683,12 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               </div>
               <div className="flex flex-col gap-4">
                 {criteria.map((c, idx) => (
-                  <div key={c.label}>
+                  <div key={c.label} title={c.hint}>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-[13px] font-semibold inline-flex items-center gap-2" style={{ color: c.ok ? '#e8e8e8' : '#bbb' }}>
                         <span className="grid place-items-center w-4 h-4 rounded-full text-[9px]" style={{ background: c.ok ? TEAL : '#1c1c22', color: c.ok ? '#030303' : VIOLET }}>{c.ok ? '✓' : idx + 1}</span>
                         {c.label}
+                        <span className="text-[#3f3f48] text-[10px] cursor-help">ⓘ</span>
                       </span>
                       <span className="font-mono text-[12px] tabular-nums" style={{ color: c.ok ? '#9a9a9a' : VIOLET }}>{c.val}</span>
                     </div>
@@ -801,9 +802,23 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         </div>
       </div>
 
-      {toast && (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="fixed bottom-8 right-8 z-[9999] bg-[#0d0d0d] border border-primary/40 text-white text-[13px] px-4 py-2.5 rounded-xl shadow-[0_0_24px_rgba(255,42,77,0.25)]">{toast}</motion.div>
-      )}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            className="fixed bottom-8 right-8 z-[9999] flex items-center gap-3 bg-[#0b0b0d]/95 backdrop-blur-md border border-primary/40 text-white text-[13px] font-sans pl-3.5 pr-4 py-3 rounded-2xl shadow-[0_8px_40px_rgba(255,42,77,0.28)] max-w-[360px]"
+          >
+            <span className="relative flex w-2.5 h-2.5 shrink-0">
+              <span className="absolute inline-flex w-full h-full rounded-full bg-primary opacity-60 animate-ping" />
+              <span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-primary" />
+            </span>
+            <span className="leading-snug">{toast}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
