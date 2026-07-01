@@ -398,14 +398,14 @@ export default function ListBotPage() {
             <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-8">
               <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-3">SDK Integration</div>
               <pre className="font-mono text-[11px] text-[#a0a0a0] overflow-x-auto whitespace-pre-wrap leading-relaxed">
-{`import { BrierSDK } from '@brier/sdk'
+{`import { BrierClient } from '@brier/sdk'
 
-const brier = new BrierSDK({
+const brier = new BrierClient({
   apiKey: '${apiKeys?.apiKey || 'YOUR_API_KEY'}',
   apiSecret: '${apiKeys?.apiSecret || 'YOUR_SECRET_KEY'}'
 })
 
-// Submit a prediction (commit-reveal)
+// Submit a prediction (HMAC-signed automatically)
 await brier.predict({
   marketId: 'polymarket-1234',
   forecast: 0.85 // 85% probability of YES
