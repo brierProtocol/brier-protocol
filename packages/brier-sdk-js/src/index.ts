@@ -78,8 +78,10 @@ export class BrierClient {
   constructor(opts: BrierClientOptions) {
     if (!opts.baseUrl) throw new Error('BrierClient: baseUrl is required')
     if (!opts.apiKey) throw new Error('BrierClient: apiKey is required')
-    this.baseUrl = opts.baseUrl.replace(/\/+$/, '')
-    this.executorUrl = opts.executorUrl?.replace(/\/+$/, '')
+    // Strip trailing slashes without a backtracking regex (ReDoS-safe).
+    const stripSlashes = (s: string) => { let e = s.length; while (e > 0 && s.charCodeAt(e - 1) === 47) e--; return s.slice(0, e) }
+    this.baseUrl = stripSlashes(opts.baseUrl)
+    this.executorUrl = opts.executorUrl ? stripSlashes(opts.executorUrl) : undefined
     this.apiKey = opts.apiKey
     this.maxRetries = opts.maxRetries ?? 3
     this.timeoutMs = opts.timeoutMs ?? 10_000
