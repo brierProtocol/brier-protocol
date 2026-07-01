@@ -84,6 +84,7 @@ model Bot {
   comments         Comment[]
   hearts           Heart[]
   predictions      Prediction[]
+  apiKeys          ApiKey[]
   maker            User?             @relation("BotMaker", fields: [ownerWallet], references: [walletAddress])
 
   @@index([walletAddress])
@@ -554,4 +555,27 @@ model TokenHolding {
   updatedAt DateTime @updatedAt
 
   @@unique([tokenId, wallet])
+}
+
+// ─────────────────────────────────────────────────────────────
+// API KEY (de #68 builder-api-keys): per-builder signing keys que reemplazan
+// el HMAC global. El secreto se guarda encriptado (nunca raw). Revocable por key.
+// ─────────────────────────────────────────────────────────────
+model ApiKey {
+  id            String    @id @default(cuid())
+  botId         String
+  bot           Bot       @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  prefix        String    @unique
+  label         String    @default("default")
+
+  encryptedKey  String
+  keyIv         String
+  keyAuthTag    String
+
+  lastUsedAt    DateTime?
+  revokedAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([botId])
 }

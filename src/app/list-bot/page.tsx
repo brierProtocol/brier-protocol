@@ -87,8 +87,14 @@ export default function ListBotPage() {
       // Key generation now requires a wallet SIGNATURE proving ownership.
       const newBotId = result.botId || result.id
       const keyTs = Date.now()
-      const keyMsg = `Brier: generate API key for bot ${newBotId} at ${keyTs}`
-      
+      // Must match owner-auth.ownershipMessage(botId, address, timestamp) exactly.
+      const keyMsg = [
+        'Brier API key management',
+        `Bot: ${newBotId}`,
+        `Wallet: ${address}`,
+        `Time: ${keyTs}`,
+      ].join('\n')
+
       let keySig: string
       try {
         keySig = await signMessageAsync({ message: keyMsg })
@@ -96,21 +102,22 @@ export default function ListBotPage() {
         throw new Error(signErr?.shortMessage || signErr?.message || 'Signature for API keys rejected.')
       }
 
-      const keysRes = await fetch('/api/bot/keys', {
+      const keysRes = await fetch(`/api/bots/${newBotId}/keys`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          botId: newBotId,
           address: address,
           signature: keySig,
           timestamp: keyTs,
+          label: 'default',
         }),
       })
       const keysData = await keysRes.json()
       if (!keysRes.ok) throw new Error(keysData.error || 'Failed to generate API Keys.')
-      
-      if (keysData.apiKey) {
-        setApiKeys({ apiKey: keysData.apiKey, apiSecret: keysData.apiSecret })
+
+      // Per-bot key system: `prefix` is the public id (sent as x-brier-key), `secret` shown once.
+      if (keysData.secret) {
+        setApiKeys({ apiKey: keysData.prefix, apiSecret: keysData.secret })
       }
 
       setDeployedSlug(result.slug)
