@@ -16,7 +16,12 @@ const TRANSFER_EVENT_SIG = ethers.id('Transfer(address,address,uint256)');
  */
 export async function POST(request: NextRequest) {
   try {
-    const { botId, depositorWallet, txHash } = await request.json();
+    const body = await request.json();
+    const { botId, txHash } = body;
+    // Normalizar a minúsculas: el updateMany de VaultDeposit filtra por wallet exacta
+    // y los depósitos se guardan lowercased, así que sin esto el casing distinto
+    // dejaría deposits activos con la posición ya cerrada (WARN-2).
+    const depositorWallet = String(body?.depositorWallet ?? '').toLowerCase();
 
     if (!botId || !depositorWallet || !txHash) {
       return NextResponse.json(

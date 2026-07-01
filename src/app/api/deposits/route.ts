@@ -25,7 +25,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { botId, depositorWallet, txHash, mode } = body;
+    const { botId, txHash, mode } = body;
+    let depositorWallet = body?.depositorWallet;
 
     if (!botId || !depositorWallet || !txHash) {
       return NextResponse.json(
@@ -112,6 +113,11 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       );
     }
+
+    // Normalizar la wallet a minúsculas antes de persistir: el @@unique([userWallet,botId])
+    // de VaultPosition es case-sensitive en Postgres, así que guardar el casing crudo
+    // permitiría dos posiciones del mismo LP en el mismo bot (WARN-1).
+    depositorWallet = String(depositorWallet).toLowerCase();
 
     // LIFECYCLE + CAPACITY: un vault cerrado (black swan) o lleno no acepta depósitos.
     // Sobre-llenar diluye a los que ya entraron; un vault cerrado solo permite claim.
