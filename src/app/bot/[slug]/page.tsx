@@ -584,7 +584,10 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               )}
             </Panel>
 
-            {/* trade history */}
+            {/* on-chain fills — only shown once there ARE real on-chain trades.
+                In shadow phase there are none, so we hide it entirely to avoid the
+                "why is this empty?" confusion. Predictions is the shadow artifact. */}
+            {trades.length > 0 && (
             <Panel>
               <div className="px-5 py-3.5 border-b border-[#141414]">
                 <div className="flex items-center justify-between mb-2.5">
@@ -620,6 +623,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 </div>
               )}
             </Panel>
+            )}
 
             {/* comments */}
             <Panel>
