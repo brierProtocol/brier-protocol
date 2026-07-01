@@ -57,6 +57,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const [depositing, setDepositing] = useState(false)
   const [toast, setToast] = useState('')
   const [activeStat, setActiveStat] = useState<string | null>(null)
+  const [openHint, setOpenHint] = useState<string | null>(null)
   const [confettiBurst, setConfettiBurst] = useState(0)
 
   const [isEditing, setIsEditing] = useState(false)
@@ -683,18 +684,25 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               </div>
               <div className="flex flex-col gap-4">
                 {criteria.map((c, idx) => (
-                  <div key={c.label} title={c.hint}>
+                  <div key={c.label}>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-[13px] font-semibold inline-flex items-center gap-2" style={{ color: c.ok ? '#e8e8e8' : '#bbb' }}>
                         <span className="grid place-items-center w-4 h-4 rounded-full text-[9px]" style={{ background: c.ok ? TEAL : '#1c1c22', color: c.ok ? '#030303' : VIOLET }}>{c.ok ? '✓' : idx + 1}</span>
                         {c.label}
-                        <span className="text-[#3f3f48] text-[10px] cursor-help">ⓘ</span>
+                        <button onClick={() => setOpenHint(openHint === c.label ? null : c.label)} className="grid place-items-center w-4 h-4 rounded-full border border-[#2a2a34] text-[#6a6a74] text-[9px] hover:text-white hover:border-[#444] transition-colors cursor-pointer" aria-label="What is this?">?</button>
                       </span>
                       <span className="font-mono text-[12px] tabular-nums" style={{ color: c.ok ? '#9a9a9a' : VIOLET }}>{c.val}</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-[#0e0e0e] overflow-hidden">
                       <motion.div className="h-full rounded-full" style={{ background: c.ok ? TEAL : VIOLET }} initial={{ width: 0 }} animate={{ width: `${c.pct * 100}%` }} transition={{ duration: 0.9, ease: 'easeOut', delay: idx * 0.12 }} />
                     </div>
+                    <AnimatePresence>
+                      {openHint === c.label && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                          <div className="mt-2 rounded-lg border-l-2 border-primary/50 bg-[#0a0a0e] px-3 py-2 text-[12px] text-[#b4b4be] leading-relaxed">{c.hint}</div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 ))}
               </div>
