@@ -47,6 +47,23 @@ const Panel = ({ children, className = '' }: { children: React.ReactNode; classN
   <div className={`rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden ${className}`}>{children}</div>
 )
 
+function normalizePrediction(p: any) {
+  return {
+    botId: p.botId,
+    marketId: p.marketId,
+    marketTitle: p.marketTitle && p.marketTitle !== "Unknown Market" && p.marketTitle !== "Loading market metadata..." 
+      ? p.marketTitle : "Loading market metadata...",
+    side: p.side, // YES / NO
+    confidence: Number(p.confidence || 0),
+    marketProbabilityAtCommit: Number(p.marketProbabilityAtCommit || 0),
+    status: p.status || "PENDING",
+    timestamp: new Date(p.timestamp || p.createdAt || new Date()),
+    resolvedAt: p.resolvedAt ? new Date(p.resolvedAt) : null,
+    category: p.category || null,
+    image: p.image || null,
+  };
+}
+
 export default function BotProfilePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
 
@@ -56,6 +73,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const [postText, setPostText] = useState('')
   const [depositAmt, setDepositAmt] = useState('')
   const [trades, setTrades] = useState<any[]>([])
+  const [visibleCount, setVisibleCount] = useState(10)
   const [hearts, setHearts] = useState(0)
   const [hearted, setHearted] = useState(false)
   const [likeFx, setLikeFx] = useState(0)
@@ -113,7 +131,11 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         setBot(mapped)
         setEditName(mapped.name); setEditTagline(mapped.tagline || ''); setEditDesc(mapped.description || ''); setEditPfp(mapped.pfpUrl || '')
         setHearts(dbBot._count?.hearts || 0)
-        setTrades(mapped.predictions || [])
+        const rawTrades = mapped.predictions || [];
+        const sortedNormalized = rawTrades
+          .map(normalizePrediction)
+          .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        setTrades(sortedNormalized)
         setLoading(false)
         fetch(`/api/comments?botId=${mapped.id}`).then(r => r.json()).then(d => { if (Array.isArray(d)) setPosts(d) })
       })
@@ -467,20 +489,20 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 <div className="px-5 py-12 text-center text-[13px] text-[#555]">No trades indexed yet. Once this wallet trades on Polymarket, every fill lands here.</div>
               ) : (
                 <div className="max-h-[360px] overflow-y-auto">
-                  {trades.map((t, i) => {
+                  {trades.slice(0, visibleCount).map((t, i) => {
                       const yes = t.side === 'YES';
                       const status = t.status;
                       const oc = status === 'WIN' ? TEAL : status === 'LOSS' ? '#ff5570' : VIOLET;
                       const confidence = t.confidence;
                       const prob = t.marketProbabilityAtCommit;
-                      const edge = t.edge;
+                      const edge = Number.isFinite(confidence) && Number.isFinite(prob) ? confidence - prob : 0;
                       const edgeFmt = (edge > 0 ? '+' : '') + (edge * 100).toFixed(1) + '%';
                       const fmtFull = (d: any) => d ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }).format(new Date(d)) + ' UTC' : '—';
                       
                       return (
                         <div key={t.id || i} className="flex flex-col gap-2.5 px-5 py-4 border-b border-[#101010] hover:bg-[#0b0b0b] transition-colors" style={{ borderLeft: `2px solid ${oc}` }}>
                           <div className="flex items-start justify-between gap-4">
-                            <span className="flex-1 min-w-0 text-[14px] text-white font-bold font-sans tracking-wide leading-snug">{t.marketTitle === 'Unknown Market' ? 'Loading market metadata...' : (t.marketTitle || 'Loading market metadata...')}</span>
+                            <span className="flex-1 min-w-0 text-[14px] text-white font-bold font-sans tracking-wide leading-snug">{t.marketTitle}</span>
                             <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded shrink-0" style={{ color: yes ? TEAL : '#ff5570', background: yes ? `${TEAL}14` : '#ff557014' }}>{t.side || (yes ? 'YES' : 'NO')}</span>
                           </div>
                           
@@ -509,6 +531,14 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                         </div>
                     )
                   })}
+                  {trades.length > visibleCount && (
+                    <button
+                      onClick={() => setVisibleCount(c => c + 10)}
+                      className="w-full py-3 font-mono text-[11px] text-[#888] hover:text-white hover:bg-[#111] transition-colors border-t border-[#101010]"
+                    >
+                      Load more trades ({trades.length - visibleCount} remaining)
+                    </button>
+                  )}
                 </div>
               )}
             </Panel>
