@@ -99,6 +99,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           maxDrawdown: s?.maxDrawdown ?? null, totalTrades: s?.totalTrades ?? 0, totalVolume: s?.totalVolume ?? null,
           pnlSnapshots: dbBot.pnlSnapshots || [], tradesIndexed: dbBot._count?.trades ?? (dbBot.trades?.length ?? 0),
           lastHeartbeatAt: dbBot.lastHeartbeatAt ?? null, liveActivity: dbBot.liveActivity ?? null,
+          scoreHistory: (dbBot.scores || []).map((s: any) => ({ brier: s.brierScore, date: s.snapshotDate })),
         }
         setBot(mapped)
         setEditName(mapped.name); setEditTagline(mapped.tagline || ''); setEditDesc(mapped.description || ''); setEditPfp(mapped.pfpUrl || '')
@@ -200,6 +201,17 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   // ── derivations ──
   // Operating vs offline: a beat within the last 12s (3 missed ~4s beats) = live.
   const isOnline = !!(bot.lastHeartbeatAt && Date.now() - new Date(bot.lastHeartbeatAt).getTime() < 12_000)
+
+  // Brier trajectory: is the bot getting sharper over time? History comes newest
+  // first; reverse to oldest→newest. A FALLING Brier means improving calibration.
+  const brierSeries: number[] = [...(bot.scoreHistory || [])]
+    .map((s: any) => s.brier).filter((v: any) => typeof v === 'number').reverse()
+  const trend = brierSeries.length >= 2
+    ? (() => {
+        const delta = brierSeries[brierSeries.length - 1] - brierSeries[0] // <0 = improving
+        return { delta, improving: delta < -0.003, worsening: delta > 0.003, series: brierSeries }
+      })()
+    : null
   const sp = shadowProgress({
     status: bot.status, createdAt: bot.createdAt, vaultOpen: bot.vaultOpen, currentTVL: bot.tvl,
     scores: [{ brierScore: bot.brierScore ?? undefined, winRate: bot.winRate ?? undefined, totalTrades: bot.totalTrades }],
@@ -248,6 +260,18 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
 
   const Panel = ({ children, className = '' }: { children: React.ReactNode; className?: string }) =>
     <div className={`rounded-2xl border border-[#1a1a1a] bg-[#080809] ${className}`}>{children}</div>
+
+  // Tiny inline sparkline for the Brier trajectory (no external chart dep).
+  const Sparkline = ({ values, color }: { values: number[]; color: string }) => {
+    if (values.length < 2) return null
+    const w = 92, h = 24, min = Math.min(...values), max = Math.max(...values), span = max - min || 1
+    const pts = values.map((v, i) => `${(i / (values.length - 1)) * w},${h - ((v - min) / span) * h}`).join(' ')
+    return (
+      <svg width={w} height={h} aria-hidden>
+        <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#030303] font-sans text-[#e8e8e8]">
@@ -463,7 +487,22 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           </div>
         </div>
 
-        {bot.description && <p className="text-[14px] leading-relaxed text-[#9a9a9a] mb-8 max-w-3xl whitespace-pre-wrap">{bot.description}</p>}
+        {bot.description && <p className="text-[14px] leading-relaxed text-[#9a9a9a] mb-4 max-w-3xl whitespace-pre-wrap">{bot.description}</p>}
+
+        {/* why this is real — verifiability. Category-agnostic: reads the same for a
+            crypto, politics or climate bot. This is what separates it from "cope". */}
+        <div className="flex flex-wrap gap-2 mb-8">
+          {[
+            { icon: '⏱', label: 'Timestamped commits', tip: 'Every prediction is locked in before the market resolves. No editing after the fact.' },
+            { icon: '✓', label: 'Scored on resolved outcomes', tip: 'Brier is computed only from predictions that already settled. No cherry-picking.' },
+            { icon: '◉', label: isOnline ? 'Operating now' : 'Heartbeat monitored', tip: 'The bot beats every few seconds; it reads Operating only when genuinely live.' },
+            bot.builder ? { icon: '🔗', label: 'On-chain wallet', href: `https://polygonscan.com/address/${bot.builder}`, tip: 'The execution wallet is public and auditable on-chain.' } : null,
+          ].filter(Boolean).map((c: any) => (
+            c.href
+              ? <a key={c.label} href={c.href} target="_blank" rel="noopener noreferrer" title={c.tip} className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-[#8a8a94] border border-[#1a1a22] rounded-full px-3 py-1.5 hover:border-[#2a2a34] hover:text-white transition-colors no-underline">{c.icon} {c.label} <span className="text-[#444]">↗</span></a>
+              : <span key={c.label} title={c.tip} className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-[#8a8a94] border border-[#1a1a22] rounded-full px-3 py-1.5">{c.icon} {c.label}</span>
+          ))}
+        </div>
 
         {isOwner && isEditing && (
           <Panel className="mb-8 p-5">
@@ -631,6 +670,24 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                   {grade && <span className="font-mono text-[10px] font-bold tracking-[0.16em]" style={{ color: grade.c }}>{grade.t}</span>}
                 </div>
               </button>
+
+              {/* trajectory — is the bot getting sharper? Falling Brier = improving. */}
+              {trend ? (
+                <div className="flex items-center justify-between rounded-lg border border-[#1a1a22] bg-[#08080c] px-4 py-2.5 mb-2.5">
+                  <div>
+                    <div className="font-mono text-[9px] tracking-[0.18em] uppercase text-[#5a5a64]">Trajectory</div>
+                    <div className="font-sans font-bold text-[13px] mt-0.5" style={{ color: trend.improving ? TEAL : trend.worsening ? '#ff5570' : '#9a9a9a' }}>
+                      {trend.improving ? '▼ Sharpening' : trend.worsening ? '▲ Slipping' : '— Steady'}
+                      <span className="font-mono text-[10px] text-[#5a5a64] ml-1.5">{trend.delta >= 0 ? '+' : ''}{trend.delta.toFixed(3)} over {trend.series.length}</span>
+                    </div>
+                  </div>
+                  <Sparkline values={trend.series} color={trend.improving ? TEAL : trend.worsening ? '#ff5570' : '#6a6a74'} />
+                </div>
+              ) : (
+                <div className="rounded-lg border border-[#141420] bg-[#08080c] px-4 py-2.5 mb-2.5 font-mono text-[10px] text-[#5a5a64]">
+                  Trajectory appears once a few daily scores accumulate.
+                </div>
+              )}
 
               {/* stat grid — each cell is interactive */}
               <div className="grid grid-cols-2 gap-px bg-[#13131b] border border-[#13131b] rounded-lg overflow-hidden">

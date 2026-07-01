@@ -14,9 +14,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
         ]
       },
       include: {
+        // Recent score history (newest first) so the profile can show the Brier
+        // TREND (is the bot improving?), not just the latest snapshot.
         scores: {
-          where: { isLatest: true },
-          take: 1
+          orderBy: { snapshotDate: 'desc' },
+          take: 30
         },
         trades: {
           orderBy: { timestamp: 'desc' },
@@ -44,8 +46,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       ? await prisma.user.findUnique({ where: { walletAddress: bot.walletAddress.toLowerCase() } })
       : null;
 
+    // SECURITY: never serialize the signing credentials to the client.
+    const { apiKey: _apiKey, apiSecret: _apiSecret, ...safeBot } = bot;
+
     return NextResponse.json({
-      ...bot,
+      ...safeBot,
       liveNav,
       user: user ? { handle: user.handle, name: user.name, pfpUrl: user.pfpUrl } : null
     });
