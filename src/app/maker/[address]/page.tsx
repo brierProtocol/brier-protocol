@@ -226,7 +226,15 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
               <div className="flex items-center gap-2">
                 {isOwner ? (
                   <>
-                    <button onClick={() => setXOpen(true)} className="inline-flex items-center gap-2 rounded-full border border-[#262630] px-4 py-2 text-[12px] font-semibold text-[#ddd] hover:border-[#3a3a44] hover:text-white transition-colors">
+                    <button
+                      onClick={() => {
+                        // Not linked yet → go straight to the real X OAuth. Already
+                        // linked → open the modal to manage/unlink.
+                        if (!xHandle && connected) { window.location.href = `/api/auth/twitter?wallet=${connected}` }
+                        else setXOpen(true)
+                      }}
+                      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[12px] font-semibold transition-colors ${xHandle ? 'border border-[#262630] text-[#ddd] hover:border-[#3a3a44] hover:text-white' : 'bg-white text-black hover:bg-[#e8e8e8]'}`}
+                    >
                       <XLogo size={13} /> {xHandle ? 'Manage X' : 'Connect X'}
                     </button>
                     <button onClick={() => { setIsEditing(v => !v); setEditHandle(profile?.handle || ''); setEditName(profile?.name || ''); setEditBio(profile?.bio || ''); setEditPfp(profile?.pfpUrl || '') }}
