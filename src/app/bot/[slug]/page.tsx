@@ -100,6 +100,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           pnlSnapshots: dbBot.pnlSnapshots || [], tradesIndexed: dbBot._count?.trades ?? (dbBot.trades?.length ?? 0),
           lastHeartbeatAt: dbBot.lastHeartbeatAt ?? null, liveActivity: dbBot.liveActivity ?? null,
           scoreHistory: (dbBot.scores || []).map((s: any) => ({ brier: s.brierScore, date: s.snapshotDate })),
+          predictions: dbBot.predictions || [],
         }
         setBot(mapped)
         setEditName(mapped.name); setEditTagline(mapped.tagline || ''); setEditDesc(mapped.description || ''); setEditPfp(mapped.pfpUrl || '')
@@ -117,7 +118,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     if (!slug) return
     const tick = () => fetch(`/api/bots/${slug}`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setBot((prev: any) => prev ? { ...prev, lastHeartbeatAt: d.lastHeartbeatAt ?? null, liveActivity: d.liveActivity ?? null } : prev) })
+      .then(d => { if (d) setBot((prev: any) => prev ? { ...prev, lastHeartbeatAt: d.lastHeartbeatAt ?? null, liveActivity: d.liveActivity ?? null, predictions: d.predictions ?? prev.predictions } : prev) })
       .catch(() => {})
     const id = setInterval(tick, 5000)
     return () => clearInterval(id)
@@ -532,6 +533,43 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               totalTrades={bot.totalTrades}
               live={sp.live}
             />
+
+            {/* predictions — the v1 reputation artifact: what the bot actually called,
+                locked in before resolution. This is the live feed of "new bets". */}
+            <Panel>
+              <div className="px-5 py-3.5 border-b border-[#141414] flex items-center justify-between">
+                <div><span className="font-sans font-bold text-[14px]">Predictions</span><span className="ml-2 font-mono text-[10px] text-[#555]">committed live · scored on resolution</span></div>
+                <span className="font-mono text-[11px] text-[#888] tabular-nums">{(bot.predictions || []).length}</span>
+              </div>
+              {(bot.predictions || []).length === 0 ? (
+                <div className="px-5 py-12 text-center text-[13px] text-[#555]">No predictions yet. When the bot commits a forecast it lands here instantly, locked in before the market resolves.</div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 px-5 py-2 border-b border-[#101010] font-mono text-[9px] uppercase tracking-[0.14em] text-[#48484f]">
+                    <span className="w-12 shrink-0">When</span>
+                    <span className="flex-1 min-w-0">Market</span>
+                    <span className="w-12 text-right shrink-0">Bot</span>
+                    <span className="w-12 text-right shrink-0">Edge</span>
+                    <span className="w-14 text-right shrink-0">Result</span>
+                  </div>
+                  <div className="max-h-[360px] overflow-y-auto">
+                    {(bot.predictions).map((p: any, i: number) => {
+                      const oc = p.outcome === 'WIN' ? TEAL : p.outcome === 'LOSS' ? '#ff5570' : VIOLET
+                      const edge = (typeof p.forecast === 'number' && typeof p.marketMidpoint === 'number') ? (p.forecast - p.marketMidpoint) : null
+                      return (
+                        <div key={p.id || i} className="flex items-center gap-3 px-5 py-2.5 border-b border-[#101010] hover:bg-[#0b0b0b] transition-colors" style={{ borderLeft: `2px solid ${oc}` }}>
+                          <span className="font-mono text-[10px] text-[#555] w-12 shrink-0 tabular-nums">{relDay(p.createdAt) || 'now'}</span>
+                          <span className="flex-1 min-w-0 text-[12px] text-[#bbb] truncate">{p.marketTitle}</span>
+                          <span className="font-mono text-[11px] text-[#e8e8e8] w-12 text-right tabular-nums shrink-0">{Math.round((p.forecast ?? 0) * 100)}%</span>
+                          <span className="font-mono text-[10px] w-12 text-right tabular-nums shrink-0" style={{ color: edge == null ? '#444' : edge >= 0 ? TEAL : '#ff5570' }}>{edge == null ? '·' : `${edge >= 0 ? '+' : ''}${Math.round(edge * 100)}%`}</span>
+                          <span className="font-mono text-[9px] font-bold w-14 text-right shrink-0" style={{ color: oc }}>{p.outcome}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+            </Panel>
 
             {/* trade history */}
             <Panel>

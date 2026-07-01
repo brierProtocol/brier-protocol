@@ -24,6 +24,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
           orderBy: { timestamp: 'desc' },
           take: 50
         },
+        // v1 reputation artifact: the predictions the bot commits (what ADAN
+        // produces). Newest first so the profile can show a live prediction feed.
+        predictions: {
+          orderBy: { createdAt: 'desc' },
+          take: 25
+        },
         pnlSnapshots: {
           orderBy: { date: 'asc' },
           take: 30
