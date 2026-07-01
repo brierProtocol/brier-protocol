@@ -68,3 +68,38 @@ export async function resolveMarket(marketId: string): Promise<{ resolved: boole
     return { resolved: false, yesWon: null }
   }
 }
+
+export interface MarketMetadata {
+  title: string
+  slug: string | null
+  category: string | null
+  image: string | null
+}
+
+/**
+ * Fetches market metadata from Gamma API to enrich the trade display.
+ * Falls back gracefully to "Loading market metadata..." if unreachable.
+ */
+export async function fetchMarketMetadata(marketId: string): Promise<MarketMetadata> {
+  try {
+    const ctrl = new AbortController()
+    const t = setTimeout(() => ctrl.abort(), 3000)
+    // Gamma API uses /events?id=... or /markets/...
+    const res = await fetch(`https://gamma-api.polymarket.com/markets/${marketId}`, { signal: ctrl.signal }).finally(() => clearTimeout(t))
+    
+    if (!res.ok) {
+      return { title: 'Loading market metadata...', slug: null, category: null, image: null }
+    }
+    const data: any = await res.json().catch(() => null)
+    if (!data) return { title: 'Loading market metadata...', slug: null, category: null, image: null }
+
+    return {
+      title: data.question || data.title || 'Loading market metadata...',
+      slug: data.slug || null,
+      category: data.category || null,
+      image: data.image || data.icon || null
+    }
+  } catch (error) {
+    return { title: 'Loading market metadata...', slug: null, category: null, image: null }
+  }
+}

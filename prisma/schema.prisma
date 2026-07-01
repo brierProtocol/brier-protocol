@@ -445,8 +445,11 @@ model Prediction {
   bot         Bot    @relation(fields: [botId], references: [id])
   builderId   String
   marketId    String
-  marketTitle String
-  conditionId String @default("")
+  marketTitle    String
+  marketSlug     String?
+  marketCategory String?
+  marketImage    String?
+  conditionId    String @default("")
   side        String
 
   confidence                Float
@@ -455,9 +458,11 @@ model Prediction {
 
   status     String  @default("PENDING") // PENDING | WIN | LOSS | VOID
   resolution String?
+  resolvedAt DateTime?
 
   timestamp DateTime @default(now())
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([botId, status])
   @@index([marketId])

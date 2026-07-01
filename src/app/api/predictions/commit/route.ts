@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import crypto from 'crypto'
 import { decryptApiKey } from '@/lib/crypto'
-import { captureMarket } from '@/lib/market-data'
+import { captureMarket, fetchMarketMetadata } from '@/lib/market-data'
 
 function recoverSecret(stored: string): string | null {
   const parts = stored.split('.')
@@ -70,6 +70,10 @@ export async function POST(req: NextRequest) {
       console.warn('[commit] DEV market fallback midpoint=0.5 (CLOB unreachable). NOT used in production.')
     }
 
+    // FASE 2: ENRICHMENT
+    const metadata = await fetchMarketMetadata(marketId)
+    const finalMarketTitle = metadata.title && metadata.title !== 'Loading market metadata...' ? metadata.title : (marketTitle || 'Loading market metadata...')
+
     // append-only prediction insertion
     const prediction = await prisma.prediction.create({
       data: { 
@@ -78,7 +82,10 @@ export async function POST(req: NextRequest) {
         marketId, 
         conditionId,
         side,
-        marketTitle, 
+        marketTitle: finalMarketTitle, 
+        marketSlug: metadata.slug,
+        marketCategory: metadata.category,
+        marketImage: metadata.image,
         confidence: f, 
         marketProbabilityAtCommit: marketMidpoint, 
         liquidity,

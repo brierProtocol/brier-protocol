@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       
       const upd = await prisma.prediction.updateMany({
         where: { marketId, status: 'PENDING' },
-        data: { status: r.yesWon ? 'WIN' : 'LOSS', resolution: r.yesWon ? 'YES' : 'NO' },
+        data: { status: r.yesWon ? 'WIN' : 'LOSS', resolution: r.yesWon ? 'YES' : 'NO', resolvedAt: new Date() },
       })
       resolvedMarkets++
       resolvedPreds += upd.count
