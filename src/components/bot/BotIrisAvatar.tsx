@@ -98,14 +98,15 @@ export default function BotIrisAvatar({ avatarId, size = 64, accentColor = '#ff2
       height={size}
       viewBox={`0 0 ${VB} ${VB}`}
       shapeRendering="crispEdges"
-      style={{ display: 'block', background: '#050505' }}
+      style={{ display: 'block', background: 'transparent' }}
       aria-label={`agent ${avatarId}`}
     >
       {cells.map(({ x, y, tone }, i) => (
         <rect key={i} x={x + PAD} y={y + PAD} width={1} height={1} fill={tone ? ALight : A} />
       ))}
+      {/* eyes: dark sockets that read on any background (no black square bg needed) */}
       {eyes.map(({ x, y }, i) => (
-        <rect key={`e${i}`} x={x + PAD + 0.22} y={y + PAD + 0.22} width={0.56} height={0.56} fill="#050505" />
+        <rect key={`e${i}`} x={x + PAD + 0.22} y={y + PAD + 0.22} width={0.56} height={0.56} fill="rgba(3,3,3,0.85)" />
       ))}
     </svg>
   )

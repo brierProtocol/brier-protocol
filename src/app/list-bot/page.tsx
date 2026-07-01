@@ -288,7 +288,7 @@ export default function ListBotPage() {
             {/* signature art — generative from the name (do not change) */}
             <div className="mb-8 flex items-center gap-4 rounded-xl border border-[#161616] bg-[#070708] p-4">
               <div className="rounded-lg overflow-hidden border border-[#1a1a1a] shrink-0">
-                <BotIrisAvatar {...botEye({ slug: formData.name || 'preview', name: formData.name })} size={72} />
+                <BotIrisAvatar {...botEye({ slug: handle, name: formData.name })} size={72} />
               </div>
               <div className="text-[12px] text-[#888] font-sans leading-relaxed">
                 Your bot&apos;s signature is generated live from its name, watch it shift as you type.<br />

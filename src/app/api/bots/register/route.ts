@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
+import { deriveAvatarColor } from '@/lib/botIdentity'
 
 /**
  * POST /api/bots/register
@@ -24,10 +25,10 @@ export async function POST(req: NextRequest) {
       && (pfpUrl.startsWith('data:image/') || pfpUrl.startsWith('https://'))
       ? pfpUrl : null
 
-    // Eye color chosen at creation — validated, vivid hex only (else a sane default)
-    const chosenColor = typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color)
-      ? color
-      : '#ff2a4d'
+    // Eye color: honor an explicit vivid hex if the maker sent one, otherwise
+    // DERIVE it from the name (the same color the live preview shows). Never force
+    // red — that was making every bot render crimson regardless of its preview.
+    const explicitColor = typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color) ? color : null
 
     // Eye shape chosen at creation — validated against the allowed set
     const allowedShapes = ['round', 'aperture', 'cat', 'diamond', 'scanner', 'ring', 'star', 'triangle', 'cross', 'spiral', 'nova', 'void']
@@ -73,7 +74,7 @@ export async function POST(req: NextRequest) {
         name,
         description: description || null,
         tagline: description ? description.substring(0, 120) : `${name} prediction algorithm`,
-        color: chosenColor,
+        color: explicitColor || deriveAvatarColor(slug),
         avatarId: slug,
         eyeShape: chosenShape,
         pfpUrl: chosenPfp,
