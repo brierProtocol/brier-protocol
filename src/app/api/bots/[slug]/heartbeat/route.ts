@@ -10,10 +10,17 @@ import { recordHeartbeat } from '@/lib/heartbeat'
 export async function POST(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params
-    const bot = await prisma.bot.findUnique({ where: { slug }, select: { id: true, apiKey: true } })
+    const key = req.headers.get('x-brier-key') || req.headers.get('x-api-key')
+
+    // Identify the bot by its API KEY first (the credential the page issues), and
+    // fall back to the slug. This way the bot NAME/slug never has to match — as long
+    // as the key is right, the heartbeat lands on the correct bot. Kills the whole
+    // class of "wrong slug -> 404 -> offline" bugs.
+    let bot = key ? await prisma.bot.findFirst({ where: { apiKey: key }, select: { id: true, apiKey: true } }) : null
+    if (!bot) bot = await prisma.bot.findUnique({ where: { slug }, select: { id: true, apiKey: true } })
     if (!bot) return NextResponse.json({ error: 'Bot not found' }, { status: 404 })
 
-    const key = req.headers.get('x-brier-key') || req.headers.get('x-api-key')
+    // If matched by slug (not key), still reject a wrong key so one bot cannot spoof another.
     if (key && key !== bot.apiKey && key !== process.env.BOT_INGEST_KEY) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

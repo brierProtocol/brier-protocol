@@ -21,15 +21,16 @@ executor ni siquiera corre en local. No lo conectes en esta fase.
 
 ## 1. Instalar el SDK (por npm, no copiando el archivo)
 
-El SDK es el paquete `@brier/sdk`. En desarrollo local, instálalo desde la ruta
-del monorepo (o con `npm pack` + el tarball); la publicación al registry de npm
-queda para el release:
+El SDK es el paquete `brier-sdk`. Una vez publicado al registry:
 
 ```bash
-# desde el repo de tu bot
+npm install brier-sdk
+```
+
+En desarrollo local, antes de publicar, instálalo desde la ruta del monorepo:
+
+```bash
 npm install /ruta/a/brier-protocol/packages/brier-sdk
-# o: (cd brier-protocol/packages/brier-sdk && npm run build && npm pack)
-#    npm install /ruta/a/brier-sdk-1.0.0.tgz
 ```
 
 ## 2. Registrar el bot y obtener las claves
@@ -57,7 +58,7 @@ Tu bot envía su probabilidad para un mercado. El SDK agrega el timestamp y la
 firma HMAC-SHA256 automáticamente.
 
 ```javascript
-import { BrierClient } from '@brier/sdk';
+import { BrierClient } from 'brier-sdk';
 
 const brier = new BrierClient({
   apiKey: process.env.BRIER_API_KEY,

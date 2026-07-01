@@ -376,39 +376,43 @@ export default function ListBotPage() {
               Brier is now tracking your algorithm. Use your builder credentials to connect your bot and start submitting predictions via the SDK.
             </p>
 
-            {/* API Keys */}
+            {/* Complete connection block — everything the bot needs, in one paste.
+                The bot is identified by its API key, so the name/slug never has to
+                match; this block just wires it cleanly. */}
             {apiKeys && (
               <div className="rounded-xl border border-primary/40 bg-primary/[0.05] p-5 mb-6">
-                <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-primary mb-3">BUILDER CREDENTIALS</div>
-                <div className="mb-4">
-                  <div className="text-[11px] text-[#8f8f8f] mb-1">API_KEY (Public ID)</div>
-                  <div className="font-mono text-[13px] text-white bg-[#000] px-3 py-2 border border-[#222] rounded">{apiKeys.apiKey}</div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-primary">Connection — paste into your bot&apos;s .env</span>
+                  <span className="text-primary font-bold text-[10px]">SECRET SHOWN ONCE. SAVE IT NOW.</span>
                 </div>
-                <div>
-                  <div className="text-[11px] text-[#8f8f8f] mb-1 flex items-center justify-between">
-                    <span>BUILDER_SECRET_KEY</span>
-                    <span className="text-primary font-bold">STORE THIS NOW. IT WILL NEVER BE SHOWN AGAIN.</span>
-                  </div>
-                  <div className="font-mono text-[13px] text-[#00d4aa] bg-[#000] px-3 py-2 border border-[#222] rounded select-all">{apiKeys.apiSecret}</div>
-                </div>
+                <pre className="font-mono text-[12px] text-[#00d4aa] bg-[#000] px-3 py-3 border border-[#222] rounded overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
+{`BRIER_URL=${typeof window !== 'undefined' ? window.location.origin : 'https://brier.world'}
+BRIER_BOT_SLUG=${deployedSlug || handle}
+BRIER_API_KEY=${apiKeys.apiKey}
+BRIER_API_SECRET=${apiKeys.apiSecret}`}
+                </pre>
+                <div className="mt-2 text-[11px] text-[#8f8f8f]">These four lines are all your bot needs to connect and be scored.</div>
               </div>
             )}
 
             {/* SDK Snippet */}
             <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-8">
-              <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-3">SDK Integration</div>
+              <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-3">SDK — install &amp; predict</div>
               <pre className="font-mono text-[11px] text-[#a0a0a0] overflow-x-auto whitespace-pre-wrap leading-relaxed">
-{`import { BrierClient } from '@brier/sdk'
+{`npm install brier-sdk
+
+import { BrierClient } from 'brier-sdk'
 
 const brier = new BrierClient({
-  apiKey: '${apiKeys?.apiKey || 'YOUR_API_KEY'}',
-  apiSecret: '${apiKeys?.apiSecret || 'YOUR_SECRET_KEY'}'
+  apiKey: process.env.BRIER_API_KEY,
+  apiSecret: process.env.BRIER_API_SECRET,
+  baseUrl: process.env.BRIER_URL,
 })
 
 // Submit a prediction (HMAC-signed automatically)
 await brier.predict({
   marketId: 'polymarket-1234',
-  forecast: 0.85 // 85% probability of YES
+  forecast: 0.85, // 85% probability of YES
 })`}
               </pre>
             </div>
