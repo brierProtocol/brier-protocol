@@ -47,20 +47,19 @@ const Panel = ({ children, className = '' }: { children: React.ReactNode; classN
   <div className={`rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden ${className}`}>{children}</div>
 )
 
-function normalizePrediction(p: any) {
+function normalizePrediction(t: any) {
   return {
-    botId: p.botId,
-    marketId: p.marketId,
-    marketTitle: p.marketTitle && p.marketTitle !== "Unknown Market" && p.marketTitle !== "Loading market metadata..." 
-      ? p.marketTitle : "Loading market metadata...",
-    side: p.side, // YES / NO
-    confidence: Number(p.confidence || 0),
-    marketProbabilityAtCommit: Number(p.marketProbabilityAtCommit || 0),
-    status: p.status || "PENDING",
-    timestamp: new Date(p.timestamp || p.createdAt || new Date()),
-    resolvedAt: p.resolvedAt ? new Date(p.resolvedAt) : null,
-    category: p.category || null,
-    image: p.image || null,
+    botId: t.botId,
+    marketId: t.marketId,
+    marketTitle: t.marketTitle && t.marketTitle !== "Unknown Market" ? t.marketTitle : "Market resolving...",
+    side: t.side,
+    confidence: Number(t.confidence ?? 0),
+    marketProbabilityAtCommit: Number(t.marketProbabilityAtCommit ?? 0),
+    status: t.status ?? "PENDING",
+    timestamp: new Date(t.timestamp),
+    resolvedAt: t.resolvedAt ? new Date(t.resolvedAt) : null,
+    category: t.category ?? null,
+    image: t.image ?? null,
   };
 }
 
@@ -131,11 +130,10 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         setBot(mapped)
         setEditName(mapped.name); setEditTagline(mapped.tagline || ''); setEditDesc(mapped.description || ''); setEditPfp(mapped.pfpUrl || '')
         setHearts(dbBot._count?.hearts || 0)
-        const rawTrades = mapped.predictions || [];
-        const sortedNormalized = rawTrades
-          .map(normalizePrediction)
-          .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        setTrades(sortedNormalized)
+        const trades = mapped.predictions || [];
+        const normalizedTrades = trades.map(normalizePrediction);
+        normalizedTrades.sort((a: any, b: any) => b.timestamp.getTime() - a.timestamp.getTime());
+        setTrades(normalizedTrades);
         setLoading(false)
         fetch(`/api/comments?botId=${mapped.id}`).then(r => r.json()).then(d => { if (Array.isArray(d)) setPosts(d) })
       })
@@ -490,43 +488,62 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               ) : (
                 <div className="max-h-[360px] overflow-y-auto">
                   {trades.slice(0, visibleCount).map((t, i) => {
+                      const displayTitle = t.marketTitle && t.marketTitle !== "Loading market metadata..." ? t.marketTitle : "Market resolving...";
                       const yes = t.side === 'YES';
-                      const status = t.status;
-                      const oc = status === 'WIN' ? TEAL : status === 'LOSS' ? '#ff5570' : VIOLET;
-                      const confidence = t.confidence;
-                      const prob = t.marketProbabilityAtCommit;
+                      const status = t.status || 'PENDING';
+                      
+                      let statusColor = '#888';
+                      if (status === 'WIN') statusColor = TEAL;
+                      if (status === 'LOSS') statusColor = '#ff5570';
+
+                      const confidence = Number(t.confidence ?? 0);
+                      const prob = Number(t.marketProbabilityAtCommit ?? 0);
                       const edge = Number.isFinite(confidence) && Number.isFinite(prob) ? confidence - prob : 0;
+                      
                       const edgeFmt = (edge > 0 ? '+' : '') + (edge * 100).toFixed(1) + '%';
+                      const edgeIcon = edge > 0 ? '🟢' : (edge < 0 ? '🔴' : '⚪');
+                      const edgeColor = edge > 0 ? TEAL : (edge < 0 ? '#ff5570' : '#888');
+                      
                       const fmtFull = (d: any) => d ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }).format(new Date(d)) + ' UTC' : '—';
                       
                       return (
-                        <div key={t.id || i} className="flex flex-col gap-2.5 px-5 py-4 border-b border-[#101010] hover:bg-[#0b0b0b] transition-colors" style={{ borderLeft: `2px solid ${oc}` }}>
-                          <div className="flex items-start justify-between gap-4">
-                            <span className="flex-1 min-w-0 text-[14px] text-white font-bold font-sans tracking-wide leading-snug">{t.marketTitle}</span>
-                            <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded shrink-0" style={{ color: yes ? TEAL : '#ff5570', background: yes ? `${TEAL}14` : '#ff557014' }}>{t.side || (yes ? 'YES' : 'NO')}</span>
+                        <div key={t.id || i} className="font-mono text-[11px] text-[#999] border-b border-[#1a1a1a] hover:bg-[#0b0b0b] transition-colors pb-4 pt-3 px-5">
+                          {/* HEADER */}
+                          <div className="mb-3">
+                            <div className="text-[13px] text-white font-bold tracking-tight mb-1">{displayTitle}</div>
+                            {t.category && <div className="text-[9px] text-[#555] uppercase">{t.category}</div>}
                           </div>
                           
-                          <div className="grid grid-cols-3 gap-4 mt-1">
-                            <div>
-                              <div className="font-mono text-[9px] text-[#555] uppercase tracking-widest mb-1">Confidence</div>
-                              <div className="font-mono text-[13px] text-white tabular-nums">{(confidence * 100).toFixed(1)}%</div>
-                            </div>
-                            <div>
-                              <div className="font-mono text-[9px] text-[#555] uppercase tracking-widest mb-1">Market Price</div>
-                              <div className="font-mono text-[13px] text-white tabular-nums">{(prob * 100).toFixed(1)}%</div>
-                            </div>
-                            <div>
-                              <div className="font-mono text-[9px] text-[#555] uppercase tracking-widest mb-1">Edge</div>
-                              <div className="font-mono text-[13px] font-bold tabular-nums" style={{ color: edge > 0 ? TEAL : (edge < 0 ? '#ff5570' : '#888') }}>{edgeFmt}</div>
+                          <div className="h-[1px] w-full bg-[#1a1a1a] mb-3" />
+                          
+                          {/* BODY */}
+                          <div className="flex justify-between items-start mb-3">
+                            <span className="font-bold px-2 py-0.5 rounded text-[10px]" style={{ color: yes ? TEAL : '#ff5570', background: yes ? `${TEAL}14` : '#ff557014' }}>
+                              {t.side || (yes ? 'YES' : 'NO')}
+                            </span>
+                            
+                            <div className="flex flex-col gap-1 text-right">
+                              <div><span className="text-[#555] mr-2">CONFIDENCE:</span> <span className="text-white">{(confidence * 100).toFixed(1)}%</span></div>
+                              <div><span className="text-[#555] mr-2">MARKET:</span> <span className="text-white">{(prob * 100).toFixed(1)}%</span></div>
+                              <div>
+                                <span className="text-[#555] mr-2">EDGE:</span> 
+                                <span style={{ color: edgeColor }}>{edgeFmt} {edgeIcon}</span>
+                              </div>
                             </div>
                           </div>
+                          
+                          <div className="h-[1px] w-full bg-[#1a1a1a] mb-3" />
 
-                          <div className="flex items-center justify-between mt-2 pt-3 border-t border-[#1a1a1a]">
-                            <div className="flex flex-col gap-1">
-                              <div className="font-mono text-[10px] text-[#777] flex gap-1.5"><span className="text-[#444]">Committed:</span> {fmtFull(t.timestamp || t.createdAt)}</div>
-                              {status !== 'PENDING' && <div className="font-mono text-[10px] text-[#777] flex gap-1.5"><span className="text-[#444]">Resolved:</span> {fmtFull(t.resolvedAt)}</div>}
+                          {/* FOOTER */}
+                          <div className="flex flex-col gap-1">
+                            <div><span className="text-[#555] w-20 inline-block">Committed:</span> {fmtFull(t.timestamp || t.createdAt)}</div>
+                            {t.resolvedAt && (
+                              <div><span className="text-[#555] w-20 inline-block">Resolved:</span> {fmtFull(t.resolvedAt)}</div>
+                            )}
+                            <div className="mt-1">
+                              <span className="text-[#555] w-20 inline-block">STATUS:</span> 
+                              <span style={{ color: statusColor }} className="font-bold">{status}</span>
                             </div>
-                            <span className="font-mono text-[10px] font-bold px-2 py-1 uppercase tracking-widest shrink-0" style={{ color: oc, border: `1px solid ${oc}30`, borderRadius: '4px' }}>{status}</span>
                           </div>
                         </div>
                     )
