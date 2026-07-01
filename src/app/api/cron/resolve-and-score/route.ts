@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma'
 import { resolveMarket } from '@/lib/market-data'
 import { botReputation, absoluteBotBrier, reputationScoreFromLcb, ResolvedPrediction } from '@/lib/skill-engine'
 import { checkStatusTransitions } from '@/lib/incubation'
+import { settleResolvedTrades } from '@/lib/settlement'
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -83,6 +84,11 @@ export async function GET(req: NextRequest) {
       // -----------------------------------------
     }
 
+    // ── 1b. BOOK SETTLEMENTS INTO NAV ── mirror the 60/30/10 split off-chain for
+    // every resolved-but-unbooked trade (idempotent via TradeEvent.vaultBookedAt).
+    // Without this the dashboard NAV/PnL never reflected trading (audit FAIL-1/2).
+    const settlement = await settleResolvedTrades()
+
     // ── 2. SCORE ── every bot that has at least one resolved prediction.
     const botsWithResolved = await prisma.prediction.findMany({
       where: { status: { in: ['WIN', 'LOSS'] } },
@@ -148,7 +154,7 @@ export async function GET(req: NextRequest) {
       scored.push({ botId, lcb: Number(rep.lcb.toFixed(4)), n: rep.n })
     }
 
-    return NextResponse.json({ ok: true, resolvedMarkets, resolvedPredictions: resolvedPreds, scored })
+    return NextResponse.json({ ok: true, resolvedMarkets, resolvedPredictions: resolvedPreds, settlement, scored })
   } catch (err: any) {
     console.error('[cron/resolve-and-score]', err)
     return NextResponse.json({ error: err?.message || 'resolve-and-score failed' }, { status: 500 })
