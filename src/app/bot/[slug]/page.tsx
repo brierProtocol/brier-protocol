@@ -97,6 +97,8 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           verified: !!dbBot.verifiedCategories?.length,
           brierScore: s?.brierScore ?? null, winRate: s?.winRate ?? null, sharpe: s?.sharpe ?? null,
           maxDrawdown: s?.maxDrawdown ?? null, totalTrades: s?.totalTrades ?? 0, totalVolume: s?.totalVolume ?? null,
+          lcb: s?.lcb ?? null, reputationScore: s?.reputationScore ?? null, resolvedPredictions: s?.resolvedPredictions ?? 0,
+          reputationHistory: (dbBot.scores || []).map((x: any) => x.reputationScore).filter((v: any) => typeof v === 'number'),
           pnlSnapshots: dbBot.pnlSnapshots || [], tradesIndexed: dbBot._count?.trades ?? (dbBot.trades?.length ?? 0),
           lastHeartbeatAt: dbBot.lastHeartbeatAt ?? null, liveActivity: dbBot.liveActivity ?? null,
           scoreHistory: (dbBot.scores || []).map((s: any) => ({ brier: s.brierScore, date: s.snapshotDate })),
@@ -213,9 +215,12 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         return { delta, improving: delta < -0.003, worsening: delta > 0.003, series: brierSeries }
       })()
     : null
+
+  // Reputation (LCB → 0..100) history, oldest→newest, for the reputation curve.
+  const repSeries: number[] = [...(bot.reputationHistory || [])].filter((v: any) => typeof v === 'number').reverse()
   const sp = shadowProgress({
     status: bot.status, createdAt: bot.createdAt, vaultOpen: bot.vaultOpen, currentTVL: bot.tvl,
-    scores: [{ brierScore: bot.brierScore ?? undefined, winRate: bot.winRate ?? undefined, totalTrades: bot.totalTrades }],
+    scores: [{ brierScore: bot.brierScore ?? undefined, winRate: bot.winRate ?? undefined, totalTrades: bot.totalTrades, lcb: bot.lcb, reputationScore: bot.reputationScore, resolvedPredictions: bot.resolvedPredictions }],
     tradesIndexed: bot.tradesIndexed,
   })
   const pm = phaseMeta(sp)
@@ -245,7 +250,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const VIOLET = '#8b7bff', TEAL = '#c8ff00'
   const criteria = [
     { label: 'Resolved predictions', val: `${sp.resolved} / ${SHADOW_RESOLVED_TARGET}`, ok: sp.resolvedPass, pct: Math.min(1, sp.resolved / SHADOW_RESOLVED_TARGET) },
-    { label: 'Brier score', val: sp.brier != null ? `${sp.brier.toFixed(3)} · ≤ ${SHADOW_BRIER_TARGET.toFixed(2)}` : `≤ ${SHADOW_BRIER_TARGET.toFixed(2)}`, ok: sp.brierPass, pct: sp.brier == null ? 0 : Math.min(1, Math.max(0, (0.4 - sp.brier) / (0.4 - SHADOW_BRIER_TARGET))) },
+    { label: 'Skill vs market', val: sp.skill != null ? `LCB ${sp.skill >= 0 ? '+' : ''}${sp.skill.toFixed(3)}` : 'LCB > 0', ok: sp.skillPass, pct: sp.skill == null ? 0 : Math.min(1, Math.max(0, sp.skill / 0.10)) },
     { label: 'Days live', val: `${sp.days} / ${SHADOW_DAYS_TARGET}`, ok: sp.daysPass, pct: Math.min(1, sp.days / SHADOW_DAYS_TARGET) },
   ]
   const clearedCount = criteria.filter(c => c.ok).length
@@ -724,6 +729,20 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               ) : (
                 <div className="rounded-lg border border-[#141420] bg-[#08080c] px-4 py-2.5 mb-2.5 font-mono text-[10px] text-[#5a5a64]">
                   Trajectory appears once a few daily scores accumulate.
+                </div>
+              )}
+
+              {/* reputation (LCB) — the anti-luck headline: skill over the market,
+                  discounted for sample size. This, not raw Brier, is the gate. */}
+              {bot.reputationScore != null && (
+                <div className="flex items-center justify-between rounded-lg border border-[#1a1a22] bg-[#08080c] px-4 py-2.5 mb-2.5">
+                  <div>
+                    <div className="font-mono text-[9px] tracking-[0.18em] uppercase text-[#5a5a64]" title="Reputation is the lower confidence bound (LCB) of the bot's skill vs the market. It discounts luck: a handful of lucky calls cannot inflate it. This is what opens a vault, not raw Brier.">Reputation · LCB ⓘ</div>
+                    <div className="font-sans font-black text-[20px] mt-0.5 tabular-nums" style={{ color: bot.reputationScore >= 50 ? TEAL : '#9a9a9a' }}>
+                      {Math.round(bot.reputationScore)}<span className="text-[11px] text-[#5a5a64] font-mono ml-1">/100</span>
+                    </div>
+                  </div>
+                  {repSeries.length >= 2 && <Sparkline values={repSeries} color={TEAL} />}
                 </div>
               )}
 

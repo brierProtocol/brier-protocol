@@ -13,11 +13,12 @@ import { FEATURES } from './features'
  * checkStatusTransitions() is the single place that performs this transition.
  */
 
-// v1.4 T1 thresholds
-const T1_MIN_TRADES = 50
-const T1_MAX_BRIER = 0.20
-const T1_MAX_DRAWDOWN = 0.25       // máx 25% de drawdown histórico
-const SHADOW_MIN_DAYS = 7          // mínimo 1 semana en fase shadow antes de habilitar vault
+// Canonical v1 gate: 100 resolved predictions + skill over the market (LCB > 0)
+// + 21 days in shadow. Skill is measured RELATIVE to the market (LCB of
+// mean(marketBrier - botBrier)), never raw Brier — beating an easy market is not
+// skill. LCB > 0 means the edge survives after discounting luck.
+const T1_MIN_RESOLVED = 100
+const SHADOW_MIN_DAYS = 21          // 3 weeks in shadow before a vault can open
 const MS_PER_DAY = 1000 * 60 * 60 * 24
 
 export async function checkStatusTransitions(botId: string) {
@@ -39,17 +40,18 @@ export async function checkStatusTransitions(botId: string) {
     return // Reputation-only mode: bot stays LIVE, vault promotion is skipped
   }
   if (bot.status === 'LIVE') {
-    const meetsTrades = score.totalTrades >= T1_MIN_TRADES
-    const meetsBrier = score.brierScore <= T1_MAX_BRIER
+    // Volume: resolved predictions (the reputation dataset), not raw trade count.
+    const resolved = score.resolvedPredictions ?? score.totalTrades
+    const meetsVolume = resolved >= T1_MIN_RESOLVED
 
-    // Drawdown real: maxDrawdown se guarda como % negativo (p.ej. -0.18 = -18%).
-    const meetsDrawdown = Math.abs(score.maxDrawdown) <= T1_MAX_DRAWDOWN
+    // Skill vs the MARKET, discounted for luck. Requires the LCB to be positive.
+    const meetsSkill = (score.lcb ?? -1) > 0
 
-    // Tiempo mínimo en shadow: al menos SHADOW_MIN_DAYS desde la creación del bot.
+    // Minimum time in shadow so a lucky short streak can't graduate.
     const daysInShadow = (Date.now() - bot.createdAt.getTime()) / MS_PER_DAY
     const meetsTime = daysInShadow >= SHADOW_MIN_DAYS
 
-    if (meetsTrades && meetsBrier && meetsDrawdown && meetsTime) {
+    if (meetsVolume && meetsSkill && meetsTime) {
       // Deploy the bot's on-chain clone vault (no-op/null if factory not configured yet).
       let vaultAddress: string | null = null
       if (!bot.vaultAddress) {
@@ -74,7 +76,7 @@ export async function checkStatusTransitions(botId: string) {
             botId,
             fromStatus: 'LIVE',
             toStatus: 'VAULT_ELIGIBLE_T1',
-            reason: `Met T1 requirements: ${score.totalTrades} trades, ${score.brierScore.toFixed(3)} Brier, ${(Math.abs(score.maxDrawdown) * 100).toFixed(1)}% max DD, ${daysInShadow.toFixed(1)}d in shadow.${vaultAddress ? ` Vault: ${vaultAddress}` : ''}`,
+            reason: `Met T1 gate: ${resolved} resolved predictions, LCB ${(score.lcb ?? 0).toFixed(3)} > 0 (skill vs market), ${daysInShadow.toFixed(1)}d in shadow.${vaultAddress ? ` Vault: ${vaultAddress}` : ''}`,
             brierAtTransition: score.brierScore,
             winRateAtTransition: score.winRate,
             tradesAtTransition: score.totalTrades,

@@ -15,7 +15,7 @@ export interface BotLike {
   vaultOpen?: boolean | null
   currentTVL?: number | null
   tvl?: number | null
-  scores?: Array<{ brierScore?: number; winRate?: number; totalTrades?: number } | null> | null
+  scores?: Array<{ brierScore?: number; winRate?: number; totalTrades?: number; lcb?: number | null; reputationScore?: number | null; resolvedPredictions?: number | null } | null> | null
   brierScore?: number | null
   winRate?: number | null
   // Total trades indexed on-chain (incl. unresolved). Distinguishes a bot that
@@ -47,6 +47,9 @@ export interface ShadowProgress {
   resolvedPass: boolean
   daysPass: boolean
   brierPass: boolean
+  /** Skill vs the market (LCB of relative skill). Null until scored. */
+  skill: number | null
+  skillPass: boolean
   eligible: boolean
   phase: BotPhase
   tradesIndexed: number
@@ -56,12 +59,14 @@ export interface ShadowProgress {
 
 export function shadowProgress(b: BotLike): ShadowProgress {
   const score = b.scores?.[0] ?? null
-  const resolved = score?.totalTrades ?? 0
+  const resolved = score?.resolvedPredictions ?? score?.totalTrades ?? 0
   const brierRaw = score?.brierScore ?? b.brierScore ?? null
   // Brier only means something once there are resolved predictions behind it.
   const brier = resolved > 0 && typeof brierRaw === 'number' ? brierRaw : null
   const winRate = score?.winRate ?? b.winRate ?? null
   const tvl = b.currentTVL ?? b.tvl ?? 0
+  // Skill vs the market (LCB). This, not raw Brier, is the quality gate.
+  const skill = resolved > 0 && typeof score?.lcb === 'number' ? score.lcb : null
 
   const created = b.createdAt ? new Date(b.createdAt).getTime() : Date.now()
   const days = Math.max(0, Math.floor((Date.now() - created) / 86_400_000))
@@ -69,11 +74,13 @@ export function shadowProgress(b: BotLike): ShadowProgress {
   const resolvedPass = resolved >= SHADOW_RESOLVED_TARGET
   const daysPass = days >= SHADOW_DAYS_TARGET
   const brierPass = brier !== null && brier <= SHADOW_BRIER_TARGET
+  // The real quality gate: positive lower-confidence-bound skill over the market.
+  const skillPass = skill !== null && skill > 0
 
   const rP = clamp01(resolved / SHADOW_RESOLVED_TARGET)
   const dP = clamp01(days / SHADOW_DAYS_TARGET)
-  // Brier sub-progress: 0.40 reads 0, 0.20 reads 1. Counts only with data.
-  const bP = brier === null ? 0 : clamp01((0.4 - brier) / (0.4 - SHADOW_BRIER_TARGET))
+  // Skill sub-progress: LCB 0 reads 0, LCB >= 0.10 reads 1. Counts only with data.
+  const bP = skill === null ? 0 : clamp01(skill / 0.10)
 
   const live = isBotLive(b)
   // Total on-chain trades. Fall back to resolved when the caller did not load
@@ -95,7 +102,9 @@ export function shadowProgress(b: BotLike): ShadowProgress {
     resolvedPass,
     daysPass,
     brierPass,
-    eligible: resolvedPass && daysPass && brierPass,
+    skill,
+    skillPass,
+    eligible: resolvedPass && daysPass && skillPass,
     phase,
     tradesIndexed,
     pct: live ? 1 : (rP + dP + bP) / 3,
