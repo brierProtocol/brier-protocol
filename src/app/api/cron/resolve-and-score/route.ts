@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { resolveMarket } from '@/lib/market-data'
-import { botReputation, ResolvedPrediction } from '@/lib/skill-engine'
+import { botReputation, absoluteBotBrier, reputationScoreFromLcb, ResolvedPrediction } from '@/lib/skill-engine'
 import { checkStatusTransitions } from '@/lib/incubation'
 
 export async function GET(req: NextRequest) {
@@ -108,6 +108,10 @@ export async function GET(req: NextRequest) {
       }))
 
       const rep = botReputation(resolved)
+      // brierScore = Brier ABSOLUTO (0..1, mayor=peor); relativeSkill/lcb = skill vs
+      // mercado; reputationScore = 0..100 del LCB (ver skill-engine).
+      const absBrier = absoluteBotBrier(resolved)
+      const repScore = reputationScoreFromLcb(rep.lcb)
       const winRate = resolved.length > 0 ? resolved.filter(p => p.outcome === 1).length / resolved.length : 0
 
       await prisma.$transaction([
@@ -116,22 +120,22 @@ export async function GET(req: NextRequest) {
           where: { botId_snapshotDate: { botId, snapshotDate: today } },
           create: {
             botId,
-            brierScore: rep.skill,
+            brierScore: absBrier,
             winRate: winRate,
             relativeSkill: rep.skill,
             lcb: rep.lcb,
-            reputationScore: rep.skill,
+            reputationScore: repScore,
             resolvedPredictions: rep.n,
             totalTrades: rep.n,
             snapshotDate: today,
             isLatest: true,
           },
           update: {
-            brierScore: rep.skill,
+            brierScore: absBrier,
             winRate: winRate,
             relativeSkill: rep.skill,
             lcb: rep.lcb,
-            reputationScore: rep.skill,
+            reputationScore: repScore,
             resolvedPredictions: rep.n,
             totalTrades: rep.n,
             isLatest: true,
