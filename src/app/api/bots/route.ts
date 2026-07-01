@@ -5,17 +5,25 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const owner = searchParams.get('owner');
+    const status = searchParams.get('status');
+    const limitParam = searchParams.get('limit');
+    // Optional server-side filtering so the query can use @@index([status]) and a
+    // bounded take instead of scanning the whole Bot table. With no params the
+    // response is unchanged (full list) for the existing catalog/leaderboard consumers.
+    const take = limitParam ? Math.min(Math.max(parseInt(limitParam, 10) || 0, 1), 100) : undefined;
 
-    const whereClause = owner ? {
+    const whereClause: Record<string, unknown> = owner ? {
       OR: [
         { walletAddress: { equals: owner, mode: 'insensitive' as const } },
         { ownerWallet: { equals: owner, mode: 'insensitive' as const } }
       ]
     } : {};
+    if (status) whereClause.status = status;
 
     const bots = await prisma.bot.findMany({
       where: whereClause,
       orderBy: { createdAt: 'desc' },
+      ...(take ? { take } : {}),
       include: {
         scores: {
           where: { isLatest: true },
