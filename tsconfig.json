@@ -35,5 +35,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "scripts", "hardhat", "brier-executor", "contracts", "test"]
+  "exclude": ["node_modules", "scripts", "hardhat", "brier-executor", "contracts", "test", "scratch"]
 }

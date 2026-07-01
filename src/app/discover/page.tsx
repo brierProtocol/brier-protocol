@@ -236,16 +236,20 @@ export default function DiscoverPage() {
                         <StatusMark tag={st.tag} color={st.color} />
                       </div>
 
-                      {/* avatar (square, 4chan) */}
-                      <div className="relative flex justify-center py-6 bg-[#060606] border-b border-[#141414]">
-                        <span className="w-[76px] h-[76px] rounded-[5px] overflow-hidden border border-[#222] bg-[#050505] group-hover:border-primary/35 transition-colors flex items-center justify-center">
-                          {b.pfpUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
+                      {/* avatar: the creature floats; photos get a round frame */}
+                      <div className="relative flex justify-center py-6 border-b border-[#141414]">
+                        {/* soft halo so the entity feels alive without a hard box */}
+                        <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120px] h-[120px] rounded-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: 'radial-gradient(circle, rgba(255,42,77,0.10), transparent 70%)' }} />
+                        {b.pfpUrl ? (
+                          <span className="relative w-[76px] h-[76px] rounded-full overflow-hidden border border-[#222] group-hover:border-primary/35 transition-colors flex items-center justify-center">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={b.pfpUrl} alt={b.name} className="w-full h-full object-cover" />
-                          ) : (
+                          </span>
+                        ) : (
+                          <span className="relative transition-transform duration-300 group-hover:scale-110">
                             <BotIrisAvatar {...botEye(b)} size={76} />
-                          )}
-                        </span>
+                          </span>
+                        )}
                       </div>
 
                       {/* stats */}
@@ -282,7 +286,7 @@ export default function DiscoverPage() {
                             <span className="rounded-full overflow-hidden shrink-0 inline-flex">
                               {b.maker?.pfpUrl
                                 ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={b.maker.pfpUrl} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
-                                : <BotIrisAvatar {...makerEye(b.walletAddress || 'anon')} size={14} />}
+                                : <BotIrisAvatar {...makerEye(b.walletAddress || 'anon')} size={14} bg="transparent" />}
                             </span>
                             <span className="truncate">by {b.maker?.handle ? `@${b.maker.handle}` : (b.maker?.name || `${(b.walletAddress || 'anon').substring(0, 6)}…`)}</span>
                           </span>

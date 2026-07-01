@@ -2,17 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { ethers } from 'ethers';
 import { notifyDeposit } from '@/lib/notifications';
+import { FEATURES } from '@/lib/features';
 import { DEPOSIT_RPC_URL as RPC_URL, USDC_ADDRESS_ENV, USDC_DECIMALS } from '@/constants/contracts';
+import { depositBlockReason } from '@/lib/vault-lifecycle';
 
 // Direccion del contrato USDC esperado. Si se define (USDC_ADDRESS_ENV), SOLO se aceptan
 // transferencias de ese token (evita depositar un ERC20 falso e inflar el TVL).
 // undefined => validacion de token deshabilitada.
-const USDC_ADDRESS = USDC_ADDRESS_ENV?.toLowerCase();
+const USDC_ADDRESS = process.env.USDC_ADDRESS?.toLowerCase();
 
 // ERC20 Transfer Event Signature
 const TRANSFER_EVENT_SIG = ethers.id('Transfer(address,address,uint256)');
 
 export async function POST(request: NextRequest) {
+  // v1: reputation layer only — deposits are disabled until contracts are audited
+  if (!FEATURES.CAPITAL_LAYER) {
+    return NextResponse.json(
+      { error: 'Capital layer is disabled in v1. Brier is currently a reputation-only protocol.' },
+      { status: 503 }
+    );
+  }
+
   try {
     const body = await request.json();
     const { botId, depositorWallet, txHash, mode } = body;
@@ -24,17 +34,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SECURITY [anti-replay]: rechazar si este txHash ya fue procesado.
-    // (Antes había código muerto que NUNCA deduplicaba y ni guardaba el txHash.)
-    const alreadyProcessed = await prisma.vaultDeposit.findUnique({
-      where: { txHash },
+    // Basic shape validation of the tx hash (0x + 64 hex chars)
+    const normalizedTxHash = String(txHash).toLowerCase();
+    if (!/^0x[0-9a-f]{64}$/.test(normalizedTxHash)) {
+      return NextResponse.json({ error: 'Invalid transaction hash format' }, { status: 400 });
+    }
+
+    // SECURITY: Prevent replay attacks — reject any txHash already recorded.
+    const duplicate = await prisma.vaultDeposit.findUnique({
+      where: { txHash: normalizedTxHash },
       select: { id: true },
     });
-    if (alreadyProcessed) {
-      return NextResponse.json(
-        { error: 'This transaction has already been recorded' },
-        { status: 409 }
-      );
+    if (duplicate) {
+      return NextResponse.json({ error: 'This transaction has already been processed' }, { status: 409 });
     }
 
     // 1. Buscar el bot para obtener su vaultAddress
@@ -45,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Verificar el txHash on-chain
     const provider = new ethers.JsonRpcProvider(RPC_URL);
-    const receipt = await provider.getTransactionReceipt(txHash);
+    const receipt = await provider.getTransactionReceipt(normalizedTxHash);
 
     if (!receipt || receipt.status !== 1) {
       return NextResponse.json(
@@ -101,14 +113,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // CAPACITY: si el vault declaró un cap y ya está lleno, no se aceptan nuevos depósitos.
-    // Sobre-llenar un vault diluye el rendimiento de quienes ya entraron, así que se cierra.
-    if (bot.vaultCap && bot.vaultCap > 0 && bot.currentTVL >= bot.vaultCap) {
-      return NextResponse.json(
-        { error: 'This vault is at capacity and is not accepting new deposits.' },
-        { status: 409 }
-      );
+    // LIFECYCLE + CAPACITY: un vault cerrado (black swan) o lleno no acepta depósitos.
+    // Sobre-llenar diluye a los que ya entraron; un vault cerrado solo permite claim.
+    const blocked = depositBlockReason(bot);
+    if (blocked) {
+      return NextResponse.json({ error: blocked }, { status: 409 });
     }
+
+    // SHARES (ERC-4626 mirror): se mintean al NAV vigente ANTES de este depósito.
+    // navPerShare = currentTVL / totalShares. En génesis (totalShares == 0) el
+    // primer depositante entra 1:1. La ganancia/pérdida posterior se refleja en el
+    // NAV, no en el número de shares: cada share vale más (o menos) USDC con el tiempo.
+    const navPerShare = bot.totalShares > 0 ? bot.currentTVL / bot.totalShares : 1;
+    const sharesMinted = realAmountUsdc / navPerShare;
+    const riskMode = mode || 'CONSERVATIVE';
+
+    // Identidad del inversor (cero-fricción: wallet = user). Aseguramos que exista
+    // el User antes de crear la posición, que sí tiene FK a User.
+    await prisma.user.upsert({
+      where: { walletAddress: depositorWallet },
+      update: {},
+      create: { walletAddress: depositorWallet },
+    });
 
     // 4. Guardar el depósito (con txHash para el anti-replay).
     let deposit;
@@ -116,30 +142,49 @@ export async function POST(request: NextRequest) {
       deposit = await prisma.vaultDeposit.create({
         data: {
           botId,
+          txHash: normalizedTxHash,
           depositorWallet,
           amountUsdc: realAmountUsdc,
-          txHash,
-          mode: mode || 'CONSERVATIVE',
+          shares: sharesMinted,
+          kind: 'DEPOSIT',
+          mode: riskMode,
           active: true,
-          totalProfitEarned: 0,
-        },
+          totalProfitEarned: 0
+        }
       });
     } catch (e: any) {
-      // P2002 = violación de índice único (txHash) por carrera concurrente.
+      // Unique constraint on txHash — concurrent duplicate submission lost the race
       if (e?.code === 'P2002') {
-        return NextResponse.json(
-          { error: 'This transaction has already been recorded' },
-          { status: 409 }
-        );
+        return NextResponse.json({ error: 'This transaction has already been processed' }, { status: 409 });
       }
       throw e;
     }
 
-    // 5. Incrementar el TVL del bot con el monto REAL
-    await prisma.bot.update({
-      where: { id: botId },
-      data: { currentTVL: { increment: realAmountUsdc } },
-    });
+    // 5. Subir TVL + shares del bot y consolidar la posición agregada del inversor.
+    await prisma.$transaction([
+      prisma.bot.update({
+        where: { id: botId },
+        data: {
+          currentTVL: { increment: realAmountUsdc },
+          totalShares: { increment: sharesMinted },
+        },
+      }),
+      prisma.vaultPosition.upsert({
+        where: { userWallet_botId: { userWallet: depositorWallet, botId } },
+        update: {
+          shares: { increment: sharesMinted },
+          costBasisUsdc: { increment: realAmountUsdc },
+          mode: riskMode,
+        },
+        create: {
+          userWallet: depositorWallet,
+          botId,
+          shares: sharesMinted,
+          costBasisUsdc: realAmountUsdc,
+          mode: riskMode,
+        },
+      }),
+    ]);
 
     // Notificar al creador
     if (bot.walletAddress) {

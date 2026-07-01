@@ -15,8 +15,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     const body = await req.json()
     const { marketId, marketTitle, side, amount, entryPrice, externalTradeId } = body
 
-    // marketId must be the CTF conditionId (0x…) — it's what the watcher resolves
-    if (!marketId || !/^0x[0-9a-fA-F]{10,}$/.test(String(marketId))) {
+    // marketId must be the CTF conditionId (0x…) — it's what the watcher resolves.
+    // Re-validate into a sanitized const: this is the only value interpolated into
+    // the outbound CLOB URL, so it must be a bare hex string (no host/path control).
+    const conditionId = String(marketId ?? '')
+    if (!/^0x[0-9a-fA-F]{10,}$/.test(conditionId)) {
       return NextResponse.json({ error: 'marketId must be a Polymarket conditionId (0x…)' }, { status: 400 })
     }
     const cleanSide = String(side || '').toUpperCase()
@@ -39,7 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     let finalPrice = price
     let fraudFlag = false
     try {
-      const clobRes = await fetch(`https://clob.polymarket.com/markets/${marketId}`, {
+      const clobRes = await fetch(`https://clob.polymarket.com/markets/${encodeURIComponent(conditionId)}`, {
         signal: AbortSignal.timeout(6000),
       })
       if (clobRes.ok) {
@@ -60,7 +63,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
       where: { source_externalTradeId: { source: 'SHADOW_PAPER', externalTradeId: String(externalTradeId || `${slug}-${Date.now()}`) } },
       create: {
         botId: bot.id,
-        marketId: String(marketId),
+        marketId: conditionId,
         marketTitle: String(marketTitle || 'Unknown market').slice(0, 200),
         side: cleanSide,
         amount: size,
