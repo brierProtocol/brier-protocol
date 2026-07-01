@@ -34,8 +34,16 @@ async function syncToPostgres(payload: unknown) {
 
 const redisConfig = { host: process.env.REDIS_HOST || '127.0.0.1', port: Number(process.env.REDIS_PORT) || 6379 };
 const redis = new Redis(redisConfig);
-const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || 'http://127.0.0.1:8545');
-const executorWallet = new ethers.Wallet(process.env.EXECUTOR_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80', provider);
+const RPC_URL = process.env.RPC_URL || 'http://127.0.0.1:8545';
+const provider = new ethers.JsonRpcProvider(RPC_URL);
+// Fail closed: never sign vault calls with the well-known Hardhat test key outside a
+// local RPC. In prod a missing EXECUTOR_PRIVATE_KEY must crash, not silently sign with
+// a public key anyone can impersonate.
+const IS_LOCAL_RPC = /localhost|127\.0\.0\.1/.test(RPC_URL);
+const EXECUTOR_KEY = process.env.EXECUTOR_PRIVATE_KEY
+  || (IS_LOCAL_RPC ? '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80' : undefined);
+if (!EXECUTOR_KEY) throw new Error('EXECUTOR_PRIVATE_KEY is required (no test-key fallback outside a local RPC)');
+const executorWallet = new ethers.Wallet(EXECUTOR_KEY, provider);
 
 const CTF_ABI = ['function redeemPositions(address collateralToken, bytes32 parentCollectionId, bytes32 conditionId, uint256[] indexSets) external'];
 
