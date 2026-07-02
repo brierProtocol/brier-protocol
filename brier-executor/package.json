@@ -15,7 +15,8 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "@polymarket/clob-client": "^4.0.0",
+    "@fastify/rate-limit": "^10.2.1",
+    "@polymarket/clob-client": "^5.8.1",
     "@prisma/client": "^5.22.0",
     "axios": "^1.7.0",
     "bullmq": "^5.77.6",

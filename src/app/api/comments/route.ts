@@ -4,8 +4,9 @@ import { prisma } from '@/lib/db/prisma'
 export async function POST(request: Request) {
   try {
     const { botId, wallet, text } = await request.json()
+    const lowerWallet = wallet?.toLowerCase()
 
-    if (!botId || !wallet || !text) {
+    if (!botId || !lowerWallet || !text) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 })
     }
 
@@ -21,16 +22,19 @@ export async function POST(request: Request) {
 
     // Ensure user exists
     await prisma.user.upsert({
-      where: { walletAddress: wallet },
+      where: { walletAddress: lowerWallet },
       update: {},
-      create: { walletAddress: wallet, name: `User_${wallet.substring(0, 6)}` }
+      create: { walletAddress: lowerWallet, name: `User_${lowerWallet.substring(0, 6)}` }
     })
 
     const comment = await prisma.comment.create({
       data: {
         botId,
-        wallet,
+        wallet: lowerWallet,
         text
+      },
+      include: {
+        user: { select: { handle: true, name: true, pfpUrl: true } }
       }
     })
 

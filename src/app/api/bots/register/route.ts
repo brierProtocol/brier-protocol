@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { deriveAvatarColor } from '@/lib/botIdentity'
+import { events } from '@/lib/events/bus'
 
 /**
  * POST /api/bots/register
@@ -67,7 +68,15 @@ export async function POST(req: NextRequest) {
     const moods = ['happy', 'confident', 'neutral', 'thinking', 'intense']
     const mood = moods[Math.floor(Math.random() * moods.length)]
 
-    // Create the bot
+    // Ensure the maker exists as a first-class User BEFORE creating the bot:
+    // Bot.ownerWallet is a FK to User, so the row must exist first.
+    await prisma.user.upsert({
+      where: { walletAddress: finalWallet },
+      create: { walletAddress: finalWallet },
+      update: {},
+    })
+
+    // Create the bot, linked to its maker via ownerWallet.
     const bot = await prisma.bot.create({
       data: {
         slug,
@@ -82,17 +91,11 @@ export async function POST(req: NextRequest) {
         status: 'PAPER',
         tier: 'NONE',
         walletAddress: finalWallet,
+        ownerWallet: finalWallet,
         strategyType: market || 'Polymarket',
         categories: validCategories,
         vaultCap: declaredCap,
       }
-    })
-
-    // Also ensure the user profile exists
-    await prisma.user.upsert({
-      where: { walletAddress: walletAddress.toLowerCase() },
-      create: { walletAddress: walletAddress.toLowerCase() },
-      update: {}
     })
 
     // Register the execution wallet so the indexer watches it on Polymarket.
@@ -101,11 +104,15 @@ export async function POST(req: NextRequest) {
       data: { botId: bot.id, walletAddress: finalWallet },
     }).catch(() => {})
 
+    // Emit AgentRegistered into the event bus (best-effort).
+    await events.agentRegistered(bot.id, { slug: bot.slug, name: bot.name, walletAddress: finalWallet })
+
+    // Token launch is a separate, owner-initiated step (POST /api/tokens)
     return NextResponse.json({
       ok: true,
       botId: bot.id,
       slug: bot.slug,
-      message: `Algorithm "${bot.name}" registered. Entering shadow phase — Brier detects its category and sizing automatically as it trades.`
+      message: `Algorithm "${bot.name}" registered. Entering shadow phase, Brier detects its category and sizing automatically as it trades.`
     })
 
   } catch (err: any) {

@@ -10,6 +10,9 @@ interface BotIrisAvatarProps {
   size?: number
   accentColor?: string
   shape?: EyeShape
+  // Fondo del lienzo. Por defecto transparente: la criatura flota sobre el fondo
+  // del contenedor en toda la app. Pasar un color solo si se quiere un cuadro.
+  bg?: string
 }
 
 // FNV-1a with avalanche — small id changes produce very different creatures.
@@ -47,7 +50,7 @@ function lighten(hex: string, amt: number): string {
  * deterministic per avatarId, with eyes so it reads as a face. Replaces the
  * old glyph weave (git history keeps both ancestors).
  */
-export default function BotIrisAvatar({ avatarId, size = 64, accentColor = '#ff2a4d' }: BotIrisAvatarProps) {
+export default function BotIrisAvatar({ avatarId, size = 64, accentColor = '#ff2a4d', bg = 'transparent' }: BotIrisAvatarProps) {
   const { cells, eyes } = useMemo(() => {
     const N = 10                       // 10×10 board, mirrored halves
     const half = N / 2
@@ -91,6 +94,8 @@ export default function BotIrisAvatar({ avatarId, size = 64, accentColor = '#ff2
   const VB = N + PAD * 2
   const A = accentColor
   const ALight = lighten(accentColor, 0.45)
+  // Sin fondo, las pupilas siguen siendo puntos oscuros para que lea como cara.
+  const eyeFill = bg === 'transparent' ? '#050505' : bg
 
   return (
     <svg

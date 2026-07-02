@@ -1,108 +1,102 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { readVaultNav } from '@/lib/vault-reader';
+import { botReputation } from '@/lib/skill-engine';
+
+function categorizeTitle(title: string): string {
+  const t = title.toLowerCase();
+  if (t.includes('bitcoin') || t.includes('btc') || t.includes('ethereum') || t.includes('eth') || t.includes('crypto') || t.includes('solana') || t.includes('token') || t.includes('defi')) return 'Crypto';
+  if (t.includes('election') || t.includes('trump') || t.includes('biden') || t.includes('democrat') || t.includes('republican') || t.includes('president') || t.includes('senate') || t.includes('house') || t.includes('vote') || t.includes('kamala')) return 'Politics';
+  if (t.includes('rate') || t.includes('fed') || t.includes('inflation') || t.includes('cpi') || t.includes('gdp') || t.includes('economy') || t.includes('interest')) return 'Macro';
+  if (t.includes('nba') || t.includes('nfl') || t.includes('soccer') || t.includes('football') || t.includes('tennis') || t.includes('champion') || t.includes('super bowl') || t.includes('world cup')) return 'Sports';
+  return 'Other';
+}
 
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params;
 
     const bot = await prisma.bot.findFirst({
-      where: {
-        OR: [
-          { slug: slug },
-          { id: slug }
-        ]
-      },
+      where: { OR: [{ slug }, { id: slug }] },
       include: {
-        // Recent score history (newest first) so the profile can show the Brier
-        // TREND (is the bot improving?), not just the latest snapshot.
-        scores: {
-          orderBy: { snapshotDate: 'desc' },
-          take: 30
-        },
-        trades: {
-          orderBy: { timestamp: 'desc' },
-          take: 50
-        },
-        // v1 reputation artifact: the predictions the bot commits (what ADAN
-        // produces). Newest first so the profile can show a live prediction feed.
-        predictions: {
-          orderBy: { createdAt: 'desc' },
-          take: 25
-        },
-        pnlSnapshots: {
-          orderBy: { date: 'asc' },
-          take: 30
-        },
-        _count: {
-          select: { hearts: true }
-        }
+        scores: { orderBy: { snapshotDate: 'asc' }, take: 90 },
+        predictions: { orderBy: { timestamp: 'desc' } },
+        // On-chain fills for the profile's execution panel (hidden while empty).
+        trades: { orderBy: { timestamp: 'desc' }, take: 50 },
+        pnlSnapshots: { orderBy: { date: 'asc' }, take: 90 },
+        _count: { select: { hearts: true } }
       }
     });
 
-    if (!bot) {
-      return NextResponse.json({ error: 'Bot not found' }, { status: 404 });
+    if (!bot) return NextResponse.json({ error: 'Bot not found' }, { status: 404 });
+
+    const user = bot.walletAddress ? await prisma.user.findUnique({ where: { walletAddress: bot.walletAddress.toLowerCase() } }) : null;
+
+    // ── Quant DNA and Categories ──
+    const resolvedPreds = bot.predictions.filter(p => p.status === 'WIN' || p.status === 'LOSS');
+    
+    // Frequency
+    const firstPred = bot.predictions[bot.predictions.length - 1];
+    const daysActive = firstPred ? Math.max(1, (Date.now() - new Date(firstPred.timestamp).getTime()) / 86400000) : 1;
+    const frequency = bot.predictions.length / daysActive;
+    
+    // Horizon (using createdAt if resolvedAt is missing, or just simple average days)
+    // Predictions don't have resolvedAt stored directly in the current MVP schema, 
+    // so we assume time between timestamp and now for resolved ones, or use a heuristic.
+    // For now, let's mock it based on frequency as a proxy if we don't have exact resolution times.
+    const horizonLabel = frequency > 2 ? 'Short Horizon' : 'Long Horizon';
+    const frequencyLabel = frequency > 5 ? 'High Frequency' : 'Low Frequency';
+    
+    // Confidence
+    const avgConfidence = resolvedPreds.length > 0 
+      ? resolvedPreds.reduce((sum, p) => sum + (p.confidence > 0.5 ? p.confidence : (1 - p.confidence)), 0) / resolvedPreds.length 
+      : 0;
+    const confidenceLabel = avgConfidence > 0.8 ? 'High Conviction' : (avgConfidence > 0.6 ? 'Measured Conviction' : 'Balanced');
+
+    // Categories
+    const catMap = new Map<string, typeof resolvedPreds>();
+    for (const p of bot.predictions) {
+      const cat = categorizeTitle(p.marketTitle);
+      if (!catMap.has(cat)) catMap.set(cat, []);
+      catMap.get(cat)!.push(p);
     }
 
-    // Live on-chain NAV when the bot has a deployed vault (null otherwise).
-    const liveNav = await readVaultNav(bot.vaultAddress);
+    const categoriesData = Array.from(catMap.entries()).map(([name, preds]) => {
+      const resolved = preds.filter(p => p.status === 'WIN' || p.status === 'LOSS');
+      let skill = 0;
+      if (resolved.length > 0) {
+        const rp = resolved.map(p => ({
+          pBot: p.confidence, pMarket: p.marketProbabilityAtCommit, outcome: (p.status === 'WIN' ? 1 : 0) as 1 | 0, liquidity: p.liquidity
+        }));
+        skill = botReputation(rp).skill;
+      }
+      return {
+        name,
+        volumePct: bot.predictions.length > 0 ? (preds.length / bot.predictions.length) * 100 : 0,
+        skill: skill,
+        resolvedCount: resolved.length
+      };
+    }).sort((a, b) => b.volumePct - a.volumePct);
 
-    // Maker profile (no Prisma relation between Bot.walletAddress and User)
-    const user = bot.walletAddress
-      ? await prisma.user.findUnique({ where: { walletAddress: bot.walletAddress.toLowerCase() } })
-      : null;
+    // Current Rank calculation (mocked for this endpoint, real rank comes from leaderboard)
+    const rank = bot.tier === 'TIER1' ? 1 : bot.tier === 'TIER2' ? 2 : bot.tier === 'TIER3' ? 3 : 'Unranked';
 
     // SECURITY: never serialize the signing credentials to the client.
     const { apiKey: _apiKey, apiSecret: _apiSecret, ...safeBot } = bot;
 
     return NextResponse.json({
       ...safeBot,
-      liveNav,
-      user: user ? { handle: user.handle, name: user.name, pfpUrl: user.pfpUrl } : null
+      user: user ? { handle: user.handle, name: user.name, pfpUrl: user.pfpUrl } : null,
+      quantDna: {
+        frequencyLabel,
+        horizonLabel,
+        confidenceLabel,
+        avgConfidence
+      },
+      categoriesData,
+      rank
     });
   } catch (error) {
     console.error('Error fetching bot:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
-
-export async function PUT(request: Request, { params }: { params: Promise<{ slug: string }> }) {
-  try {
-    const { slug } = await params;
-    const body = await request.json();
-    const { walletAddress, name, tagline, description, pfpUrl } = body;
-
-    if (!walletAddress) {
-      return NextResponse.json({ error: 'walletAddress is required to verify ownership' }, { status: 400 });
-    }
-
-    const bot = await prisma.bot.findFirst({
-      where: {
-        OR: [{ slug: slug }, { id: slug }]
-      }
-    });
-    
-    if (!bot) {
-      return NextResponse.json({ error: 'Bot not found' }, { status: 404 });
-    }
-
-    if (bot.walletAddress !== walletAddress) {
-      return NextResponse.json({ error: 'Unauthorized. Only the maker can edit this bot.' }, { status: 403 });
-    }
-
-    const updatedBot = await prisma.bot.update({
-      where: { id: bot.id },
-      data: {
-        name: name !== undefined ? name : bot.name,
-        tagline: tagline !== undefined ? tagline : bot.tagline,
-        description: description !== undefined ? description : bot.description,
-        pfpUrl: pfpUrl !== undefined ? pfpUrl : bot.pfpUrl
-      }
-    });
-
-    return NextResponse.json(updatedBot, { status: 200 });
-  } catch (error) {
-    console.error('Error updating bot:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

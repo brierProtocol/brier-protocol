@@ -1,15 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const address = searchParams.get('address');
+    const lowerAddress = address?.toLowerCase();
 
-    if (!address) return NextResponse.json({ error: 'address is required' }, { status: 400 });
+    if (!lowerAddress) return NextResponse.json({ error: 'address is required' }, { status: 400 });
 
     const user = await prisma.user.findUnique({
-      where: { walletAddress: address },
+      where: { walletAddress: lowerAddress },
       include: {
         followers: true,
         following: true
@@ -30,12 +33,15 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const { walletAddress, handle, name, bio, pfpUrl, xHandle } = await request.json();
+    const lowerAddress = walletAddress?.toLowerCase();
 
-    if (!walletAddress) return NextResponse.json({ error: 'Missing walletAddress' }, { status: 400 });
+    if (!lowerAddress) return NextResponse.json({ error: 'Missing walletAddress' }, { status: 400 });
 
-    if (handle) {
+    const finalHandle = handle === undefined ? undefined : (handle?.trim() || null);
+
+    if (finalHandle) {
       // Check if handle is already taken by someone else
-      const existing = await prisma.user.findUnique({ where: { handle } });
+      const existing = await prisma.user.findUnique({ where: { handle: finalHandle } });
       if (existing && existing.walletAddress !== walletAddress) {
         return NextResponse.json({ error: 'Handle already taken' }, { status: 400 });
       }
@@ -51,13 +57,13 @@ export async function POST(request: Request) {
     const xData = cleanX === undefined ? {} : { xHandle: cleanX, xVerified: false }
 
     const user = await prisma.user.upsert({
-      where: { walletAddress },
-      update: { handle, name, bio, pfpUrl, ...xData },
-      create: { walletAddress, handle, name, bio, pfpUrl, ...xData }
+      where: { walletAddress: lowerAddress },
+      update: { handle: finalHandle, name, bio, pfpUrl, ...xData },
+      create: { walletAddress: lowerAddress, handle: finalHandle, name, bio, pfpUrl, ...xData }
     });
 
     return NextResponse.json(user, { status: 200 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error saving user:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

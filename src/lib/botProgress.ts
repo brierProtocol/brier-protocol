@@ -1,12 +1,10 @@
 // Honest shadow-phase progress for a bot, derived ONLY from real fields.
 // No invented TVL or PnL. Eligibility gate (v1): 100 resolved predictions,
-// Brier 0.20 or lower, 21 days live. Mirrors the rule shown across the product.
+// LCB > 0, 21 days live. Mirrors the rule shown across the product.
 
 export const SHADOW_RESOLVED_TARGET = 100
 export const SHADOW_DAYS_TARGET = 21
-export const SHADOW_BRIER_TARGET = 0.2
-// A freshly deployed bot gets a short grace window to make its first trade
-// before we stop calling it "new" and start calling it idle.
+export const SHADOW_LCB_TARGET = 0 // Needs to be > 0
 export const NEW_GRACE_DAYS = 3
 
 export interface BotLike {
@@ -15,18 +13,13 @@ export interface BotLike {
   vaultOpen?: boolean | null
   currentTVL?: number | null
   tvl?: number | null
-  scores?: Array<{ brierScore?: number; winRate?: number; totalTrades?: number; lcb?: number | null; reputationScore?: number | null; resolvedPredictions?: number | null } | null> | null
+  scores?: Array<{ lcb?: number | null; brierScore?: number | null; winRate?: number; totalTrades?: number } | null> | null
+  lcb?: number | null
   brierScore?: number | null
   winRate?: number | null
-  // Total trades indexed on-chain (incl. unresolved). Distinguishes a bot that
-  // is trading-but-unresolved from one whose wallet has never traded.
   tradesIndexed?: number | null
 }
 
-// The honest lifecycle of a bot, kept deliberately simple:
-//  new    — just deployed, grace window, nothing on-chain yet
-//  shadow — proving in the open, vault still locked (the default pre-vault state)
-//  live   — vault open / eligible
 export type BotPhase = 'new' | 'shadow' | 'live'
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
@@ -41,28 +34,23 @@ export interface ShadowProgress {
   live: boolean
   resolved: number
   days: number
-  brier: number | null
+  lcb: number | null
   winRate: number | null
   tvl: number
   resolvedPass: boolean
   daysPass: boolean
-  brierPass: boolean
-  /** Skill vs the market (LCB of relative skill). Null until scored. */
-  skill: number | null
-  skillPass: boolean
+  lcbPass: boolean
   eligible: boolean
   phase: BotPhase
   tradesIndexed: number
-  /** Overall readiness toward opening a vault, 0..1. Live bots read 1. */
   pct: number
 }
 
 export function shadowProgress(b: BotLike): ShadowProgress {
   const score = b.scores?.[0] ?? null
-  const resolved = score?.resolvedPredictions ?? score?.totalTrades ?? 0
-  const brierRaw = score?.brierScore ?? b.brierScore ?? null
-  // Brier only means something once there are resolved predictions behind it.
-  const brier = resolved > 0 && typeof brierRaw === 'number' ? brierRaw : null
+  const resolved = score?.totalTrades ?? 0
+  const lcbRaw = score?.lcb ?? b.lcb ?? null
+  const lcb = resolved > 0 && typeof lcbRaw === 'number' ? lcbRaw : null
   const winRate = score?.winRate ?? b.winRate ?? null
   const tvl = b.currentTVL ?? b.tvl ?? 0
   // Skill vs the market (LCB). This, not raw Brier, is the quality gate.
@@ -73,18 +61,13 @@ export function shadowProgress(b: BotLike): ShadowProgress {
 
   const resolvedPass = resolved >= SHADOW_RESOLVED_TARGET
   const daysPass = days >= SHADOW_DAYS_TARGET
-  const brierPass = brier !== null && brier <= SHADOW_BRIER_TARGET
-  // The real quality gate: positive lower-confidence-bound skill over the market.
-  const skillPass = skill !== null && skill > 0
+  const lcbPass = lcb !== null && lcb > SHADOW_LCB_TARGET
 
   const rP = clamp01(resolved / SHADOW_RESOLVED_TARGET)
   const dP = clamp01(days / SHADOW_DAYS_TARGET)
-  // Skill sub-progress: LCB 0 reads 0, LCB >= 0.10 reads 1. Counts only with data.
-  const bP = skill === null ? 0 : clamp01(skill / 0.10)
+  const lP = lcb === null ? 0 : clamp01((lcb + 0.1) / (0.1)) // mapping LCB [-0.1, 0] to [0, 1] for progress
 
   const live = isBotLive(b)
-  // Total on-chain trades. Fall back to resolved when the caller did not load
-  // the count, so we never wrongly flag an active bot as idle.
   const tradesIndexed = b.tradesIndexed ?? (resolved > 0 ? resolved : 0)
 
   let phase: BotPhase
@@ -93,32 +76,18 @@ export function shadowProgress(b: BotLike): ShadowProgress {
   else phase = 'shadow'
 
   return {
-    live,
-    resolved,
-    days,
-    brier,
-    winRate,
-    tvl,
-    resolvedPass,
-    daysPass,
-    brierPass,
-    skill,
-    skillPass,
-    eligible: resolvedPass && daysPass && skillPass,
-    phase,
-    tradesIndexed,
-    pct: live ? 1 : (rP + dP + bP) / 3,
+    live, resolved, days, lcb, winRate, tvl,
+    resolvedPass, daysPass, lcbPass,
+    eligible: resolvedPass && daysPass && lcbPass,
+    phase, tradesIndexed,
+    pct: live ? 1 : (rP + dP + lP) / 3,
   }
 }
 
-// Single source of truth for how a phase reads in the UI: the pill label, its
-// colour, and an honest one-line metric. Used by the feed and the catalog so a
-// bot looks identical everywhere. No invented numbers.
 export function phaseMeta(p: ShadowProgress): { tag: string; color: string; metric: string } {
   switch (p.phase) {
-    // LIVE reads as clean platinum — premium and neutral, not the old teal.
     case 'live':
-      return { tag: 'LIVE', color: '#eef0f6', metric: p.brier !== null ? `BRIER ${p.brier.toFixed(3)}` : 'VAULT OPEN' }
+      return { tag: 'LIVE', color: '#eef0f6', metric: p.lcb !== null ? `LCB ${p.lcb.toFixed(3)}` : 'VAULT OPEN' }
     case 'shadow':
       return { tag: 'SHADOW', color: '#8b7bff', metric: `${p.resolved}/${SHADOW_RESOLVED_TARGET}` }
     default:

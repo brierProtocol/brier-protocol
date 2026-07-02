@@ -1,60 +1,65 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import type { Ratelimit } from '@upstash/ratelimit'
 
-// Rate limiting for POST /api/bots/submit.
-//
-// ⚠️  The in-memory Map below is PER-INSTANCE. On Vercel/serverless every cold
-//     start and every concurrent lambda gets its own Map, so the limit is NOT
-//     enforced globally — it only works as a single-process dev fallback.
-//
-// TODO(prod): use Upstash Redis for a distributed, durable limit.
-//   1. npm i @upstash/ratelimit @upstash/redis
-//   2. set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN
-//   3. uncomment and use the limiter below:
-//
-//   import { Ratelimit } from '@upstash/ratelimit'
-//   import { Redis } from '@upstash/redis'
-//   const ratelimit = new Ratelimit({
-//     redis: Redis.fromEnv(),
-//     limiter: Ratelimit.slidingWindow(LIMIT, '1 m'),
-//   })
-//   // ...inside middleware:
-//   const { success } = await ratelimit.limit(ip)
-//   if (!success) return new NextResponse('Too Many Requests', { status: 429 })
+// Distributed rate-limit via Upstash Redis.
+// Requires UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN env vars.
+// Falls back to an in-memory per-instance Map in local dev / if not configured.
 
-const LIMIT = 10 // requests
-const WINDOW = 60 * 1000 // 1 minute
+const LIMIT = 10        // requests per window
+const WINDOW = '1 m'   // sliding window
 
-// True once Upstash credentials are present. Until @upstash/* is installed and
-// the block above is uncommented, we still fall back to the in-memory map.
-const UPSTASH_CONFIGURED =
-  !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN
+// Lazily initialise the Upstash limiter the first time it's needed so the
+// middleware still boots even when the env vars aren't set.
+let _ratelimit: Ratelimit | null = null
 
-// Dev-only in-memory fallback (see warning above).
+async function getUpstashLimiter() {
+  if (_ratelimit) return _ratelimit
+  const { Ratelimit } = await import('@upstash/ratelimit')
+  const { Redis } = await import('@upstash/redis')
+  _ratelimit = new Ratelimit({
+    redis: Redis.fromEnv(),
+    limiter: Ratelimit.slidingWindow(LIMIT, WINDOW),
+    analytics: false,
+  })
+  return _ratelimit
+}
+
+// In-memory fallback (dev only — not distributed across serverless instances).
 const rateLimitMap = new Map<string, { count: number; lastReset: number }>()
+const WINDOW_MS = 60_000
+
+function inMemoryCheck(ip: string): boolean {
+  const now = Date.now()
+  const r = rateLimitMap.get(ip) ?? { count: 0, lastReset: now }
+  if (now - r.lastReset > WINDOW_MS) { r.count = 0; r.lastReset = now }
+  if (r.count >= LIMIT) return false
+  r.count++
+  rateLimitMap.set(ip, r)
+  return true
+}
+
+const WRITE_ROUTES = ['/api/bots/submit', '/api/bots/register', '/api/deposits', '/api/withdraw', '/api/predictions/commit']
 
 export async function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname.startsWith('/api/bots/submit')) {
-    const ip = (request as any).ip ?? '127.0.0.1'
+  const pathname = request.nextUrl.pathname
+  if (!WRITE_ROUTES.some(r => pathname.startsWith(r))) return NextResponse.next()
 
-    // TODO(prod): when UPSTASH_CONFIGURED, route through the Upstash limiter
-    // instead of the per-instance map below.
-    void UPSTASH_CONFIGURED
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '127.0.0.1'
 
-    const now = Date.now()
-    const record = rateLimitMap.get(ip) ?? { count: 0, lastReset: now }
+  const upstashReady =
+    !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN
 
-    if (now - record.lastReset > WINDOW) {
-      record.count = 0
-      record.lastReset = now
+  if (upstashReady) {
+    try {
+      const limiter = await getUpstashLimiter()
+      const { success } = await limiter.limit(ip)
+      if (!success) return new NextResponse('Too Many Requests', { status: 429 })
+    } catch {
+      // If Upstash is misconfigured, fall through rather than blocking all traffic.
     }
-
-    if (record.count >= LIMIT) {
-      return new NextResponse('Too Many Requests', { status: 429 })
-    }
-
-    record.count++
-    rateLimitMap.set(ip, record)
+  } else {
+    if (!inMemoryCheck(ip)) return new NextResponse('Too Many Requests', { status: 429 })
   }
 
   return NextResponse.next()

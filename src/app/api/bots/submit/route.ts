@@ -37,6 +37,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Bot name already taken' }, { status: 409 })
     }
 
+    // Maker identity (first-class User). Must exist before the bot — ownerWallet
+    // is a FK to User. Here the maker is builderAddress (walletAddress may hold the
+    // Polymarket execution wallet instead).
+    const makerWallet = data.builderAddress.toLowerCase()
+    await prisma.user.upsert({
+      where: { walletAddress: makerWallet },
+      create: { walletAddress: makerWallet },
+      update: {},
+    })
+
     // Create bot in PAPER status (v1.3 Default)
     const bot = await prisma.bot.create({
       data: {
@@ -49,6 +59,7 @@ export async function POST(req: NextRequest) {
         status: 'PAPER',
         tier: 'NONE',
         walletAddress: data.polyWalletAddress || data.builderAddress,
+        ownerWallet: makerWallet,
         markets: {
           create: data.markets.map(marketId => ({ marketId, status: 'ACTIVE' }))
         },

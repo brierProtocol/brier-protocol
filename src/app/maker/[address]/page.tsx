@@ -85,7 +85,7 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
         const [uRes, fRes, botsRes, dRes] = await Promise.all([
           fetch(`/api/users?address=${makerAddress}`),
           fetch(`/api/follows?address=${makerAddress}${activeUser ? `&viewerId=${activeUser}` : ''}`),
-          fetch('/api/bots'),
+          fetch(`/api/bots?owner=${makerAddress}`),
           fetch(`/api/dashboard?address=${makerAddress}`),
         ])
         if (!alive) return
@@ -98,7 +98,7 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
         }
         if (botsRes.ok) {
           const all = await botsRes.json()
-          if (Array.isArray(all)) setBots(all.filter((b: any) => (b.walletAddress || b.builder)?.toLowerCase() === makerAddress))
+          if (Array.isArray(all)) setBots(all)
         }
         if (dRes.ok) {
           const d = await dRes.json()
@@ -108,6 +108,20 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
       } catch (e) { console.error(e) } finally { if (alive) setLoading(false) }
     }
     load()
+
+    // Check for OAuth return params
+    if (typeof window !== 'undefined') {
+      const search = new URLSearchParams(window.location.search)
+      if (search.get('x_linked') === 'true') {
+        setTimeout(() => showToast('X account successfully linked and verified!'), 500)
+        // clean up URL
+        window.history.replaceState({}, '', window.location.pathname)
+      } else if (search.get('error')) {
+        setTimeout(() => showToast(`X linking failed: ${search.get('error')}`), 500)
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    }
+
     return () => { alive = false }
   }, [makerAddress, activeUser])
 
@@ -159,6 +173,12 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
     } catch { setFollowed(prev); setFollowersList(prevList); showToast('Could not update follow. Try again.') }
   }
 
+  const initiateXLink = () => {
+    if (!activeUser) return showToast('Connect your wallet first.')
+    window.location.href = `/api/auth/twitter?wallet=${activeUser}`
+  }
+
+  // Manual link/unlink from the modal (the OAuth path is initiateXLink).
   const saveX = async (handle: string | null) => {
     if (!activeUser) return
     const res = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: activeUser, xHandle: handle }) })
@@ -258,8 +278,8 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
                 {profile?.handle && hasName && <span className="font-mono text-[13px] text-[#8a8a94]">@{profile.handle}</span>}
                 {xHandle && (
                   <a href={`https://x.com/${xHandle}`} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[#262630] px-2.5 py-1 text-[11px] text-[#ddd] hover:border-[#3a3a44] hover:text-white no-underline transition-colors">
-                    <XLogo size={11} /> {xHandle}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[#262630] px-2.5 py-1 text-[11px] text-[#ddd] hover:border-[#3a3a44] hover:text-white no-underline transition-colors" title={profile?.xVerified ? 'Verified via X' : ''}>
+                    <XLogo size={11} /> {xHandle} {profile?.xVerified && <span className="text-primary ml-0.5">✓</span>}
                   </a>
                 )}
               </div>

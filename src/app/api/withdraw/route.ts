@@ -16,13 +16,32 @@ const TRANSFER_EVENT_SIG = ethers.id('Transfer(address,address,uint256)');
  */
 export async function POST(request: NextRequest) {
   try {
-    const { botId, depositorWallet, txHash } = await request.json();
+    const body = await request.json();
+    const { botId, txHash } = body;
+    // Normalizar a minúsculas: el updateMany de VaultDeposit filtra por wallet exacta
+    // y los depósitos se guardan lowercased, así que sin esto el casing distinto
+    // dejaría deposits activos con la posición ya cerrada (WARN-2).
+    const depositorWallet = String(body?.depositorWallet ?? '').toLowerCase();
 
     if (!botId || !depositorWallet || !txHash) {
       return NextResponse.json(
         { error: 'Missing required parameters (botId, depositorWallet, txHash)' },
         { status: 400 }
       );
+    }
+
+    // Shape check + anti-replay (F1): reject a withdrawal txHash already booked, so a
+    // resubmit can't decrement TVL/shares twice. Reuses VaultDeposit.txHash @unique.
+    const normalizedTxHash = String(txHash).toLowerCase();
+    if (!/^0x[0-9a-f]{64}$/.test(normalizedTxHash)) {
+      return NextResponse.json({ error: 'Invalid transaction hash format' }, { status: 400 });
+    }
+    const alreadyProcessed = await prisma.vaultDeposit.findUnique({
+      where: { txHash: normalizedTxHash },
+      select: { id: true },
+    });
+    if (alreadyProcessed) {
+      return NextResponse.json({ error: 'This withdrawal has already been processed' }, { status: 409 });
     }
 
     const bot = await prisma.bot.findUnique({ where: { id: botId } });
@@ -32,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar el retiro on-chain: un Transfer de USDC DESDE el vault HACIA el LP.
     const provider = new ethers.JsonRpcProvider(RPC_URL);
-    const receipt = await provider.getTransactionReceipt(txHash);
+    const receipt = await provider.getTransactionReceipt(normalizedTxHash);
     if (!receipt || receipt.status !== 1) {
       return NextResponse.json(
         { error: 'Transaction failed or not found on-chain' },
@@ -68,19 +87,70 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Actualizar estado: marcar los depósitos del LP como retirados y bajar el TVL.
-    // MVP = salida total. TODO: soportar retiros parciales reduciendo amountUsdc (FIFO).
-    await prisma.$transaction([
-      prisma.vaultDeposit.updateMany({
-        where: { botId, depositorWallet, active: true },
-        data: { active: false, exitedAt: new Date(), exitReason: 'MANUAL' },
-      }),
-      prisma.bot.update({
-        where: { id: botId },
-        // Evita TVL negativo si hubo ganancias contabilizadas aparte.
-        data: { currentTVL: { decrement: Math.min(withdrawnAmount, bot.currentTVL) } },
-      }),
-    ]);
+    // Posición agregada del inversor (case-insensitive: el depósito pudo guardar la
+    // wallet con otro case). MVP = salida total, así que se queman TODAS sus shares.
+    const position = await prisma.vaultPosition.findFirst({
+      where: { botId, userWallet: { equals: depositorWallet, mode: 'insensitive' } },
+    });
+    const sharesBurned = position?.shares ?? 0;
+    // PnL realizado en salida total = lo que recibió on-chain menos su cost basis.
+    const realizedDelta = withdrawnAmount - (position?.costBasisUsdc ?? 0);
+
+    // Un retiro desde un vault cerrado (black swan) es un "claim" / wind-down, no
+    // una salida voluntaria: lo reflejamos en exitReason con el motivo del cierre.
+    const exitReason = bot.vaultClosedAt ? (bot.vaultCloseReason || 'VAULT_CLOSED') : 'MANUAL';
+
+    // Actualizar estado: marcar los depósitos del LP como retirados, bajar el TVL,
+    // quemar las shares del bot y cerrar la posición agregada (realizando el PnL).
+    // MVP = salida total. TODO: soportar retiros parciales reduciendo shares (FIFO).
+    try {
+      await prisma.$transaction([
+        // Anti-replay ledger row: the @unique on txHash makes a duplicate/concurrent
+        // resubmit fail with P2002 instead of decrementing TVL/shares again (F1).
+        prisma.vaultDeposit.create({
+          data: {
+            botId,
+            txHash: normalizedTxHash,
+            depositorWallet,
+            amountUsdc: withdrawnAmount,
+            shares: sharesBurned,
+            kind: 'REDEEM',
+            active: false,
+            exitedAt: new Date(),
+            exitReason,
+          },
+        }),
+        prisma.vaultDeposit.updateMany({
+          where: { botId, depositorWallet, active: true, kind: 'DEPOSIT' },
+          data: { active: false, exitedAt: new Date(), exitReason },
+        }),
+        prisma.bot.update({
+          where: { id: botId },
+          // Evita TVL/shares negativos si hubo ganancias contabilizadas aparte.
+          data: {
+            currentTVL: { decrement: Math.min(withdrawnAmount, bot.currentTVL) },
+            totalShares: { decrement: Math.min(sharesBurned, bot.totalShares) },
+          },
+        }),
+        ...(position
+          ? [
+              prisma.vaultPosition.update({
+                where: { id: position.id },
+                data: {
+                  shares: 0,
+                  costBasisUsdc: 0,
+                  realizedPnlUsdc: { increment: realizedDelta },
+                },
+              }),
+            ]
+          : []),
+      ]);
+    } catch (e: any) {
+      if (e?.code === 'P2002') {
+        return NextResponse.json({ error: 'This withdrawal has already been processed' }, { status: 409 });
+      }
+      throw e;
+    }
 
     return NextResponse.json({ success: true, withdrawnAmount });
   } catch (error: any) {

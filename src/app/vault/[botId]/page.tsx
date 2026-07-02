@@ -336,15 +336,15 @@ export default function VaultPage() {
             <div className="mt-8 flex gap-8">
               <div>
                 <p className="text-[10px] font-bold opacity-30 tracking-widest uppercase mb-1">Builder Carry</p>
-                <p className="text-lg font-bold font-mono text-white">20.0%</p>
+                <p className="text-lg font-bold font-mono text-white">30.0%</p>
               </div>
               <div>
                 <p className="text-[10px] font-bold opacity-30 tracking-widest uppercase mb-1">Platform Fee</p>
-                <p className="text-lg font-bold font-mono text-white">3.0%</p>
+                <p className="text-lg font-bold font-mono text-white">10.0%</p>
               </div>
               <div>
                 <p className="text-[10px] font-bold opacity-30 tracking-widest uppercase mb-1">Withdraw Delay</p>
-                <p className="text-lg font-bold font-mono text-white">48H</p>
+                <p className="text-lg font-bold font-mono text-white">Instant</p>
               </div>
             </div>
           </div>

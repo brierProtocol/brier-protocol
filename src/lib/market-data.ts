@@ -27,7 +27,7 @@ export async function captureMarket(marketId: string): Promise<MarketSnapshot> {
   try {
     const ctrl = new AbortController()
     const t = setTimeout(() => ctrl.abort(), 3000)
-    const res = await fetch(`${CLOB}/markets/${marketId}`, { signal: ctrl.signal }).finally(() => clearTimeout(t))
+    const res = await fetch(`${CLOB}/markets/${encodeURIComponent(marketId)}`, { signal: ctrl.signal }).finally(() => clearTimeout(t))
     if (!res.ok) return { pYes: null, liquidity: null, state: 'unknown' }
     const data: any = await res.json().catch(() => null)
     if (!data) return { pYes: null, liquidity: null, state: 'unknown' }
@@ -55,7 +55,7 @@ export async function resolveMarket(marketId: string): Promise<{ resolved: boole
   try {
     const ctrl = new AbortController()
     const t = setTimeout(() => ctrl.abort(), 4000)
-    const res = await fetch(`${CLOB}/markets/${marketId}`, { signal: ctrl.signal }).finally(() => clearTimeout(t))
+    const res = await fetch(`${CLOB}/markets/${encodeURIComponent(marketId)}`, { signal: ctrl.signal }).finally(() => clearTimeout(t))
     if (!res.ok) return { resolved: false, yesWon: null }
     const data: any = await res.json().catch(() => null)
     if (!data || data.closed !== true) return { resolved: false, yesWon: null }

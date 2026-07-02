@@ -2,6 +2,8 @@ import Fastify from 'fastify';
 import { Queue } from 'bullmq';
 import { createRequire } from 'module';
 import crypto from 'node:crypto';
+import { candidateSecrets, verifyAgainst } from './keys.js';
+import rateLimit from '@fastify/rate-limit';
 const require = createRequire(import.meta.url);
 const Redis = require('ioredis');
 
@@ -25,19 +27,53 @@ const MAX_CAPACITY = 200_000; // Max allowed total lock
 const DEFAULT_MAX_SLIPPAGE_BPS = 200;
 const MAX_ALLOWED_SLIPPAGE_BPS = 1000; // techo duro: nunca aceptar peor de 10%
 
-const SECRET = process.env.BUILDER_SECRET_KEY || 'your-64-char-hex-secret';
 const ALLOWED_IPS: string[] | null = process.env.EXECUTOR_ALLOWED_IPS
   ? process.env.EXECUTOR_ALLOWED_IPS.split(',').map(s => s.trim()).filter(Boolean)
   : null;
 
-function verifyHmac(timestamp: string, rawBody: string, signature: string): boolean {
-  const payload = `${timestamp}.${rawBody}`;
-  const expected = crypto.createHmac('sha256', SECRET).update(payload).digest('hex');
-  try {
-    return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(signature, 'hex'));
-  } catch {
+/**
+ * Authenticates a signed request using the bot's OWN key(s). Reads the timestamp
+ * and signature headers, enforces the 5-min replay window, resolves the bot's
+ * active secrets, and verifies the HMAC against any of them. Fails closed: a bot
+ * with no valid key is rejected (no global default to fall back on). On failure
+ * it sends the reply and returns false; the caller returns immediately.
+ */
+async function authenticate(request: any, reply: any): Promise<boolean> {
+  const timestamp = request.headers['x-timestamp'] as string | undefined;
+  const signature = request.headers['x-signature'] as string | undefined;
+
+  if (!timestamp || !signature) {
+    reply.code(400).send({ error: 'Missing x-timestamp or x-signature headers' });
     return false;
   }
+
+  const ts = parseInt(timestamp, 10);
+  if (isNaN(ts) || Math.abs(Date.now() - ts) > 300_000) {
+    reply.code(401).send({ error: 'Request expired or invalid timestamp' });
+    return false;
+  }
+
+  const botId = request.body?.botId as string | undefined;
+  if (!botId) {
+    reply.code(400).send({ error: 'Missing botId' });
+    return false;
+  }
+
+  const secrets = await candidateSecrets(botId);
+  if (secrets.length === 0) {
+    fastify.log.warn({ botId }, 'No active API key for bot — rejecting');
+    reply.code(401).send({ error: 'No active API key for this bot. Generate one in the dashboard.' });
+    return false;
+  }
+
+  const rawBody = JSON.stringify(request.body);
+  if (!verifyAgainst(secrets, timestamp, rawBody, signature)) {
+    fastify.log.warn({ botId }, 'HMAC verification failed');
+    reply.code(401).send({ error: 'Invalid signature' });
+    return false;
+  }
+
+  return true;
 }
 
 async function checkRateLimit(key: string): Promise<boolean> {
@@ -58,6 +94,14 @@ fastify.addHook('onRequest', async (req, reply) => {
     fastify.log.warn({ clientIp }, 'Blocked request from unlisted IP');
     return reply.code(403).send({ error: 'Forbidden' });
   }
+});
+
+// Global rate limit (distributed via the existing Redis) on every route — health,
+// signals and settle. Per-bot HMAC auth still applies on top.
+await fastify.register(rateLimit, {
+  max: 120,
+  timeWindow: '1 minute',
+  redis,
 });
 
 fastify.get('/health', async () => ({
@@ -81,25 +125,10 @@ interface SignalBody {
 }
 
 fastify.post<{ Body: SignalBody }>('/api/v1/signals', async (request, reply) => {
-  const timestamp = request.headers['x-timestamp'] as string | undefined;
-  const signature = request.headers['x-signature'] as string | undefined;
+  // Per-bot HMAC auth + replay window (fails closed if the bot has no active key).
+  if (!(await authenticate(request, reply))) return;
 
-  if (!timestamp || !signature) {
-    return reply.code(400).send({ error: 'Missing x-timestamp or x-signature headers' });
-  }
-
-  // Replay protection (5 min window)
-  const ts = parseInt(timestamp, 10);
-  if (isNaN(ts) || Math.abs(Date.now() - ts) > 300_000) {
-    return reply.code(401).send({ error: 'Request expired or invalid timestamp' });
-  }
-
-  // HMAC verification
-  const rawBody = JSON.stringify(request.body);
-  if (!verifyHmac(timestamp, rawBody, signature)) {
-    fastify.log.warn('HMAC verification failed');
-    return reply.code(401).send({ error: 'Invalid signature' });
-  }
+  const signature = request.headers['x-signature'] as string;
 
   // Rate limiting (usa los primeros 16 chars de la firma como fingerprint del caller)
   const rlKey = signature.slice(0, 16);
@@ -201,25 +230,8 @@ interface SettleBody {
 }
 
 fastify.post<{ Body: SettleBody }>('/api/v1/settle', async (request, reply) => {
-  const timestamp = request.headers['x-timestamp'] as string | undefined;
-  const signature = request.headers['x-signature'] as string | undefined;
-
-  if (!timestamp || !signature) {
-    return reply.code(400).send({ error: 'Missing x-timestamp or x-signature headers' });
-  }
-
-  // Replay protection (5 min window)
-  const ts = parseInt(timestamp, 10);
-  if (isNaN(ts) || Math.abs(Date.now() - ts) > 300_000) {
-    return reply.code(401).send({ error: 'Request expired or invalid timestamp' });
-  }
-
-  // HMAC verification
-  const rawBody = JSON.stringify(request.body);
-  if (!verifyHmac(timestamp, rawBody, signature)) {
-    fastify.log.warn('HMAC verification failed');
-    return reply.code(401).send({ error: 'Invalid signature' });
-  }
+  // Per-bot HMAC auth + replay window (fails closed if the bot has no active key).
+  if (!(await authenticate(request, reply))) return;
 
   const { tradeId, botId, vaultAddress, ctfAddress, conditionId, collateralToken, indexSets, payout } = request.body;
 

@@ -2,7 +2,9 @@ require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 
 const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || "https://rpc.ankr.com/eth_sepolia";
-const PRIVATE_KEY = process.env.PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+// No test-key fallback: real-network deploys must set a real key. The default
+// hardhat/localhost network uses its own built-in accounts, so tests are unaffected.
+const PRIVATE_KEY = process.env.PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY;
 
 /** @type {import('hardhat/config').HardhatUserConfig} */
 module.exports = {
