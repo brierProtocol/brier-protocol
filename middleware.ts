@@ -39,7 +39,7 @@ function inMemoryCheck(ip: string): boolean {
   return true
 }
 
-const WRITE_ROUTES = ['/api/bots/submit', '/api/bots/register', '/api/deposits', '/api/withdraw', '/api/predictions/commit']
+const WRITE_ROUTES = ['/api/bots/submit', '/api/bots/register', '/api/deposits', '/api/withdraw', '/api/predictions/commit', '/api/v1/predictions']
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
