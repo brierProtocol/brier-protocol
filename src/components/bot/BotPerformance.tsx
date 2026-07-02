@@ -127,7 +127,7 @@ export default function BotPerformance({ snapshots, winRate, sharpe, maxDrawdown
           </div>
           <div className="flex items-baseline gap-3">
             <span className="font-sans font-black text-[34px] leading-none tracking-[-0.03em] tabular-nums" style={{ color: model ? accent : '#5a5a66' }}>
-              {model ? (mode === 'money' ? fmtMoney(active ? active.v : model.last) : fmtScore(active ? active.v : model.last)) : '$0'}
+              {model ? (mode === 'money' ? fmtMoney(active ? active.v : model.last) : fmtScore(active ? active.v : model.last)) : (mode === 'money' ? '$0' : '0.000')}
             </span>
             {model && (
               <span className="font-mono text-[13px] font-bold tabular-nums" style={{ color: accent }}>

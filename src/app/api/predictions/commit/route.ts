@@ -78,11 +78,14 @@ export async function POST(req: NextRequest) {
         marketId, 
         conditionId,
         side,
-        marketTitle, 
-        confidence: f, 
-        marketProbabilityAtCommit: marketMidpoint, 
+        marketTitle,
+        confidence: f,
+        // Same frame as `confidence`: P(chosen side) at commit. A NO bet must be
+        // compared against the market's P(NO), not P(YES), or the skill engine
+        // scores it against the wrong number.
+        marketProbabilityAtCommit: (String(side).toUpperCase() === 'NO' || String(side).toUpperCase() === 'SHORT') ? 1 - marketMidpoint : marketMidpoint,
         liquidity,
-        status: 'PENDING' 
+        status: 'PENDING'
       },
     })
     

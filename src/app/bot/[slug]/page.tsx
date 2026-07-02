@@ -105,7 +105,11 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
       .then(res => res.ok ? res.json() : null)
       .then(dbBot => {
         if (!dbBot) { setLoading(false); return }
-        const s = dbBot.scores?.length > 0 ? dbBot.scores[dbBot.scores.length - 1] : null
+        // Headline score: the row flagged isLatest (the scorer maintains exactly one),
+        // NOT the last by snapshotDate — same-day rows (cron at 00:00 UTC vs seeds at
+        // any hour) made positional "last" grab a stale/empty snapshot.
+        const s = dbBot.scores?.find((x: any) => x.isLatest)
+          ?? (dbBot.scores?.length > 0 ? dbBot.scores[dbBot.scores.length - 1] : null)
         
         const mapped = {
           id: dbBot.id, name: dbBot.name, builder: dbBot.walletAddress, tagline: dbBot.tagline,
@@ -266,8 +270,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const hasVerifiedPerformance = tradesCount >= 100
   const hasVerifiedReputation = lcb > 0
 
-  // We map the historical LCB scores into snapshots for the BotPerformance chart
-  const lcbSnapshots = bot.allScores?.map((s: any) => ({
+  // We map the historical LCB scores into snapshots for the BotPerformance chart.
+  // Rows without an lcb (pre-reputation snapshots) would poison the curve as 0s.
+  const lcbSnapshots = bot.allScores?.filter((s: any) => typeof s.lcb === 'number').map((s: any) => ({
     cumulativePnl: s.lcb,
     date: s.snapshotDate
   })) || []
@@ -520,12 +525,12 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               info="Reputation (LCB) is mathematically derived from the agent's Brier Score compared against the Polymarket consensus. It measures relative skill: a score > 0 means the agent consistently beats the market average. It uses a Lower Confidence Bound to ensure luck isn't rewarded."
             />
 
-            {/* trade history (Order Book) */}
+            {/* prediction book — the bot's committed calls (fills join in capital phase) */}
             <Panel>
               <div className="px-5 py-3.5 border-b border-[#141414]">
                 <div className="flex items-center justify-between mb-2.5">
-                  <div><span className="font-sans font-bold text-[14px]">On-chain fills</span><span className="ml-2 font-mono text-[10px] text-[#555]">real trades on Polymarket · separate from Predictions</span></div>
-                  <span className="font-mono text-[11px] text-[#888] tabular-nums">{trades.length} fills</span>
+                  <div><span className="font-sans font-bold text-[14px]">Prediction book</span><span className="ml-2 font-mono text-[10px] text-[#555]">calls locked before resolution · on-chain fills join in capital phase</span></div>
+                  <span className="font-mono text-[11px] text-[#888] tabular-nums">{trades.length} calls</span>
                 </div>
                 <div className="flex h-1.5 rounded-full overflow-hidden bg-[#0e0e0e]">
                   {wins > 0 && <div style={{ width: `${(wins / trades.length) * 100}%`, background: TEAL }} />}
@@ -537,7 +542,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 </div>
               </div>
               {trades.length === 0 ? (
-                <div className="px-5 py-12 text-center text-[13px] text-[#555]">No on-chain fills yet. This tracks real Polymarket trades from the wallet (capital phase). The bot&apos;s live calls are in <span className="text-[#8a8a94]">Predictions</span> above.</div>
+                <div className="px-5 py-12 text-center text-[13px] text-[#555]">No calls yet. The moment the bot commits a prediction it shows up here, then flips to WIN or LOSS when the market resolves.</div>
               ) : (
                 <div className="max-h-[360px] overflow-y-auto">
                   {trades.map((t, i) => {

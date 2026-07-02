@@ -16,12 +16,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     // fall back to the slug. This way the bot NAME/slug never has to match — as long
     // as the key is right, the heartbeat lands on the correct bot. Kills the whole
     // class of "wrong slug -> 404 -> offline" bugs.
+    // New-style keys (bk_live_..., ApiKey table) are matched by their public
+    // 16-char prefix; legacy bot.apiKey still works.
     let bot = key ? await prisma.bot.findFirst({ where: { apiKey: key }, select: { id: true, apiKey: true } }) : null
+    let matchedByNewKey = false
+    if (!bot && key && key.startsWith('bk_live_')) {
+      const row = await prisma.apiKey.findUnique({
+        where: { prefix: key.slice(0, 16) },
+        select: { botId: true, revokedAt: true },
+      })
+      if (row && !row.revokedAt) {
+        bot = await prisma.bot.findUnique({ where: { id: row.botId }, select: { id: true, apiKey: true } })
+        matchedByNewKey = !!bot
+      }
+    }
     if (!bot) bot = await prisma.bot.findUnique({ where: { slug }, select: { id: true, apiKey: true } })
     if (!bot) return NextResponse.json({ error: 'Bot not found' }, { status: 404 })
 
     // If matched by slug (not key), still reject a wrong key so one bot cannot spoof another.
-    if (key && key !== bot.apiKey && key !== process.env.BOT_INGEST_KEY) {
+    if (key && !matchedByNewKey && key !== bot.apiKey && key !== process.env.BOT_INGEST_KEY) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

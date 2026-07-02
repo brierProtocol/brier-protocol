@@ -26,12 +26,21 @@ export async function GET(req: NextRequest) {
       const r = await resolveMarket(marketId)
       if (!r.resolved) continue // still open / CLOB unreachable
       
-      const upd = await prisma.prediction.updateMany({
-        where: { marketId, status: 'PENDING' },
-        data: { status: r.yesWon ? 'WIN' : 'LOSS', resolution: r.yesWon ? 'YES' : 'NO' },
-      })
+      // WIN/LOSS is relative to the SIDE the bot backed: a NO bet WINS when YES
+      // loses. Marking every prediction by yesWon inverted every NO bettor's score.
+      const resolution = r.yesWon ? 'YES' : 'NO'
+      const [updNo, updYes] = await prisma.$transaction([
+        prisma.prediction.updateMany({
+          where: { marketId, status: 'PENDING', side: { in: ['NO', 'SHORT'] } },
+          data: { status: r.yesWon ? 'LOSS' : 'WIN', resolution },
+        }),
+        prisma.prediction.updateMany({
+          where: { marketId, status: 'PENDING', side: { notIn: ['NO', 'SHORT'] } },
+          data: { status: r.yesWon ? 'WIN' : 'LOSS', resolution },
+        }),
+      ])
       resolvedMarkets++
-      resolvedPreds += upd.count
+      resolvedPreds += updNo.count + updYes.count
 
       // --- INTEGRACIÓN EXECUTOR (SETTLEMENT) ---
       try {

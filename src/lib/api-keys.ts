@@ -84,23 +84,39 @@ export async function touchKeyByPrefix(prefix: string): Promise<void> {
 
 /**
  * Verifies the HMAC of `${timestamp}.${rawBody}` against any of a bot's active
- * secrets — the same scheme the executor uses. Used by authenticated API routes
- * (predictions, etc.). Returns false if the bot has no active key (fail closed).
+ * secrets — the same scheme the executor and both SDKs use. Returns the PREFIX of
+ * the key that matched (so the caller can stamp lastUsedAt), or null on failure.
+ * A bot with no active key fails closed.
  */
+export async function verifyBotSignatureWithPrefix(
+  botId: string,
+  timestamp: string,
+  rawBody: string,
+  signature: string,
+): Promise<string | null> {
+  const keys = await prisma.apiKey.findMany({
+    where: { botId, revokedAt: null },
+    select: { prefix: true, encryptedKey: true, keyIv: true, keyAuthTag: true },
+  })
+  if (keys.length === 0) return null
+  let sig: Buffer
+  try { sig = Buffer.from(signature, 'hex') } catch { return null }
+  const payload = `${timestamp}.${rawBody}`
+  for (const k of keys) {
+    let secret: string
+    try { secret = decryptApiKey(k.encryptedKey, k.keyIv, k.keyAuthTag) } catch { continue }
+    const expected = crypto.createHmac('sha256', secret).update(payload).digest()
+    if (expected.length === sig.length && crypto.timingSafeEqual(expected, sig)) return k.prefix
+  }
+  return null
+}
+
+/** Boolean wrapper over verifyBotSignatureWithPrefix (kept for existing callers). */
 export async function verifyBotSignature(
   botId: string,
   timestamp: string,
   rawBody: string,
   signature: string,
 ): Promise<boolean> {
-  const secrets = await activeSecretsForBot(botId)
-  if (secrets.length === 0) return false
-  let sig: Buffer
-  try { sig = Buffer.from(signature, 'hex') } catch { return false }
-  const payload = `${timestamp}.${rawBody}`
-  for (const secret of secrets) {
-    const expected = crypto.createHmac('sha256', secret).update(payload).digest()
-    if (expected.length === sig.length && crypto.timingSafeEqual(expected, sig)) return true
-  }
-  return false
+  return (await verifyBotSignatureWithPrefix(botId, timestamp, rawBody, signature)) !== null
 }
