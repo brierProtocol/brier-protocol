@@ -22,10 +22,29 @@ export function isBotStale(
   return now - bot.lastHeartbeatAt.getTime() > HEARTBEAT_STALE_MS
 }
 
-/** Stamp a bot's heartbeat as "now". Called by the bot/executor liveness ping. */
-export async function recordHeartbeat(botId: string) {
+/** Max length persisted for the live telemetry lines (a short human sentence). */
+export const LIVE_LINE_MAX = 280
+
+/**
+ * Stamp a bot's heartbeat as "now". Called by the bot/executor liveness ping.
+ * Optionally piggy-backs live telemetry: a one-line description of what the bot
+ * is doing and its current risk constraints, shown on the profile "Operating"
+ * strip. Both are clamped to LIVE_LINE_MAX; undefined leaves the column untouched.
+ */
+export async function recordHeartbeat(
+  botId: string,
+  liveActivity?: string | null,
+  liveConstraints?: string | null,
+) {
+  const clamp = (s: string | null | undefined) =>
+    typeof s === 'string' ? s.slice(0, LIVE_LINE_MAX) : undefined
+
   return prisma.bot.update({
     where: { id: botId },
-    data: { lastHeartbeatAt: new Date() },
+    data: {
+      lastHeartbeatAt: new Date(),
+      ...(liveActivity !== undefined ? { liveActivity: clamp(liveActivity) ?? null } : {}),
+      ...(liveConstraints !== undefined ? { liveConstraints: clamp(liveConstraints) ?? null } : {}),
+    },
   })
 }

@@ -44,6 +44,11 @@ function txOf(t: any): string | null {
 
 const Empty = () => <span className="text-[#333]">·</span>
 
+// Client-side mirror of HEARTBEAT_STALE_MS (src/lib/heartbeat.ts). Kept inline so
+// this client component never imports the server-only heartbeat module (it pulls in
+// Prisma). A bot reads as "operating" only if its last beat is fresher than this.
+const HEARTBEAT_STALE_MS = 12_000
+
 const Panel = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
   <div className={`rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden ${className}`}>{children}</div>
 )
@@ -71,6 +76,11 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const [editDesc, setEditDesc] = useState('')
   const [editPfp, setEditPfp] = useState('')
   const [savingBot, setSavingBot] = useState(false)
+  // Live heartbeat: the bot reads as "operating" from its real beat, not its trade
+  // history. We poll lastHeartbeatAt + the live activity line and tick a clock so the
+  // signal goes stale on its own if the beats stop.
+  const [beat, setBeat] = useState<{ at: string | null; activity: string | null }>({ at: null, activity: null })
+  const [nowTick, setNowTick] = useState<number>(0)
 
   const { address, isConnected } = useAccount()
   const currentUser = useCurrentUser(address)
@@ -118,6 +128,20 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         fetch(`/api/comments?botId=${mapped.id}`).then(r => r.json()).then(d => { if (Array.isArray(d)) setPosts(d) })
       })
       .catch(() => setLoading(false))
+  }, [slug])
+
+  // Poll the live heartbeat (lastHeartbeatAt + liveActivity) every 6s and tick the
+  // clock, so "Operating" reflects the real beat and self-expires if it stops.
+  useEffect(() => {
+    let alive = true
+    const poll = () => fetch(`/api/bots/${slug}?t=${Date.now()}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (alive && d) setBeat({ at: d.lastHeartbeatAt ?? null, activity: d.liveActivity ?? null }) })
+      .catch(() => {})
+    poll()
+    setNowTick(Date.now())
+    const id = setInterval(() => { poll(); setNowTick(Date.now()) }, 6000)
+    return () => { alive = false; clearInterval(id) }
   }, [slug])
 
   useEffect(() => {
@@ -224,6 +248,10 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const roi = bot.sharePrice && bot.sharePrice !== 1 ? navDelta : null
   const uplink = (bot.tradesIndexed > 0 || trades.length > 0) ? 'live' : 'awaiting'
   const lastFill = trades.length ? relDay(trades[0].timestamp) : null
+  // "Operating" comes from the live heartbeat, not trade history: a bot with its
+  // eyes on the market but no fill yet still reads as online.
+  const isOnline = !!beat.at && nowTick > 0 && (nowTick - new Date(beat.at).getTime()) < HEARTBEAT_STALE_MS
+  const liveActivity: string | null = beat.activity
 
   const VIOLET = '#8b7bff', TEAL = '#c8ff00'
   const criteria = [
@@ -446,8 +474,19 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-6 min-w-0">
-            {/* signal — live connection visual */}
-            <BotUplink eye={eye} status={uplink} lastFill={lastFill} resolved={sp.resolved} />
+            {/* signal — live connection visual (driven by the real heartbeat) */}
+            <BotUplink eye={eye} status={uplink} lastFill={lastFill} resolved={sp.resolved} online={isOnline} />
+
+            {/* live activity line — what the bot is doing right now, from its heartbeat */}
+            {isOnline && liveActivity && (
+              <div className="flex items-center gap-2 -mt-2 px-1 font-mono text-[11px] text-[#8a8a94]">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-[#c8ff00] opacity-60 animate-ping" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#c8ff00]" />
+                </span>
+                <span className="truncate">{liveActivity}</span>
+              </div>
+            )}
 
             {/* performance — Liveline real-time-style Reputation (LCB) curve */}
             <BotPerformance 

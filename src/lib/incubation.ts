@@ -1,6 +1,7 @@
 import { prisma } from './db/prisma'
 import { FEATURES } from './features'
 import { SHADOW_RESOLVED_TARGET, SHADOW_DAYS_TARGET, SHADOW_LCB_TARGET } from './botProgress'
+import { computeVaultCapacity } from './vault-capacity'
 
 const T1_MAX_DRAWDOWN = 0.25
 const MS_PER_DAY = 1000 * 60 * 60 * 24
@@ -27,11 +28,18 @@ export async function checkStatusTransitions(botId: string) {
     const meetsTime = daysInShadow >= SHADOW_DAYS_TARGET
 
     if (meetsTrades && meetsLcb && meetsDrawdown && meetsTime) {
+      // Auto capacity: derived from what the bot has PROVEN (reputation + sample
+      // size), never asked from the maker. Replaces the old flat $500k for all bots.
+      const vaultCap = computeVaultCapacity({
+        reputationScore: score.reputationScore,
+        resolvedPredictions: score.resolvedPredictions,
+      })
+
       let vaultAddress: string | null = null
       if (!bot.vaultAddress) {
         const { createVaultForBot } = await import('./vault-factory')
         vaultAddress = await createVaultForBot({
-          id: bot.id, slug: bot.slug, name: bot.name, walletAddress: bot.walletAddress, vaultCap: 500000,
+          id: bot.id, slug: bot.slug, name: bot.name, walletAddress: bot.walletAddress, vaultCap,
         })
         
         // MVP Fix: If Vault deployment fails on-chain, do not graduate the bot to a phantom state.
@@ -46,7 +54,7 @@ export async function checkStatusTransitions(botId: string) {
         prisma.bot.update({
           where: { id: botId },
           data: {
-            status: 'VAULT_ELIGIBLE_T1', tier: 'TIER1', vaultCap: 500000,
+            status: 'VAULT_ELIGIBLE_T1', tier: 'TIER1', vaultCap,
             ...(vaultAddress ? { vaultAddress } : {}),
           }
         }),
