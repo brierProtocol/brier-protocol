@@ -53,6 +53,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'confidence must be a number strictly between 0 and 1' }, { status: 400 })
     }
 
+    // One prediction per bot per market: re-committing after the price moves is
+    // free cherry-picking, and duplicates inflate n with correlated predictions.
+    const dup = await prisma.prediction.findFirst({
+      where: { botId: bot.id, marketId, status: 'PENDING' },
+      select: { id: true },
+    })
+    if (dup) {
+      return NextResponse.json({ error: 'Prediction already committed for this market', predictionId: dup.id }, { status: 409 })
+    }
+
     const snap = await captureMarket(marketId)
     if (snap.state === 'closed') {
       return NextResponse.json({ error: 'Market already closed' }, { status: 409 })
