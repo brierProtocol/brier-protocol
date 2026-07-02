@@ -47,8 +47,15 @@ const Empty = () => <span className="text-[#333]">·</span>
 // Defined at MODULE level (not inside the component) — a component redefined on
 // every render gets a new identity, so React remounts its subtree and inputs lose
 // focus after one keystroke. That was the "can only type one letter" comment bug.
+// Panels rise into view once as you scroll; border warms on hover.
 const Panel = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
-  <div className={`rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden ${className}`}>{children}</div>
+  <motion.div
+    initial={{ opacity: 0, y: 14 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true, margin: '-40px' }}
+    transition={{ duration: 0.5, ease: 'easeOut' }}
+    className={`rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden transition-colors duration-300 hover:border-[#26262e] ${className}`}
+  >{children}</motion.div>
 )
 
 // Tiny inline sparkline for the Brier trajectory (no external chart dep).
@@ -298,7 +305,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   // Cleaned up stats for "Proof of edge" section
   const stats = [
     { k: 'LCB (Reputation)', v: lcb > 0 ? lcb.toFixed(4) : '—', info: 'Lower Confidence Bound. The pessimistic lower bound of its skill. Tells us whether the agent is actually smart or just lucky.' },
-    { k: 'Win rate', v: bot.winRate != null ? `${(bot.winRate * 100).toFixed(1)}%` : null, info: 'Share of resolved predictions it got right.' },
+    // Small samples get their n printed next to the rate: a 100% off four calls
+    // should read as "early", never as "proven".
+    { k: 'Win rate', v: bot.winRate != null ? `${(bot.winRate * 100).toFixed(1)}%${tradesCount > 0 && tradesCount < 20 ? ` · n=${tradesCount}` : ''}` : null, info: 'Share of resolved predictions it got right. With few resolved calls this is noise, not proof — that is what the n= reminds you of.' },
     { k: 'ROI', v: roi != null ? `${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%` : null, info: 'Return on the vault capital since it opened.' },
     { k: 'Max drawdown', v: bot.maxDrawdown != null ? `-${(Math.abs(bot.maxDrawdown) * 100).toFixed(1)}%` : null, info: 'The worst peak-to-trough drop in value. Smaller is safer.' },
     { k: 'Resolved', v: bot.totalTrades ? bot.totalTrades.toLocaleString() : null, info: 'Predictions that have settled — the sample size behind the score.' },
@@ -306,8 +315,14 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   ]
 
   return (
-    <div className="min-h-screen bg-[#030303] font-sans text-[#e8e8e8]">
-      <div className="max-w-[1180px] mx-auto px-6 pt-6 pb-20">
+    <div className="relative min-h-screen bg-[#030303] font-sans text-[#e8e8e8] overflow-x-clip">
+      {/* identity aura — each bot tints its own profile with its derived color */}
+      <div
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-[460px] pointer-events-none"
+        style={{ background: `radial-gradient(640px 300px at 26% -8%, ${eye.accentColor}1f 0%, transparent 70%)` }}
+      />
+      <div className="relative max-w-[1180px] mx-auto px-6 pt-6 pb-20">
 
         {/* top bar */}
         <div className="flex items-center justify-between mb-6 text-[12px]">
@@ -373,6 +388,24 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 </div>
               </div>
               
+              {/* liveness ticker — the bot breathing in near real time (5s poll) */}
+              <div className="flex items-center gap-2 font-mono text-[11px] mb-1 min-w-0">
+                {isOnline ? (
+                  <>
+                    <motion.span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: TEAL, boxShadow: `0 0 8px ${TEAL}88` }}
+                      animate={{ opacity: [1, 0.25, 1] }} transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }} />
+                    <span className="font-bold tracking-[0.16em] uppercase shrink-0" style={{ color: TEAL }}>Operating</span>
+                    {bot.liveActivity && <span className="text-[#6a6a74] truncate">· {bot.liveActivity}</span>}
+                  </>
+                ) : (
+                  <>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#3a3a44] shrink-0" />
+                    <span className="text-[#5a5a64] font-bold tracking-[0.16em] uppercase shrink-0">Standby</span>
+                    {bot.lastHeartbeatAt && <span className="text-[#3f3f48] truncate">· last signal {relDay(bot.lastHeartbeatAt) || 'today'}</span>}
+                  </>
+                )}
+              </div>
+
               <div className="flex flex-wrap items-center gap-3 mt-4">
                 {(hasVerifiedPerformance && hasVerifiedReputation) ? (
                   <div className="px-3.5 py-1.5 rounded text-[10px] font-mono font-bold tracking-widest uppercase border bg-[#c8ff00]/10 text-[#c8ff00] border-[#c8ff00]/30 shadow-[0_0_12px_rgba(200,255,0,0.15)] flex items-center gap-2">
@@ -381,6 +414,18 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 ) : (
                   <div className="px-3.5 py-1.5 rounded text-[10px] font-mono font-bold tracking-widest uppercase border bg-[#222] text-[#666] border-[#333]">
                     Pending Verification
+                  </div>
+                )}
+                {/* the number that opens vaults, visible from the hero */}
+                {bot.reputationScore != null && (
+                  <div
+                    className="px-3 py-1.5 rounded text-[10px] font-mono font-bold tracking-widest uppercase border flex items-center gap-1.5"
+                    title="Reputation: lower confidence bound of skill vs the market, 0 to 100. Luck cannot inflate it."
+                    style={bot.reputationScore >= 50
+                      ? { color: TEAL, borderColor: `${TEAL}33`, background: `${TEAL}0d` }
+                      : { color: '#9a9a9a', borderColor: '#2a2a34', background: 'transparent' }}
+                  >
+                    Rep {Math.round(bot.reputationScore)}<span className="opacity-50">/100</span>
                   </div>
                 )}
               </div>
@@ -549,12 +594,16 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                     const tx = txOf(t); const yes = t.side === 'YES' || t.side === 'LONG'
                     const status = t.status || t.outcome
                     const oc = status === 'WIN' ? TEAL : status === 'LOSS' ? '#ff5570' : VIOLET
+                    // How far from the market it dared to stand at commit time.
+                    const edge = (typeof t.confidence === 'number' && typeof t.marketProbabilityAtCommit === 'number')
+                      ? t.confidence - t.marketProbabilityAtCommit : null
                     return (
                       <div key={t.id || i} className="flex items-center gap-3 px-5 py-2.5 border-b border-[#101010] hover:bg-[#0b0b0b] transition-colors" style={{ borderLeft: `2px solid ${oc}` }}>
                         <span className="font-mono text-[10px] text-[#555] w-12 shrink-0 tabular-nums">{relDay(t.timestamp)}</span>
                         <span className="flex-1 min-w-0 text-[12px] text-[#bbb] truncate">{tx ? <a href={`https://polygonscan.com/tx/${tx}`} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors no-underline">{t.marketTitle} <span className="text-[#444] text-[9px]">↗</span></a> : t.marketTitle}</span>
                         <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ color: yes ? TEAL : '#ff5570', background: yes ? `${TEAL}14` : '#ff557014' }}>{t.side}</span>
                         <span className="font-mono text-[11px] text-[#999] w-9 text-right tabular-nums shrink-0">{((t.confidence || t.entryPrice || 0) * 100).toFixed(0)}¢</span>
+                        <span className="font-mono text-[10px] w-11 text-right tabular-nums shrink-0" title="edge vs the market price at commit" style={{ color: edge == null ? '#3a3a44' : edge >= 0 ? TEAL : '#ff5570' }}>{edge == null ? '·' : `${edge >= 0 ? '+' : ''}${Math.round(edge * 100)}%`}</span>
                         <span className="font-mono text-[9px] font-bold w-14 text-right shrink-0" style={{ color: oc }}>{status}</span>
                       </div>
                     )
@@ -669,6 +718,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               <button
                 onClick={() => setActiveStat(s => s === 'Brier' ? null : 'Brier')}
                 className="w-full text-left rounded-lg border border-[#1a1a22] bg-[#08080c] px-4 py-3 mb-2.5 hover:border-[#2a2a34] transition-colors"
+                style={grade ? { borderLeft: `2px solid ${grade.c}66` } : undefined}
               >
                 <div className="flex items-baseline justify-between">
                   <span className="font-mono text-[9px] tracking-[0.18em] uppercase text-[#5a5a64]">Brier score</span>
