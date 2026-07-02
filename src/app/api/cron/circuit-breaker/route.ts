@@ -10,7 +10,10 @@ import { ethers } from 'ethers'
 import { recordCronRun, captureError } from '@/lib/observability'
 
 const DETERIORATION_THRESHOLD = 0.08
-const PAUSE_ABI = ['function pause() external', 'function paused() view returns (bool)']
+// triggerCircuitBreaker es onlyExecutor (la firma que este cron tiene); pause()
+// es onlyOwner (el Gnosis Safe) y revertiría en producción. Además del pause,
+// slashea el skin del builder hacia idleCapital para absorber pérdidas de LPs.
+const BREAKER_ABI = ['function triggerCircuitBreaker() external', 'function paused() view returns (bool)']
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -73,10 +76,10 @@ export async function GET(req: NextRequest) {
           try {
             const provider = new ethers.JsonRpcProvider(process.env.RPC_URL)
             const signer = new ethers.Wallet(process.env.EXECUTOR_PRIVATE_KEY, provider)
-            const vault = new ethers.Contract(bot.vaultAddress, PAUSE_ABI, signer)
+            const vault = new ethers.Contract(bot.vaultAddress, BREAKER_ABI, signer)
             const isPaused = await vault.paused()
             if (!isPaused) {
-              const tx = await vault.pause()
+              const tx = await vault.triggerCircuitBreaker()
               await tx.wait()
               chainPaused = true
             } else {
