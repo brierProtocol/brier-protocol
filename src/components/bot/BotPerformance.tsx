@@ -231,12 +231,18 @@ export default function BotPerformance({ snapshots, winRate, sharpe, maxDrawdown
           )}
         </svg>
       ) : (
-        <div className="grid place-items-center text-center px-6" style={{ height: 200 }}>
-          <div>
-            <div className="text-[13px] text-[#6a6a74] font-sans">The curve draws itself as predictions resolve.</div>
-            <div className="text-[11px] text-[#3f3f48] font-mono mt-1.5">not enough data yet</div>
-          </div>
-        </div>
+        // No data yet → draw a FLAT baseline (not an empty box), so the panel reads
+        // as "at zero, waiting" rather than broken. The curve fills in as data resolves.
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" style={{ height: 200 }} preserveAspectRatio="none">
+          <line x1={PAD.l} y1={H / 2} x2={W - PAD.r} y2={H / 2} stroke="#ffffff10" strokeWidth="1" strokeDasharray="3 5" />
+          <line x1={PAD.l} y1={H / 2} x2={W - PAD.r} y2={H / 2} stroke="#3a3a44" strokeWidth="2.5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          <motion.circle cx={W - PAD.r} cy={H / 2} r="9" fill="#5a5a66" opacity="0.18"
+            animate={{ r: [6, 12, 6], opacity: [0.22, 0, 0.22] }} transition={{ duration: 2.4, repeat: Infinity }} />
+          <circle cx={W - PAD.r} cy={H / 2} r="3.5" fill="#5a5a66" />
+          <text x={PAD.l} y={H / 2 - 10} fill="#3f3f48" fontSize="10" fontFamily="monospace">
+            {mode === 'score' ? 'flat · the curve draws itself as predictions resolve' : 'flat · awaiting first resolved P&L'}
+          </text>
+        </svg>
       )}
     </div>
   )

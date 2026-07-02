@@ -78,8 +78,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     // Current Rank calculation (mocked for this endpoint, real rank comes from leaderboard)
     const rank = bot.tier === 'TIER1' ? 1 : bot.tier === 'TIER2' ? 2 : bot.tier === 'TIER3' ? 3 : 'Unranked';
 
+    // Never leak per-bot credentials in a public GET. Strip the API key/secret
+    // (and the internal rate-limit counter) before returning the bot.
+    const { apiKey: _apiKey, apiSecret: _apiSecret, rateLimitCount: _rl, ...safeBot } = bot;
+
     return NextResponse.json({
-      ...bot,
+      ...safeBot,
       user: user ? { handle: user.handle, name: user.name, pfpUrl: user.pfpUrl } : null,
       quantDna: {
         frequencyLabel,

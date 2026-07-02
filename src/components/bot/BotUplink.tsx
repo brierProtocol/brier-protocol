@@ -5,14 +5,19 @@ import { useRef } from 'react'
 import BotIrisAvatar from './BotIrisAvatar'
 
 export default function BotUplink({
-  eye, status, lastFill, resolved,
+  eye, status, lastFill, resolved, online,
 }: {
   eye: { avatarId: string; accentColor: string; shape?: any }
   status: 'live' | 'awaiting'
   lastFill?: string | null
   resolved?: number
+  /** Real-time heartbeat state. When provided, drives the signal (the bot is
+   *  "transmitting" when its heartbeat is fresh, regardless of trade history). */
+  online?: boolean
 }) {
-  const live = status === 'live'
+  // Signal = the live heartbeat. Falls back to trade-derived status only if the
+  // heartbeat state was not passed in.
+  const live = online === undefined ? status === 'live' : online
   const accent = live ? '#c8ff00' : '#3a3a4a'
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -31,8 +36,8 @@ export default function BotUplink({
   function onMouseLeave() { rawX.set(0); rawY.set(0) }
 
   const metrics = [
-    { k: 'Status', v: live ? 'ONLINE' : 'OFFLINE', c: live ? '#c8ff00' : '#ff5570' },
-    { k: 'Signal', v: live ? 'ACTIVE' : 'SILENT', c: live ? '#c8ff00' : '#444' },
+    { k: 'Bot', v: live ? 'OPERATING' : 'OFFLINE', c: live ? '#c8ff00' : '#ff5570' },
+    { k: 'Signal', v: live ? 'LIVE' : 'SILENT', c: live ? '#c8ff00' : '#444' },
     { k: 'Last trade', v: lastFill || 'never', c: '#ccc' },
     { k: 'Resolved', v: resolved != null ? resolved.toLocaleString() : '0', c: '#8b7bff' },
   ]
@@ -42,7 +47,7 @@ export default function BotUplink({
       ref={containerRef}
       onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
-      className="relative rounded-2xl border border-[#141418] bg-[#040406] overflow-hidden"
+      className="relative rounded-2xl border border-[#16161e] bg-gradient-to-br from-[#0c0c14] via-[#08080d] to-[#050507] overflow-hidden"
     >
       {/* terminal dot grid */}
       <div className="absolute inset-0 pointer-events-none" style={{
@@ -81,25 +86,31 @@ export default function BotUplink({
             className="relative z-10 shrink-0 flex flex-col items-center"
             style={{ rotateX, rotateY, transformPerspective: 900 }}
           >
-            {/* halo */}
-            <div className="relative">
+            {/* premium HD portrait: soft radial disc + ring so the creature reads
+                as an intentional portrait, not floating on hard black */}
+            <div className="relative grid place-items-center w-[104px] h-[104px]">
+              {/* radial base disc */}
+              <div className="absolute inset-0 rounded-full" style={{
+                background: `radial-gradient(circle at 50% 42%, ${eye.accentColor}22 0%, ${eye.accentColor}0c 45%, transparent 72%)`,
+              }} />
+              {/* faint ring */}
+              <div className="absolute rounded-full" style={{ inset: '8px', border: `1px solid ${eye.accentColor}22`, boxShadow: `inset 0 0 24px ${eye.accentColor}10` }} />
+              {/* animated halo */}
               <motion.div
                 className="absolute rounded-full blur-2xl"
-                style={{
-                  inset: '-20px',
-                  background: `radial-gradient(circle, ${eye.accentColor}55 0%, transparent 70%)`,
-                }}
+                style={{ inset: '2px', background: `radial-gradient(circle, ${eye.accentColor}44 0%, transparent 68%)` }}
                 animate={{
-                  opacity: live ? [0.5, 0.9, 0.5] : [0.1, 0.2, 0.1],
-                  scale: live ? [0.85, 1.1, 0.85] : [0.7, 0.9, 0.7],
+                  opacity: live ? [0.5, 0.9, 0.5] : [0.12, 0.22, 0.12],
+                  scale: live ? [0.9, 1.08, 0.9] : [0.75, 0.9, 0.75],
                 }}
                 transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
               />
               <motion.div
+                className="relative"
                 animate={{ y: live ? [0, -5, 0] : 0 }}
                 transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
               >
-                <BotIrisAvatar {...eye} size={80} />
+                <BotIrisAvatar {...eye} size={84} />
               </motion.div>
             </div>
             <span className="font-mono text-[8px] tracking-[0.22em] text-[#3a3a4a] uppercase mt-2.5">Bot</span>
@@ -205,7 +216,9 @@ export default function BotUplink({
           ))}
         </div>
         <div className="mt-3 text-[10px] text-[#333] font-mono leading-relaxed">
-          Inferred from on-chain activity. Brier tracks the wallet, not the machine.
+          {live
+            ? 'Live heartbeat from the bot. Predictions are scored on real resolutions.'
+            : 'No heartbeat. Start the bot with its credentials to bring the signal online.'}
         </div>
       </div>
     </div>
