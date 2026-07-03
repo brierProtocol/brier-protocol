@@ -19,7 +19,7 @@ import { useCountUp } from '@/hooks/useCountUp'
 import { PostBody } from '@/components/bot/PostBody'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import {
-  shadowProgress, phaseMeta,
+  shadowProgress, phaseMeta, botRank, BOT_RANKS,
   SHADOW_RESOLVED_TARGET, SHADOW_DAYS_TARGET, SHADOW_LCB_TARGET,
 } from '@/lib/botProgress'
 
@@ -46,6 +46,16 @@ function txOf(t: any): string | null {
 }
 
 const Empty = () => <span className="text-[#333]">·</span>
+
+// Wayfinding — the profile is long; these anchors + scrollspy keep the whole
+// story reachable in one tap from anywhere on the page.
+const SECTIONS = [
+  { id: 'vault', label: 'Vault' },
+  { id: 'signal', label: 'Signal' },
+  { id: 'calls', label: 'Calls' },
+  { id: 'comments', label: 'Comments' },
+  { id: 'edge', label: 'Edge' },
+] as const
 
 // Defined at MODULE level (not inside the component) — a component redefined on
 // every render gets a new identity, so React remounts its subtree and inputs lose
@@ -97,6 +107,17 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const [editDesc, setEditDesc] = useState('')
   const [editPfp, setEditPfp] = useState('')
   const [savingBot, setSavingBot] = useState(false)
+  const [activeSection, setActiveSection] = useState<string>('vault')
+
+  // Scrollspy for the sticky section nav — re-arms once the bot renders.
+  useEffect(() => {
+    const obs = new IntersectionObserver(entries => {
+      for (const e of entries) if (e.isIntersecting) setActiveSection(e.target.id)
+    }, { rootMargin: '-25% 0px -65% 0px' })
+    SECTIONS.forEach(s => { const el = document.getElementById(s.id); if (el) obs.observe(el) })
+    return () => obs.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bot?.id])
 
   const { address, isConnected } = useAccount()
   const currentUser = useCurrentUser(address)
@@ -264,6 +285,8 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     tradesIndexed: bot.tradesIndexed,
   })
   const pm = phaseMeta(sp)
+  const rank = botRank(sp.resolved)
+  const nextRankAt = BOT_RANKS.find(r => r.at > sp.resolved)?.at ?? null
   const eye = botEye({ slug, id: bot.id, name: bot.name, color: bot.color, eyeShape: bot.eyeShape })
   
   // Featured Brier + ORACLE grade (the headline pair on Proof of edge).
@@ -438,6 +461,29 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                     Rep {Math.round(bot.reputationScore)}<span className="opacity-50">/100</span>
                   </div>
                 )}
+                {/* rank — same tiers as the Signal panel (lib/botProgress) */}
+                <div
+                  className="px-3 py-1.5 rounded text-[10px] font-mono font-bold tracking-widest uppercase border"
+                  title={rank.tag === 'PROVEN' ? 'Cleared the shadow gate' : `Earned from resolved predictions. Next tier at ${nextRankAt ?? '—'}.`}
+                  style={{ color: rank.color, borderColor: `${rank.color}33`, background: `${rank.color}0d` }}
+                >
+                  {rank.tag}
+                </div>
+                {/* gate progress at a glance — the whole story in one bar */}
+                {!sp.live && (
+                  <div className="flex items-center gap-2" title={`Shadow gate: ${sp.resolved}/${SHADOW_RESOLVED_TARGET} resolved · LCB ${sp.lcb != null ? sp.lcb.toFixed(3) : '—'} · day ${sp.days}/${SHADOW_DAYS_TARGET}`}>
+                    <div className="relative w-[110px] h-[4px] rounded-full bg-[#16161e] overflow-hidden">
+                      <motion.div
+                        className="absolute inset-y-0 left-0 rounded-full"
+                        style={{ background: `linear-gradient(90deg, ${VIOLET}, ${rank.color})` }}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.round(sp.pct * 100)}%` }}
+                        transition={{ duration: 1.1, ease: 'easeOut' }}
+                      />
+                    </div>
+                    <span className="font-mono text-[10px] text-[#5a5a64] tabular-nums">gate {Math.round(sp.pct * 100)}%</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -497,8 +543,28 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         {/* ── Owner-only: connect your bot (API keys) ── */}
         {isOwner && bot?.id && <ApiKeysManager botId={bot.id} />}
 
+        {/* section nav — sticky wayfinding, scrollspy-highlighted */}
+        <div className="sticky top-[60px] z-40 mb-7">
+          <div className="inline-flex items-center gap-1 rounded-full border border-[#1c1c24] bg-[rgba(5,5,8,0.88)] backdrop-blur-md px-1.5 py-1.5 max-w-full overflow-x-auto">
+            {SECTIONS.map(s => (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                onClick={(e) => { e.preventDefault(); document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
+                className={`shrink-0 rounded-full px-3.5 py-1.5 font-mono text-[11px] font-bold tracking-[0.08em] uppercase no-underline transition-all ${
+                  activeSection === s.id
+                    ? 'bg-primary text-[#030303]'
+                    : 'text-[#7a7a84] hover:text-white hover:bg-[#14141c]'
+                }`}
+              >
+                {s.label}
+              </a>
+            ))}
+          </div>
+        </div>
+
         {/* ── VAULT (full width) ── */}
-        <div className="rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden mb-8">
+        <div id="vault" className="scroll-mt-28 rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden mb-8">
           <div className="flex flex-col sm:flex-row items-stretch">
             <div className="sm:w-[280px] shrink-0 p-5 sm:border-r border-b sm:border-b-0 border-[#141414]">
               <div className="flex items-center justify-between mb-3">
@@ -564,7 +630,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-6 min-w-0">
             {/* signal — live connection visual */}
-            <BotUplink eye={eye} status={uplink} lastFill={lastFill} resolved={sp.resolved} online={isOnline} target={SHADOW_RESOLVED_TARGET} winRate={bot.winRate} />
+            <div id="signal" className="scroll-mt-28">
+              <BotUplink eye={eye} status={uplink} lastFill={lastFill} resolved={sp.resolved} online={isOnline} target={SHADOW_RESOLVED_TARGET} winRate={bot.winRate} />
+            </div>
 
             {/* performance — Liveline real-time-style Reputation (LCB) curve */}
             <BotPerformance 
@@ -581,6 +649,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             />
 
             {/* prediction book — the bot's committed calls (fills join in capital phase) */}
+            <div id="calls" className="scroll-mt-28">
             <Panel>
               <div className="px-5 py-3.5 border-b border-[#141414]">
                 <div className="flex items-center justify-between mb-2.5">
@@ -621,8 +690,10 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 </div>
               )}
             </Panel>
+            </div>
 
             {/* comments */}
+            <div id="comments" className="scroll-mt-28">
             <Panel>
               <div className="flex items-center justify-between px-5 py-4 border-b border-[#141414]">
                 <div className="flex items-baseline gap-2.5">
@@ -667,6 +738,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 </div>
               )}
             </Panel>
+            </div>
           </div>
 
           {/* RIGHT COLUMN */}
@@ -718,6 +790,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             />
 
             {/* proof of edge */}
+            <div id="edge" className="scroll-mt-28">
             <Panel className="p-5">
               <div className="flex items-center justify-between mb-3">
                 <span className="font-sans font-bold text-[16px] tracking-[-0.01em] text-white">Proof of edge</span>
@@ -809,6 +882,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 )}
               </AnimatePresence>
             </Panel>
+            </div>
 
             {/* created by — the human behind the bot, with the identity they
                 edited on their own profile (photo, name, bio). */}

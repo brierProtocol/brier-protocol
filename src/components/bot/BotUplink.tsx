@@ -5,23 +5,9 @@ import { useRef } from 'react'
 import BotIrisAvatar from './BotIrisAvatar'
 
 // Honest gamification: every element below derives from REAL protocol data
-// (resolved count, heartbeat, win rate). Rank tiers mirror the shadow gate —
-// a bot is PROVEN exactly when it clears the 100-resolved requirement.
-type Rank = { at: number; tag: string; color: string }
-const RANKS: Rank[] = [
-  { at: 0, tag: 'UNRANKED', color: '#5a5a64' },
-  { at: 1, tag: 'SCOUT', color: '#8b7bff' },
-  { at: 10, tag: 'OPERATOR', color: '#4fc3f7' },
-  { at: 30, tag: 'SPECIALIST', color: '#c8ff00' },
-  { at: 60, tag: 'VETERAN', color: '#ffd400' },
-  { at: 100, tag: 'PROVEN', color: '#ff2a4d' },
-]
-
-function rankOf(resolved: number): Rank {
-  let r = RANKS[0]
-  for (const cand of RANKS) if (resolved >= cand.at) r = cand
-  return r
-}
+// (resolved count, heartbeat, win rate). Rank tiers live in lib/botProgress —
+// shared with the profile hero so a bot never wears two different ranks.
+import { BOT_RANKS as RANKS, botRank as rankOf } from '@/lib/botProgress'
 
 export default function BotUplink({
   eye, status, lastFill, resolved, online, target = 100, winRate,
