@@ -8,6 +8,7 @@ import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import MakerAvatar from '@/components/MakerAvatar'
 import ConnectXModal, { XLogo } from '@/components/profile/ConnectXModal'
 import { botEye } from '@/lib/botIdentity'
+import { personLabel as sharedPersonLabel } from '@/lib/identity'
 import { useCountUp } from '@/hooks/useCountUp'
 
 const POS = '#c8ff00', VIOLET = '#8b7bff', CRIMSON = '#ff2a4d'
@@ -15,8 +16,8 @@ const POS = '#c8ff00', VIOLET = '#8b7bff', CRIMSON = '#ff2a4d'
 type Person = { walletAddress: string; name?: string | null; handle?: string | null; pfpUrl?: string | null }
 
 const shortAddr = (a = '') => a ? `${a.slice(0, 6)}…${a.slice(-4)}` : 'anon'
-const personLabel = (u?: Person | null) =>
-  u?.handle ? `@${u.handle}` : (u?.name && !u.name.startsWith('User_') ? u.name : shortAddr(u?.walletAddress))
+// Universal identity — same resolver as navbar / bot profile / comments.
+const personLabel = (u?: Person | null) => sharedPersonLabel(u)
 const fmtUSD = (n: number) => n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `$${(n / 1000).toFixed(1)}K` : `$${Math.round(n).toLocaleString()}`
 
 function StatCard({ label, value, prefix = '', suffix = '', decimals = 0, color = '#f0f0f4', delay = 0 }:

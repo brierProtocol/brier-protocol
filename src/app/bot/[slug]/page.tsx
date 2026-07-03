@@ -10,6 +10,7 @@ import BotPerformance from '@/components/bot/BotPerformance'
 import VaultGlass from '@/components/bot/VaultGlass'
 import ApiKeysManager from '@/components/bot/ApiKeysManager'
 import { botEye, codename } from '@/lib/botIdentity'
+import { personLabel as sharedPersonLabel } from '@/lib/identity'
 import { FEATURES } from '@/lib/features'
 import { useAccount } from 'wagmi'
 import { ethers } from 'ethers'
@@ -29,12 +30,14 @@ interface Post {
 
 const fmtUSD = (n: number) =>
   n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `$${(n / 1000).toFixed(1)}K` : `$${Math.round(n).toLocaleString()}`
-const personLabel = (u?: Post['user'], wallet = '') =>
-  u?.handle ? `@${u.handle}` : (u?.name && !u.name.startsWith('User_') ? u.name : codename(wallet))
+// Universal identity: the SAME resolver the navbar and maker page use, so one
+// wallet never reads as two different people. Anonymous commenters keep their
+// deterministic codename (more human than a hex stub in a conversation).
+const personLabel = (u?: Post['user'], wallet = '') => {
+  const label = sharedPersonLabel(u, wallet)
+  return label.startsWith('0x') || label === '—' ? codename(wallet) : label
+}
 const shortAddr = (addr: string) => addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : 'anon'
-const makerLabel = (maker: Post['user'] | null | undefined, wallet: string) =>
-  maker?.handle ? `@${maker.handle}` :
-  (maker?.name && !maker.name.startsWith('User_') ? maker.name : shortAddr(wallet))
 const relDay = (d?: string | Date | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
 
 function txOf(t: any): string | null {
@@ -119,7 +122,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           ?? (dbBot.scores?.length > 0 ? dbBot.scores[dbBot.scores.length - 1] : null)
         
         const mapped = {
-          id: dbBot.id, name: dbBot.name, builder: dbBot.walletAddress, tagline: dbBot.tagline,
+          // builder = the human's wallet (ownerWallet) — walletAddress can be
+          // the bot's execution wallet, which has no profile behind it.
+          id: dbBot.id, name: dbBot.name, builder: dbBot.makerWallet || dbBot.ownerWallet || dbBot.walletAddress, tagline: dbBot.tagline,
           pfpUrl: dbBot.pfpUrl, maker: dbBot.user || null,
           description: dbBot.description, status: dbBot.status || 'PAPER',
           color: dbBot.color, eyeShape: dbBot.eyeShape, createdAt: dbBot.createdAt,
@@ -359,16 +364,21 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               <h1 className="text-white font-black text-[38px] tracking-[-0.03em] m-0 leading-none mb-2">
                 {bot.name}
               </h1>
-              {bot.tagline && (
+              {/* tagline is auto-derived from description at registration (first 120
+                  chars) — when both exist it duplicated the text and cut mid-word.
+                  Show it only when it says something the description doesn't. */}
+              {bot.tagline && !(bot.description || '').startsWith(bot.tagline.replace(/…?$/, '')) && (
                 <div className="text-[#888] italic text-[15px] mb-4">
                   {bot.tagline}
                 </div>
               )}
               
               <div className="flex items-center gap-3 mb-4">
-                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#555]">Builder ID</span>
-                <MakerAvatar address={bot.builder || ''} pfpUrl={bot.maker?.pfpUrl} size={20} square />
-                <span className="font-mono text-[12px] text-[#ccc]">{bot.maker?.handle ? `@${bot.maker.handle}` : (bot.builder?.slice(0,6) + '...' + bot.builder?.slice(-4))}</span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#555]">Builder</span>
+                <Link href={`/maker/${bot.builder || ''}`} className="flex items-center gap-2 no-underline group/maker">
+                  <span className="rounded-[5px] overflow-hidden"><MakerAvatar address={bot.builder || ''} pfpUrl={bot.maker?.pfpUrl} size={20} square /></span>
+                  <span className="font-mono text-[12px] text-[#ccc] group-hover/maker:text-white transition-colors">{sharedPersonLabel(bot.maker, bot.builder)}</span>
+                </Link>
                 
                 {/* Builder links */}
                 <div className="flex items-center gap-3 ml-2 border-l border-[#333] pl-4">
@@ -554,7 +564,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-6 min-w-0">
             {/* signal — live connection visual */}
-            <BotUplink eye={eye} status={uplink} lastFill={lastFill} resolved={sp.resolved} online={isOnline} />
+            <BotUplink eye={eye} status={uplink} lastFill={lastFill} resolved={sp.resolved} online={isOnline} target={SHADOW_RESOLVED_TARGET} winRate={bot.winRate} />
 
             {/* performance — Liveline real-time-style Reputation (LCB) curve */}
             <BotPerformance 
@@ -785,7 +795,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               <AnimatePresence mode="wait">
                 {activeStat && (
                   <motion.div
-                    key={activeStat}
+                    key={`stat-${activeStat}`}
                     initial={{ opacity: 0, y: -4, height: 0 }}
                     animate={{ opacity: 1, y: 0, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
@@ -799,6 +809,40 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 )}
               </AnimatePresence>
             </Panel>
+
+            {/* created by — the human behind the bot, with the identity they
+                edited on their own profile (photo, name, bio). */}
+            {bot.builder && (
+              <Panel className="p-5">
+                <div className="font-mono text-[10px] tracking-[0.24em] uppercase text-[#555] mb-4">Created by</div>
+                <Link href={`/maker/${bot.builder}`} className="flex items-center gap-4 no-underline group/creator">
+                  <span className="rounded-xl overflow-hidden border border-[#1f1f28] group-hover/creator:border-[#33333e] transition-colors shrink-0">
+                    <MakerAvatar address={bot.builder} pfpUrl={bot.maker?.pfpUrl} size={56} square />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-sans font-bold text-[15px] text-white truncate group-hover/creator:text-primary transition-colors">
+                        {sharedPersonLabel(bot.maker, bot.builder)}
+                      </span>
+                      {bot.maker?.xVerified && (
+                        <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#c8ff00]/10 text-[#c8ff00] border border-[#c8ff00]/25 shrink-0">VERIFIED</span>
+                      )}
+                    </div>
+                    <div className="font-mono text-[11px] text-[#5a5a64] truncate mt-0.5">
+                      {bot.maker?.bio || shortAddr(bot.builder)}
+                    </div>
+                  </div>
+                  <span className="font-mono text-[11px] text-[#5a5a64] group-hover/creator:text-white transition-colors shrink-0">profile →</span>
+                </Link>
+                {bot.maker?.xHandle && (
+                  <a href={`https://x.com/${bot.maker.xHandle}`} target="_blank" rel="noopener noreferrer"
+                    className="mt-3 flex items-center gap-2 font-mono text-[11px] text-[#6a6a74] hover:text-white transition-colors no-underline">
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-[12px] h-[12px]"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    @{bot.maker.xHandle}
+                  </a>
+                )}
+              </Panel>
+            )}
           </div>
         </div>
 

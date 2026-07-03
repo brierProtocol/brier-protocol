@@ -82,7 +82,11 @@ export async function POST(req: NextRequest) {
         slug,
         name,
         description: description || null,
-        tagline: description ? description.substring(0, 120) : `${name} prediction algorithm`,
+        // Cut at a word boundary — a hard substring(0,120) sliced words in half
+        // ("…evolutionary DNA, Kelly sizing. By" on the public profile).
+        tagline: description
+          ? (description.length <= 120 ? description : `${description.slice(0, 120).replace(/\s+\S*$/, '')}…`)
+          : `${name} prediction algorithm`,
         color: explicitColor || deriveAvatarColor(slug),
         avatarId: slug,
         eyeShape: chosenShape,

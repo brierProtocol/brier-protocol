@@ -7,6 +7,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { motion, AnimatePresence } from 'framer-motion'
 import MakerAvatar from '@/components/MakerAvatar'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { personLabel } from '@/lib/identity'
 
 interface Notification {
   id: string
@@ -301,15 +302,18 @@ export default function Navbar() {
 
 function AccountButton({ account, openAccountModal }: { account: any, openAccountModal: () => void }) {
   const user = useCurrentUser(account.address)
-  console.log('AccountButton render for address:', account.address, 'user state:', user)
   return (
     <button
       onClick={openAccountModal}
       type="button"
       aria-label="Account"
-      className="rounded-[9px] p-[3px] bg-[#0d0d0d] border border-[#222] hover:border-primary/60 transition-all cursor-pointer flex items-center"
+      className="rounded-[9px] p-[3px] bg-[#0d0d0d] border border-[#222] hover:border-primary/60 transition-all cursor-pointer flex items-center gap-2"
     >
       <MakerAvatar address={account.address} pfpUrl={user?.pfpUrl} size={28} />
+      {/* the identity you edited on your profile follows you here */}
+      <span className="hidden md:inline font-sans text-[12px] font-semibold text-[#ddd] max-w-[120px] truncate pr-1.5">
+        {personLabel(user, account.address)}
+      </span>
     </button>
   )
 }
