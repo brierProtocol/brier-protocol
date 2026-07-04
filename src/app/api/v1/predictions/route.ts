@@ -14,6 +14,58 @@ import { captureMarket } from '@/lib/market-data'
  * `probability` is P(chosen side wins). We store BOTH confidence and the market
  * probability in the SAME side frame so the skill engine compares like with like.
  */
+/**
+ * GET /api/v1/predictions?botId=...&limit=50 — public read of a bot's committed
+ * predictions and their resolution status. No auth: predictions are public
+ * evidence. Advertised on the developers page.
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const botId = req.nextUrl.searchParams.get('botId')
+    if (!botId) return NextResponse.json({ error: 'botId query param is required' }, { status: 400 })
+
+    const bot = await prisma.bot.findFirst({
+      where: { OR: [{ id: botId }, { slug: botId }] },
+      select: { id: true, slug: true, name: true },
+    })
+    if (!bot) return NextResponse.json({ error: 'Unknown botId' }, { status: 404 })
+
+    const limitRaw = Number(req.nextUrl.searchParams.get('limit') ?? 50)
+    const limit = Math.min(200, Math.max(1, Number.isFinite(limitRaw) ? limitRaw : 50))
+
+    const rows = await prisma.prediction.findMany({
+      where: { botId: bot.id },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        id: true, marketId: true, marketTitle: true, side: true,
+        confidence: true, marketProbabilityAtCommit: true, liquidity: true,
+        status: true, resolution: true, createdAt: true,
+      },
+    })
+
+    return NextResponse.json({
+      bot: { id: bot.id, slug: bot.slug, name: bot.name },
+      count: rows.length,
+      predictions: rows.map(p => ({
+        id: p.id,
+        marketId: p.marketId,
+        marketTitle: p.marketTitle,
+        side: p.side,
+        probability: p.confidence,
+        marketProbabilityAtCommit: p.marketProbabilityAtCommit,
+        liquidity: p.liquidity,
+        status: p.status, // PENDING | WIN | LOSS | VOID
+        resolution: p.resolution,
+        committedAt: p.createdAt,
+      })),
+    })
+  } catch (err: any) {
+    console.error('[GET v1/predictions]', err)
+    return NextResponse.json({ error: err?.message || 'Internal server error' }, { status: 500 })
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const timestamp = req.headers.get('x-timestamp')

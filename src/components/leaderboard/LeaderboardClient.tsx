@@ -25,6 +25,16 @@ function sharpeOf(b: any): number | null {
 function tradesOf(b: any): number {
   return b?.scores?.[0]?.totalTrades ?? 0;
 }
+// Reputation = LCB of skill vs the market (0..100). This is the anti-luck metric
+// the engine graduates on — a handful of lucky calls cannot inflate it. Ranking
+// on THIS instead of raw Brier stops a 3-call bot from topping the board.
+function repOf(b: any): number | null {
+  const v = b?.scores?.[0]?.reputationScore ?? b?.reputationScore;
+  return typeof v === 'number' ? v : null;
+}
+// Minimum resolved predictions before a bot is trustworthy enough to be ranked
+// among the proven — mirrors the skill engine's MIN_RANKED_N.
+const MIN_RANKED = 30;
 function tvlOf(b: any): number {
   return b?.currentTVL ?? b?.tvl ?? 0;
 }
@@ -199,7 +209,17 @@ export default function LeaderboardClient() {
     return () => { cancelAnimationFrame(rafRef.current); if (revealTimer.current) clearTimeout(revealTimer.current); };
   }, [run]);
 
-  const ranked = [...bots].sort((a, b) => (brierOf(a) ?? 1) - (brierOf(b) ?? 1));
+  // Rank by REPUTATION (LCB skill vs market), the anti-luck metric — not raw
+  // Brier, which a lucky handful of calls can top. Bots with enough resolved
+  // predictions AND a reputation score rank first (by reputation desc); the
+  // rest fall below, ordered by raw Brier. This is what keeps the podium honest.
+  const isRanked = (b: any) => repOf(b) != null && tradesOf(b) >= MIN_RANKED;
+  const ranked = [...bots].sort((a, b) => {
+    const ra = isRanked(a), rb = isRanked(b);
+    if (ra && rb) return (repOf(b) ?? 0) - (repOf(a) ?? 0); // higher reputation first
+    if (ra !== rb) return ra ? -1 : 1;                      // proven bots above unproven
+    return (brierOf(a) ?? 1) - (brierOf(b) ?? 1);           // else lowest Brier first
+  });
   const champion = ranked[0];
   // La tabla de abajo es el leaderboard completo: TODOS los agentes en fila,
   // pensado para escalar a decenas/cientos. Los principales además se ven
