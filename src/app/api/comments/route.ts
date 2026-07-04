@@ -39,14 +39,19 @@ export async function POST(request: Request) {
     })
 
     // Notify bot owner
-    const bot = await prisma.bot.findUnique({ where: { id: botId } })
-    if (bot && bot.walletAddress && bot.walletAddress !== wallet) {
+    // Notify the bot's OWNER (ownerWallet is the human; walletAddress may be the
+    // bot's execution wallet). Store the commenter as actorWallet so the bell
+    // resolves their photo + name instead of showing a raw hex stub.
+    const bot = await prisma.bot.findUnique({ where: { id: botId }, select: { name: true, ownerWallet: true, walletAddress: true } })
+    const ownerWallet = (bot?.ownerWallet || bot?.walletAddress || '').toLowerCase()
+    if (bot && ownerWallet && ownerWallet !== lowerWallet) {
       await prisma.notification.create({
         data: {
-          walletAddress: bot.walletAddress,
+          walletAddress: ownerWallet,
           type: 'COMMENT',
-          title: 'NEW FEEDBACK LOG',
-          message: `Wallet ${wallet.substring(0,6)}... left a log on [${bot.name}].`
+          title: 'New comment',
+          message: `left a comment on ${bot.name}.`,
+          metadata: JSON.stringify({ actorWallet: lowerWallet, botName: bot.name }),
         }
       })
     }

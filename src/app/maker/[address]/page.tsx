@@ -9,6 +9,7 @@ import MakerAvatar from '@/components/MakerAvatar'
 import ConnectXModal, { XLogo } from '@/components/profile/ConnectXModal'
 import { botEye } from '@/lib/botIdentity'
 import { personLabel as sharedPersonLabel } from '@/lib/identity'
+import { broadcastProfileUpdate } from '@/hooks/useCurrentUser'
 import { useCountUp } from '@/hooks/useCountUp'
 
 const POS = '#c8ff00', VIOLET = '#8b7bff', CRIMSON = '#ff2a4d'
@@ -192,7 +193,7 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
     setSaving(true)
     try {
       const res = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: activeUser, handle: editHandle, name: editName, bio: editBio, pfpUrl: editPfp }) })
-      if (res.ok) { const u = await res.json(); setProfile(u); setIsEditing(false); showToast('Profile updated.') }
+      if (res.ok) { const u = await res.json(); setProfile(u); setIsEditing(false); broadcastProfileUpdate(u); showToast('Profile updated.') }
       else { const e = await res.json(); showToast(e.error || 'Save failed.') }
     } catch (e: any) { showToast(e.message) } finally { setSaving(false) }
   }
