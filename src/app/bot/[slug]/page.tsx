@@ -1,9 +1,9 @@
 'use client'
 
-import { use, useState, useEffect } from 'react'
+import { use, useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
+import BotHeroPortrait from '@/components/bot/BotHeroPortrait'
 import MakerAvatar from '@/components/MakerAvatar'
 import BotUplink from '@/components/bot/BotUplink'
 import BotPerformance from '@/components/bot/BotPerformance'
@@ -11,6 +11,7 @@ import VaultGlass from '@/components/bot/VaultGlass'
 import ApiKeysManager from '@/components/bot/ApiKeysManager'
 import { botEye, codename } from '@/lib/botIdentity'
 import { personLabel as sharedPersonLabel } from '@/lib/identity'
+import { classifyMarket } from '@/lib/marketCategories'
 import { FEATURES } from '@/lib/features'
 import { useAccount } from 'wagmi'
 import { ethers } from 'ethers'
@@ -46,6 +47,14 @@ function txOf(t: any): string | null {
 }
 
 const Empty = () => <span className="text-[#333]">·</span>
+
+// One color per Polymarket category — used by the hunting-grounds panel and
+// the per-call dots in the prediction book so a bot from ANY category reads
+// as first-class on this page.
+const CATEGORY_COLORS: Record<string, string> = {
+  politics: '#8b7bff', crypto: '#c8ff00', sports: '#4fc3f7', economy: '#ffd400',
+  culture: '#ff5ccd', tech: '#4285f0', world: '#ff8a3c', other: '#8a8a94',
+}
 
 // Wayfinding — the profile is long; these anchors + scrollspy keep the whole
 // story reachable in one tap from anywhere on the page.
@@ -108,6 +117,8 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const [editPfp, setEditPfp] = useState('')
   const [savingBot, setSavingBot] = useState(false)
   const [activeSection, setActiveSection] = useState<string>('vault')
+  const [bookFilter, setBookFilter] = useState<'ALL' | 'WIN' | 'LOSS' | 'PENDING'>('ALL')
+  const [bookLimit, setBookLimit] = useState(40)
 
   // Scrollspy for the sticky section nav — re-arms once the bot renders.
   useEffect(() => {
@@ -259,6 +270,30 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     finally { setDepositing(false) }
   }
 
+  // ── Hunting grounds: honest per-category performance across EVERY Polymarket
+  // category, derived only from the bot's own calls. A politics bot, a sports
+  // bot and a crypto bot all get the same first-class page.
+  // (Hook — must live ABOVE the early returns or React counts hooks unevenly
+  // between the loading render and the loaded one.)
+  const catStats = useMemo(() => {
+    const acc = new Map<string, { n: number; wins: number; losses: number; edgeSum: number; edgeN: number }>()
+    for (const t of trades) {
+      const cat = classifyMarket(t.marketTitle || '') || 'other'
+      const s = acc.get(cat) || { n: 0, wins: 0, losses: 0, edgeSum: 0, edgeN: 0 }
+      s.n++
+      const st = t.status || t.outcome
+      if (st === 'WIN') s.wins++
+      else if (st === 'LOSS') s.losses++
+      if (typeof t.confidence === 'number' && typeof t.marketProbabilityAtCommit === 'number') {
+        s.edgeSum += Math.abs(t.confidence - t.marketProbabilityAtCommit); s.edgeN++
+      }
+      acc.set(cat, s)
+    }
+    return [...acc.entries()]
+      .map(([cat, s]) => ({ cat, ...s, resolved: s.wins + s.losses, wr: s.wins + s.losses > 0 ? s.wins / (s.wins + s.losses) : null, avgEdge: s.edgeN > 0 ? s.edgeSum / s.edgeN : null }))
+      .sort((a, b) => b.n - a.n)
+  }, [trades])
+
   if (loading) return <div className="min-h-screen bg-[#030303] text-[#666] grid place-items-center font-sans text-sm">Validating Identity...</div>
   if (!bot) return notFound()
 
@@ -315,6 +350,11 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const wins = trades.filter(t => t.status === 'WIN' || t.outcome === 'WIN').length
   const losses = trades.filter(t => t.status === 'LOSS' || t.outcome === 'LOSS').length
   const pending = trades.filter(t => t.status === 'PENDING' || t.outcome === 'PENDING').length
+
+  // Prediction book at scale: filter + pagination so a bot with thousands of
+  // calls in any category stays fast and navigable.
+  const filteredTrades = bookFilter === 'ALL' ? trades : trades.filter(t => (t.status || t.outcome) === bookFilter)
+  const visibleTrades = filteredTrades.slice(0, bookLimit)
   const navValues: number[] = (bot.pnlSnapshots || []).map((s: any) => s.cumulativePnl ?? s.pnlUsd).filter((v: any) => typeof v === 'number')
   const navStart = navValues[0] ?? 0
   const navDelta = bot.sharePrice && bot.sharePrice !== 1 ? (bot.sharePrice - 1) * 100 : (navValues.length > 1 && Math.abs(navStart) > 1 ? ((navValues[navValues.length - 1] - navStart) / Math.abs(navStart)) * 100 : 0)
@@ -365,23 +405,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         {/* ── HEADER: AVATAR, NAME, BADGES ── */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-8">
           <div className="flex items-center gap-6">
-            <div className="relative shrink-0">
-              {bot.pfpUrl ? (
-                <div className="rounded-2xl overflow-hidden border border-[#222]">
-                  <img src={bot.pfpUrl} alt={bot.name} className="w-[100px] h-[100px] object-cover" />
-                </div>
-              ) : (
-                <>
-                  <motion.div
-                    className="absolute rounded-full blur-3xl pointer-events-none"
-                    style={{ inset: '-20px', background: `radial-gradient(circle, ${eye.accentColor}40 0%, transparent 70%)` }}
-                    animate={{ opacity: [0.3, 0.7, 0.3] }}
-                    transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                  />
-                  <BotIrisAvatar {...eye} size={100} />
-                </>
-              )}
-            </div>
+            {/* the protagonist — a small alien intelligence in its own pocket of
+                space; rings, motes and nebula all breathe only while it's online */}
+            <BotHeroPortrait eye={eye} pfpUrl={bot.pfpUrl} name={bot.name} online={isOnline} size={120} />
             
             <div className="flex-1 min-w-0">
               <h1 className="text-white font-black text-[38px] tracking-[-0.03em] m-0 leading-none mb-2">
@@ -663,24 +689,46 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                   {losses > 0 && <div style={{ width: `${(losses / trades.length) * 100}%`, background: '#ff5570' }} />}
                   {pending > 0 && <div style={{ width: `${(pending / trades.length) * 100}%`, background: VIOLET }} />}
                 </div>
-                <div className="flex gap-4 mt-2 font-mono text-[10px]">
-                  <span style={{ color: TEAL }}>{wins} won</span><span style={{ color: '#ff5570' }}>{losses} lost</span><span style={{ color: VIOLET }}>{pending} pending</span>
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex gap-4 font-mono text-[10px]">
+                    <span style={{ color: TEAL }}>{wins} won</span><span style={{ color: '#ff5570' }}>{losses} lost</span><span style={{ color: VIOLET }}>{pending} pending</span>
+                  </div>
+                  {/* filters — a bot with thousands of calls stays navigable */}
+                  <div className="flex gap-1">
+                    {([['ALL', 'All'], ['WIN', 'Won'], ['LOSS', 'Lost'], ['PENDING', 'Open']] as const).map(([k, label]) => (
+                      <button
+                        key={k}
+                        onClick={() => { setBookFilter(k); setBookLimit(40) }}
+                        className={`font-mono text-[9px] font-bold tracking-[0.08em] uppercase px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                          bookFilter === k ? 'bg-primary text-[#030303] border-primary' : 'bg-transparent text-[#6a6a74] border-[#22222a] hover:text-white hover:border-[#3a3a44]'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
               {trades.length === 0 ? (
                 <div className="px-5 py-12 text-center text-[13px] text-[#555]">No calls yet. The moment the bot commits a prediction it shows up here, then flips to WIN or LOSS when the market resolves.</div>
+              ) : filteredTrades.length === 0 ? (
+                <div className="px-5 py-10 text-center text-[13px] text-[#555]">No {bookFilter === 'PENDING' ? 'open' : bookFilter.toLowerCase()} calls yet.</div>
               ) : (
-                <div className="max-h-[360px] overflow-y-auto">
-                  {trades.map((t, i) => {
+                <div className="max-h-[420px] overflow-y-auto">
+                  {visibleTrades.map((t, i) => {
                     const tx = txOf(t); const yes = t.side === 'YES' || t.side === 'LONG'
                     const status = t.status || t.outcome
                     const oc = status === 'WIN' ? TEAL : status === 'LOSS' ? '#ff5570' : VIOLET
+                    const cat = classifyMarket(t.marketTitle || '') || 'other'
+                    const catColor = CATEGORY_COLORS[cat] || CATEGORY_COLORS.other
                     // How far from the market it dared to stand at commit time.
                     const edge = (typeof t.confidence === 'number' && typeof t.marketProbabilityAtCommit === 'number')
                       ? t.confidence - t.marketProbabilityAtCommit : null
                     return (
                       <div key={t.id || i} className="flex items-center gap-3 px-5 py-2.5 border-b border-[#101010] hover:bg-[#0b0b0b] transition-colors" style={{ borderLeft: `2px solid ${oc}` }}>
                         <span className="font-mono text-[10px] text-[#555] w-12 shrink-0 tabular-nums">{relDay(t.timestamp)}</span>
+                        {/* category dot — politics, sports, crypto… every market family reads at a glance */}
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" title={cat} style={{ background: catColor, boxShadow: `0 0 5px ${catColor}66` }} />
                         <span className="flex-1 min-w-0 text-[12px] text-[#bbb] truncate">{tx ? <a href={`https://polygonscan.com/tx/${tx}`} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors no-underline">{t.marketTitle} <span className="text-[#444] text-[9px]">↗</span></a> : t.marketTitle}</span>
                         <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ color: yes ? TEAL : '#ff5570', background: yes ? `${TEAL}14` : '#ff557014' }}>{t.side}</span>
                         <span className="font-mono text-[11px] text-[#999] w-9 text-right tabular-nums shrink-0">{((t.confidence || t.entryPrice || 0) * 100).toFixed(0)}¢</span>
@@ -689,6 +737,14 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                       </div>
                     )
                   })}
+                  {filteredTrades.length > bookLimit && (
+                    <button
+                      onClick={() => setBookLimit(l => l + 60)}
+                      className="w-full py-3 font-mono text-[11px] font-bold text-[#7a7a84] hover:text-white hover:bg-[#0b0b0b] transition-colors cursor-pointer"
+                    >
+                      Show more · {filteredTrades.length - bookLimit} remaining
+                    </button>
+                  )}
                 </div>
               )}
             </Panel>
@@ -885,6 +941,48 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               </AnimatePresence>
             </Panel>
             </div>
+
+            {/* hunting grounds — where this bot actually operates, across every
+                Polymarket category. Derived only from its own calls (honest):
+                a politics bot and a crypto bot get the same first-class page. */}
+            {catStats.length > 0 && (
+              <Panel className="p-5">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-sans font-bold text-[16px] tracking-[-0.01em] text-white">Hunting grounds</span>
+                  <span className="font-mono text-[9px] text-[#3f3f48] tracking-[0.16em] uppercase">from its own calls</span>
+                </div>
+                <div className="text-[12px] text-[#8a8a94] mb-4">Where this agent takes its shots, and how it lands in each arena.</div>
+                <div className="flex flex-col gap-3">
+                  {catStats.map(c => {
+                    const color = CATEGORY_COLORS[c.cat] || CATEGORY_COLORS.other
+                    return (
+                      <div key={c.cat}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em]" style={{ color }}>
+                            <span className="w-2 h-2 rounded-full" style={{ background: color, boxShadow: `0 0 6px ${color}88` }} />
+                            {c.cat}
+                          </span>
+                          <span className="font-mono text-[10px] text-[#6a6a74] tabular-nums">
+                            {c.n} calls{c.resolved > 0 && c.wr != null ? ` · ${Math.round(c.wr * 100)}% WR` : ''}{c.avgEdge != null ? ` · ${(c.avgEdge * 100).toFixed(0)}% avg edge` : ''}
+                          </span>
+                        </div>
+                        {/* win/loss split within the category */}
+                        <div className="flex h-1 rounded-full overflow-hidden bg-[#0e0e12]">
+                          {c.resolved > 0 ? (
+                            <>
+                              {c.wins > 0 && <motion.div initial={{ width: 0 }} whileInView={{ width: `${(c.wins / c.n) * 100}%` }} viewport={{ once: true }} transition={{ duration: 0.9, ease: 'easeOut' }} style={{ background: TEAL }} />}
+                              {c.losses > 0 && <motion.div initial={{ width: 0 }} whileInView={{ width: `${(c.losses / c.n) * 100}%` }} viewport={{ once: true }} transition={{ duration: 0.9, ease: 'easeOut' }} style={{ background: '#ff5570' }} />}
+                            </>
+                          ) : (
+                            <div className="w-full" style={{ background: `${VIOLET}33` }} />
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </Panel>
+            )}
 
             {/* created by — the human behind the bot, with the identity they
                 edited on their own profile (photo, name, bio). */}
