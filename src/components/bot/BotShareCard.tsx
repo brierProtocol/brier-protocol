@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
+import { toPng } from 'html-to-image'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 
 // A "flex card" in the pump.fun / Axiom spirit: a premium, chromed, alive card a
@@ -30,6 +31,8 @@ export default function BotShareCard({ bot, slug, lcb, brierSkill, winRate, trad
   const [copied, setCopied] = useState(false)
   const [bgUrl, setBgUrl] = useState('')
   const [showBgInput, setShowBgInput] = useState(false)
+  const [dl, setDl] = useState<'idle' | 'working' | 'error'>('idle')
+  const cardRef = useRef<HTMLDivElement>(null)
   const proven = lcb > 0
   const lsKey = `brier:flexbg:${slug}`
 
@@ -58,6 +61,24 @@ export default function BotShareCard({ bot, slug, lcb, brierSkill, winRate, trad
     try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1800) } catch {}
   }
 
+  const download = async () => {
+    if (!cardRef.current) return
+    setDl('working')
+    try {
+      const dataUrl = await toPng(cardRef.current, { pixelRatio: 2, cacheBust: true, backgroundColor: '#070709' })
+      const a = document.createElement('a')
+      a.href = dataUrl
+      a.download = `${slug}-brier-card.png`
+      a.click()
+      setDl('idle')
+    } catch (e) {
+      // Cross-origin backgrounds (external pfp/video) can taint the canvas.
+      console.error('[flex-card] download failed', e)
+      setDl('error')
+      setTimeout(() => setDl('idle'), 2500)
+    }
+  }
+
   const heroColor = proven ? TEAL : VIOLET
   const stats = [
     { k: 'Brier', v: bot.brierScore != null ? bot.brierScore.toFixed(3) : '—' },
@@ -81,6 +102,7 @@ export default function BotShareCard({ bot, slug, lcb, brierSkill, winRate, trad
       >
         {/* chrome border */}
         <motion.div
+          ref={cardRef}
           className="rounded-[26px] p-[1.5px]"
           style={{ background: 'linear-gradient(115deg,#2a2a30,#8a8a9a,#2a2a30,#c8ff0055,#2a2a30,#7a7a8a,#2a2a30)', backgroundSize: '300% 100%' }}
           animate={{ backgroundPosition: ['0% 0%', '300% 0%'] }}
@@ -166,18 +188,22 @@ export default function BotShareCard({ bot, slug, lcb, brierSkill, winRate, trad
 
         {/* actions */}
         <div className="flex items-center gap-2.5 mt-3">
-          <a href={intent} target="_blank" rel="noopener noreferrer"
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-white text-black font-bold text-[13px] py-3 hover:bg-[#e8e8e8] transition-colors no-underline">
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-            Share on X
-          </a>
-          <button onClick={copy} className="rounded-xl border border-[#242430] bg-[#0c0c12] text-[#bbb] font-semibold text-[13px] px-4 py-3 hover:border-[#3a3a48] hover:text-white transition-all">
-            {copied ? 'Copied ✓' : 'Copy link'}
+          <button onClick={download} disabled={dl === 'working'}
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[#c8ff00] text-black font-bold text-[13px] py-3 hover:bg-[#d8ff40] transition-colors disabled:opacity-60">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+            {dl === 'working' ? 'Rendering…' : dl === 'error' ? 'Try again' : 'Download PNG'}
           </button>
-          <button onClick={onClose} className="rounded-xl border border-[#242430] bg-[#0c0c12] text-[#777] font-semibold text-[13px] px-4 py-3 hover:text-white transition-all">Close</button>
+          <a href={intent} target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 rounded-xl bg-white text-black font-bold text-[13px] px-4 py-3 hover:bg-[#e8e8e8] transition-colors no-underline">
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            Post
+          </a>
+          <button onClick={onClose} className="rounded-xl border border-[#242430] bg-[#0c0c12] text-[#777] font-semibold text-[13px] px-4 py-3 hover:text-white transition-all">✕</button>
         </div>
         <div className="font-mono text-[10px] text-[#48484f] mt-2.5 text-center leading-relaxed">
-          Screenshot the card to flex anywhere. On X, the link preview image only renders from the live brier.world domain, not localhost.
+          {dl === 'error'
+            ? 'Could not render an external background to image (cross-origin). The default or an image you host will download fine.'
+            : 'Download the card and attach it to your post — that is the flex. On X, the auto link-preview only renders from the live brier.world domain, not localhost.'}
         </div>
       </motion.div>
     </motion.div>
