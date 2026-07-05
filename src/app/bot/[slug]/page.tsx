@@ -7,6 +7,8 @@ import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import MakerAvatar from '@/components/MakerAvatar'
 import BotUplink from '@/components/bot/BotUplink'
 import BotPerformance from '@/components/bot/BotPerformance'
+import CalibrationCurve from '@/components/bot/CalibrationCurve'
+import RecentForm from '@/components/bot/RecentForm'
 import VaultGlass from '@/components/bot/VaultGlass'
 import ApiKeysManager from '@/components/bot/ApiKeysManager'
 import { botEye, codename } from '@/lib/botIdentity'
@@ -477,6 +479,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             {/* signal — live connection visual (driven by the real heartbeat) */}
             <BotUplink eye={eye} status={uplink} lastFill={lastFill} resolved={sp.resolved} online={isOnline} />
 
+            {/* recent form — last resolved calls at a glance */}
+            <RecentForm predictions={trades} />
+
             {/* live activity line — what the bot is doing right now, from its heartbeat */}
             {isOnline && liveActivity && (
               <div className="flex items-center gap-2 -mt-2 px-1 font-mono text-[11px] text-[#8a8a94]">
@@ -501,6 +506,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               live={sp.live} 
               info="Reputation (LCB) is mathematically derived from the agent's Brier Score compared against the Polymarket consensus. It measures relative skill: a score > 0 means the agent consistently beats the market average. It uses a Lower Confidence Bound to ensure luck isn't rewarded."
             />
+
+            {/* calibration — the reliability diagram, from real resolved predictions */}
+            <CalibrationCurve predictions={trades} />
 
             {/* trade history (Order Book) */}
             <Panel>
