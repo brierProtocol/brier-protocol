@@ -7,6 +7,25 @@ export const SHADOW_DAYS_TARGET = 21
 export const SHADOW_LCB_TARGET = 0 // Needs to be > 0
 export const NEW_GRACE_DAYS = 3
 
+// Rank tiers — honest gamification, earned purely from resolved predictions.
+// PROVEN coincides exactly with the shadow gate's resolved requirement, so the
+// "game" and the protocol agree by construction. Shared by the profile hero
+// and the Signal panel so a bot never wears two different ranks.
+export type BotRank = { at: number; tag: string; color: string }
+export const BOT_RANKS: BotRank[] = [
+  { at: 0, tag: 'UNRANKED', color: '#5a5a64' },
+  { at: 1, tag: 'SCOUT', color: '#8b7bff' },
+  { at: 10, tag: 'OPERATOR', color: '#4fc3f7' },
+  { at: 30, tag: 'SPECIALIST', color: '#c8ff00' },
+  { at: 60, tag: 'VETERAN', color: '#ffd400' },
+  { at: SHADOW_RESOLVED_TARGET, tag: 'PROVEN', color: '#ff2a4d' },
+]
+export function botRank(resolved: number): BotRank {
+  let r = BOT_RANKS[0]
+  for (const cand of BOT_RANKS) if (resolved >= cand.at) r = cand
+  return r
+}
+
 export interface BotLike {
   status?: string | null
   createdAt?: string | Date | null
@@ -53,6 +72,8 @@ export function shadowProgress(b: BotLike): ShadowProgress {
   const lcb = resolved > 0 && typeof lcbRaw === 'number' ? lcbRaw : null
   const winRate = score?.winRate ?? b.winRate ?? null
   const tvl = b.currentTVL ?? b.tvl ?? 0
+  // Skill vs the market (LCB). This, not raw Brier, is the quality gate.
+  const skill = resolved > 0 && typeof score?.lcb === 'number' ? score.lcb : null
 
   const created = b.createdAt ? new Date(b.createdAt).getTime() : Date.now()
   const days = Math.max(0, Math.floor((Date.now() - created) / 86_400_000))

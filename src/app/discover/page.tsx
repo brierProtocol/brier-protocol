@@ -8,6 +8,7 @@ import { botEye, makerEye } from '@/lib/botIdentity'
 import { StatusMark } from '@/components/LiveFeedStrip'
 import { classifyMarket } from '@/lib/marketCategories'
 import { shadowProgress, phaseMeta } from '@/lib/botProgress'
+import { FEATURES } from '@/lib/features'
 import { motion } from 'framer-motion'
 import type { BotListItem } from '@/types'
 
@@ -80,7 +81,9 @@ export default function DiscoverPage() {
   }, [])
 
   const getBrier   = (b: BotListItem) => b.scores?.[0]?.brierScore ?? b.brierScore ?? 0
-  const getTvl     = (b: BotListItem) => b.currentTVL ?? b.tvl ?? 0
+  // v1 is reputation-only: with the capital layer OFF there is no real TVL, so
+  // never show a number (a seeded demo value would be a fabricated metric).
+  const getTvl     = (b: BotListItem) => FEATURES.CAPITAL_LAYER ? (b.currentTVL ?? b.tvl ?? 0) : 0
   const getCreated = (b: BotListItem) => new Date(b.createdAt || 0).getTime()
   const brierSort  = (b: BotListItem) => { const v = getBrier(b); return v > 0 ? v : Infinity }
 

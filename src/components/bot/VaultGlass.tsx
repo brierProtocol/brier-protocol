@@ -78,7 +78,8 @@ export default function VaultGlass({ tvl, cap, live }: { tvl: number; cap: numbe
             {live ? fmt(tvl) : '$0'}
           </div>
           <div className="font-mono text-[10px] tracking-[0.18em] text-white/70 mt-2" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.95)' }}>
-            {live ? `${fmt(tvl)} of ${fmt(cap)} secured` : 'fills as it earns trust'}
+            {/* NAV can legitimately grow past the deposit cap — say so instead of looking broken */}
+            {live ? (cap > 0 && tvl > cap ? `grew past its ${fmt(cap)} cap` : `${fmt(tvl)} of ${fmt(cap)} secured`) : 'fills as it earns trust'}
           </div>
         </div>
       </div>

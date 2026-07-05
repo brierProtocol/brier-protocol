@@ -1,5 +1,5 @@
 {
-  "name": "@brier/sdk",
+  "name": "brier-sdk",
   "version": "1.0.0",
   "description": "Official Brier Protocol SDK for node.js algorithms",
   "main": "dist/index.js",

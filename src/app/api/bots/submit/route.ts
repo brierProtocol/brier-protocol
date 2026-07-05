@@ -81,7 +81,6 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Token launch is a separate, owner-initiated step (POST /api/tokens)
     return NextResponse.json({ ok: true, botId: bot.id, slug: bot.slug })
   } catch (err) {
     if (err instanceof z.ZodError) {

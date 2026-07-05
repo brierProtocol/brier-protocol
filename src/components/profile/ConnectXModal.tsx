@@ -18,12 +18,14 @@ export function XLogo({ size = 14, className = '' }: { size?: number; className?
 }
 
 export default function ConnectXModal({
-  open, initial, onClose, onSave,
+  open, initial, onClose, onSave, wallet,
 }: {
   open: boolean
   initial?: string | null
   onClose: () => void
   onSave: (handle: string | null) => Promise<void>
+  /** When provided, enables the real X OAuth flow (verified link). */
+  wallet?: string | null
 }) {
   const [val, setVal] = useState(initial || '')
   const [saving, setSaving] = useState(false)
@@ -55,6 +57,22 @@ export default function ConnectXModal({
             <p className="text-[12px] text-[#8a8a94] leading-relaxed mb-4">
               Show your X on your Brier profile so traders know who is behind the algorithms.
             </p>
+
+            {wallet && (
+              <>
+                <button
+                  onClick={() => { window.location.href = `/api/auth/twitter?wallet=${wallet}` }}
+                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-white text-black font-bold text-[13px] py-2.5 mb-3 hover:bg-[#e8e8e8] transition-colors"
+                >
+                  <XLogo size={14} /> Connect with X (verified)
+                </button>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="flex-1 h-px bg-[#1f1f28]" />
+                  <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-[#3f3f48]">or enter manually</span>
+                  <span className="flex-1 h-px bg-[#1f1f28]" />
+                </div>
+              </>
+            )}
 
             <label className="block">
               <span className="font-mono text-[10px] tracking-[0.16em] uppercase text-[#5a5a64]">X handle</span>

@@ -7,6 +7,14 @@ import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { motion, AnimatePresence } from 'framer-motion'
 import MakerAvatar from '@/components/MakerAvatar'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { personLabel } from '@/lib/identity'
+
+interface NotificationActor {
+  walletAddress: string
+  handle: string | null
+  name: string | null
+  pfpUrl: string | null
+}
 
 interface Notification {
   id: string
@@ -15,6 +23,7 @@ interface Notification {
   message: string
   createdAt: string
   read: boolean
+  actor?: NotificationActor | null
 }
 
 function NotificationBell({ address }: { address: string }) {
@@ -101,16 +110,26 @@ function NotificationBell({ address }: { address: string }) {
           ) : (
             <div className="max-h-[320px] overflow-y-auto scrollbar-thin">
               {notifications.slice(0, 8).map((n) => (
-                <div key={n.id} className={`p-3 border-b border-[#1a1a1a] ${n.read ? 'bg-transparent' : 'bg-[#111]'}`}>
-                  <div className="font-mono text-xs text-primary mb-1 flex gap-2 items-start font-bold">
-                    <span>&gt;</span>
-                    <span>{n.title}</span>
-                  </div>
-                  <div className="font-mono text-[11px] text-[#FFFFFF] leading-relaxed pl-4">
-                    {n.message}
-                  </div>
-                  <div className="font-mono text-[10px] text-[#555] mt-1 pl-4">
-                    {new Date(n.createdAt).toLocaleString()}
+                <div key={n.id} className={`p-3 border-b border-[#1a1a1a] flex gap-3 ${n.read ? 'bg-transparent' : 'bg-[#111]'}`}>
+                  {/* actor face — the human who triggered this, same identity as
+                      everywhere else (Link to their profile). */}
+                  {n.actor && (
+                    <Link href={`/maker/${n.actor.walletAddress}`} onClick={() => setOpen(false)} className="shrink-0 rounded-[5px] overflow-hidden self-start no-underline">
+                      <MakerAvatar address={n.actor.walletAddress} pfpUrl={n.actor.pfpUrl} size={30} square />
+                    </Link>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="font-sans text-[12px] text-white mb-0.5 leading-snug">
+                      {n.actor && (
+                        <Link href={`/maker/${n.actor.walletAddress}`} onClick={() => setOpen(false)} className="font-bold text-white hover:text-primary transition-colors no-underline">
+                          {personLabel(n.actor, n.actor.walletAddress)}{' '}
+                        </Link>
+                      )}
+                      <span className={n.actor ? 'text-[#b4b4be]' : 'text-white font-semibold'}>{n.message}</span>
+                    </div>
+                    <div className="font-mono text-[10px] text-[#555]">
+                      {new Date(n.createdAt).toLocaleString()}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -301,15 +320,18 @@ export default function Navbar() {
 
 function AccountButton({ account, openAccountModal }: { account: any, openAccountModal: () => void }) {
   const user = useCurrentUser(account.address)
-  console.log('AccountButton render for address:', account.address, 'user state:', user)
   return (
     <button
       onClick={openAccountModal}
       type="button"
       aria-label="Account"
-      className="rounded-[9px] p-[3px] bg-[#0d0d0d] border border-[#222] hover:border-primary/60 transition-all cursor-pointer flex items-center"
+      className="rounded-[9px] p-[3px] bg-[#0d0d0d] border border-[#222] hover:border-primary/60 transition-all cursor-pointer flex items-center gap-2"
     >
       <MakerAvatar address={account.address} pfpUrl={user?.pfpUrl} size={28} />
+      {/* the identity you edited on your profile follows you here */}
+      <span className="hidden md:inline font-sans text-[12px] font-semibold text-[#ddd] max-w-[120px] truncate pr-1.5">
+        {personLabel(user, account.address)}
+      </span>
     </button>
   )
 }
