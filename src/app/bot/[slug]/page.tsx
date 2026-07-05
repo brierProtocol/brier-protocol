@@ -40,6 +40,7 @@ const makerLabel = (maker: Post['user'] | null | undefined, wallet: string) =>
   maker?.handle ? `@${maker.handle}` :
   (maker?.name && !maker.name.startsWith('User_') ? maker.name : shortAddr(wallet))
 const relDay = (d?: string | Date | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
+const relTime = (d?: string | Date | null) => d ? new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''
 
 function txOf(t: any): string | null {
   const hash = String(t.externalTradeId || '').split('-')[0]
@@ -266,13 +267,13 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   ]
   const clearedCount = criteria.filter(c => c.ok).length
 
-  // Cleaned up stats for "Proof of edge" section
+  // "Proof of edge" — the numbers NOT already headlined elsewhere. LCB lives in
+  // the Reputation panel, resolved-count in the gate and calibration, so they are
+  // deliberately not repeated here.
   const stats = [
-    { k: 'LCB (Reputation)', v: lcb > 0 ? lcb.toFixed(4) : '—', info: 'Lower Confidence Bound. The pessimistic lower bound of its skill. Tells us whether the agent is actually smart or just lucky.' },
-    { k: 'Win rate', v: bot.winRate != null ? `${(bot.winRate * 100).toFixed(1)}%` : null, info: 'Share of resolved predictions it got right.' },
+    { k: 'Win rate', v: bot.winRate != null ? `${(bot.winRate * 100).toFixed(1)}%` : null, info: 'Share of resolved predictions it got right. Note: high win rate on obvious favorites is not skill — beating the market price is. See Reputation.' },
     { k: 'ROI', v: roi != null ? `${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%` : null, info: 'Return on the vault capital since it opened.' },
     { k: 'Max drawdown', v: bot.maxDrawdown != null ? `-${(Math.abs(bot.maxDrawdown) * 100).toFixed(1)}%` : null, info: 'The worst peak-to-trough drop in value. Smaller is safer.' },
-    { k: 'Resolved', v: bot.totalTrades ? bot.totalTrades.toLocaleString() : null, info: 'Predictions that have settled — the sample size behind the score.' },
     { k: 'Sharpe', v: bot.sharpe != null ? bot.sharpe.toFixed(2) : null, info: 'Return per unit of risk. Higher means steadier, less jumpy gains.' },
   ]
 
@@ -523,17 +524,13 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             )}
 
             {/* performance — Liveline real-time-style Reputation (LCB) curve */}
-            <BotPerformance 
-              title="Reputation Tracker (LCB)" 
-              subtitle="historical relative skill"
-              mode="score" 
-              snapshots={lcbSnapshots} 
-              winRate={bot.winRate} 
-              sharpe={bot.sharpe} 
-              maxDrawdown={bot.maxDrawdown} 
-              totalTrades={bot.totalTrades} 
-              live={sp.live} 
-              info="Reputation (LCB) is mathematically derived from the agent's Brier Score compared against the Polymarket consensus. It measures relative skill: a score > 0 means the agent consistently beats the market average. It uses a Lower Confidence Bound to ensure luck isn't rewarded."
+            <BotPerformance
+              title="Reputation over time"
+              subtitle="how far it beats the market · above 0 = real skill"
+              mode="score"
+              snapshots={lcbSnapshots}
+              live={sp.live}
+              info="This line is the bot's edge over the market, day by day. Zero means it only matches the crowd's price. Above zero means it consistently knows better — and it is a Lower Confidence Bound, the pessimistic version, so a lucky streak can't fake it. Below zero means it has not proven an edge yet. This one number is what unlocks a real vault."
             />
 
             {/* calibration — the reliability diagram, from real resolved predictions */}
@@ -565,11 +562,18 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                     const oc = status === 'WIN' ? TEAL : status === 'LOSS' ? '#ff5570' : VIOLET
                     return (
                       <div key={t.id || i} className="flex items-center gap-3 px-5 py-2.5 border-b border-[#101010] hover:bg-[#0b0b0b] transition-colors" style={{ borderLeft: `2px solid ${oc}` }}>
-                        <span className="font-mono text-[10px] text-[#555] w-12 shrink-0 tabular-nums">{relDay(t.timestamp)}</span>
+                        <span className="w-12 shrink-0 leading-tight">
+                          <span className="block font-mono text-[10px] text-[#666] tabular-nums">{relDay(t.timestamp)}</span>
+                          <span className="block font-mono text-[9px] text-[#3f3f48] tabular-nums">{relTime(t.timestamp)}</span>
+                        </span>
                         <span className="flex-1 min-w-0 text-[12px] text-[#bbb] truncate">{tx ? <a href={`https://polygonscan.com/tx/${tx}`} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors no-underline">{t.marketTitle} <span className="text-[#444] text-[9px]">↗</span></a> : t.marketTitle}</span>
                         <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ color: yes ? TEAL : '#ff5570', background: yes ? `${TEAL}14` : '#ff557014' }}>{t.side}</span>
-                        <span className="font-mono text-[11px] text-[#999] w-9 text-right tabular-nums shrink-0">{((t.confidence || t.entryPrice || 0) * 100).toFixed(0)}¢</span>
-                        <span className="font-mono text-[9px] font-bold w-14 text-right shrink-0" style={{ color: oc }}>{status}</span>
+                        {/* bot's price vs the market price at commit — the edge, made visible */}
+                        <span className="w-16 text-right shrink-0 leading-tight">
+                          <span className="block font-mono text-[11px] text-[#ccc] tabular-nums">{((t.confidence || t.entryPrice || 0) * 100).toFixed(0)}¢</span>
+                          {t.marketProbabilityAtCommit != null && <span className="block font-mono text-[9px] text-[#555] tabular-nums">mkt {(t.marketProbabilityAtCommit * 100).toFixed(0)}¢</span>}
+                        </span>
+                        <span className="font-mono text-[9px] font-bold w-12 text-right shrink-0" style={{ color: oc }}>{status}</span>
                       </div>
                     )
                   })}
