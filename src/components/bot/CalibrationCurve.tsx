@@ -87,13 +87,19 @@ export default function CalibrationCurve({ predictions }: { predictions: Pred[] 
         )}
       </AnimatePresence>
 
+      {/* always-visible plain-language one-liner */}
+      <div className="px-5 py-2.5 border-b border-[#141414] text-[12px] text-[#8a8a94] leading-relaxed">
+        When it says <span className="text-white font-semibold">70%</span>, it should come true about <span className="text-white font-semibold">70%</span> of the time. Dots on the line are honest — below the line, it overclaims.
+      </div>
+
       {n < MIN_SAMPLE ? (
         <div className="px-5 py-14 text-center">
           <div className="text-[13px] text-[#6a6a74]">Calibration needs ~{MIN_SAMPLE} resolved predictions.</div>
           <div className="text-[11px] text-[#3f3f48] mt-1 font-mono">{n} settled so far</div>
         </div>
       ) : (
-        <div className="p-5 flex flex-col lg:flex-row gap-5 items-center">
+        <div className="p-5">
+        <div className="flex flex-col lg:flex-row gap-5 items-center">
           <svg viewBox={`0 0 ${W} 320`} className="w-full max-w-[400px] shrink-0" role="img" aria-label="Calibration reliability diagram">
             <defs>
               <linearGradient id="cal-glow" x1="0" y1="0" x2="0" y2="1">
@@ -124,6 +130,7 @@ export default function CalibrationCurve({ predictions }: { predictions: Pred[] 
 
             {/* perfect-calibration diagonal */}
             <line x1={px(0)} y1={py(0)} x2={px(1)} y2={py(1)} stroke="#39394a" strokeWidth={1.5} strokeDasharray="4 4" />
+            <text x={px(0.74)} y={py(0.74) - 7} fill="#52526a" fontSize={8.5} fontFamily="monospace" textAnchor="middle" transform={`rotate(-45 ${px(0.74)} ${py(0.74)})`}>perfect honesty</text>
 
             {/* the bot's curve — glow + line */}
             {binPts.length > 1 && (
@@ -179,6 +186,14 @@ export default function CalibrationCurve({ predictions }: { predictions: Pred[] 
               <div className="font-mono text-[9px] text-[#3f3f48] mt-0.5">resolved calls</div>
             </div>
           </div>
+        </div>
+        {/* legend */}
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 font-mono text-[9px] text-[#5a5a64]">
+          <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: TEAL }} /> delivers ≥ it claims</span>
+          <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: RED }} /> overclaims</span>
+          <span className="inline-flex items-center gap-1.5"><span className="inline-block w-3.5 border-t border-dashed align-middle" style={{ borderColor: '#4a4a5a' }} /> perfect honesty</span>
+          <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-[1px]" style={{ background: VIOLET }} /> calls per bucket</span>
+        </div>
         </div>
       )}
     </div>

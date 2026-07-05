@@ -290,19 +290,33 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
                   <span className="text-[12px] text-[#7a7a84] group-hover:text-white transition-colors">following</span>
                 </button>
 
-                {mutualFollowers.length > 0 && (
-                  <div className="inline-flex items-center gap-2">
-                    <div className="flex -space-x-2">
-                      {mutualFollowers.slice(0, 3).map(u => (
-                        <span key={u.walletAddress} className="ring-2 ring-[#08080c] rounded-[5px]"><MakerAvatar address={u.walletAddress} pfpUrl={u.pfpUrl} size={20} square /></span>
-                      ))}
-                    </div>
-                    <span className="text-[11px] text-[#7a7a84]">
-                      Followed by {personLabel(mutualFollowers[0])}{mutualFollowers.length > 1 ? ` +${mutualFollowers.length - 1} you follow` : ' you follow'}
-                    </span>
-                  </div>
-                )}
               </div>
+
+              {/* social proof — people YOU follow who also follow this maker,
+                  shown as a prominent animated avatar stack (real mutual data) */}
+              {mutualFollowers.length > 0 && (
+                <button onClick={() => setSocialModal('followers')} className="group inline-flex items-center gap-3 mt-4 rounded-full border border-[#1a1a22] bg-[#0a0a0f] pl-1.5 pr-4 py-1.5 hover:border-[#2a2a34] transition-colors">
+                  <div className="flex -space-x-2.5">
+                    {mutualFollowers.slice(0, 5).map((u, i) => (
+                      <motion.span
+                        key={u.walletAddress}
+                        initial={{ scale: 0, x: -10 }}
+                        animate={{ scale: 1, x: 0 }}
+                        transition={{ delay: i * 0.07, type: 'spring', stiffness: 280, damping: 18 }}
+                        style={{ zIndex: 10 - i }}
+                        className="ring-2 ring-[#0a0a0f] rounded-[6px] group-hover:ring-[#12121a] transition-colors"
+                      >
+                        <MakerAvatar address={u.walletAddress} pfpUrl={u.pfpUrl} size={28} square />
+                      </motion.span>
+                    ))}
+                  </div>
+                  <span className="text-[12px] text-[#9a9aa4] group-hover:text-white transition-colors text-left leading-tight">
+                    Followed by <span className="text-white font-semibold">{personLabel(mutualFollowers[0])}</span>
+                    {mutualFollowers.length > 1 && <> and <span className="text-white font-semibold">{mutualFollowers.length - 1} other{mutualFollowers.length - 1 > 1 ? 's' : ''}</span></>}
+                    <span className="text-[#5a5a64]"> you follow</span>
+                  </span>
+                </button>
+              )}
 
               {/* bio */}
               {profile?.bio && !isEditing && (
