@@ -9,6 +9,7 @@ import BotUplink from '@/components/bot/BotUplink'
 import BotPerformance from '@/components/bot/BotPerformance'
 import CalibrationCurve from '@/components/bot/CalibrationCurve'
 import RecentForm from '@/components/bot/RecentForm'
+import ProfileGuide from '@/components/bot/ProfileGuide'
 import VaultGlass from '@/components/bot/VaultGlass'
 import ApiKeysManager from '@/components/bot/ApiKeysManager'
 import { botEye, codename } from '@/lib/botIdentity'
@@ -323,21 +324,24 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 <MakerAvatar address={bot.builder || ''} pfpUrl={bot.maker?.pfpUrl} size={20} square />
                 <span className="font-mono text-[12px] text-[#ccc]">{bot.maker?.handle ? `@${bot.maker.handle}` : (bot.builder?.slice(0,6) + '...' + bot.builder?.slice(-4))}</span>
                 
-                {/* Builder links */}
+                {/* Verifiable links — on-chain proof first, social if present.
+                    Every link here resolves to something real; no placeholders. */}
                 <div className="flex items-center gap-3 ml-2 border-l border-[#333] pl-4">
-                  {bot.maker?.xHandle ? (
-                    <a href={`https://x.com/${bot.maker.xHandle}`} target="_blank" rel="noopener noreferrer" className="text-[#555] hover:text-white transition-colors">
+                  {bot.builder && (
+                    <a href={`https://polygonscan.com/address/${bot.builder}`} target="_blank" rel="noopener noreferrer" className="text-[#555] hover:text-[#c8ff00] transition-colors" title="Bot wallet on Polygonscan — every trade is verifiable on-chain">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-[14px] h-[14px]"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>
+                    </a>
+                  )}
+                  {bot.vaultAddress && (
+                    <a href={`https://polygonscan.com/address/${bot.vaultAddress}`} target="_blank" rel="noopener noreferrer" className="text-[#555] hover:text-[#c8ff00] transition-colors" title="Vault contract on Polygonscan">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-[14px] h-[14px]"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                    </a>
+                  )}
+                  {bot.maker?.handle && (
+                    <a href={`https://x.com/${bot.maker.handle}`} target="_blank" rel="noopener noreferrer" className="text-[#555] hover:text-white transition-colors" title={`Builder on X — @${bot.maker.handle}`}>
                       <svg viewBox="0 0 24 24" fill="currentColor" className="w-[14px] h-[14px]"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
                     </a>
-                  ) : (
-                    <span className="text-[#333]"><svg viewBox="0 0 24 24" fill="currentColor" className="w-[14px] h-[14px]"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span>
                   )}
-                  <a href="#" className="text-[#333] hover:text-white transition-colors" title="Github (Pending)">
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-[14px] h-[14px]"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z"/></svg>
-                  </a>
-                  <a href="#" className="text-[#333] hover:text-white transition-colors" title="Website (Pending)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-[14px] h-[14px]"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"></path></svg>
-                  </a>
                 </div>
               </div>
               
@@ -385,15 +389,32 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         {bot.description && <p className="text-[14px] leading-relaxed text-[#9a9a9a] mb-5 max-w-3xl whitespace-pre-wrap">{bot.description}</p>}
         
         {bot.categoriesData?.length > 0 && (
-          <div className="flex flex-wrap gap-2.5 mb-10">
-            {bot.categoriesData.map((c: any) => (
-              <div key={c.name} className="flex items-center gap-2 bg-[#0c0c0c] border border-[#1a1a1a] rounded px-3 py-1.5 font-mono text-[11px] text-[#888]">
-                <span className="text-white font-bold">{Math.round(c.volumePct)}%</span>
-                <span className="uppercase">{c.name}</span>
-              </div>
-            ))}
+          <div className="mb-10">
+            <div className="flex flex-wrap gap-2.5">
+              {bot.categoriesData.map((c: any) => {
+                const hasSkill = c.resolvedCount > 0
+                const skillPos = c.skill > 0
+                return (
+                  <div key={c.name} className="flex items-center gap-2.5 bg-[#0c0c0c] border border-[#1a1a1a] rounded-lg px-3 py-2 font-mono text-[11px] text-[#888]">
+                    <span className="text-white font-bold tabular-nums">{Math.round(c.volumePct)}%</span>
+                    <span className="uppercase tracking-wide">{c.name}</span>
+                    {hasSkill && (
+                      <span className="pl-2 border-l border-[#242424] tabular-nums" style={{ color: skillPos ? '#c8ff00' : '#8b7bff' }} title="Relative skill (Brier vs market) in this category">
+                        {skillPos ? '+' : ''}{c.skill.toFixed(3)} skill
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            <div className="font-mono text-[10px] text-[#48484f] mt-2.5">
+              Brier scores every category the same way — a politics call and a 5-minute crypto call are both just (probability, market price, outcome).
+            </div>
           </div>
         )}
+
+        {/* guided on-ramp for newcomers — collapsible, plain language */}
+        <ProfileGuide />
 
         {isOwner && isEditing && (
           <Panel className="mb-8 p-5">
