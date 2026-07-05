@@ -126,6 +126,19 @@ export default function BotUplink({
               ))}
             </svg>
 
+            {/* live heartbeat ECG — scrolls when the signal is transmitting */}
+            {live && (
+              <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden" viewBox="0 0 200 60" preserveAspectRatio="none">
+                <motion.g animate={{ x: [0, -100] }} transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}>
+                  {[0, 100, 200].map(off => (
+                    <polyline key={off}
+                      points={`${off},30 ${off + 30},30 ${off + 40},30 ${off + 44},10 ${off + 48},50 ${off + 52},22 ${off + 56},30 ${off + 100},30`}
+                      fill="none" stroke={accent} strokeWidth="1" strokeOpacity="0.45" vectorEffect="non-scaling-stroke" />
+                  ))}
+                </motion.g>
+              </svg>
+            )}
+
             {/* main carrier wire */}
             <div
               className="absolute top-1/2 left-0 right-0 h-px -translate-y-1/2"
