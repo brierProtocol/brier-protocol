@@ -80,6 +80,15 @@ export async function POST(req: NextRequest) {
       console.warn('[commit] DEV market fallback midpoint=0.5 (CLOB unreachable). NOT used in production.')
     }
 
+    // ── Commitment hash: immutable trust anchor ──────────────────────────────
+    // SHA-256 of canonical payload. Anyone can recompute this from the raw fields
+    // and verify the prediction wasn't tampered with after commit time.
+    const commitTimestamp = new Date()
+    const canonicalPayload = [
+      bot.id, marketId, side.toUpperCase(), f.toFixed(8), commitTimestamp.toISOString()
+    ].join('|')
+    const commitHash = crypto.createHash('sha256').update(canonicalPayload).digest('hex')
+
     // append-only prediction insertion
     const prediction = await prisma.prediction.create({
       data: { 
@@ -95,7 +104,9 @@ export async function POST(req: NextRequest) {
         // scores it against the wrong number.
         marketProbabilityAtCommit: (String(side).toUpperCase() === 'NO' || String(side).toUpperCase() === 'SHORT') ? 1 - marketMidpoint : marketMidpoint,
         liquidity,
-        status: 'PENDING'
+        status: 'PENDING',
+        commitHash,
+        timestamp: commitTimestamp,
       },
     })
     
@@ -139,6 +150,7 @@ export async function POST(req: NextRequest) {
       success: true,
       message: 'Prediction committed',
       predictionId: prediction.id,
+      commitHash,
       capturedMarketMidpoint: marketMidpoint,
       ...(devFallback ? { devFallback: true, note: 'TEST midpoint' } : {}),
     }, { status: 200 })

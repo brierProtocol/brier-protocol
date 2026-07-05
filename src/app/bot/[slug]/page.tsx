@@ -4,6 +4,7 @@ import { use, useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import BotHeroPortrait from '@/components/bot/BotHeroPortrait'
+import CalibrationCurve from '@/components/bot/CalibrationCurve'
 import MakerAvatar from '@/components/MakerAvatar'
 import BotUplink from '@/components/bot/BotUplink'
 import BotPerformance from '@/components/bot/BotPerformance'
@@ -355,6 +356,14 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   // calls in any category stays fast and navigable.
   const filteredTrades = bookFilter === 'ALL' ? trades : trades.filter(t => (t.status || t.outcome) === bookFilter)
   const visibleTrades = filteredTrades.slice(0, bookLimit)
+
+  // Form guide: the last 10 resolved calls as W/L, oldest → newest. Trades
+  // arrive newest-first, so take the head and reverse for reading order.
+  const formGuide = trades
+    .filter(t => { const st = t.status || t.outcome; return st === 'WIN' || st === 'LOSS' })
+    .slice(0, 10)
+    .map(t => (t.status || t.outcome) === 'WIN')
+    .reverse()
   const navValues: number[] = (bot.pnlSnapshots || []).map((s: any) => s.cumulativePnl ?? s.pnlUsd).filter((v: any) => typeof v === 'number')
   const navStart = navValues[0] ?? 0
   const navDelta = bot.sharePrice && bot.sharePrice !== 1 ? (bot.sharePrice - 1) * 100 : (navValues.length > 1 && Math.abs(navStart) > 1 ? ((navValues[navValues.length - 1] - navStart) / Math.abs(navStart)) * 100 : 0)
@@ -389,6 +398,26 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         aria-hidden
         className="absolute inset-x-0 top-0 h-[460px] pointer-events-none"
         style={{ background: `radial-gradient(640px 300px at 26% -8%, ${eye.accentColor}1f 0%, transparent 70%)` }}
+      />
+      {/* deep-space ambience — the bot's pocket of the Brier universe. Pure CSS
+          (no animation loop): a sparse starfield plus two faint nebulae in the
+          bot's own color. Fixed so the cosmos stays put while you scroll. */}
+      <div
+        aria-hidden
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          backgroundImage: [
+            `radial-gradient(1px 1px at 8% 12%, #ffffff14 50%, transparent)`,
+            `radial-gradient(1px 1px at 22% 64%, #ffffff0d 50%, transparent)`,
+            `radial-gradient(1.5px 1.5px at 37% 28%, ${eye.accentColor}22 50%, transparent)`,
+            `radial-gradient(1px 1px at 52% 80%, #ffffff10 50%, transparent)`,
+            `radial-gradient(1px 1px at 64% 18%, #ffffff0d 50%, transparent)`,
+            `radial-gradient(1.5px 1.5px at 78% 52%, ${eye.accentColor}1c 50%, transparent)`,
+            `radial-gradient(1px 1px at 88% 84%, #ffffff12 50%, transparent)`,
+            `radial-gradient(1px 1px at 94% 34%, #ffffff0d 50%, transparent)`,
+            `radial-gradient(520px 380px at 90% 108%, ${eye.accentColor}0d 0%, transparent 70%)`,
+          ].join(','),
+        }}
       />
       <div className="relative max-w-[1180px] mx-auto px-6 pt-6 pb-20">
 
@@ -690,8 +719,24 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                   {pending > 0 && <div style={{ width: `${(pending / trades.length) * 100}%`, background: VIOLET }} />}
                 </div>
                 <div className="flex items-center justify-between mt-2">
-                  <div className="flex gap-4 font-mono text-[10px]">
+                  <div className="flex items-center gap-4 font-mono text-[10px]">
                     <span style={{ color: TEAL }}>{wins} won</span><span style={{ color: '#ff5570' }}>{losses} lost</span><span style={{ color: VIOLET }}>{pending} pending</span>
+                    {/* form guide — last 10 resolved, newest on the right */}
+                    {formGuide.length >= 3 && (
+                      <span className="flex items-center gap-[3px] pl-2 border-l border-[#1a1a22]" title="last 10 resolved calls, newest right">
+                        {formGuide.map((won, i) => (
+                          <motion.span
+                            key={i}
+                            className="w-[6px] h-[6px] rounded-[1.5px]"
+                            style={{ background: won ? TEAL : '#ff5570', boxShadow: won ? `0 0 5px ${TEAL}55` : '0 0 5px #ff557044' }}
+                            initial={{ scale: 0, opacity: 0 }}
+                            whileInView={{ scale: 1, opacity: 1 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: i * 0.05, type: 'spring', stiffness: 300, damping: 18 }}
+                          />
+                        ))}
+                      </span>
+                    )}
                   </div>
                   {/* filters — a bot with thousands of calls stays navigable */}
                   <div className="flex gap-1">
@@ -941,6 +986,17 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               </AnimatePresence>
             </Panel>
             </div>
+
+            {/* calibration — the reliability diagram, Brier's whole thesis in
+                one chart: does this bot mean it when it says 70%? */}
+            <Panel className="p-5">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-sans font-bold text-[16px] tracking-[-0.01em] text-white">Calibration</span>
+                <span className="font-mono text-[9px] text-[#3f3f48] tracking-[0.16em] uppercase">said vs happened</span>
+              </div>
+              <div className="text-[12px] text-[#8a8a94] mb-3">The whole thesis in one chart. Capital follows calibration, nothing else.</div>
+              <CalibrationCurve predictions={trades} accent={eye.accentColor} />
+            </Panel>
 
             {/* hunting grounds — where this bot actually operates, across every
                 Polymarket category. Derived only from its own calls (honest):
