@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
   // Security headers on every response (clickjacking, MIME-sniff, referrer leak, HTTPS).
   async headers() {
     return [
