@@ -433,166 +433,86 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           )}
         </div>
 
-        {/* ── UNIFIED VERTICAL HERO CARD (OPCIÓN A) ── */}
-        <div className="w-full max-w-[1100px] mx-auto rounded-[32px] border border-[#1a1a1a] bg-[#050505] shadow-2xl mb-12 overflow-hidden flex flex-col relative">
+        {/* ── SLEEK HORIZONTAL HERO BANNER ── */}
+        <div className="w-full rounded-[24px] border border-[#1a1a1a] bg-[#050505] shadow-2xl mb-12 flex flex-col xl:flex-row items-center p-6 gap-6 relative overflow-hidden">
           
-          {/* TOP SECTION: IDENTITY */}
-          <div className="p-8 sm:p-10 xl:p-12 pb-10 flex flex-col items-center text-center relative">
-            
-            {/* Heart Button positioned absolutely in top right corner */}
-            <div className="absolute top-6 right-6 sm:top-8 sm:right-8">
-              <button onClick={toggleHeart} className={`relative flex items-center justify-center gap-2 px-4 py-2 rounded-full border transition-all cursor-pointer ${hearted ? 'border-primary bg-primary/10 text-primary' : 'border-[#1a1a1a] bg-[#0c0c0c] text-[#888] hover:border-primary/50 hover:text-primary'}`}>
-                <motion.span key={hearted ? 'on' : 'off'} initial={{ scale: 0.6 }} animate={{ scale: hearted ? [1.4, 1] : 1 }} transition={{ duration: 0.35 }} className="text-[16px] leading-none">{hearted ? '♥' : '♡'}</motion.span>
-                <span className="font-mono font-bold text-[12px] tabular-nums leading-none tracking-widest">{hearts}</span>
-                <AnimatePresence>
-                  {confettiBurst > 0 && (['#ff2a4d','#c8ff00','#8b7bff','#ffd400','#ffffff','#ff5ccd','#4285f0','#eaff00'] as const).flatMap((color, ci) =>
-                    [0, 1, 2].map((j) => {
-                      const angle = ((ci * 3 + j) / 24) * Math.PI * 2
-                      const dist = 30 + j * 15
-                      return (
-                        <motion.span
-                          key={`cf-${confettiBurst}-${ci}-${j}`}
-                          className="absolute pointer-events-none"
-                          style={{ width: 4 + (j % 3) * 2, height: 3 + (ci % 2) * 2, background: color, borderRadius: ci % 3 === 0 ? '50%' : '1px', left: '50%', top: '50%' }}
-                          initial={{ opacity: 1, x: -2, y: -2, rotate: 0, scale: 1 }}
-                          animate={{ opacity: 0, x: Math.cos(angle) * dist, y: Math.sin(angle) * dist - 20, rotate: 200 * (ci % 2 ? 1 : -1), scale: 0.2 }}
-                          transition={{ duration: 0.6 + j * 0.08, ease: 'easeOut' }}
-                          onAnimationComplete={() => { if (ci === 7 && j === 2) setConfettiBurst(0) }}
-                        />
-                      )
-                    })
-                  )}
-                </AnimatePresence>
+          {/* LEFT: Identity (Slim and compact) */}
+          <div className="flex flex-col sm:flex-row items-center sm:items-start xl:items-center gap-5 xl:w-[35%] shrink-0">
+            <div className="relative shrink-0">
+              <BotHeroPortrait eye={eye} pfpUrl={bot.pfpUrl} name={bot.name} online={isOnline} size={100} />
+              <button onClick={toggleHeart} className={`absolute -bottom-2 -right-2 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full border bg-[#050505] shadow-xl z-10 transition-all cursor-pointer ${hearted ? 'border-primary text-primary' : 'border-[#222] text-[#888] hover:border-primary/50 hover:text-primary'}`}>
+                <motion.span key={hearted ? 'on' : 'off'} initial={{ scale: 0.6 }} animate={{ scale: hearted ? [1.4, 1] : 1 }} transition={{ duration: 0.35 }} className="text-[12px] leading-none">{hearted ? '♥' : '♡'}</motion.span>
+                <span className="font-mono font-bold text-[10px] tabular-nums leading-none tracking-widest">{hearts}</span>
               </button>
             </div>
-
-            <div className="mb-6">
-              <BotHeroPortrait eye={eye} pfpUrl={bot.pfpUrl} name={bot.name} online={isOnline} size={140} />
-            </div>
-
-            <h1 className="text-white font-black text-[42px] md:text-[52px] tracking-[-0.03em] m-0 leading-none mb-5 max-w-4xl break-words">
-              {bot.name}
-            </h1>
-
-            <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#555]">created by</span>
-                <Link href={`/maker/${bot.builder || ''}`} className="flex items-center gap-2 no-underline group/maker">
-                  <span className="rounded-full overflow-hidden ring-1 ring-[#222]"><MakerAvatar address={bot.builder || ''} pfpUrl={bot.maker?.pfpUrl} size={24} /></span>
-                  <span className="font-sans font-semibold text-[15px] text-[#e8e8e8] group-hover/maker:text-white transition-colors">{sharedPersonLabel(bot.maker, bot.builder)}</span>
-                </Link>
-                {bot.maker?.xHandle && (
-                  <a href={`https://x.com/${bot.maker.xHandle}`} target="_blank" rel="noopener noreferrer" className="ml-1 text-[#555] hover:text-white transition-colors" title={`@${bot.maker.xHandle}`}>
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-[14px] h-[14px]"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                  </a>
-                )}
-              </div>
-              <div className="w-1.5 h-1.5 rounded-full bg-[#222]" />
-              <div className="flex items-center gap-2 font-mono text-[11px]">
-                {isOnline ? (
-                  <>
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: TEAL, boxShadow: `0 0 8px ${TEAL}88` }} />
-                    <span className="font-bold tracking-[0.16em] uppercase shrink-0" style={{ color: TEAL }}>Live</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#3a3a44] shrink-0" />
-                    <span className="text-[#5a5a64] font-bold tracking-[0.16em] uppercase shrink-0">Standby</span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {bot.description && (
-              <p className="text-[15px] leading-relaxed text-[#9a9a9a] max-w-3xl whitespace-pre-wrap mb-8">
-                {bot.description}
-              </p>
-            )}
-
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              {(hasVerifiedPerformance && hasVerifiedReputation) ? (
-                <div className="px-4 py-2 rounded-full text-[11px] font-mono font-bold tracking-widest uppercase border bg-[#c8ff00]/10 text-[#c8ff00] border-[#c8ff00]/30 shadow-[0_0_12px_rgba(200,255,0,0.15)] flex items-center gap-2">
-                  <span className="text-[14px] leading-none">⬡</span> Brier Verified
+            
+            <div className="min-w-0 flex flex-col justify-center text-center sm:text-left">
+              <h1 className="text-white font-black text-[32px] m-0 leading-none mb-2 truncate">
+                {bot.name}
+              </h1>
+              
+              <div className="flex items-center justify-center sm:justify-start gap-2 mb-3">
+                <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#555]">by</span>
+                <Link href={`/maker/${bot.builder || ''}`} className="font-sans font-semibold text-[13px] text-[#e8e8e8] hover:text-white transition-colors truncate max-w-[120px]">{sharedPersonLabel(bot.maker, bot.builder)}</Link>
+                <div className="w-1 h-1 rounded-full bg-[#333]" />
+                <div className="flex items-center gap-1.5 font-mono text-[10px]">
+                  {isOnline ? (
+                    <><span className="w-1.5 h-1.5 rounded-full" style={{ background: TEAL, boxShadow: `0 0 8px ${TEAL}88` }} /><span className="font-bold tracking-[0.16em] uppercase" style={{ color: TEAL }}>Live</span></>
+                  ) : (
+                    <><span className="w-1.5 h-1.5 rounded-full bg-[#3a3a44]" /><span className="text-[#5a5a64] font-bold tracking-[0.16em] uppercase">Standby</span></>
+                  )}
                 </div>
-              ) : (
-                <div className="px-4 py-2 rounded-full text-[11px] font-mono font-bold tracking-widest uppercase border bg-[#222] text-[#666] border-[#333]">
-                  Pending Verification
-                </div>
-              )}
-              {bot.reputationScore != null && (
-                <div className="px-4 py-2 rounded-full text-[11px] font-mono font-bold tracking-widest uppercase border flex items-center gap-1.5" style={bot.reputationScore >= 50 ? { color: TEAL, borderColor: `${TEAL}33`, background: `${TEAL}0d` } : { color: '#9a9a9a', borderColor: '#2a2a34', background: 'transparent' }}>
-                  Rep {Math.round(bot.reputationScore)}<span className="opacity-50">/100</span>
-                </div>
-              )}
-              <div className="px-4 py-2 rounded-full text-[11px] font-mono font-bold tracking-widest uppercase border" style={{ color: rank.color, borderColor: `${rank.color}33`, background: `${rank.color}0d` }}>
-                {rank.tag}
               </div>
               
-              {bot.categoriesData?.map((c: any) => (
-                <div key={c.name} className="flex items-center gap-1.5 bg-[#0c0c0c] border border-[#1a1a1a] rounded-full px-3 py-1.5 font-mono text-[11px] text-[#888]">
-                  <span className="text-white font-bold">{Math.round(c.volumePct)}%</span>
-                  <span className="uppercase">{c.name}</span>
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                <div className="px-2.5 py-1 rounded text-[9px] font-mono font-bold tracking-widest uppercase border bg-[#c8ff00]/10 text-[#c8ff00] border-[#c8ff00]/30 flex items-center gap-1.5">
+                  <span className="text-[11px] leading-none">⬡</span> {hasVerifiedPerformance ? 'Verified' : 'Pending'}
                 </div>
-              ))}
-            </div>
-            
-            {!sp.live && (
-              <div className="flex items-center gap-2 mt-6">
-                <div className="relative w-[160px] h-[4px] rounded-full bg-[#16161e] overflow-hidden">
-                  <motion.div className="absolute inset-y-0 left-0 rounded-full" style={{ background: `linear-gradient(90deg, ${VIOLET}, ${rank.color})` }} initial={{ width: 0 }} animate={{ width: `${Math.round(sp.pct * 100)}%` }} transition={{ duration: 1.1, ease: 'easeOut' }} />
+                <div className="px-2.5 py-1 rounded text-[9px] font-mono font-bold tracking-widest uppercase border" style={{ color: rank.color, borderColor: `${rank.color}33`, background: `${rank.color}0d` }}>
+                  {rank.tag}
                 </div>
-                <span className="font-mono text-[10px] text-[#5a5a64] tabular-nums">gate {Math.round(sp.pct * 100)}%</span>
               </div>
-            )}
+            </div>
           </div>
 
-          {/* BOTTOM SECTION: VAULT */}
-          <div id="vault" className="border-t border-[#141414] bg-[#080809] p-8 sm:p-10 xl:p-12 flex flex-col md:flex-row items-center justify-center gap-10 md:gap-16">
-            
-            {/* Vault Glass */}
-            <div className="w-[200px] h-[200px] relative shrink-0">
-              <div className="transform scale-[0.95] origin-center -m-[10px]">
+          {/* RIGHT: Vault (Stretching horizontally to occupy all space) */}
+          <div className="flex-1 bg-[#0a0a0c] border border-[#141414] rounded-[16px] p-5 flex flex-col md:flex-row items-center w-full min-w-0 gap-6 md:gap-8">
+            <div className="w-[120px] h-[120px] relative shrink-0">
+              <div className="transform scale-[0.7] origin-center -m-[20px]">
                 <VaultGlass tvl={animatedTVL} cap={vaultCap} live={sp.live} />
               </div>
             </div>
-
-            {/* Vault Data */}
-            <div className="flex flex-col justify-center text-center md:text-left">
-              <div className="mb-6">
-                <div className="font-mono text-[12px] tracking-[0.24em] uppercase text-[#888] mb-2">Vault Status</div>
-                <div className="font-sans font-black text-[40px] md:text-[48px] text-white tracking-[-0.03em] leading-none">
+            
+            <div className="flex-1 min-w-0 flex flex-col md:flex-row items-center justify-between w-full gap-6">
+              <div className="text-center md:text-left">
+                <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#888] mb-1">Vault Status</div>
+                <div className="font-sans font-black text-[36px] text-white tracking-[-0.03em] leading-none">
                   {sp.live ? fmtUSD(animatedTVL) : 'Shadow phase'}
                 </div>
                 {sp.live && (
-                  <div className={`font-mono text-[14px] font-bold mt-2 ${navDelta >= 0 ? 'text-[#c8ff00]' : 'text-[#ff5570]'}`}>
+                  <div className={`font-mono text-[12px] font-bold mt-1 ${navDelta >= 0 ? 'text-[#c8ff00]' : 'text-[#ff5570]'}`}>
                     {navDelta >= 0 ? '▲' : '▼'} {Math.abs(navDelta).toFixed(1)}%
                   </div>
                 )}
               </div>
               
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-8 md:gap-12 mb-6">
-                <div>
-                  <div className="font-mono text-[11px] tracking-[0.16em] uppercase text-[#555] mb-1.5">Phase</div>
-                  <div className="font-sans font-bold text-[18px] text-white tabular-nums">{sp.live ? 'LIVE' : `${Math.round(sp.pct * 100)}%`}</div>
-                </div>
-                <div>
-                  <div className="font-mono text-[11px] tracking-[0.16em] uppercase text-[#555] mb-1.5">Maker Skin In Game</div>
-                  <div className="font-sans font-bold text-[18px] text-white tabular-nums">{fmtUSD(bot.skinInGame || 0)}</div>
-                </div>
+              <div className="hidden sm:block text-center md:text-left">
+                <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-[#555] mb-1">Skin In Game</div>
+                <div className="font-sans font-bold text-[18px] text-white tabular-nums">{fmtUSD(bot.skinInGame || 0)}</div>
               </div>
               
               {sp.live && (
-                <div className="border-t border-[#1a1a24] pt-6 mt-2">
+                <div className="shrink-0">
                   {!FEATURES.CAPITAL_LAYER ? (
-                    <div className="text-[13px] text-[#666] font-sans text-center md:text-left">Capital Layer disabled.</div>
+                    <div className="text-[12px] text-[#666]">Capital Layer disabled.</div>
                   ) : atCapacity ? (
-                    <div className="rounded border border-primary/30 p-2 text-center font-mono text-[12px] text-primary tracking-widest">AT CAPACITY</div>
+                    <div className="rounded border border-primary/30 p-2 font-mono text-[11px] text-primary tracking-widest">AT CAPACITY</div>
                   ) : !isConnected ? (
-                    <div className="text-[13px] text-[#666] text-center md:text-left">Connect wallet to deposit.</div>
+                    <div className="text-[12px] text-[#666]">Connect wallet</div>
                   ) : (
-                    <div className="flex flex-col sm:flex-row justify-center md:justify-start gap-3">
-                      <input type="number" value={depositAmt} onChange={e => setDepositAmt(e.target.value)} placeholder="USDC" className="w-full sm:w-[200px] bg-[#050505] border border-[#1f1f1f] rounded-lg px-4 py-3 text-[14px] text-white outline-none focus:border-primary/50" />
-                      <button onClick={handleDeposit} disabled={depositing} className="shrink-0 rounded-lg bg-primary text-[#030303] font-bold text-[14px] px-8 py-3 disabled:opacity-50 hover:shadow-[0_0_16px_rgba(255,42,77,0.4)] transition-all">{depositing ? '…' : 'Deposit'}</button>
+                    <div className="flex gap-2">
+                      <input type="number" value={depositAmt} onChange={e => setDepositAmt(e.target.value)} placeholder="USDC" className="w-[120px] bg-[#050505] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[14px] text-white outline-none focus:border-primary/50" />
+                      <button onClick={handleDeposit} disabled={depositing} className="shrink-0 rounded-lg bg-primary text-[#030303] font-bold text-[13px] px-5 py-2 disabled:opacity-50 hover:shadow-[0_0_12px_rgba(255,42,77,0.4)] transition-all">Deposit</button>
                     </div>
                   )}
                 </div>
