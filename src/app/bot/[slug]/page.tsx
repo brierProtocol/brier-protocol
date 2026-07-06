@@ -453,6 +453,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-2.5">
                 <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#555]">by</span>
+                {bot.maker?.pfpUrl && (
+                  <img src={bot.maker.pfpUrl} alt={bot.builder || ''} className="w-5 h-5 rounded-full object-cover shrink-0 border border-[#222]" />
+                )}
                 <Link href={`/maker/${bot.builder || ''}`} className="font-sans font-semibold text-[13px] text-[#e8e8e8] hover:text-white transition-colors truncate max-w-[120px]">{sharedPersonLabel(bot.maker, bot.builder)}</Link>
                 <div className="w-1 h-1 rounded-full bg-[#333] hidden sm:block" />
                 <div className="flex items-center gap-1.5 font-mono text-[10px]">
@@ -477,11 +480,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 <div className="px-2 py-1 rounded text-[9px] font-mono font-bold tracking-widest uppercase border" style={{ color: rank.color, borderColor: `${rank.color}33`, background: `${rank.color}0d` }}>
                   {rank.tag}
                 </div>
-                {bot.categoriesData?.slice(0,2).map((c: any) => (
-                  <div key={c.name} className="px-2 py-1 bg-[#111] border border-[#222] rounded font-mono text-[9px] text-[#777] flex items-center gap-1">
-                    <span className="text-[#ccc] font-bold">{Math.round(c.volumePct)}%</span> <span className="uppercase">{c.name}</span>
-                  </div>
-                ))}
               </div>
             </div>
           </div>
@@ -742,7 +740,47 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           </div>
 
           {/* RIGHT COLUMN */}
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-6 min-w-0">
+            {/* hunting grounds — where this bot actually operates, elevated for visibility */}
+            {catStats.length > 0 && (
+              <Panel className="p-5">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-sans font-bold text-[16px] tracking-[-0.01em] text-white">Hunting grounds</span>
+                  <span className="font-mono text-[9px] text-[#3f3f48] tracking-[0.16em] uppercase">from its own calls</span>
+                </div>
+                <div className="text-[12px] text-[#8a8a94] mb-4">Where this agent takes its shots, and how it lands in each arena.</div>
+                <div className="flex flex-col gap-3">
+                  {catStats.map(c => {
+                    const color = CATEGORY_COLORS[c.cat] || CATEGORY_COLORS.other
+                    return (
+                      <div key={c.cat}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em]" style={{ color }}>
+                            <span className="w-2 h-2 rounded-full" style={{ background: color, boxShadow: `0 0 6px ${color}88` }} />
+                            {c.cat}
+                          </span>
+                          <span className="font-mono text-[10px] text-[#6a6a74] tabular-nums">
+                            {c.n} calls{c.resolved > 0 && c.wr != null ? ` · ${Math.round(c.wr * 100)}% WR` : ''}{c.avgEdge != null ? ` · ${(c.avgEdge * 100).toFixed(0)}% avg edge` : ''}
+                          </span>
+                        </div>
+                        {/* win/loss split within the category */}
+                        <div className="flex h-1 rounded-full overflow-hidden bg-[#0e0e12]">
+                          {c.resolved > 0 ? (
+                            <>
+                              {c.wins > 0 && <motion.div initial={{ width: 0 }} whileInView={{ width: `${(c.wins / c.n) * 100}%` }} viewport={{ once: true }} transition={{ duration: 0.9, ease: 'easeOut' }} style={{ background: TEAL }} />}
+                              {c.losses > 0 && <motion.div initial={{ width: 0 }} whileInView={{ width: `${(c.losses / c.n) * 100}%` }} viewport={{ once: true }} transition={{ duration: 0.9, ease: 'easeOut' }} style={{ background: '#ff5570' }} />}
+                            </>
+                          ) : (
+                            <div className="w-full" style={{ background: `${VIOLET}33` }} />
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </Panel>
+            )}
+
             {/* eligibility */}
             <Panel className="p-5">
               <div className="flex items-center justify-between mb-2">
@@ -894,48 +932,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               <div className="text-[12px] text-[#8a8a94] mb-3">The whole thesis in one chart. Capital follows calibration, nothing else.</div>
               <CalibrationCurve predictions={trades} />
             </Panel>
-
-            {/* hunting grounds — where this bot actually operates, across every
-                Polymarket category. Derived only from its own calls (honest):
-                a politics bot and a crypto bot get the same first-class page. */}
-            {catStats.length > 0 && (
-              <Panel className="p-5">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-sans font-bold text-[16px] tracking-[-0.01em] text-white">Hunting grounds</span>
-                  <span className="font-mono text-[9px] text-[#3f3f48] tracking-[0.16em] uppercase">from its own calls</span>
-                </div>
-                <div className="text-[12px] text-[#8a8a94] mb-4">Where this agent takes its shots, and how it lands in each arena.</div>
-                <div className="flex flex-col gap-3">
-                  {catStats.map(c => {
-                    const color = CATEGORY_COLORS[c.cat] || CATEGORY_COLORS.other
-                    return (
-                      <div key={c.cat}>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em]" style={{ color }}>
-                            <span className="w-2 h-2 rounded-full" style={{ background: color, boxShadow: `0 0 6px ${color}88` }} />
-                            {c.cat}
-                          </span>
-                          <span className="font-mono text-[10px] text-[#6a6a74] tabular-nums">
-                            {c.n} calls{c.resolved > 0 && c.wr != null ? ` · ${Math.round(c.wr * 100)}% WR` : ''}{c.avgEdge != null ? ` · ${(c.avgEdge * 100).toFixed(0)}% avg edge` : ''}
-                          </span>
-                        </div>
-                        {/* win/loss split within the category */}
-                        <div className="flex h-1 rounded-full overflow-hidden bg-[#0e0e12]">
-                          {c.resolved > 0 ? (
-                            <>
-                              {c.wins > 0 && <motion.div initial={{ width: 0 }} whileInView={{ width: `${(c.wins / c.n) * 100}%` }} viewport={{ once: true }} transition={{ duration: 0.9, ease: 'easeOut' }} style={{ background: TEAL }} />}
-                              {c.losses > 0 && <motion.div initial={{ width: 0 }} whileInView={{ width: `${(c.losses / c.n) * 100}%` }} viewport={{ once: true }} transition={{ duration: 0.9, ease: 'easeOut' }} style={{ background: '#ff5570' }} />}
-                            </>
-                          ) : (
-                            <div className="w-full" style={{ background: `${VIOLET}33` }} />
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </Panel>
-            )}
 
             {/* created by — already shown in the header, no duplicate needed */}
           </div>
