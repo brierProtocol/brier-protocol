@@ -493,11 +493,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             <motion.div 
               className="absolute inset-y-0 left-0"
               style={{
-                background: sp.live 
-                  ? `radial-gradient(150% 100% at 100% 50%, rgba(255,100,0,0.25) 0%, rgba(255,42,77,0.15) 40%, transparent 100%), linear-gradient(90deg, rgba(10,0,0,0.8) 0%, rgba(40,5,10,0.5) 60%, rgba(255,42,77,0.2) 100%)`
-                  : `radial-gradient(150% 100% at 100% 50%, rgba(180,123,255,0.25) 0%, rgba(139,123,255,0.15) 40%, transparent 100%), linear-gradient(90deg, rgba(5,0,15,0.8) 0%, rgba(20,10,40,0.5) 60%, rgba(139,123,255,0.2) 100%)`,
-                borderRight: sp.live ? '2px solid rgba(255,80,0,0.6)' : `2px solid ${VIOLET}88`,
-                boxShadow: sp.live ? '4px 0 24px rgba(255,80,0,0.3), inset -4px 0 16px rgba(255,42,77,0.3)' : `4px 0 24px ${VIOLET}44, inset -4px 0 16px ${VIOLET}33`
+                background: `radial-gradient(150% 100% at 100% 50%, rgba(255,100,0,0.25) 0%, rgba(255,42,77,0.15) 40%, transparent 100%), linear-gradient(90deg, rgba(10,0,0,0.8) 0%, rgba(40,5,10,0.5) 60%, rgba(255,42,77,0.2) 100%)`,
+                borderRight: '2px solid rgba(255,80,0,0.6)',
+                boxShadow: '4px 0 24px rgba(255,80,0,0.3), inset -4px 0 16px rgba(255,42,77,0.3)'
               }}
               initial={{ width: 0 }}
               animate={{ width: `${Math.min(100, Math.max(0, sp.live ? (animatedTVL / (vaultCap || Math.max(animatedTVL * 1.5, 10000))) * 100 : sp.pct * 100))}%` }}
