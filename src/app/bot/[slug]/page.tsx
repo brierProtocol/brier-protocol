@@ -362,33 +362,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                   </div>
                 )}
 
-                {/* live signal — compact, in the identity block (not a big panel) */}
-                <div className="inline-flex items-center gap-3 px-4 py-2.5 rounded-xl border" style={{ borderColor: isOnline ? '#c8ff0044' : '#2a2a2a', background: isOnline ? 'linear-gradient(90deg,#c8ff0012,#0a0a0a)' : '#0a0a0a', boxShadow: isOnline ? '0 0 16px #c8ff0018' : 'none' }}>
-                  <span className="relative flex h-2.5 w-2.5">
-                    {isOnline && <span className="absolute inline-flex h-full w-full rounded-full bg-[#c8ff00] opacity-60 animate-ping" />}
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: isOnline ? '#c8ff00' : '#ff5570', boxShadow: isOnline ? '0 0 8px #c8ff00' : 'none' }} />
-                  </span>
-                  <span className="font-sans text-[13px] font-bold tracking-tight" style={{ color: isOnline ? '#c8ff00' : '#8a8a94' }}>{isOnline ? 'Operating' : 'Offline'}</span>
-                  {/* live equalizer — only when online, gives the signal life */}
-                  {isOnline && (
-                    <span className="flex items-end gap-[2px] h-3.5">
-                      {[0, 1, 2, 3].map(i => (
-                        <motion.span key={i} className="w-[2px] rounded-full bg-[#c8ff00]"
-                          animate={{ height: ['30%', '100%', '45%', '80%', '30%'] }}
-                          transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }} />
-                      ))}
-                    </span>
-                  )}
-                  <span className="font-mono text-[11px] text-[#8a8a94] border-l border-[#242424] pl-3 tabular-nums"><span className="text-white font-bold">{sp.resolved}</span> resolved</span>
-                  {lastFill && <span className="font-mono text-[11px] text-[#5a5a64] tabular-nums">· last {lastFill}</span>}
-                </div>
               </div>
-              {isOnline && liveActivity && (
-                <div className="flex items-center gap-2 mt-2.5 font-mono text-[11px] text-[#8a8a94]">
-                  <span className="w-1 h-1 rounded-full bg-[#c8ff00]" />
-                  <span className="truncate">{liveActivity}</span>
-                </div>
-              )}
             </div>
           </div>
 
@@ -445,6 +419,45 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             </div>
           </div>
         )}
+
+        {/* ── SIGNAL — prominent, unmissable live status band ── */}
+        <div className="mb-8 rounded-2xl border overflow-hidden" style={{ borderColor: isOnline ? '#c8ff0033' : '#1c1c1c', background: isOnline ? 'linear-gradient(90deg,#c8ff000e,#070709 55%)' : '#08080a' }}>
+          <div className="flex items-center gap-4 px-5 py-4">
+            <span className="relative flex h-3 w-3 shrink-0">
+              {isOnline && <span className="absolute inline-flex h-full w-full rounded-full bg-[#c8ff00] opacity-60 animate-ping" />}
+              <span className="relative inline-flex h-3 w-3 rounded-full" style={{ background: isOnline ? '#c8ff00' : '#ff5570', boxShadow: isOnline ? '0 0 10px #c8ff00' : '0 0 8px #ff557066' }} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-3">
+                <span className="font-sans font-black text-[17px] tracking-tight" style={{ color: isOnline ? '#c8ff00' : '#9a9aa4' }}>{isOnline ? 'Operating' : 'Offline'}</span>
+                {isOnline && (
+                  <span className="flex items-end gap-[3px] h-4">
+                    {[0, 1, 2, 3, 4].map(i => (
+                      <motion.span key={i} className="w-[3px] rounded-full bg-[#c8ff00]"
+                        animate={{ height: ['25%', '100%', '40%', '85%', '30%'] }}
+                        transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.13, ease: 'easeInOut' }} />
+                    ))}
+                  </span>
+                )}
+              </div>
+              <div className="font-mono text-[11px] text-[#7a7a84] mt-1 truncate">
+                {isOnline
+                  ? (liveActivity || 'Live heartbeat from the bot. Scanning markets, committing predictions.')
+                  : 'No heartbeat. Start the bot with its credentials to bring the signal online.'}
+              </div>
+            </div>
+            <div className="flex items-center gap-5 shrink-0 pl-4 border-l border-[#1a1a1a]">
+              <div className="text-right">
+                <div className="font-sans font-bold text-[16px] tabular-nums text-white leading-none">{sp.resolved}</div>
+                <div className="font-mono text-[9px] text-[#48484f] tracking-wide uppercase mt-1">resolved</div>
+              </div>
+              <div className="text-right">
+                <div className="font-sans font-bold text-[16px] tabular-nums text-white leading-none">{lastFill || '—'}</div>
+                <div className="font-mono text-[9px] text-[#48484f] tracking-wide uppercase mt-1">last trade</div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* guided on-ramp for newcomers — collapsible, plain language */}
         <ProfileGuide />

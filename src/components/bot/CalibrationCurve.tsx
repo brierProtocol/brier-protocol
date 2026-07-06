@@ -3,17 +3,16 @@
 import { useRef, useState } from 'react'
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
 
-// Honesty as a cinematic 3D gauge. A glowing arc fills to what the bot actually
-// DELIVERS; a bright tick marks what it CLAIMS. The letter grade sits in the
-// core. The whole rig floats in 3D and tilts to the cursor. Plain-language verdict
-// underneath. Optional per-bucket breakdown for the curious. Real data only.
+// Honesty as a floating 3D orb — the Brier "eye". The iris ring fills to what the
+// bot DELIVERS; a bright tick marks what it CLAIMS; the letter grade glows in the
+// core. The orb floats and tilts to the cursor. Plain verdict + numbers beside it;
+// per-bucket breakdown a tap away. All from real resolved predictions.
 
 type Pred = { confidence: number; status?: string; outcome?: string }
 
 const TEAL = '#c8ff00'
 const AMBER = '#ffb000'
 const RED = '#ff5570'
-const VIOLET = '#8b7bff'
 const MIN_SAMPLE = 8
 const NB = 6
 
@@ -25,32 +24,21 @@ function gradeFor(brier: number) {
   return { letter: 'F', label: 'Talks big, misses', color: RED }
 }
 
-// gauge geometry — a 270° arc, gap at the bottom
-const CX = 130, CY = 128, R = 92
-const A0 = 135 // start angle (deg, clockwise from +x)
-const SWEEP = 270
-const polar = (frac: number, r = R) => {
-  const rad = ((A0 + frac * SWEEP) * Math.PI) / 180
-  return { x: CX + r * Math.cos(rad), y: CY + r * Math.sin(rad) }
-}
-const arcPath = (f0: number, f1: number) => {
-  const p0 = polar(f0), p1 = polar(f1)
-  const large = (f1 - f0) * SWEEP > 180 ? 1 : 0
-  return `M ${p0.x} ${p0.y} A ${R} ${R} 0 ${large} 1 ${p1.x} ${p1.y}`
-}
+const RC = 78 // ring radius
+const CIRC = 2 * Math.PI * RC
 
 export default function CalibrationCurve({ predictions }: { predictions: Pred[] }) {
   const [detail, setDetail] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
-  const rx = useSpring(useMotionValue(8), { stiffness: 80, damping: 14 })
-  const ry = useSpring(useMotionValue(0), { stiffness: 80, damping: 14 })
+  const rx = useSpring(useMotionValue(0), { stiffness: 70, damping: 12 })
+  const ry = useSpring(useMotionValue(0), { stiffness: 70, damping: 12 })
   function onMove(e: React.PointerEvent) {
     const el = wrapRef.current; if (!el) return
     const r = el.getBoundingClientRect()
-    ry.set(((e.clientX - r.left) / r.width - 0.5) * 20)
-    rx.set(8 - ((e.clientY - r.top) / r.height - 0.5) * 16)
+    ry.set(((e.clientX - r.left) / r.width - 0.5) * 26)
+    rx.set(-((e.clientY - r.top) / r.height - 0.5) * 26)
   }
-  function onLeave() { rx.set(8); ry.set(0) }
+  function onLeave() { rx.set(0); ry.set(0) }
 
   const resolved = (predictions || []).filter(p => { const s = p.status || p.outcome; return s === 'WIN' || s === 'LOSS' })
   const pts = resolved.map(p => { const raw = p.confidence ?? 0.5; return { c: raw > 0.5 ? raw : 1 - raw, o: (p.status || p.outcome) === 'WIN' ? 1 : 0 } })
@@ -74,8 +62,7 @@ export default function CalibrationCurve({ predictions }: { predictions: Pred[] 
   const gap = saysPct - deliversPct
   const g = gradeFor(brier)
   const dFrac = Math.max(0, Math.min(1, deliversPct / 100))
-  const cFrac = Math.max(0, Math.min(1, saysPct / 100))
-  const tIn = polar(cFrac, R - 12), tOut = polar(cFrac, R + 12)
+  const claimAngle = -90 + (saysPct / 100) * 360
 
   const sentence = gap <= 5
     ? `When it sounds sure, it is right about as often as it claims. It keeps its word.`
@@ -96,37 +83,44 @@ export default function CalibrationCurve({ predictions }: { predictions: Pred[] 
       </div>
 
       <div className="p-5">
-        <div className="flex flex-col md:flex-row items-center gap-6">
-          {/* 3D gauge */}
-          <div ref={wrapRef} onPointerMove={onMove} onPointerLeave={onLeave} className="relative shrink-0" style={{ perspective: 800 }}>
-            {/* depth glow rings */}
-            <div className="absolute inset-0 grid place-items-center pointer-events-none">
-              <motion.div className="w-[150px] h-[150px] rounded-full blur-2xl" style={{ background: `radial-gradient(circle, ${g.color}33, transparent 70%)` }}
-                animate={{ opacity: [0.4, 0.75, 0.4], scale: [0.92, 1.04, 0.92] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }} />
-            </div>
-            <motion.svg viewBox="0 0 260 236" width="260" height="236" className="relative" style={{ rotateX: rx, rotateY: ry, transformStyle: 'preserve-3d' }}>
-              <defs>
-                <filter id="g-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" /></filter>
-              </defs>
-              {/* track */}
-              <path d={arcPath(0, 1)} fill="none" stroke="#16161f" strokeWidth={14} strokeLinecap="round" />
-              {/* scale ticks 0/50/100 */}
-              {[0, 0.5, 1].map(f => {
-                const a = polar(f, R - 15), b = polar(f, R - 22)
-                return <line key={f} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#33333f" strokeWidth={1.5} />
-              })}
-              {/* value arc — glow + solid, animated draw */}
-              <motion.path d={arcPath(0, dFrac)} fill="none" stroke={g.color} strokeWidth={14} strokeLinecap="round" strokeOpacity={0.35} filter="url(#g-glow)"
-                initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.1, ease: 'easeOut' }} />
-              <motion.path d={arcPath(0, dFrac)} fill="none" stroke={g.color} strokeWidth={10} strokeLinecap="round"
-                initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.1, ease: 'easeOut' }} />
-              {/* claim tick (what it promised) */}
-              <motion.line x1={tIn.x} y1={tIn.y} x2={tOut.x} y2={tOut.y} stroke="#ffffff" strokeWidth={3} strokeLinecap="round"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }} />
-              {/* core: grade */}
-              <text x={CX} y={CY - 2} textAnchor="middle" fontSize={64} fontWeight={900} fill={g.color} fontFamily="ui-sans-serif, system-ui">{g.letter}</text>
-              <text x={CX} y={CY + 26} textAnchor="middle" fontSize={11} fill="#8a8a94" fontFamily="ui-monospace, monospace">{deliversPct}% delivered</text>
-            </motion.svg>
+        <div className="flex flex-col md:flex-row items-center gap-7">
+          {/* floating orb */}
+          <div ref={wrapRef} onPointerMove={onMove} onPointerLeave={onLeave} className="relative shrink-0 grid place-items-center" style={{ width: 200, height: 200, perspective: 700 }}>
+            {/* ambient glow */}
+            <motion.div className="absolute w-[150px] h-[150px] rounded-full blur-3xl" style={{ background: `radial-gradient(circle, ${g.color}44, transparent 70%)` }}
+              animate={{ opacity: [0.5, 0.9, 0.5], scale: [0.9, 1.06, 0.9] }} transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }} />
+            {/* faint stars for depth */}
+            {[[30, 24], [168, 40], [150, 168], [26, 150], [96, 12], [186, 110]].map(([x, y], i) => (
+              <motion.span key={i} className="absolute w-[2px] h-[2px] rounded-full bg-white" style={{ left: x, top: y }}
+                animate={{ opacity: [0.1, 0.5, 0.1] }} transition={{ duration: 3 + i, repeat: Infinity, ease: 'easeInOut' }} />
+            ))}
+
+            <motion.div className="relative grid place-items-center" style={{ width: 176, height: 176, rotateX: rx, rotateY: ry, transformStyle: 'preserve-3d' }}
+              animate={{ y: [0, -6, 0] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}>
+              {/* the sphere */}
+              <div className="absolute rounded-full" style={{
+                inset: 20,
+                background: `radial-gradient(circle at 34% 28%, ${g.color}38, #0c0c14 62%), radial-gradient(circle at 70% 80%, ${g.color}18, transparent 60%)`,
+                boxShadow: `inset 0 0 40px ${g.color}22, 0 10px 40px rgba(0,0,0,0.6)`,
+                border: `1px solid ${g.color}22`,
+              }} />
+              {/* iris ring — delivered fill + claim tick */}
+              <svg viewBox="0 0 176 176" className="absolute inset-0 w-full h-full -rotate-90">
+                <circle cx="88" cy="88" r={RC} fill="none" stroke="#17171f" strokeWidth={7} />
+                <motion.circle cx="88" cy="88" r={RC} fill="none" stroke={g.color} strokeWidth={7} strokeLinecap="round"
+                  strokeDasharray={CIRC} initial={{ strokeDashoffset: CIRC }} animate={{ strokeDashoffset: CIRC * (1 - dFrac) }}
+                  transition={{ duration: 1.2, ease: 'easeOut' }} style={{ filter: `drop-shadow(0 0 6px ${g.color})` }} />
+              </svg>
+              {/* claim tick (rotated to its angle) */}
+              <div className="absolute left-1/2 top-1/2" style={{ transform: `rotate(${claimAngle}deg)` }}>
+                <div className="absolute w-[3px] h-3 bg-white rounded-full" style={{ left: -1.5, top: -(RC) - 6, boxShadow: '0 0 6px #fff' }} />
+              </div>
+              {/* core grade */}
+              <div className="relative text-center" style={{ transform: 'translateZ(30px)' }}>
+                <div className="font-sans font-black leading-none" style={{ fontSize: 58, color: g.color, textShadow: `0 0 24px ${g.color}66` }}>{g.letter}</div>
+                <div className="font-mono text-[10px] text-[#8a8a94] mt-1">{deliversPct}% delivered</div>
+              </div>
+            </motion.div>
           </div>
 
           {/* verdict + numbers */}
