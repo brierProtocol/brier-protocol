@@ -434,10 +434,10 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         </div>
 
         {/* ── SLEEK HORIZONTAL HERO BANNER ── */}
-        <div className="w-full rounded-[24px] border border-[#1a1a1a] bg-[#050505] shadow-2xl mb-12 flex flex-col xl:flex-row items-center p-6 gap-6 relative overflow-hidden">
+        <div className="w-full rounded-[24px] border border-[#1a1a1a] bg-[#050505] shadow-2xl mb-12 flex flex-col lg:flex-row items-center p-6 gap-6 relative overflow-hidden">
           
           {/* LEFT: Identity (Slim and compact) */}
-          <div className="flex flex-col sm:flex-row items-center sm:items-start xl:items-center gap-5 xl:w-[40%] shrink-0 min-w-0">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start lg:items-center gap-5 lg:w-[45%] xl:w-[40%] shrink-0 min-w-0">
             <div className="relative shrink-0">
               <BotHeroPortrait eye={eye} pfpUrl={bot.pfpUrl} name={bot.name} online={isOnline} size={100} />
               <button onClick={toggleHeart} className={`absolute -bottom-2 -right-2 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full border bg-[#050505] shadow-xl z-10 transition-all cursor-pointer ${hearted ? 'border-primary text-primary' : 'border-[#222] text-[#888] hover:border-primary/50 hover:text-primary'}`}>
