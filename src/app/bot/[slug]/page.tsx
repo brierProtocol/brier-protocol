@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import MakerAvatar from '@/components/MakerAvatar'
-import BotUplink from '@/components/bot/BotUplink'
 import BotPerformance from '@/components/bot/BotPerformance'
 import CalibrationCurve from '@/components/bot/CalibrationCurve'
 import RecentForm from '@/components/bot/RecentForm'
@@ -362,7 +361,24 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                     Pending Verification
                   </div>
                 )}
+
+                {/* live signal — compact, in the identity block (not a big panel) */}
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border" style={{ borderColor: isOnline ? '#c8ff0033' : '#242424', background: isOnline ? '#c8ff000a' : '#0a0a0a' }}>
+                  <span className="relative flex h-2 w-2">
+                    {isOnline && <span className="absolute inline-flex h-full w-full rounded-full bg-[#c8ff00] opacity-60 animate-ping" />}
+                    <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: isOnline ? '#c8ff00' : '#ff5570' }} />
+                  </span>
+                  <span className="font-mono text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: isOnline ? '#c8ff00' : '#7a7a84' }}>{isOnline ? 'Operating' : 'Offline'}</span>
+                  <span className="font-mono text-[10px] text-[#48484f] border-l border-[#242424] pl-2 tabular-nums">{sp.resolved} resolved</span>
+                  {lastFill && <span className="font-mono text-[10px] text-[#48484f] tabular-nums">· last {lastFill}</span>}
+                </div>
               </div>
+              {isOnline && liveActivity && (
+                <div className="flex items-center gap-2 mt-2.5 font-mono text-[11px] text-[#8a8a94]">
+                  <span className="w-1 h-1 rounded-full bg-[#c8ff00]" />
+                  <span className="truncate">{liveActivity}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -504,22 +520,8 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-6 min-w-0">
-            {/* signal — live connection visual (driven by the real heartbeat) */}
-            <BotUplink eye={eye} status={uplink} lastFill={lastFill} resolved={sp.resolved} online={isOnline} />
-
-            {/* recent form — last resolved calls at a glance */}
+            {/* recent form — last resolved calls at a glance (signal now lives in the header) */}
             <RecentForm predictions={trades} />
-
-            {/* live activity line — what the bot is doing right now, from its heartbeat */}
-            {isOnline && liveActivity && (
-              <div className="flex items-center gap-2 -mt-2 px-1 font-mono text-[11px] text-[#8a8a94]">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-[#c8ff00] opacity-60 animate-ping" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#c8ff00]" />
-                </span>
-                <span className="truncate">{liveActivity}</span>
-              </div>
-            )}
 
             {/* performance — Liveline real-time-style Reputation (LCB) curve */}
             <BotPerformance
