@@ -487,9 +487,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           </div>
 
           {/* RIGHT: Vault (Stretching horizontally to occupy all space) */}
-          <div className="flex-1 bg-[#0a0a0c] border border-[#141414] rounded-[16px] p-5 flex flex-col md:flex-row items-center w-full min-w-0 gap-6 md:gap-8 shadow-inner overflow-hidden">
-            <div className="w-[140px] h-[140px] relative shrink-0">
-              <div className="transform scale-[0.75] origin-center -m-[10px]">
+          <div className="flex-1 bg-[#0a0a0c] border border-[#141414] rounded-[16px] p-5 flex flex-col md:flex-row items-center w-full min-w-0 gap-6 md:gap-8 shadow-inner overflow-visible">
+            <div className="w-[120px] h-[120px] relative shrink-0">
+              <div className="absolute inset-0 flex items-center justify-center transform scale-[0.65]">
                 <VaultGlass tvl={animatedTVL} cap={vaultCap} live={sp.live} />
               </div>
             </div>
