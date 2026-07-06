@@ -16,19 +16,15 @@
     },
     {
       "path": "/api/cron/resolve-and-score",
-      "schedule": "0 * * * *"
+      "schedule": "0 7 * * *"
     },
     {
       "path": "/api/cron/circuit-breaker",
-      "schedule": "0 */6 * * *"
-    },
-    {
-      "path": "/api/cron/resolve-and-score",
-      "schedule": "0 * * * *"
+      "schedule": "30 7 * * *"
     },
     {
       "path": "/api/cron/anchor-commitments",
-      "schedule": "30 * * * *"
+      "schedule": "0 8 * * *"
     }
   ],
   "headers": [
@@ -49,11 +45,5 @@
         }
       ]
     }
-  ],
-  "experimentalServices": {
-    "web": {
-      "routePrefix": "/",
-      "framework": "nextjs"
-    }
-  }
+  ]
 }
