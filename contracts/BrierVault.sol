@@ -20,6 +20,13 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
  *   [FIX-3] Retiros instantáneos de idle capital. Sin timelock de 48h.
  *   [FIX-4] Upgradeable Minimal Proxy support (Initializable).
  *   [FIX-5] Skin-in-the-game tracking & Circuit Breaker slashing mechanism.
+ *   [FIX-6] Pause bloquea deposits/trading pero NUNCA los retiros: un vault
+ *           cerrado por black swan es claim-only, no una trampa para los LP.
+ *   [FIX-7] settleMarket suma skinInGame al balance check (el colchón del
+ *           builder no puede tapar un payout que nunca llegó).
+ *   [FIX-8] triggerCircuitBreaker no exige skin > 0: pausa siempre, slashea
+ *           lo que haya (el cron de deterioro debe poder frenar el vault
+ *           aunque el builder nunca haya fondeado su skin).
  */
 contract BrierVault is Initializable, ERC4626Upgradeable, OwnableUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
@@ -164,9 +171,12 @@ contract BrierVault is Initializable, ERC4626Upgradeable, OwnableUpgradeable, Pa
         uint256 initialInvestment = tradeLockedCapital[tradeId];
         require(initialInvestment > 0, "BrierVault: trade not found or already settled");
 
+        // [FIX-7] El skin del builder vive en el mismo balance pero no es capital
+        // del LP: sin sumarlo aquí, un payout nunca recibido pasaría el check
+        // "tapado" por el skin y un retiro posterior se llevaría ese USDC.
         uint256 contractBalance = IERC20(asset()).balanceOf(address(this));
         require(
-            contractBalance >= idleCapital + payout,
+            contractBalance >= idleCapital + skinInGame + payout,
             "BrierVault: payout not received - redeem from CTF first"
         );
 
@@ -233,16 +243,16 @@ contract BrierVault is Initializable, ERC4626Upgradeable, OwnableUpgradeable, Pa
      * @dev Called exclusively by the off-chain Risk Engine (brierDaemon) when Max Drawdown > 15%.
      */
     function triggerCircuitBreaker() external onlyExecutor nonReentrant {
-        require(skinInGame > 0, "BrierVault: No skin in game left to slash");
-        
+        // [FIX-8] No skin funded is not a reason to keep the vault trading: pause
+        // always, slash whatever buffer exists (possibly zero).
         uint256 slashedAmount = skinInGame;
         skinInGame = 0;
-        
+
         // Add slashed stake to idleCapital to absorb LP losses
         idleCapital += slashedAmount;
-        
-        _pause(); // Suspend further trading and deposits
-        
+
+        _pause(); // Suspend further trading and deposits — redemptions stay open [FIX-6]
+
         emit CircuitBreakerTriggered(slashedAmount);
     }
 
@@ -293,14 +303,18 @@ contract BrierVault is Initializable, ERC4626Upgradeable, OwnableUpgradeable, Pa
         return super.mint(shares, receiver);
     }
 
+    // [FIX-6] Sin whenNotPaused: la pausa (black swan / circuit breaker) corta
+    // deposits y trading, pero el LP SIEMPRE puede redimir su idle capital al
+    // NAV vigente. Congelar los retiros justo en el peor momento contradice el
+    // diseño claim-only y convierte el freno de emergencia en una trampa.
     function withdraw(uint256 assets, address receiver, address owner)
-        public virtual override whenNotPaused nonReentrant returns (uint256)
+        public virtual override nonReentrant returns (uint256)
     {
         return super.withdraw(assets, receiver, owner);
     }
 
     function redeem(uint256 shares, address receiver, address owner)
-        public virtual override whenNotPaused nonReentrant returns (uint256)
+        public virtual override nonReentrant returns (uint256)
     {
         return super.redeem(shares, receiver, owner);
     }
