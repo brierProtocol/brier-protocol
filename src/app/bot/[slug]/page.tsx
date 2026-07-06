@@ -532,30 +532,73 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             </div>
           </div>
 
-          <div className="relative shrink-0 md:self-end">
-            <button onClick={toggleHeart} className={`flex items-center gap-2.5 px-5 py-3 rounded-xl border transition-all cursor-pointer ${hearted ? 'border-primary bg-primary/10 text-primary' : 'border-[#1a1a1a] bg-[#070707] text-[#888] hover:border-primary/50 hover:text-primary'}`}>
-              <motion.span key={hearted ? 'on' : 'off'} initial={{ scale: 0.6 }} animate={{ scale: hearted ? [1.4, 1] : 1 }} transition={{ duration: 0.35 }} className="text-lg leading-none">{hearted ? '♥' : '♡'}</motion.span>
-              <span className="font-mono font-bold text-lg tabular-nums leading-none">{hearts}</span>
-            </button>
-            <AnimatePresence>
-              {confettiBurst > 0 && (['#ff2a4d','#c8ff00','#8b7bff','#ffd400','#ffffff','#ff5ccd','#4285f0','#eaff00'] as const).flatMap((color, ci) =>
-                [0, 1, 2].map((j) => {
-                  const angle = ((ci * 3 + j) / 24) * Math.PI * 2
-                  const dist = 48 + j * 22
-                  return (
-                    <motion.span
-                      key={`cf-${confettiBurst}-${ci}-${j}`}
-                      className="absolute pointer-events-none"
-                      style={{ width: 5 + (j % 3) * 2, height: 4 + (ci % 2) * 3, background: color, borderRadius: ci % 3 === 0 ? '50%' : '1px', left: '50%', top: '50%' }}
-                      initial={{ opacity: 1, x: -3, y: -3, rotate: 0, scale: 1 }}
-                      animate={{ opacity: 0, x: Math.cos(angle) * dist, y: Math.sin(angle) * dist - 28, rotate: 200 * (ci % 2 ? 1 : -1), scale: 0.2 }}
-                      transition={{ duration: 0.75 + j * 0.08, ease: 'easeOut' }}
-                      onAnimationComplete={() => { if (ci === 7 && j === 2) setConfettiBurst(0) }}
-                    />
-                  )
-                })
-              )}
-            </AnimatePresence>
+          <div className="flex flex-col md:flex-row items-end gap-6 md:self-stretch">
+            {/* ── VAULT (moved to header) ── */}
+            <div id="vault" className="scroll-mt-28 rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden w-full md:w-[320px] shadow-2xl">
+              <div className="p-4 border-b border-[#141414] bg-[#050507]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-[#888]">Vault</span>
+                  {sp.live && (
+                    <span className={`font-mono text-[11px] font-bold ${navDelta >= 0 ? 'text-[#c8ff00]' : 'text-[#ff5570]'}`}>
+                      {navDelta >= 0 ? '▲' : '▼'} {Math.abs(navDelta).toFixed(1)}%
+                    </span>
+                  )}
+                </div>
+                <div className="flex justify-center mb-2">
+                  <div className="transform scale-[0.7] origin-center -my-2">
+                    <VaultGlass tvl={animatedTVL} cap={vaultCap} live={sp.live} />
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="font-sans font-black text-[26px] leading-tight tabular-nums text-white tracking-[-0.04em]">
+                    {sp.live ? fmtUSD(animatedTVL) : 'Shadow phase'}
+                  </div>
+                  <div className="font-mono text-[9px] mt-1 tracking-wide" style={{ color: sp.live ? '#6a6a74' : VIOLET }}>
+                    {sp.live
+                      ? (isCapped ? `of ${fmtUSD(capDeclared)} cap` : 'Open capacity')
+                      : `Unlocks after gate. ${sp.resolved}/${SHADOW_RESOLVED_TARGET}`}
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 bg-[#0a0a0c]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-mono text-[8px] text-[#48484f] tracking-[0.14em] uppercase mb-0.5">Phase</div>
+                    <div className="font-sans font-bold text-[13px] text-white tabular-nums">{sp.live ? 'LIVE' : `${Math.round(sp.pct * 100)}%`}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-mono text-[8px] text-[#48484f] tracking-[0.14em] uppercase mb-0.5">Maker Skin in Game</div>
+                    <div className="font-sans font-bold text-[13px] text-white tabular-nums">{fmtUSD(bot.skinInGame || 0)}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative shrink-0 md:self-start">
+              <button onClick={toggleHeart} className={`flex items-center gap-2.5 px-5 py-3 rounded-xl border transition-all cursor-pointer ${hearted ? 'border-primary bg-primary/10 text-primary' : 'border-[#1a1a1a] bg-[#070707] text-[#888] hover:border-primary/50 hover:text-primary'}`}>
+                <motion.span key={hearted ? 'on' : 'off'} initial={{ scale: 0.6 }} animate={{ scale: hearted ? [1.4, 1] : 1 }} transition={{ duration: 0.35 }} className="text-lg leading-none">{hearted ? '♥' : '♡'}</motion.span>
+                <span className="font-mono font-bold text-lg tabular-nums leading-none">{hearts}</span>
+              </button>
+              <AnimatePresence>
+                {confettiBurst > 0 && (['#ff2a4d','#c8ff00','#8b7bff','#ffd400','#ffffff','#ff5ccd','#4285f0','#eaff00'] as const).flatMap((color, ci) =>
+                  [0, 1, 2].map((j) => {
+                    const angle = ((ci * 3 + j) / 24) * Math.PI * 2
+                    const dist = 48 + j * 22
+                    return (
+                      <motion.span
+                        key={`cf-${confettiBurst}-${ci}-${j}`}
+                        className="absolute pointer-events-none"
+                        style={{ width: 5 + (j % 3) * 2, height: 4 + (ci % 2) * 3, background: color, borderRadius: ci % 3 === 0 ? '50%' : '1px', left: '50%', top: '50%' }}
+                        initial={{ opacity: 1, x: -3, y: -3, rotate: 0, scale: 1 }}
+                        animate={{ opacity: 0, x: Math.cos(angle) * dist, y: Math.sin(angle) * dist - 28, rotate: 200 * (ci % 2 ? 1 : -1), scale: 0.2 }}
+                        transition={{ duration: 0.75 + j * 0.08, ease: 'easeOut' }}
+                        onAnimationComplete={() => { if (ci === 7 && j === 2) setConfettiBurst(0) }}
+                      />
+                    )
+                  })
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
 
@@ -775,71 +818,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
 
           {/* RIGHT COLUMN */}
           <div className="flex flex-col gap-6">
-            {/* ── VAULT (moved to right column) ── */}
-            <div id="vault" className="scroll-mt-28 rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden">
-              <div className="p-5 border-b border-[#141414] bg-[#050507]">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-[#888]">Vault</span>
-                  {sp.live && (
-                    <span className={`font-mono text-[11px] font-bold ${navDelta >= 0 ? 'text-[#c8ff00]' : 'text-[#ff5570]'}`}>
-                      {navDelta >= 0 ? '▲' : '▼'} {Math.abs(navDelta).toFixed(1)}%
-                    </span>
-                  )}
-                </div>
-                <div className="flex justify-center mb-4">
-                  <div className="transform scale-[0.8] origin-center">
-                    <VaultGlass tvl={animatedTVL} cap={vaultCap} live={sp.live} />
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="font-mono text-[10px] tracking-[0.24em] uppercase text-[#5a5a64] mb-1">
-                    {sp.live ? 'Total assets secured' : 'Vault status'}
-                  </div>
-                  <div className="font-sans font-black text-[32px] leading-tight tabular-nums text-white tracking-[-0.04em]">
-                    {sp.live ? fmtUSD(animatedTVL) : 'Shadow phase'}
-                  </div>
-                  <div className="font-mono text-[10px] mt-1 tracking-wide" style={{ color: sp.live ? '#6a6a74' : VIOLET }}>
-                    {sp.live
-                      ? (isCapped ? `of ${fmtUSD(capDeclared)} capacity` : 'Open capacity')
-                      : `Unlocks after gate. ${sp.resolved}/${SHADOW_RESOLVED_TARGET} resolved`}
-                  </div>
-                </div>
-              </div>
-              <div className="p-5 flex flex-col justify-between">
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { k: 'Capacity', v: isCapped ? fmtUSD(capDeclared) : 'Open' },
-                    { k: sp.live ? 'Phase' : 'Progress', v: sp.live ? 'LIVE' : `${Math.round(sp.pct * 100)}%` },
-                    { k: "Maker Skin in Game", v: fmtUSD(bot.skinInGame || 0) },
-                  ].map(m => (
-                    <div key={m.k}>
-                      <div className="font-mono text-[8px] text-[#48484f] tracking-[0.14em] uppercase mb-1">{m.k}</div>
-                      <div className="font-sans font-bold text-[14px] text-white tabular-nums tracking-tight">{m.v}</div>
-                    </div>
-                  ))}
-                </div>
-                {sp.live && (
-                  <div className="mt-5 border-t border-[#141420] pt-4">
-                    {!FEATURES.CAPITAL_LAYER ? (
-                      <div className="rounded-lg border border-[#1a1a1a] bg-[#0c0c0c] p-3 text-center text-[11px] text-[#888] font-sans">
-                        <span className="font-bold text-white mb-1 block">Shadow Phase</span>
-                        Capital Layer disabled.
-                      </div>
-                    ) : atCapacity ? (
-                      <div className="rounded-lg border border-primary/30 p-2.5 text-center font-mono text-[10px] text-primary tracking-widest">AT CAPACITY</div>
-                    ) : !isConnected ? (
-                      <div className="text-[11px] text-[#666] text-center">Connect wallet to deposit.</div>
-                    ) : (
-                      <div className="flex flex-col gap-2">
-                        <input type="number" value={depositAmt} onChange={e => setDepositAmt(e.target.value)} placeholder="USDC" className="w-full bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[12px] text-white outline-none focus:border-primary/50 placeholder:text-[#555]" />
-                        <button onClick={handleDeposit} disabled={depositing} className="w-full rounded-lg bg-primary text-[#030303] font-bold text-[12px] px-4 py-2 disabled:opacity-50 hover:shadow-[0_0_16px_rgba(255,42,77,0.4)] transition-all">{depositing ? '…' : 'Deposit'}</button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* eligibility */}
             <Panel className="p-5">
               <div className="flex items-center justify-between mb-2">
