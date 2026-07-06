@@ -437,7 +437,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         <div className="w-full rounded-[24px] border border-[#1a1a1a] bg-[#050505] shadow-2xl mb-12 flex flex-col xl:flex-row items-center p-6 gap-6 relative overflow-hidden">
           
           {/* LEFT: Identity (Slim and compact) */}
-          <div className="flex flex-col sm:flex-row items-center sm:items-start xl:items-center gap-5 xl:w-[35%] shrink-0">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start xl:items-center gap-5 xl:w-[40%] shrink-0 min-w-0">
             <div className="relative shrink-0">
               <BotHeroPortrait eye={eye} pfpUrl={bot.pfpUrl} name={bot.name} online={isOnline} size={100} />
               <button onClick={toggleHeart} className={`absolute -bottom-2 -right-2 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full border bg-[#050505] shadow-xl z-10 transition-all cursor-pointer ${hearted ? 'border-primary text-primary' : 'border-[#222] text-[#888] hover:border-primary/50 hover:text-primary'}`}>
@@ -447,14 +447,14 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             </div>
             
             <div className="min-w-0 flex flex-col justify-center text-center sm:text-left">
-              <h1 className="text-white font-black text-[32px] m-0 leading-none mb-2 truncate">
+              <h1 className="text-white font-black text-[32px] m-0 leading-none mb-2 truncate" title={bot.name}>
                 {bot.name}
               </h1>
               
-              <div className="flex items-center justify-center sm:justify-start gap-2 mb-3">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-2.5">
                 <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#555]">by</span>
                 <Link href={`/maker/${bot.builder || ''}`} className="font-sans font-semibold text-[13px] text-[#e8e8e8] hover:text-white transition-colors truncate max-w-[120px]">{sharedPersonLabel(bot.maker, bot.builder)}</Link>
-                <div className="w-1 h-1 rounded-full bg-[#333]" />
+                <div className="w-1 h-1 rounded-full bg-[#333] hidden sm:block" />
                 <div className="flex items-center gap-1.5 font-mono text-[10px]">
                   {isOnline ? (
                     <><span className="w-1.5 h-1.5 rounded-full" style={{ background: TEAL, boxShadow: `0 0 8px ${TEAL}88` }} /><span className="font-bold tracking-[0.16em] uppercase" style={{ color: TEAL }}>Live</span></>
@@ -464,45 +464,56 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 </div>
               </div>
               
+              {bot.description && (
+                <p className="text-[12px] leading-relaxed text-[#888] line-clamp-2 mb-3 max-w-sm">
+                  {bot.description}
+                </p>
+              )}
+              
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                <div className="px-2.5 py-1 rounded text-[9px] font-mono font-bold tracking-widest uppercase border bg-[#c8ff00]/10 text-[#c8ff00] border-[#c8ff00]/30 flex items-center gap-1.5">
+                <div className="px-2 py-1 rounded text-[9px] font-mono font-bold tracking-widest uppercase border bg-[#c8ff00]/10 text-[#c8ff00] border-[#c8ff00]/30 flex items-center gap-1.5">
                   <span className="text-[11px] leading-none">⬡</span> {hasVerifiedPerformance ? 'Verified' : 'Pending'}
                 </div>
-                <div className="px-2.5 py-1 rounded text-[9px] font-mono font-bold tracking-widest uppercase border" style={{ color: rank.color, borderColor: `${rank.color}33`, background: `${rank.color}0d` }}>
+                <div className="px-2 py-1 rounded text-[9px] font-mono font-bold tracking-widest uppercase border" style={{ color: rank.color, borderColor: `${rank.color}33`, background: `${rank.color}0d` }}>
                   {rank.tag}
                 </div>
+                {bot.categoriesData?.slice(0,2).map((c: any) => (
+                  <div key={c.name} className="px-2 py-1 bg-[#111] border border-[#222] rounded font-mono text-[9px] text-[#777] flex items-center gap-1">
+                    <span className="text-[#ccc] font-bold">{Math.round(c.volumePct)}%</span> <span className="uppercase">{c.name}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
 
           {/* RIGHT: Vault (Stretching horizontally to occupy all space) */}
-          <div className="flex-1 bg-[#0a0a0c] border border-[#141414] rounded-[16px] p-5 flex flex-col md:flex-row items-center w-full min-w-0 gap-6 md:gap-8">
-            <div className="w-[120px] h-[120px] relative shrink-0">
-              <div className="transform scale-[0.7] origin-center -m-[20px]">
+          <div className="flex-1 bg-[#0a0a0c] border border-[#141414] rounded-[16px] p-5 flex flex-col md:flex-row items-center w-full min-w-0 gap-6 md:gap-8 shadow-inner overflow-hidden">
+            <div className="w-[140px] h-[140px] relative shrink-0">
+              <div className="transform scale-[0.75] origin-center -m-[10px]">
                 <VaultGlass tvl={animatedTVL} cap={vaultCap} live={sp.live} />
               </div>
             </div>
             
-            <div className="flex-1 min-w-0 flex flex-col md:flex-row items-center justify-between w-full gap-6">
-              <div className="text-center md:text-left">
+            <div className="flex-1 min-w-0 flex flex-wrap items-center justify-center md:justify-between w-full gap-6">
+              <div className="text-center md:text-left shrink-0">
                 <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#888] mb-1">Vault Status</div>
-                <div className="font-sans font-black text-[36px] text-white tracking-[-0.03em] leading-none">
+                <div className="font-sans font-black text-[32px] md:text-[36px] text-white tracking-[-0.03em] leading-none">
                   {sp.live ? fmtUSD(animatedTVL) : 'Shadow phase'}
                 </div>
                 {sp.live && (
-                  <div className={`font-mono text-[12px] font-bold mt-1 ${navDelta >= 0 ? 'text-[#c8ff00]' : 'text-[#ff5570]'}`}>
+                  <div className={`font-mono text-[12px] font-bold mt-1.5 ${navDelta >= 0 ? 'text-[#c8ff00]' : 'text-[#ff5570]'}`}>
                     {navDelta >= 0 ? '▲' : '▼'} {Math.abs(navDelta).toFixed(1)}%
                   </div>
                 )}
               </div>
               
-              <div className="hidden sm:block text-center md:text-left">
+              <div className="text-center md:text-left shrink-0">
                 <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-[#555] mb-1">Skin In Game</div>
-                <div className="font-sans font-bold text-[18px] text-white tabular-nums">{fmtUSD(bot.skinInGame || 0)}</div>
+                <div className="font-sans font-bold text-[16px] md:text-[18px] text-white tabular-nums">{fmtUSD(bot.skinInGame || 0)}</div>
               </div>
               
               {sp.live && (
-                <div className="shrink-0">
+                <div className="shrink-0 w-full sm:w-auto flex justify-center">
                   {!FEATURES.CAPITAL_LAYER ? (
                     <div className="text-[12px] text-[#666]">Capital Layer disabled.</div>
                   ) : atCapacity ? (
@@ -510,8 +521,8 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                   ) : !isConnected ? (
                     <div className="text-[12px] text-[#666]">Connect wallet</div>
                   ) : (
-                    <div className="flex gap-2">
-                      <input type="number" value={depositAmt} onChange={e => setDepositAmt(e.target.value)} placeholder="USDC" className="w-[120px] bg-[#050505] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[14px] text-white outline-none focus:border-primary/50" />
+                    <div className="flex gap-2 w-full max-w-[240px]">
+                      <input type="number" value={depositAmt} onChange={e => setDepositAmt(e.target.value)} placeholder="USDC" className="w-[110px] flex-1 bg-[#050505] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[14px] text-white outline-none focus:border-primary/50 min-w-0" />
                       <button onClick={handleDeposit} disabled={depositing} className="shrink-0 rounded-lg bg-primary text-[#030303] font-bold text-[13px] px-5 py-2 disabled:opacity-50 hover:shadow-[0_0_12px_rgba(255,42,77,0.4)] transition-all">Deposit</button>
                     </div>
                   )}
