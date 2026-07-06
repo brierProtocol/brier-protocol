@@ -433,151 +433,188 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           )}
         </div>
 
-        {/* ── HEADER: AVATAR, NAME, BADGES ── */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-8">
-          <div className="flex items-center gap-6">
-            {/* the protagonist — a small alien intelligence in its own pocket of
-                space; rings, motes and nebula all breathe only while it's online */}
-            <BotHeroPortrait eye={eye} pfpUrl={bot.pfpUrl} name={bot.name} online={isOnline} size={120} />
-            
-            <div className="flex-1 min-w-0">
-              <h1 className="text-white font-black text-[38px] tracking-[-0.03em] m-0 leading-none mb-2">
-                {bot.name}
-              </h1>
-              {/* author signature — created by, right under the name */}
-              <div className="flex items-center gap-2.5 mb-3">
-                <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#555]">created by</span>
-                <Link href={`/maker/${bot.builder || ''}`} className="flex items-center gap-2 no-underline group/maker">
-                  <span className="rounded-full overflow-hidden ring-1 ring-[#222]"><MakerAvatar address={bot.builder || ''} pfpUrl={bot.maker?.pfpUrl} size={24} /></span>
-                  <span className="font-sans font-semibold text-[14px] text-[#e8e8e8] group-hover/maker:text-white transition-colors">{sharedPersonLabel(bot.maker, bot.builder)}</span>
-                </Link>
-                {bot.maker?.xHandle && (
-                  <a href={`https://x.com/${bot.maker.xHandle}`} target="_blank" rel="noopener noreferrer" className="text-[#555] hover:text-white transition-colors" title={`@${bot.maker.xHandle}`}>
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-[13px] h-[13px]"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                  </a>
-                )}
+        {/* ── HERO SECTION ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 mb-12">
+          
+          {/* LEFT: Identity & Info */}
+          <div className="lg:col-span-7 flex flex-col">
+            <div className="flex flex-col sm:flex-row gap-6 items-start">
+              <div className="shrink-0 mt-1">
+                <BotHeroPortrait eye={eye} pfpUrl={bot.pfpUrl} name={bot.name} online={isOnline} size={140} />
               </div>
-              {/* tagline is auto-derived from description at registration (first 120
-                  chars) — when both exist it duplicated the text and cut mid-word.
-                  Show it only when it says something the description doesn't. */}
-              {bot.tagline && !(bot.description || '').startsWith(bot.tagline.replace(/…?$/, '')) && (
-                <div className="text-[#888] italic text-[15px] mb-4">
-                  {bot.tagline}
-                </div>
-              )}
               
-              {/* liveness ticker — the bot breathing in near real time (5s poll) */}
-              <div className="flex items-center gap-2 font-mono text-[11px] mb-1 min-w-0">
-                {isOnline ? (
-                  <>
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: TEAL, boxShadow: `0 0 8px ${TEAL}88` }} />
-                    <span className="font-bold tracking-[0.16em] uppercase shrink-0" style={{ color: TEAL }}>Connected to Brier</span>
-                    {bot.liveActivity && <span className="text-[#6a6a74] truncate">· {bot.liveActivity}</span>}
-                  </>
-                ) : (
-                  <>
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#3a3a44] shrink-0" />
-                    <span className="text-[#5a5a64] font-bold tracking-[0.16em] uppercase shrink-0">Standby</span>
-                    {bot.lastHeartbeatAt && <span className="text-[#3f3f48] truncate">· last signal {relDay(bot.lastHeartbeatAt) || 'today'}</span>}
-                  </>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 mt-4">
-                {(hasVerifiedPerformance && hasVerifiedReputation) ? (
-                  <div className="px-3.5 py-1.5 rounded text-[10px] font-mono font-bold tracking-widest uppercase border bg-[#c8ff00]/10 text-[#c8ff00] border-[#c8ff00]/30 shadow-[0_0_12px_rgba(200,255,0,0.15)] flex items-center gap-2">
-                    <span className="text-[14px] leading-none">⬡</span> Brier Verified
-                  </div>
-                ) : (
-                  <div className="px-3.5 py-1.5 rounded text-[10px] font-mono font-bold tracking-widest uppercase border bg-[#222] text-[#666] border-[#333]">
-                    Pending Verification
-                  </div>
-                )}
-                {/* the number that opens vaults, visible from the hero */}
-                {bot.reputationScore != null && (
-                  <div
-                    className="px-3 py-1.5 rounded text-[10px] font-mono font-bold tracking-widest uppercase border flex items-center gap-1.5"
-                    title="Reputation: lower confidence bound of skill vs the market, 0 to 100. Luck cannot inflate it."
-                    style={bot.reputationScore >= 50
-                      ? { color: TEAL, borderColor: `${TEAL}33`, background: `${TEAL}0d` }
-                      : { color: '#9a9a9a', borderColor: '#2a2a34', background: 'transparent' }}
-                  >
-                    Rep {Math.round(bot.reputationScore)}<span className="opacity-50">/100</span>
-                  </div>
-                )}
-                {/* rank — same tiers as the Signal panel (lib/botProgress) */}
-                <div
-                  className="px-3 py-1.5 rounded text-[10px] font-mono font-bold tracking-widest uppercase border"
-                  title={rank.tag === 'PROVEN' ? 'Cleared the shadow gate' : `Earned from resolved predictions. Next tier at ${nextRankAt ?? '—'}.`}
-                  style={{ color: rank.color, borderColor: `${rank.color}33`, background: `${rank.color}0d` }}
-                >
-                  {rank.tag}
+              <div className="flex-1 min-w-0 w-full">
+                <h1 className="text-white font-black text-[42px] tracking-[-0.03em] m-0 leading-[1.1] mb-2 break-words">
+                  {bot.name}
+                </h1>
+                
+                {/* author signature */}
+                <div className="flex items-center gap-2.5 mb-4">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#555]">created by</span>
+                  <Link href={`/maker/${bot.builder || ''}`} className="flex items-center gap-2 no-underline group/maker">
+                    <span className="rounded-full overflow-hidden ring-1 ring-[#222]"><MakerAvatar address={bot.builder || ''} pfpUrl={bot.maker?.pfpUrl} size={24} /></span>
+                    <span className="font-sans font-semibold text-[14px] text-[#e8e8e8] group-hover/maker:text-white transition-colors">{sharedPersonLabel(bot.maker, bot.builder)}</span>
+                  </Link>
+                  {bot.maker?.xHandle && (
+                    <a href={`https://x.com/${bot.maker.xHandle}`} target="_blank" rel="noopener noreferrer" className="text-[#555] hover:text-white transition-colors" title={`@${bot.maker.xHandle}`}>
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-[13px] h-[13px]"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    </a>
+                  )}
                 </div>
-                {/* gate progress at a glance — the whole story in one bar */}
-                {!sp.live && (
-                  <div className="flex items-center gap-2" title={`Shadow gate: ${sp.resolved}/${SHADOW_RESOLVED_TARGET} resolved · LCB ${sp.lcb != null ? sp.lcb.toFixed(3) : '—'} · day ${sp.days}/${SHADOW_DAYS_TARGET}`}>
-                    <div className="relative w-[110px] h-[4px] rounded-full bg-[#16161e] overflow-hidden">
-                      <motion.div
-                        className="absolute inset-y-0 left-0 rounded-full"
-                        style={{ background: `linear-gradient(90deg, ${VIOLET}, ${rank.color})` }}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.round(sp.pct * 100)}%` }}
-                        transition={{ duration: 1.1, ease: 'easeOut' }}
-                      />
-                    </div>
-                    <span className="font-mono text-[10px] text-[#5a5a64] tabular-nums">gate {Math.round(sp.pct * 100)}%</span>
+
+                {bot.tagline && !(bot.description || '').startsWith(bot.tagline.replace(/…?$/, '')) && (
+                  <div className="text-[#888] italic text-[15px] mb-4">
+                    {bot.tagline}
                   </div>
                 )}
+                
+                {/* liveness ticker */}
+                <div className="flex items-center gap-2 font-mono text-[11px] mb-2 min-w-0">
+                  {isOnline ? (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: TEAL, boxShadow: `0 0 8px ${TEAL}88` }} />
+                      <span className="font-bold tracking-[0.16em] uppercase shrink-0" style={{ color: TEAL }}>Connected to Brier</span>
+                      {bot.liveActivity && <span className="text-[#6a6a74] truncate">· {bot.liveActivity}</span>}
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#3a3a44] shrink-0" />
+                      <span className="text-[#5a5a64] font-bold tracking-[0.16em] uppercase shrink-0">Standby</span>
+                      {bot.lastHeartbeatAt && <span className="text-[#3f3f48] truncate">· last signal {relDay(bot.lastHeartbeatAt) || 'today'}</span>}
+                    </>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 mt-4 mb-6">
+                  {(hasVerifiedPerformance && hasVerifiedReputation) ? (
+                    <div className="px-3.5 py-1.5 rounded text-[10px] font-mono font-bold tracking-widest uppercase border bg-[#c8ff00]/10 text-[#c8ff00] border-[#c8ff00]/30 shadow-[0_0_12px_rgba(200,255,0,0.15)] flex items-center gap-2">
+                      <span className="text-[14px] leading-none">⬡</span> Brier Verified
+                    </div>
+                  ) : (
+                    <div className="px-3.5 py-1.5 rounded text-[10px] font-mono font-bold tracking-widest uppercase border bg-[#222] text-[#666] border-[#333]">
+                      Pending Verification
+                    </div>
+                  )}
+                  {bot.reputationScore != null && (
+                    <div
+                      className="px-3 py-1.5 rounded text-[10px] font-mono font-bold tracking-widest uppercase border flex items-center gap-1.5"
+                      title="Reputation: lower confidence bound of skill vs the market, 0 to 100. Luck cannot inflate it."
+                      style={bot.reputationScore >= 50
+                        ? { color: TEAL, borderColor: `${TEAL}33`, background: `${TEAL}0d` }
+                        : { color: '#9a9a9a', borderColor: '#2a2a34', background: 'transparent' }}
+                    >
+                      Rep {Math.round(bot.reputationScore)}<span className="opacity-50">/100</span>
+                    </div>
+                  )}
+                  <div
+                    className="px-3 py-1.5 rounded text-[10px] font-mono font-bold tracking-widest uppercase border"
+                    title={rank.tag === 'PROVEN' ? 'Cleared the shadow gate' : `Earned from resolved predictions. Next tier at ${nextRankAt ?? '—'}.`}
+                    style={{ color: rank.color, borderColor: `${rank.color}33`, background: `${rank.color}0d` }}
+                  >
+                    {rank.tag}
+                  </div>
+                  {!sp.live && (
+                    <div className="flex items-center gap-2" title={`Shadow gate: ${sp.resolved}/${SHADOW_RESOLVED_TARGET} resolved · LCB ${sp.lcb != null ? sp.lcb.toFixed(3) : '—'} · day ${sp.days}/${SHADOW_DAYS_TARGET}`}>
+                      <div className="relative w-[110px] h-[4px] rounded-full bg-[#16161e] overflow-hidden">
+                        <motion.div
+                          className="absolute inset-y-0 left-0 rounded-full"
+                          style={{ background: `linear-gradient(90deg, ${VIOLET}, ${rank.color})` }}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.round(sp.pct * 100)}%` }}
+                          transition={{ duration: 1.1, ease: 'easeOut' }}
+                        />
+                      </div>
+                      <span className="font-mono text-[10px] text-[#5a5a64] tabular-nums">gate {Math.round(sp.pct * 100)}%</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+
+            {bot.description && (
+              <p className="text-[14px] leading-relaxed text-[#9a9a9a] mb-5 max-w-3xl whitespace-pre-wrap mt-4">
+                {bot.description}
+              </p>
+            )}
+            
+            {bot.categoriesData?.length > 0 && (
+              <div className="flex flex-wrap gap-2.5 mt-auto pt-2">
+                {bot.categoriesData.map((c: any) => (
+                  <div key={c.name} className="flex items-center gap-2 bg-[#0c0c0c] border border-[#1a1a1a] rounded px-3 py-1.5 font-mono text-[11px] text-[#888]">
+                    <span className="text-white font-bold">{Math.round(c.volumePct)}%</span>
+                    <span className="uppercase">{c.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className="flex flex-col md:flex-row items-end gap-6 md:self-stretch">
-            {/* ── VAULT (moved to header) ── */}
-            <div id="vault" className="scroll-mt-28 rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden w-full md:w-[320px] shadow-2xl">
-              <div className="p-4 border-b border-[#141414] bg-[#050507]">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-[#888]">Vault</span>
+          {/* RIGHT: Vault & Interactions */}
+          <div className="lg:col-span-5 flex flex-col gap-6">
+            <div id="vault" className="flex-1 scroll-mt-28 rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden shadow-2xl flex flex-col justify-between">
+              <div className="p-5 sm:p-6 border-b border-[#141414] bg-[#050507]">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="font-mono text-[11px] font-bold tracking-[0.28em] uppercase text-[#888]">Vault</span>
                   {sp.live && (
-                    <span className={`font-mono text-[11px] font-bold ${navDelta >= 0 ? 'text-[#c8ff00]' : 'text-[#ff5570]'}`}>
+                    <span className={`font-mono text-[12px] font-bold ${navDelta >= 0 ? 'text-[#c8ff00]' : 'text-[#ff5570]'}`}>
                       {navDelta >= 0 ? '▲' : '▼'} {Math.abs(navDelta).toFixed(1)}%
                     </span>
                   )}
                 </div>
-                <div className="flex justify-center mb-2">
-                  <div className="transform scale-[0.7] origin-center -my-2">
+                <div className="flex justify-center mb-6">
+                  <div className="transform scale-[0.85] sm:scale-100 origin-center -my-2">
                     <VaultGlass tvl={animatedTVL} cap={vaultCap} live={sp.live} />
                   </div>
                 </div>
                 <div className="text-center">
-                  <div className="font-sans font-black text-[26px] leading-tight tabular-nums text-white tracking-[-0.04em]">
+                  <div className="font-sans font-black text-[32px] sm:text-[38px] leading-tight tabular-nums text-white tracking-[-0.04em]">
                     {sp.live ? fmtUSD(animatedTVL) : 'Shadow phase'}
                   </div>
-                  <div className="font-mono text-[9px] mt-1 tracking-wide" style={{ color: sp.live ? '#6a6a74' : VIOLET }}>
+                  <div className="font-mono text-[10px] sm:text-[11px] mt-2 tracking-wide" style={{ color: sp.live ? '#6a6a74' : VIOLET }}>
                     {sp.live
-                      ? (isCapped ? `of ${fmtUSD(capDeclared)} cap` : 'Open capacity')
-                      : `Unlocks after gate. ${sp.resolved}/${SHADOW_RESOLVED_TARGET}`}
+                      ? (isCapped ? `of ${fmtUSD(capDeclared)} capacity` : 'Open capacity')
+                      : `Unlocks after gate. ${sp.resolved}/${SHADOW_RESOLVED_TARGET} resolved`}
                   </div>
                 </div>
               </div>
-              <div className="p-4 bg-[#0a0a0c]">
-                <div className="flex items-center justify-between">
+              <div className="p-5 sm:p-6 bg-[#0a0a0c]">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <div className="font-mono text-[8px] text-[#48484f] tracking-[0.14em] uppercase mb-0.5">Phase</div>
-                    <div className="font-sans font-bold text-[13px] text-white tabular-nums">{sp.live ? 'LIVE' : `${Math.round(sp.pct * 100)}%`}</div>
+                    <div className="font-mono text-[9px] text-[#48484f] tracking-[0.14em] uppercase mb-1">Phase</div>
+                    <div className="font-sans font-bold text-[15px] text-white tabular-nums">{sp.live ? 'LIVE' : `${Math.round(sp.pct * 100)}%`}</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-mono text-[8px] text-[#48484f] tracking-[0.14em] uppercase mb-0.5">Maker Skin in Game</div>
-                    <div className="font-sans font-bold text-[13px] text-white tabular-nums">{fmtUSD(bot.skinInGame || 0)}</div>
+                    <div className="font-mono text-[9px] text-[#48484f] tracking-[0.14em] uppercase mb-1">Maker Skin in Game</div>
+                    <div className="font-sans font-bold text-[15px] text-white tabular-nums">{fmtUSD(bot.skinInGame || 0)}</div>
                   </div>
                 </div>
+                
+                {sp.live && (
+                  <div className="mt-5 border-t border-[#1a1a24] pt-5">
+                    {!FEATURES.CAPITAL_LAYER ? (
+                      <div className="rounded-lg border border-[#1a1a1a] bg-[#0c0c0c] p-3 text-center text-[12px] text-[#888] font-sans">
+                        <span className="font-bold text-white mb-1 block">Shadow Phase</span>
+                        Capital Layer disabled.
+                      </div>
+                    ) : atCapacity ? (
+                      <div className="rounded-lg border border-primary/30 p-2.5 text-center font-mono text-[11px] text-primary tracking-widest">AT CAPACITY</div>
+                    ) : !isConnected ? (
+                      <div className="text-[12px] text-[#666] text-center">Connect wallet to deposit.</div>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <input type="number" value={depositAmt} onChange={e => setDepositAmt(e.target.value)} placeholder="USDC" className="w-full bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-4 py-3 text-[14px] text-white outline-none focus:border-primary/50 placeholder:text-[#555]" />
+                        <button onClick={handleDeposit} disabled={depositing} className="w-full sm:w-auto shrink-0 rounded-lg bg-primary text-[#030303] font-bold text-[14px] px-6 py-3 disabled:opacity-50 hover:shadow-[0_0_16px_rgba(255,42,77,0.4)] transition-all">{depositing ? '…' : 'Deposit'}</button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="relative shrink-0 md:self-start">
-              <button onClick={toggleHeart} className={`flex items-center gap-2.5 px-5 py-3 rounded-xl border transition-all cursor-pointer ${hearted ? 'border-primary bg-primary/10 text-primary' : 'border-[#1a1a1a] bg-[#070707] text-[#888] hover:border-primary/50 hover:text-primary'}`}>
-                <motion.span key={hearted ? 'on' : 'off'} initial={{ scale: 0.6 }} animate={{ scale: hearted ? [1.4, 1] : 1 }} transition={{ duration: 0.35 }} className="text-lg leading-none">{hearted ? '♥' : '♡'}</motion.span>
-                <span className="font-mono font-bold text-lg tabular-nums leading-none">{hearts}</span>
+            <div className="relative">
+              <button onClick={toggleHeart} className={`w-full flex items-center justify-center gap-3 px-5 py-4 rounded-xl border transition-all cursor-pointer ${hearted ? 'border-primary bg-primary/10 text-primary' : 'border-[#1a1a1a] bg-[#070707] text-[#888] hover:border-primary/50 hover:text-primary'}`}>
+                <motion.span key={hearted ? 'on' : 'off'} initial={{ scale: 0.6 }} animate={{ scale: hearted ? [1.4, 1] : 1 }} transition={{ duration: 0.35 }} className="text-xl leading-none">{hearted ? '♥' : '♡'}</motion.span>
+                <span className="font-mono font-bold text-[15px] tabular-nums leading-none tracking-widest">{hearts} <span className="text-[10px] font-normal uppercase tracking-widest opacity-50 ml-1">Followers</span></span>
               </button>
               <AnimatePresence>
                 {confettiBurst > 0 && (['#ff2a4d','#c8ff00','#8b7bff','#ffd400','#ffffff','#ff5ccd','#4285f0','#eaff00'] as const).flatMap((color, ci) =>
@@ -601,19 +638,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             </div>
           </div>
         </div>
-
-        {bot.description && <p className="text-[14px] leading-relaxed text-[#9a9a9a] mb-5 max-w-3xl whitespace-pre-wrap">{bot.description}</p>}
-        
-        {bot.categoriesData?.length > 0 && (
-          <div className="flex flex-wrap gap-2.5 mb-10">
-            {bot.categoriesData.map((c: any) => (
-              <div key={c.name} className="flex items-center gap-2 bg-[#0c0c0c] border border-[#1a1a1a] rounded px-3 py-1.5 font-mono text-[11px] text-[#888]">
-                <span className="text-white font-bold">{Math.round(c.volumePct)}%</span>
-                <span className="uppercase">{c.name}</span>
-              </div>
-            ))}
-          </div>
-        )}
 
         {isOwner && isEditing && (
           <Panel className="mb-8 p-5">
