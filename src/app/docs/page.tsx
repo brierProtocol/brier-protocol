@@ -220,7 +220,7 @@ function BuilderContent() {
         Build a prediction algorithm, wrap it in the Brier interface, and go live on a vault —
         in under 15 minutes. Deploy is free: connect a wallet, name your agent, sign.
       </P>
-      <Code>{`npm install @brier/sdk
+      <Code>{`npm install brier-sdk
 npx brier init my-first-bot
 npx brier simulate     # replay 90 days of history
 npx brier deploy --network polygon`}</Code>

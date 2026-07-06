@@ -20,6 +20,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       include: {
         scores: { orderBy: { snapshotDate: 'asc' }, take: 90 },
         predictions: { orderBy: { timestamp: 'desc' } },
+        // On-chain fills for the profile's execution panel (hidden while empty).
+        trades: { orderBy: { timestamp: 'desc' }, take: 50 },
         pnlSnapshots: { orderBy: { date: 'asc' }, take: 90 },
         _count: { select: { hearts: true } }
       }
@@ -27,7 +29,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
 
     if (!bot) return NextResponse.json({ error: 'Bot not found' }, { status: 404 });
 
-    const user = bot.walletAddress ? await prisma.user.findUnique({ where: { walletAddress: bot.walletAddress.toLowerCase() } }) : null;
+    // The MAKER is ownerWallet (FK to User) — walletAddress can be the bot's
+    // Polymarket EXECUTION wallet, which has no human profile behind it.
+    const makerWallet = (bot.ownerWallet || bot.walletAddress || '').toLowerCase();
+    const user = makerWallet ? await prisma.user.findUnique({ where: { walletAddress: makerWallet } }) : null;
 
     // ── Quant DNA and Categories ──
     const resolvedPreds = bot.predictions.filter(p => p.status === 'WIN' || p.status === 'LOSS');
@@ -78,13 +83,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     // Current Rank calculation (mocked for this endpoint, real rank comes from leaderboard)
     const rank = bot.tier === 'TIER1' ? 1 : bot.tier === 'TIER2' ? 2 : bot.tier === 'TIER3' ? 3 : 'Unranked';
 
-    // Never leak per-bot credentials in a public GET. Strip the API key/secret
-    // (and the internal rate-limit counter) before returning the bot.
-    const { apiKey: _apiKey, apiSecret: _apiSecret, rateLimitCount: _rl, ...safeBot } = bot;
+    // SECURITY: never serialize the signing credentials to the client.
+    const { apiKey: _apiKey, apiSecret: _apiSecret, ...safeBot } = bot;
 
     return NextResponse.json({
       ...safeBot,
-      user: user ? { handle: user.handle, name: user.name, pfpUrl: user.pfpUrl } : null,
+      user: user ? { walletAddress: user.walletAddress, handle: user.handle, name: user.name, bio: user.bio, pfpUrl: user.pfpUrl, xHandle: user.xHandle, xVerified: user.xVerified } : null,
+      makerWallet,
       quantDna: {
         frequencyLabel,
         horizonLabel,

@@ -10,7 +10,12 @@ import dns from 'dns'
 import https from 'https'
 import { promisify } from 'util'
 
-const prisma = new PrismaClient()
+// A background poller needs very few DB connections. Cap the pool low so this
+// daemon can never starve the shared local Postgres (which also serves Next dev).
+const DB_URL = process.env.DATABASE_URL
+  ? process.env.DATABASE_URL + (process.env.DATABASE_URL.includes('?') ? '&' : '?') + 'connection_limit=3&pool_timeout=20'
+  : undefined
+const prisma = new PrismaClient(DB_URL ? { datasources: { db: { url: DB_URL } } } : undefined)
 const INTERVAL_MS = 5 * 60 * 1000
 
 // ISP blocks *.polymarket.com at resolver level — resolve via 1.1.1.1 and
@@ -78,7 +83,21 @@ async function settlePending() {
 }
 
 console.log('[WATCHER] Shadow resolution watcher started. Interval: 5m')
-// A transient DB/network error must never kill the daemon
+// A transient DB/network error must never kill the daemon.
 const safeSettle = () => settlePending().catch(e => console.error(`[WATCHER] cycle error: ${e.message?.slice(0, 200)}`))
-await safeSettle()
-setInterval(safeSettle, INTERVAL_MS)
+
+// Self-scheduling loop: the NEXT cycle is only queued AFTER the current one
+// finishes. The old setInterval fired blindly every 5m, so when a cycle stalled
+// on a hung CLOB call, runs overlapped and each held a DB connection until the
+// pool was exhausted ("Timed out fetching a new connection from the pool").
+async function loop() {
+  await safeSettle()
+  setTimeout(loop, INTERVAL_MS)
+}
+
+// Clean shutdown so connections are released on Ctrl-C / kill.
+for (const sig of ['SIGINT', 'SIGTERM']) {
+  process.on(sig, async () => { await prisma.$disconnect().catch(() => {}); process.exit(0) })
+}
+
+loop()

@@ -41,9 +41,8 @@ model Bot {
   // and shows "stale" if none arrived within HEARTBEAT_STALE_MS. Null = never
   // reported / not operating. See src/lib/heartbeat.ts.
   lastHeartbeatAt    DateTime?
-  // Live telemetry piggy-backed on the heartbeat: a short human line of what the
-  // bot is doing right now, and its current risk constraints. Rendered on the bot
-  // profile "Operating" strip. Null = never reported. Written by recordHeartbeat().
+  // Optional live telemetry sent with the heartbeat — feeds the profile ticker
+  // ("scanning crypto markets…") and the constraints readout.
   liveActivity       String?
   liveConstraints    String?
 

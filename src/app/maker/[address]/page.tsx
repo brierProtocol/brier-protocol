@@ -8,6 +8,8 @@ import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import MakerAvatar from '@/components/MakerAvatar'
 import ConnectXModal, { XLogo } from '@/components/profile/ConnectXModal'
 import { botEye } from '@/lib/botIdentity'
+import { personLabel as sharedPersonLabel } from '@/lib/identity'
+import { broadcastProfileUpdate } from '@/hooks/useCurrentUser'
 import { useCountUp } from '@/hooks/useCountUp'
 
 const POS = '#c8ff00', VIOLET = '#8b7bff', CRIMSON = '#ff2a4d'
@@ -15,8 +17,8 @@ const POS = '#c8ff00', VIOLET = '#8b7bff', CRIMSON = '#ff2a4d'
 type Person = { walletAddress: string; name?: string | null; handle?: string | null; pfpUrl?: string | null }
 
 const shortAddr = (a = '') => a ? `${a.slice(0, 6)}…${a.slice(-4)}` : 'anon'
-const personLabel = (u?: Person | null) =>
-  u?.handle ? `@${u.handle}` : (u?.name && !u.name.startsWith('User_') ? u.name : shortAddr(u?.walletAddress))
+// Universal identity — same resolver as navbar / bot profile / comments.
+const personLabel = (u?: Person | null) => sharedPersonLabel(u)
 const fmtUSD = (n: number) => n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `$${(n / 1000).toFixed(1)}K` : `$${Math.round(n).toLocaleString()}`
 
 function StatCard({ label, value, prefix = '', suffix = '', decimals = 0, color = '#f0f0f4', delay = 0 }:
@@ -66,6 +68,7 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
   const [tab, setTab] = useState<'portfolio' | 'bots'>('portfolio')
   const [socialModal, setSocialModal] = useState<null | 'followers' | 'following'>(null)
   const [copied, setCopied] = useState(false)
+  const [xOpen, setXOpen] = useState(false)
 
   const [isEditing, setIsEditing] = useState(false)
   const [editHandle, setEditHandle] = useState('')
@@ -177,12 +180,20 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
     window.location.href = `/api/auth/twitter?wallet=${activeUser}`
   }
 
+  // Manual link/unlink from the modal (the OAuth path is initiateXLink).
+  const saveX = async (handle: string | null) => {
+    if (!activeUser) return
+    const res = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: activeUser, xHandle: handle }) })
+    if (res.ok) { const u = await res.json(); setProfile(u); showToast(handle ? 'X linked.' : 'X unlinked.') }
+    else showToast('Could not link X.')
+  }
+
   const handleSaveProfile = async () => {
     if (!activeUser) return
     setSaving(true)
     try {
       const res = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: activeUser, handle: editHandle, name: editName, bio: editBio, pfpUrl: editPfp }) })
-      if (res.ok) { const u = await res.json(); setProfile(u); setIsEditing(false); showToast('Profile updated.') }
+      if (res.ok) { const u = await res.json(); setProfile(u); setIsEditing(false); broadcastProfileUpdate(u); showToast('Profile updated.') }
       else { const e = await res.json(); showToast(e.error || 'Save failed.') }
     } catch (e: any) { showToast(e.message) } finally { setSaving(false) }
   }
@@ -237,7 +248,15 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
               <div className="flex items-center gap-2">
                 {isOwner ? (
                   <>
-                    <button onClick={initiateXLink} className="inline-flex items-center gap-2 rounded-full border border-[#262630] px-4 py-2 text-[12px] font-semibold text-[#ddd] hover:border-[#3a3a44] hover:text-white transition-colors">
+                    <button
+                      onClick={() => {
+                        // Not linked yet → go straight to the real X OAuth. Already
+                        // linked → open the modal to manage/unlink.
+                        if (!xHandle && connected) { window.location.href = `/api/auth/twitter?wallet=${connected}` }
+                        else setXOpen(true)
+                      }}
+                      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[12px] font-semibold transition-colors ${xHandle ? 'border border-[#262630] text-[#ddd] hover:border-[#3a3a44] hover:text-white' : 'bg-white text-black hover:bg-[#e8e8e8]'}`}
+                    >
                       <XLogo size={13} /> {xHandle ? 'Manage X' : 'Connect X'}
                     </button>
                     <button onClick={() => { setIsEditing(v => !v); setEditHandle(profile?.handle || ''); setEditName(profile?.name || ''); setEditBio(profile?.bio || ''); setEditPfp(profile?.pfpUrl || '') }}
@@ -517,6 +536,8 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ConnectXModal open={xOpen} initial={xHandle} onClose={() => setXOpen(false)} onSave={saveX} wallet={connected} />
 
       {toast && (
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="fixed bottom-8 right-8 z-[9999] bg-[#0d0d0d] border border-primary/40 text-white text-[13px] px-4 py-2.5 rounded-xl shadow-[0_0_24px_rgba(255,42,77,0.25)]">{toast}</motion.div>

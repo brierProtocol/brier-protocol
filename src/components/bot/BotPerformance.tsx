@@ -126,8 +126,8 @@ export default function BotPerformance({ snapshots, winRate, sharpe, maxDrawdown
             )}
           </div>
           <div className="flex items-baseline gap-3">
-            <span className="font-sans font-black text-[34px] leading-none tracking-[-0.03em] tabular-nums" style={{ color: model ? accent : '#3a3a44' }}>
-              {model ? (mode === 'money' ? fmtMoney(active ? active.v : model.last) : fmtScore(active ? active.v : model.last)) : '—'}
+            <span className="font-sans font-black text-[34px] leading-none tracking-[-0.03em] tabular-nums" style={{ color: model ? accent : '#5a5a66' }}>
+              {model ? (mode === 'money' ? fmtMoney(active ? active.v : model.last) : fmtScore(active ? active.v : model.last)) : (mode === 'money' ? '$0' : '0.000')}
             </span>
             {model && (
               <span className="font-mono text-[13px] font-bold tabular-nums" style={{ color: accent }}>
@@ -231,17 +231,14 @@ export default function BotPerformance({ snapshots, winRate, sharpe, maxDrawdown
           )}
         </svg>
       ) : (
-        // No data yet → draw a FLAT baseline (not an empty box), so the panel reads
-        // as "at zero, waiting" rather than broken. The curve fills in as data resolves.
+        // No settled P&L yet → show a FLAT baseline (starts at $0), not an empty box.
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" style={{ height: 200 }} preserveAspectRatio="none">
           <line x1={PAD.l} y1={H / 2} x2={W - PAD.r} y2={H / 2} stroke="#ffffff10" strokeWidth="1" strokeDasharray="3 5" />
           <line x1={PAD.l} y1={H / 2} x2={W - PAD.r} y2={H / 2} stroke="#3a3a44" strokeWidth="2.5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
           <motion.circle cx={W - PAD.r} cy={H / 2} r="9" fill="#5a5a66" opacity="0.18"
             animate={{ r: [6, 12, 6], opacity: [0.22, 0, 0.22] }} transition={{ duration: 2.4, repeat: Infinity }} />
           <circle cx={W - PAD.r} cy={H / 2} r="3.5" fill="#5a5a66" />
-          <text x={PAD.l} y={H / 2 - 10} fill="#3f3f48" fontSize="10" fontFamily="monospace">
-            {mode === 'score' ? 'flat · the curve draws itself as predictions resolve' : 'flat · awaiting first resolved P&L'}
-          </text>
+          <text x={PAD.l} y={H / 2 - 10} fill="#3f3f48" fontSize="10" fontFamily="monospace">the curve draws itself as predictions resolve</text>
         </svg>
       )}
     </div>

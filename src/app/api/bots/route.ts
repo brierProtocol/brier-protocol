@@ -41,8 +41,8 @@ export async function GET(request: Request) {
     const byWallet = new Map(users.map(u => [u.walletAddress.toLowerCase(), u]));
     const shaped = bots.map(b => {
       const u = byWallet.get(b.walletAddress?.toLowerCase() || '');
-      // Strip per-bot credentials and the internal counter — never expose them in a list.
-      const { _count, apiKey: _apiKey, apiSecret: _apiSecret, rateLimitCount: _rl, ...rest } = b;
+      // SECURITY: strip signing credentials — never send them to the catalog.
+      const { _count, apiKey, apiSecret, ...rest } = b;
       return { ...rest, tradesIndexed: _count?.trades ?? 0, maker: u ? { handle: u.handle, name: u.name, pfpUrl: u.pfpUrl } : null };
     });
 

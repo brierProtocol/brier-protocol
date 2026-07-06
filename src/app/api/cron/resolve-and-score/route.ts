@@ -4,6 +4,7 @@ import { resolveMarket } from '@/lib/market-data'
 import { botReputation, absoluteBotBrier, reputationScoreFromLcb, ResolvedPrediction } from '@/lib/skill-engine'
 import { checkStatusTransitions } from '@/lib/incubation'
 import { settleResolvedTrades } from '@/lib/settlement'
+import { deriveVerifiedCategories } from '@/lib/marketCategories'
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -25,12 +26,21 @@ export async function GET(req: NextRequest) {
       const r = await resolveMarket(marketId)
       if (!r.resolved) continue // still open / CLOB unreachable
       
-      const upd = await prisma.prediction.updateMany({
-        where: { marketId, status: 'PENDING' },
-        data: { status: r.yesWon ? 'WIN' : 'LOSS', resolution: r.yesWon ? 'YES' : 'NO' },
-      })
+      // WIN/LOSS is relative to the SIDE the bot backed: a NO bet WINS when YES
+      // loses. Marking every prediction by yesWon inverted every NO bettor's score.
+      const resolution = r.yesWon ? 'YES' : 'NO'
+      const [updNo, updYes] = await prisma.$transaction([
+        prisma.prediction.updateMany({
+          where: { marketId, status: 'PENDING', side: { in: ['NO', 'SHORT'] } },
+          data: { status: r.yesWon ? 'LOSS' : 'WIN', resolution },
+        }),
+        prisma.prediction.updateMany({
+          where: { marketId, status: 'PENDING', side: { notIn: ['NO', 'SHORT'] } },
+          data: { status: r.yesWon ? 'WIN' : 'LOSS', resolution },
+        }),
+      ])
       resolvedMarkets++
-      resolvedPreds += upd.count
+      resolvedPreds += updNo.count + updYes.count
 
       // --- INTEGRACIÓN EXECUTOR (SETTLEMENT) ---
       try {
@@ -154,7 +164,22 @@ export async function GET(req: NextRequest) {
       scored.push({ botId, lcb: Number(rep.lcb.toFixed(4)), n: rep.n })
     }
 
-    return NextResponse.json({ ok: true, resolvedMarkets, resolvedPredictions: resolvedPreds, settlement, scored })
+    // ── 3. CATEGORIES ── derive each bot's category from WHERE it actually bets
+    // (its market titles). No maker ever picks a category; this is the honest signal.
+    // The indexer covers on-chain traders; this covers shadow-phase bots that only
+    // commit predictions and have no trades yet.
+    const botsWithPreds = await prisma.prediction.findMany({ select: { botId: true }, distinct: ['botId'] })
+    let categorized = 0
+    for (const { botId } of botsWithPreds) {
+      const titles = await prisma.prediction.findMany({ where: { botId }, select: { marketTitle: true }, take: 500 })
+      const cats = deriveVerifiedCategories(titles.map(t => t.marketTitle))
+      if (cats.length) {
+        await prisma.bot.update({ where: { id: botId }, data: { verifiedCategories: cats } })
+        categorized++
+      }
+    }
+
+    return NextResponse.json({ ok: true, resolvedMarkets, resolvedPredictions: resolvedPreds, settlement, scored, categorized })
   } catch (err: any) {
     console.error('[cron/resolve-and-score]', err)
     return NextResponse.json({ error: err?.message || 'resolve-and-score failed' }, { status: 500 })

@@ -53,6 +53,20 @@ Goal: the executor places real Polymarket orders. **Real money — do PHASE 3 fi
 - [ ] Real `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` (cloud.walletconnect.com) for mobile wallets.
 - [ ] Legal review of `/terms` and `/privacy` (currently templates).
 - [ ] Error monitoring (Sentry) + API rate limiting.
+- [ ] **SPOT flow is economically inert as coded**: `executeTrade` only calls
+  `splitPosition`, which mints equal YES+NO tokens. Without selling the unwanted
+  leg on the CLOB there is no directional exposure — redeeming the winning side
+  returns exactly the amount invested (zero PnL by construction). Either sell the
+  opposite leg in the executor or route SPOT through the CLOB like PERP.
+- [ ] **Settlement bookkeeping can diverge from chain**: the resolve-and-score cron
+  marks `TradeEvent` WIN/LOSS and books the 60/30/10 mirror even when the POST to
+  the executor fails (fire-and-forget). Make the on-chain settle confirmation a
+  precondition for booking, or add a reconciliation pass. Also remove the
+  `'your-64-char-hex-secret'` HMAC fallback — fail closed if `BUILDER_SECRET_KEY`
+  is unset.
+- [ ] **/api/bots/register accepts any wallet without a signature**: anyone can
+  create bots in someone else's name (name squatting / spam). Require the same
+  wallet-ownership proof used for key issuance (`lib/owner-auth`).
 
 ## PHASE 4 — Environment variables (Vercel + .env)
 | Var | Where | Needed for |

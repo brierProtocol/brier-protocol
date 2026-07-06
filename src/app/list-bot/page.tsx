@@ -9,16 +9,6 @@ import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import MakerAvatar from '@/components/MakerAvatar'
 import { botEye } from '@/lib/botIdentity'
 
-const CATEGORIES: { id: string; label: string }[] = [
-  { id: 'politics', label: 'Politics' },
-  { id: 'crypto',   label: 'Crypto'   },
-  { id: 'sports',   label: 'Sports'   },
-  { id: 'economy',  label: 'Economy'  },
-  { id: 'culture',  label: 'Culture'  },
-  { id: 'tech',     label: 'Tech'     },
-  { id: 'world',    label: 'World'    },
-]
-
 const INPUT_CLS =
   'w-full bg-[#0a0a0a] border border-[#1f1f1f] text-white font-sans text-[14px] outline-none px-4 py-3 rounded-xl placeholder:text-[#555] transition-all focus:border-primary/50 focus:bg-[#0c0c0c] focus:shadow-[0_0_24px_rgba(255,42,77,0.08)] hover:border-[#2a2a2a]'
 
@@ -186,9 +176,9 @@ export default function ListBotPage() {
           {/* what comes next */}
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
-              { n: '01', t: 'Name it', d: 'Name, bio and market categories. Its signature art is born from the name.' },
+              { n: '01', t: 'Name it', d: 'Just a name and a bio. Brier detects category and sizing on its own.' },
               { n: '02', t: 'Connect it', d: 'Connect the wallet your bot trades with. One signature proves it is yours.' },
-              { n: '03', t: 'Open a vault', d: 'Brier watches it on Polymarket. 100 resolved, Brier 0.20, 21 days, then capital backs you.' },
+              { n: '03', t: 'Open a vault', d: 'Brier scores it on Polymarket. 100 resolved, positive skill vs market, 21 days, then capital backs you.' },
             ].map((s) => (
               <div key={s.n} className="rounded-xl border border-[#161616] bg-[#070708] p-4">
                 <div className="font-mono text-[11px] text-primary mb-2">{s.n}</div>
@@ -288,12 +278,24 @@ export default function ListBotPage() {
               </div>
             </div>
 
-
+            {/* Brier handles the scary decisions — no category or capacity to pick.
+                Category is detected from the markets the bot actually bets on;
+                vault capacity is computed from its proven track record. */}
+            <div className="mb-7 rounded-xl border border-[#161616] bg-[#070708] p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(255,42,77,0.7)]" />
+                <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#8a8a8a]">Brier handles the rest</span>
+              </div>
+              <div className="flex flex-col gap-2.5 text-[13px] font-sans">
+                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> <span><span className="text-white font-semibold">Category</span> is detected automatically from the markets your bot bets on. No guessing.</span></div>
+                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> <span><span className="text-white font-semibold">Vault capacity</span> is computed from your proven track record and the liquidity of your markets, and grows as you prove more.</span></div>
+              </div>
+            </div>
 
             {/* signature art — generative from the name (do not change) */}
             <div className="mb-8 flex items-center gap-4 rounded-xl border border-[#161616] bg-[#070708] p-4">
               <div className="rounded-lg overflow-hidden border border-[#1a1a1a] shrink-0">
-                <BotIrisAvatar {...botEye({ slug: formData.name || 'preview', name: formData.name })} size={72} />
+                <BotIrisAvatar {...botEye({ slug: handle, name: formData.name })} size={72} />
               </div>
               <div className="text-[12px] text-[#888] font-sans leading-relaxed">
                 Your bot&apos;s signature is generated live from its name, watch it shift as you type.<br />
@@ -381,39 +383,43 @@ export default function ListBotPage() {
               Brier is now tracking your algorithm. Use your builder credentials to connect your bot and start submitting predictions via the SDK.
             </p>
 
-            {/* API Keys */}
+            {/* Complete connection block — everything the bot needs, in one paste.
+                The bot is identified by its API key, so the name/slug never has to
+                match; this block just wires it cleanly. */}
             {apiKeys && (
               <div className="rounded-xl border border-primary/40 bg-primary/[0.05] p-5 mb-6">
-                <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-primary mb-3">BUILDER CREDENTIALS</div>
-                <div className="mb-4">
-                  <div className="text-[11px] text-[#8f8f8f] mb-1">API_KEY (Public ID)</div>
-                  <div className="font-mono text-[13px] text-white bg-[#000] px-3 py-2 border border-[#222] rounded">{apiKeys.apiKey}</div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-primary">Connection — paste into your bot&apos;s .env</span>
+                  <span className="text-primary font-bold text-[10px]">SECRET SHOWN ONCE. SAVE IT NOW.</span>
                 </div>
-                <div>
-                  <div className="text-[11px] text-[#8f8f8f] mb-1 flex items-center justify-between">
-                    <span>BUILDER_SECRET_KEY</span>
-                    <span className="text-primary font-bold">STORE THIS NOW. IT WILL NEVER BE SHOWN AGAIN.</span>
-                  </div>
-                  <div className="font-mono text-[13px] text-[#00d4aa] bg-[#000] px-3 py-2 border border-[#222] rounded select-all">{apiKeys.apiSecret}</div>
-                </div>
+                <pre className="font-mono text-[12px] text-[#00d4aa] bg-[#000] px-3 py-3 border border-[#222] rounded overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
+{`BRIER_URL=${typeof window !== 'undefined' ? window.location.origin : 'https://brier.world'}
+BRIER_BOT_SLUG=${deployedSlug || handle}
+BRIER_API_KEY=${apiKeys.apiKey}
+BRIER_API_SECRET=${apiKeys.apiSecret}`}
+                </pre>
+                <div className="mt-2 text-[11px] text-[#8f8f8f]">These four lines are all your bot needs to connect and be scored.</div>
               </div>
             )}
 
             {/* SDK Snippet */}
             <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-8">
-              <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-3">SDK Integration</div>
+              <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-3">SDK — install &amp; predict</div>
               <pre className="font-mono text-[11px] text-[#a0a0a0] overflow-x-auto whitespace-pre-wrap leading-relaxed">
-{`import { BrierSDK } from '@brier/sdk'
+{`npm install brier-sdk
 
-const brier = new BrierSDK({
-  apiKey: '${apiKeys?.apiKey || 'YOUR_API_KEY'}',
-  apiSecret: '${apiKeys?.apiSecret || 'YOUR_SECRET_KEY'}'
+import { BrierClient } from 'brier-sdk'
+
+const brier = new BrierClient({
+  apiKey: process.env.BRIER_API_KEY,
+  apiSecret: process.env.BRIER_API_SECRET,
+  baseUrl: process.env.BRIER_URL,
 })
 
-// Submit a prediction (commit-reveal)
+// Submit a prediction (HMAC-signed automatically)
 await brier.predict({
   marketId: 'polymarket-1234',
-  forecast: 0.85 // 85% probability of YES
+  forecast: 0.85, // 85% probability of YES
 })`}
               </pre>
             </div>
@@ -424,7 +430,7 @@ await brier.predict({
               <div className="flex flex-col gap-2.5 text-[13px] font-sans">
                 <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Enters the <span className="text-white">shadow phase</span>: builds reputation, no outside capital at risk</div>
                 <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> The Skill Engine evaluates your commits against real resolutions</div>
-                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Vault gate: <span className="text-white">Reputation &gt; 50 · 21 days live</span></div>
+                <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Vault gate: <span className="text-white">100 resolved · skill over market (LCB &gt; 0) · 21 days</span></div>
                 <div className="flex gap-2.5 text-[#9a9a9a]"><span className="text-primary">→</span> Capital Layer unlocks, you keep <span className="text-white">30% of the profits</span></div>
               </div>
             </div>

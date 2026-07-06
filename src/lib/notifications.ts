@@ -9,6 +9,13 @@ export type NotificationType =
   | 'NEW_FOLLOWER'
   | 'CIRCUIT_BREAKER'
 
+export interface NotificationActor {
+  walletAddress: string
+  handle: string | null
+  name: string | null
+  pfpUrl: string | null
+}
+
 export interface NotificationRecord {
   id: string
   walletAddress: string
@@ -18,6 +25,9 @@ export interface NotificationRecord {
   metadata: Record<string, unknown> | null
   read: boolean
   createdAt: Date
+  /** The human who triggered this (depositor, follower, commenter), resolved to
+   *  their profile so the bell can show a face and a real name, not a hex stub. */
+  actor?: NotificationActor | null
 }
 
 // ---------------------------------------------------------------------------
@@ -60,7 +70,45 @@ export async function getUnreadNotifications(
     orderBy: { createdAt: 'desc' },
     take: limit,
   })
-  return rows.map(deserialize)
+  return withActors(rows.map(deserialize))
+}
+
+/** Resolve each notification's actor wallet to their profile (one batched query). */
+async function withActors(records: NotificationRecord[]): Promise<NotificationRecord[]> {
+  const wallets = new Set<string>()
+  for (const r of records) {
+    const w = actorWalletOf(r)
+    if (w) wallets.add(w)
+  }
+  if (wallets.size === 0) return records
+
+  const users = await prisma.user.findMany({
+    where: { walletAddress: { in: [...wallets] } },
+    select: { walletAddress: true, handle: true, name: true, pfpUrl: true },
+  })
+  const byWallet = new Map(users.map(u => [u.walletAddress.toLowerCase(), u]))
+
+  return records.map(r => {
+    const w = actorWalletOf(r)
+    if (!w) return r
+    const u = byWallet.get(w)
+    return {
+      ...r,
+      actor: {
+        walletAddress: w,
+        handle: u?.handle ?? null,
+        name: u?.name ?? null,
+        pfpUrl: u?.pfpUrl ?? null,
+      },
+    }
+  })
+}
+
+/** The wallet that triggered a notification, from its metadata (best-effort). */
+function actorWalletOf(r: NotificationRecord): string | null {
+  const md = r.metadata || {}
+  const w = (md.actorWallet || md.depositorWallet || md.followerAddress) as string | undefined
+  return typeof w === 'string' && w.startsWith('0x') ? w.toLowerCase() : null
 }
 
 export async function getAllNotifications(
