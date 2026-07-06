@@ -472,11 +472,21 @@ model Prediction {
   status     String  @default("PENDING") // PENDING | WIN | LOSS | VOID
   resolution String?
 
+  // ── On-chain verification (trust anchor) ──────────────────────
+  // SHA-256 of the canonical payload (botId|marketId|side|confidence|timestamp).
+  // Computed at commit time, immutable. Anyone can recompute and verify.
+  commitHash String?
+  // ID of the CommitmentAnchor batch that includes this prediction's hash.
+  // Null until the next anchor-cron publishes the Merkle root on-chain.
+  anchorId   String?
+  anchor     CommitmentAnchor? @relation(fields: [anchorId], references: [id])
+
   timestamp DateTime @default(now())
   createdAt DateTime @default(now())
 
   @@index([botId, status])
   @@index([marketId])
+  @@index([anchorId])
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -582,4 +592,38 @@ model ApiKey {
   createdAt     DateTime  @default(now())
 
   @@index([botId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// COMMITMENT ANCHOR — Merkle root of a batch of prediction hashes, published
+// on-chain. This is the trust anchor that proves predictions were committed
+// BEFORE they resolved. Anyone can verify: recompute the hash from the
+// prediction data, check it's a leaf in the Merkle tree, and verify the root
+// matches the on-chain transaction. Tamper-proof and immutable.
+//
+// Cron: /api/cron/anchor-commitments runs every hour, collects un-anchored
+// predictions, builds the tree, publishes the root, and links predictions.
+// ─────────────────────────────────────────────────────────────
+model CommitmentAnchor {
+  id          String   @id @default(cuid())
+
+  // Merkle root of all prediction commitHashes in this batch
+  merkleRoot  String
+
+  // Number of predictions included in this batch
+  leafCount   Int
+
+  // On-chain transaction hash that published this root (null = pending)
+  txHash      String?  @unique
+  chainId     Int      @default(137)  // 137 = Polygon mainnet
+  blockNumber Int?
+
+  // Status: PENDING (computed, not yet on-chain) | ANCHORED (tx confirmed)
+  status      String   @default("PENDING")
+
+  createdAt   DateTime @default(now())
+
+  predictions Prediction[]
+
+  @@index([status])
 }

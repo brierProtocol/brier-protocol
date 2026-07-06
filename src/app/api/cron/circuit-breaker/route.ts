@@ -1,19 +1,48 @@
-// Pausa automática de vaults cuando el Brier Score de un bot se deteriora bruscamente.
-// Vercel cron: {"path": "/api/cron/circuit-breaker", "schedule": "0 */6 * * *"} (c/6h)
+// ═══════════════════════════════════════════════════════════════════════════════
+// PROTOCOL STOP-LOSS ("LA GUILLOTINA")
+// ═══════════════════════════════════════════════════════════════════════════════
+// Vercel cron: {"path": "/api/cron/circuit-breaker", "schedule": "0 */6 * * *"}
 //
-// Lógica: si el Brier Score empeoró más de DETERIORATION_THRESHOLD en 7 días,
-// el vault se marca cerrado en DB y se llama vault.pause() on-chain.
+// THREE independent kill triggers (any one = vault closed forever):
+//   1. DETERIORATION: Brier worsened by ≥0.08 in 7 days (sudden collapse)
+//   2. ABSOLUTE FLOOR: Brier ≥ 0.30 (worse than always guessing 50% = no edge)
+//   3. LCB COLLAPSE:  LCB < -0.10 (statistically proven worse than the market)
+//
+// On trigger:
+//   DB  → vaultOpen=false, vaultClosedAt=now, deposits marked CIRCUIT_BREAKER
+//   Chain → triggerCircuitBreaker() slashes maker's skin-in-the-game, pauses vault
+//
+// The vault is TERMINAL once closed: no new deposits, only claims (redeem at NAV).
+// This is the core safety guarantee of Brier Protocol.
+// ═══════════════════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { ethers } from 'ethers'
 import { recordCronRun, captureError } from '@/lib/observability'
+import { closeVault } from '@/lib/vault-lifecycle'
 
-const DETERIORATION_THRESHOLD = 0.08
-// triggerCircuitBreaker es onlyExecutor (la firma que este cron tiene); pause()
-// es onlyOwner (el Gnosis Safe) y revertiría en producción. Además del pause,
-// slashea el skin del builder hacia idleCapital para absorber pérdidas de LPs.
-const BREAKER_ABI = ['function triggerCircuitBreaker() external', 'function paused() view returns (bool)']
+// ── Thresholds ──────────────────────────────────────────────────────────────
+const DETERIORATION_THRESHOLD = 0.08  // Brier delta over 7 days
+const ABSOLUTE_BRIER_FLOOR    = 0.30  // Worse than random (0.25 = coin flip)
+const LCB_COLLAPSE_THRESHOLD  = -0.10 // Statistically worse than market
+
+// ── On-chain ABI (BrierVault.sol) ───────────────────────────────────────────
+const GUILLOTINE_ABI = [
+  'function triggerCircuitBreaker() external',
+  'function paused() view returns (bool)',
+  'function skinInGame() view returns (uint256)',
+]
+
+type TriggerResult = {
+  bot: string
+  reason: string
+  brierNow: number
+  lcbNow: number | null
+  vault: string
+  chainExecuted: boolean
+  skinSlashed: boolean
+}
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -21,7 +50,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const triggered: { bot: string; delta: number; vault: string; chainPaused: boolean }[] = []
+  const triggered: TriggerResult[] = []
   const errors: string[] = []
 
   try {
@@ -37,7 +66,7 @@ export async function GET(req: NextRequest) {
         const [current, weekAgo] = await Promise.all([
           prisma.botScore.findFirst({
             where: { botId: bot.id, isLatest: true },
-            select: { brierScore: true },
+            select: { brierScore: true, lcb: true },
           }),
           prisma.botScore.findFirst({
             where: { botId: bot.id, snapshotDate: { lte: sevenDaysAgo } },
@@ -46,20 +75,36 @@ export async function GET(req: NextRequest) {
           }),
         ])
 
-        if (!current || !weekAgo) continue
+        if (!current) continue
 
-        const delta = current.brierScore - weekAgo.brierScore
-        if (delta < DETERIORATION_THRESHOLD) continue
+        // ── Evaluate all three kill triggers ─────────────────────────────
+        const delta = weekAgo ? current.brierScore - weekAgo.brierScore : 0
+        const killReasons: string[] = []
 
-        // CIRCUIT BREAKER DISPARADO
+        if (delta >= DETERIORATION_THRESHOLD) {
+          killReasons.push(`Deterioration: +${delta.toFixed(3)} in 7d (${weekAgo!.brierScore.toFixed(3)} → ${current.brierScore.toFixed(3)})`)
+        }
+        if (current.brierScore >= ABSOLUTE_BRIER_FLOOR) {
+          killReasons.push(`Absolute floor: Brier ${current.brierScore.toFixed(3)} ≥ ${ABSOLUTE_BRIER_FLOOR} (worse than random)`)
+        }
+        if (current.lcb !== null && current.lcb < LCB_COLLAPSE_THRESHOLD) {
+          killReasons.push(`LCB collapse: ${current.lcb.toFixed(3)} < ${LCB_COLLAPSE_THRESHOLD} (statistically worse than market)`)
+        }
+
+        if (killReasons.length === 0) continue
+
+        // ── GUILLOTINE TRIGGERED ─────────────────────────────────────────
+        const reason = `Protocol Stop-Loss: ${killReasons.join('; ')}`
+
+        // DB: close vault permanently
+        await closeVault(bot.id, 'CIRCUIT_BREAKER')
         await prisma.$transaction([
-          prisma.bot.update({ where: { id: bot.id }, data: { vaultOpen: false } }),
           prisma.incubationLog.create({
             data: {
               botId: bot.id,
               fromStatus: 'VAULT_ELIGIBLE_T1',
               toStatus: 'VAULT_ELIGIBLE_T1',
-              reason: `Circuit breaker: Brier deterioró +${delta.toFixed(3)} en 7d (${weekAgo.brierScore.toFixed(3)} → ${current.brierScore.toFixed(3)}). Vault pausado.`,
+              reason,
               brierAtTransition: current.brierScore,
               triggeredBy: 'CIRCUIT_BREAKER',
             },
@@ -70,33 +115,63 @@ export async function GET(req: NextRequest) {
           }),
         ])
 
-        // Pausa on-chain: requiere vault address + signer configurado
-        let chainPaused = false
+        // On-chain: call triggerCircuitBreaker() which slashes skin-in-the-game
+        // and pauses the vault. If skin is already 0, falls back to pause().
+        let chainExecuted = false
+        let skinSlashed = false
         if (bot.vaultAddress && process.env.EXECUTOR_PRIVATE_KEY && process.env.RPC_URL) {
           try {
             const provider = new ethers.JsonRpcProvider(process.env.RPC_URL)
             const signer = new ethers.Wallet(process.env.EXECUTOR_PRIVATE_KEY, provider)
-            const vault = new ethers.Contract(bot.vaultAddress, BREAKER_ABI, signer)
+            const vault = new ethers.Contract(bot.vaultAddress, GUILLOTINE_ABI, signer)
+
             const isPaused = await vault.paused()
             if (!isPaused) {
-              const tx = await vault.triggerCircuitBreaker()
-              await tx.wait()
-              chainPaused = true
+              // Check if there's skin to slash
+              const skin = await vault.skinInGame()
+              if (skin > 0n) {
+                const tx = await vault.triggerCircuitBreaker()
+                await tx.wait()
+                skinSlashed = true
+                chainExecuted = true
+              } else {
+                // No skin left — just pause
+                const pauseVault = new ethers.Contract(
+                  bot.vaultAddress,
+                  ['function pause() external'],
+                  signer
+                )
+                const tx = await pauseVault.pause()
+                await tx.wait()
+                chainExecuted = true
+              }
             } else {
-              chainPaused = true
+              chainExecuted = true // already paused
             }
           } catch (chainErr: any) {
-            errors.push(`${bot.slug} pause on-chain fallida: ${chainErr?.message}`)
+            errors.push(`${bot.slug} on-chain guillotine failed: ${chainErr?.message}`)
           }
         }
 
-        triggered.push({ bot: bot.slug, delta, vault: bot.vaultAddress ?? 'sin-address', chainPaused })
+        triggered.push({
+          bot: bot.slug,
+          reason,
+          brierNow: current.brierScore,
+          lcbNow: current.lcb,
+          vault: bot.vaultAddress ?? 'no-address',
+          chainExecuted,
+          skinSlashed,
+        })
       } catch (botErr: any) {
         errors.push(`${bot.slug}: ${botErr?.message}`)
       }
     }
 
-    await recordCronRun('circuit_breaker', errors.length ? 'PARTIAL' : 'SUCCESS', { records: triggered.length, error: errors.join('; ') || undefined })
+    await recordCronRun('circuit_breaker', errors.length ? 'PARTIAL' : 'SUCCESS', {
+      records: triggered.length,
+      error: errors.join('; ') || undefined,
+    })
+
     return NextResponse.json({
       ok: true,
       checked: bots.length,
