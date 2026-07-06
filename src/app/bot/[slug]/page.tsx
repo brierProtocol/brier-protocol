@@ -363,14 +363,24 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 )}
 
                 {/* live signal — compact, in the identity block (not a big panel) */}
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border" style={{ borderColor: isOnline ? '#c8ff0033' : '#242424', background: isOnline ? '#c8ff000a' : '#0a0a0a' }}>
-                  <span className="relative flex h-2 w-2">
+                <div className="inline-flex items-center gap-3 px-4 py-2.5 rounded-xl border" style={{ borderColor: isOnline ? '#c8ff0044' : '#2a2a2a', background: isOnline ? 'linear-gradient(90deg,#c8ff0012,#0a0a0a)' : '#0a0a0a', boxShadow: isOnline ? '0 0 16px #c8ff0018' : 'none' }}>
+                  <span className="relative flex h-2.5 w-2.5">
                     {isOnline && <span className="absolute inline-flex h-full w-full rounded-full bg-[#c8ff00] opacity-60 animate-ping" />}
-                    <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: isOnline ? '#c8ff00' : '#ff5570' }} />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: isOnline ? '#c8ff00' : '#ff5570', boxShadow: isOnline ? '0 0 8px #c8ff00' : 'none' }} />
                   </span>
-                  <span className="font-mono text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: isOnline ? '#c8ff00' : '#7a7a84' }}>{isOnline ? 'Operating' : 'Offline'}</span>
-                  <span className="font-mono text-[10px] text-[#48484f] border-l border-[#242424] pl-2 tabular-nums">{sp.resolved} resolved</span>
-                  {lastFill && <span className="font-mono text-[10px] text-[#48484f] tabular-nums">· last {lastFill}</span>}
+                  <span className="font-sans text-[13px] font-bold tracking-tight" style={{ color: isOnline ? '#c8ff00' : '#8a8a94' }}>{isOnline ? 'Operating' : 'Offline'}</span>
+                  {/* live equalizer — only when online, gives the signal life */}
+                  {isOnline && (
+                    <span className="flex items-end gap-[2px] h-3.5">
+                      {[0, 1, 2, 3].map(i => (
+                        <motion.span key={i} className="w-[2px] rounded-full bg-[#c8ff00]"
+                          animate={{ height: ['30%', '100%', '45%', '80%', '30%'] }}
+                          transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }} />
+                      ))}
+                    </span>
+                  )}
+                  <span className="font-mono text-[11px] text-[#8a8a94] border-l border-[#242424] pl-3 tabular-nums"><span className="text-white font-bold">{sp.resolved}</span> resolved</span>
+                  {lastFill && <span className="font-mono text-[11px] text-[#5a5a64] tabular-nums">· last {lastFill}</span>}
                 </div>
               </div>
               {isOnline && liveActivity && (

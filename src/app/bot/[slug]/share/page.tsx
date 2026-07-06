@@ -94,7 +94,7 @@ export default function ShareBotPage({ params }: { params: Promise<{ slug: strin
           <motion.div ref={cardRef} className="rounded-[26px] p-[1.5px]"
             style={{ background: 'linear-gradient(115deg,#2a2a30,#8a8a9a,#2a2a30,#c8ff0055,#2a2a30,#7a7a8a,#2a2a30)', backgroundSize: '300% 100%' }}
             animate={{ backgroundPosition: ['0% 0%', '300% 0%'] }} transition={{ duration: 7, repeat: Infinity, ease: 'linear' }}>
-            <div className="relative rounded-[25px] overflow-hidden bg-[#070709] aspect-[1.85/1]">
+            <div className="relative rounded-[25px] overflow-hidden bg-[#070709] min-h-[260px]">
               {bg ? (
                 bg.kind === 'video'
                   ? <video src={bg.url} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
