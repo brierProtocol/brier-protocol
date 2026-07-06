@@ -299,8 +299,10 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   if (!bot) return notFound()
 
   // ── derivations ──
-  // Operating vs offline: a beat within the last 12s (3 missed ~4s beats) = live.
-  const isOnline = !!(bot.lastHeartbeatAt && Date.now() - new Date(bot.lastHeartbeatAt).getTime() < 12_000)
+  // Operating vs offline: a beat within the last 90s = connected. Relaxed from
+  // 12s so the indicator doesn't flash on/off with every poll cycle — bots that
+  // are genuinely connected to Brier stay green, bots that crashed go dark.
+  const isOnline = !!(bot.lastHeartbeatAt && Date.now() - new Date(bot.lastHeartbeatAt).getTime() < 90_000)
 
   // Brier trajectory: is the bot getting sharper over time? History comes newest
   // first; reverse to oldest→newest. A FALLING Brier means improving calibration.
@@ -442,6 +444,19 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               <h1 className="text-white font-black text-[38px] tracking-[-0.03em] m-0 leading-none mb-2">
                 {bot.name}
               </h1>
+              {/* author signature — created by, right under the name */}
+              <div className="flex items-center gap-2.5 mb-3">
+                <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#555]">created by</span>
+                <Link href={`/maker/${bot.builder || ''}`} className="flex items-center gap-2 no-underline group/maker">
+                  <span className="rounded-full overflow-hidden ring-1 ring-[#222]"><MakerAvatar address={bot.builder || ''} pfpUrl={bot.maker?.pfpUrl} size={24} /></span>
+                  <span className="font-sans font-semibold text-[14px] text-[#e8e8e8] group-hover/maker:text-white transition-colors">{sharedPersonLabel(bot.maker, bot.builder)}</span>
+                </Link>
+                {bot.maker?.xHandle && (
+                  <a href={`https://x.com/${bot.maker.xHandle}`} target="_blank" rel="noopener noreferrer" className="text-[#555] hover:text-white transition-colors" title={`@${bot.maker.xHandle}`}>
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-[13px] h-[13px]"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                  </a>
+                )}
+              </div>
               {/* tagline is auto-derived from description at registration (first 120
                   chars) — when both exist it duplicated the text and cut mid-word.
                   Show it only when it says something the description doesn't. */}
@@ -451,40 +466,12 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 </div>
               )}
               
-              <div className="flex items-center gap-3 mb-4">
-                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#555]">Builder</span>
-                <Link href={`/maker/${bot.builder || ''}`} className="flex items-center gap-2 no-underline group/maker">
-                  <span className="rounded-[5px] overflow-hidden"><MakerAvatar address={bot.builder || ''} pfpUrl={bot.maker?.pfpUrl} size={20} square /></span>
-                  <span className="font-mono text-[12px] text-[#ccc] group-hover/maker:text-white transition-colors">{sharedPersonLabel(bot.maker, bot.builder)}</span>
-                </Link>
-                
-                {/* Builder links */}
-                <div className="flex items-center gap-3 ml-2 border-l border-[#333] pl-4">
-                  {bot.maker?.xHandle ? (
-                    <a href={`https://x.com/${bot.maker.xHandle}`} target="_blank" rel="noopener noreferrer" className="text-[#555] hover:text-white transition-colors">
-                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-[14px] h-[14px]"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                    </a>
-                  ) : (
-                    <span className="text-[#333]"><svg viewBox="0 0 24 24" fill="currentColor" className="w-[14px] h-[14px]"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span>
-                  )}
-                  {/* placeholders until the builder can link a repo/site — spans,
-                      not dead href="#" anchors that jump the page to the top. */}
-                  <span className="text-[#2a2a2a] cursor-not-allowed" title="Repository — not linked yet">
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-[14px] h-[14px]"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z"/></svg>
-                  </span>
-                  <span className="text-[#2a2a2a] cursor-not-allowed" title="Website — not linked yet">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-[14px] h-[14px]"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"></path></svg>
-                  </span>
-                </div>
-              </div>
-              
               {/* liveness ticker — the bot breathing in near real time (5s poll) */}
               <div className="flex items-center gap-2 font-mono text-[11px] mb-1 min-w-0">
                 {isOnline ? (
                   <>
-                    <motion.span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: TEAL, boxShadow: `0 0 8px ${TEAL}88` }}
-                      animate={{ opacity: [1, 0.25, 1] }} transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }} />
-                    <span className="font-bold tracking-[0.16em] uppercase shrink-0" style={{ color: TEAL }}>Operating</span>
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: TEAL, boxShadow: `0 0 8px ${TEAL}88` }} />
+                    <span className="font-bold tracking-[0.16em] uppercase shrink-0" style={{ color: TEAL }}>Connected to Brier</span>
                     {bot.liveActivity && <span className="text-[#6a6a74] truncate">· {bot.liveActivity}</span>}
                   </>
                 ) : (
@@ -594,11 +581,14 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               <label className="block sm:col-span-2"><span className="text-[12px] text-[#bbb] font-semibold">Bio</span><textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} className="mt-1.5 w-full h-24 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50 resize-y" /></label>
             </div>
             <button onClick={handleSaveBot} disabled={savingBot} className="mt-4 rounded-full bg-primary text-[#030303] font-bold text-[13px] px-6 py-2.5 disabled:opacity-50 hover:shadow-[0_0_18px_rgba(255,42,77,0.4)] transition-all">{savingBot ? 'Saving…' : 'Save changes'}</button>
+            {/* API Keys — owner-only, inside settings panel */}
+            <div className="mt-6 pt-5 border-t border-[#1a1a1a]">
+              <ApiKeysManager botId={bot.id} />
+            </div>
           </Panel>
         )}
 
-        {/* ── Owner-only: connect your bot (API keys) ── */}
-        {isOwner && bot?.id && <ApiKeysManager botId={bot.id} />}
+        {/* API keys moved inside the edit panel — not on the public profile */}
 
         {/* section nav — sticky wayfinding, scrollspy-highlighted */}
         <div className="sticky top-[60px] z-40 mb-7">
@@ -995,7 +985,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 <span className="font-mono text-[9px] text-[#3f3f48] tracking-[0.16em] uppercase">said vs happened</span>
               </div>
               <div className="text-[12px] text-[#8a8a94] mb-3">The whole thesis in one chart. Capital follows calibration, nothing else.</div>
-              <CalibrationCurve predictions={trades} accent={eye.accentColor} />
+              <CalibrationCurve predictions={trades} />
             </Panel>
 
             {/* hunting grounds — where this bot actually operates, across every
@@ -1040,39 +1030,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               </Panel>
             )}
 
-            {/* created by — the human behind the bot, with the identity they
-                edited on their own profile (photo, name, bio). */}
-            {bot.builder && (
-              <Panel className="p-5">
-                <div className="font-mono text-[10px] tracking-[0.24em] uppercase text-[#555] mb-4">Created by</div>
-                <Link href={`/maker/${bot.builder}`} className="flex items-center gap-4 no-underline group/creator">
-                  <span className="rounded-xl overflow-hidden border border-[#1f1f28] group-hover/creator:border-[#33333e] transition-colors shrink-0">
-                    <MakerAvatar address={bot.builder} pfpUrl={bot.maker?.pfpUrl} size={56} square />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-sans font-bold text-[15px] text-white truncate group-hover/creator:text-primary transition-colors">
-                        {sharedPersonLabel(bot.maker, bot.builder)}
-                      </span>
-                      {bot.maker?.xVerified && (
-                        <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#c8ff00]/10 text-[#c8ff00] border border-[#c8ff00]/25 shrink-0">VERIFIED</span>
-                      )}
-                    </div>
-                    <div className="font-mono text-[11px] text-[#5a5a64] truncate mt-0.5">
-                      {bot.maker?.bio || shortAddr(bot.builder)}
-                    </div>
-                  </div>
-                  <span className="font-mono text-[11px] text-[#5a5a64] group-hover/creator:text-white transition-colors shrink-0">profile →</span>
-                </Link>
-                {bot.maker?.xHandle && (
-                  <a href={`https://x.com/${bot.maker.xHandle}`} target="_blank" rel="noopener noreferrer"
-                    className="mt-3 flex items-center gap-2 font-mono text-[11px] text-[#6a6a74] hover:text-white transition-colors no-underline">
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-[12px] h-[12px]"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                    @{bot.maker.xHandle}
-                  </a>
-                )}
-              </Panel>
-            )}
+            {/* created by — already shown in the header, no duplicate needed */}
           </div>
         </div>
 
