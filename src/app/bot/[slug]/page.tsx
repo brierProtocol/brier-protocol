@@ -486,15 +486,25 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             </div>
           </div>
 
-          {/* RIGHT: Vault (Stretching horizontally to occupy all space) */}
-          <div className="flex-1 bg-[#0a0a0c] border border-[#141414] rounded-[16px] p-5 flex flex-col md:flex-row items-center w-full min-w-0 gap-6 md:gap-8 shadow-inner overflow-visible">
-            <div className="w-[120px] h-[120px] relative shrink-0">
-              <div className="absolute inset-0 flex items-center justify-center transform scale-[0.65]">
-                <VaultGlass tvl={animatedTVL} cap={vaultCap} live={sp.live} />
-              </div>
-            </div>
+          {/* RIGHT: Vault (Stretching horizontally to occupy all space, filling up as progress) */}
+          <div className="flex-1 bg-[#0a0a0c] border border-[#141414] rounded-[16px] p-6 md:p-8 flex items-center w-full min-w-0 shadow-inner relative overflow-hidden">
             
-            <div className="flex-1 min-w-0 flex flex-wrap items-center justify-center md:justify-between w-full gap-6">
+            {/* The Vault Fill Background */}
+            <motion.div 
+              className="absolute inset-y-0 left-0"
+              style={{
+                background: sp.live 
+                  ? 'linear-gradient(90deg, rgba(255,42,77,0.05), rgba(255,42,77,0.15))' 
+                  : `linear-gradient(90deg, ${VIOLET}11, ${VIOLET}33)`,
+                borderRight: sp.live ? '1px solid rgba(255,42,77,0.4)' : `1px solid ${VIOLET}66`,
+                boxShadow: sp.live ? '2px 0 12px rgba(255,42,77,0.2)' : `2px 0 12px ${VIOLET}33`
+              }}
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(100, Math.max(0, sp.live ? (animatedTVL / (vaultCap || Math.max(animatedTVL * 1.5, 10000))) * 100 : sp.pct * 100))}%` }}
+              transition={{ duration: 1.5, ease: 'easeOut' }}
+            />
+
+            <div className="relative z-10 flex-1 min-w-0 flex flex-wrap items-center justify-center md:justify-between w-full gap-6">
               <div className="text-center md:text-left shrink-0">
                 <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#888] mb-1">Vault Status</div>
                 <div className="font-sans font-black text-[32px] md:text-[36px] text-white tracking-[-0.03em] leading-none">
@@ -517,12 +527,12 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                   {!FEATURES.CAPITAL_LAYER ? (
                     <div className="text-[12px] text-[#666]">Capital Layer disabled.</div>
                   ) : atCapacity ? (
-                    <div className="rounded border border-primary/30 p-2 font-mono text-[11px] text-primary tracking-widest">AT CAPACITY</div>
+                    <div className="rounded border border-primary/30 p-2 font-mono text-[11px] text-primary tracking-widest bg-[#0a0a0c]/80 backdrop-blur">AT CAPACITY</div>
                   ) : !isConnected ? (
                     <div className="text-[12px] text-[#666]">Connect wallet</div>
                   ) : (
                     <div className="flex gap-2 w-full max-w-[240px]">
-                      <input type="number" value={depositAmt} onChange={e => setDepositAmt(e.target.value)} placeholder="USDC" className="w-[110px] flex-1 bg-[#050505] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[14px] text-white outline-none focus:border-primary/50 min-w-0" />
+                      <input type="number" value={depositAmt} onChange={e => setDepositAmt(e.target.value)} placeholder="USDC" className="w-[110px] flex-1 bg-[#050505]/80 backdrop-blur border border-[#1f1f1f] rounded-lg px-3 py-2 text-[14px] text-white outline-none focus:border-primary/50 min-w-0" />
                       <button onClick={handleDeposit} disabled={depositing} className="shrink-0 rounded-lg bg-primary text-[#030303] font-bold text-[13px] px-5 py-2 disabled:opacity-50 hover:shadow-[0_0_12px_rgba(255,42,77,0.4)] transition-all">Deposit</button>
                     </div>
                   )}
