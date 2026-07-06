@@ -131,8 +131,6 @@ export async function GET(req: NextRequest) {
 
     await recordCronRun('anchor_commitments', 'SUCCESS', {
       records: leaves.length,
-      merkleRoot,
-      txHash,
     })
 
     return NextResponse.json({
