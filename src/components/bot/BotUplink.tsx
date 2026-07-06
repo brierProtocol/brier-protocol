@@ -79,7 +79,7 @@ export default function BotUplink({
         </div>
 
         {/* visual stage */}
-        <div className="relative flex items-center gap-4 h-[152px]">
+        <div className="relative flex items-center gap-4 h-[112px]">
 
           {/* bot creature — free, no border, floating */}
           <motion.div
@@ -88,7 +88,7 @@ export default function BotUplink({
           >
             {/* premium HD portrait: soft radial disc + ring so the creature reads
                 as an intentional portrait, not floating on hard black */}
-            <div className="relative grid place-items-center w-[104px] h-[104px]">
+            <div className="relative grid place-items-center w-[80px] h-[80px]">
               {/* radial base disc */}
               <div className="absolute inset-0 rounded-full" style={{
                 background: `radial-gradient(circle at 50% 42%, ${eye.accentColor}22 0%, ${eye.accentColor}0c 45%, transparent 72%)`,
@@ -110,10 +110,10 @@ export default function BotUplink({
                 animate={{ y: live ? [0, -5, 0] : 0 }}
                 transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
               >
-                <BotIrisAvatar {...eye} size={84} />
+                <BotIrisAvatar {...eye} size={62} />
               </motion.div>
             </div>
-            <span className="font-mono text-[8px] tracking-[0.22em] text-[#3a3a4a] uppercase mt-2.5">Bot</span>
+            <span className="font-mono text-[8px] tracking-[0.22em] text-[#3a3a4a] uppercase mt-2">Bot</span>
           </motion.div>
 
           {/* transmission channel */}
@@ -190,8 +190,8 @@ export default function BotUplink({
           </div>
 
           {/* brier core */}
-          <div className="relative z-10 shrink-0 flex flex-col items-center gap-2.5">
-            <div className="relative w-16 h-16 grid place-items-center">
+          <div className="relative z-10 shrink-0 flex flex-col items-center gap-2">
+            <div className="relative w-[52px] h-[52px] grid place-items-center">
               {/* rotating outer ring */}
               <motion.div
                 className="absolute inset-0 rounded-full"

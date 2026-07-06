@@ -10,7 +10,6 @@ import BotPerformance from '@/components/bot/BotPerformance'
 import CalibrationCurve from '@/components/bot/CalibrationCurve'
 import RecentForm from '@/components/bot/RecentForm'
 import ProfileGuide from '@/components/bot/ProfileGuide'
-import BotShareCard from '@/components/bot/BotShareCard'
 import VaultGlass from '@/components/bot/VaultGlass'
 import ApiKeysManager from '@/components/bot/ApiKeysManager'
 import { botEye, codename } from '@/lib/botIdentity'
@@ -75,7 +74,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const [activeStat, setActiveStat] = useState<string | null>(null)
   const [confettiBurst, setConfettiBurst] = useState(0)
 
-  const [showShare, setShowShare] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState('')
   const [editTagline, setEditTagline] = useState('')
@@ -285,10 +283,10 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         <div className="flex items-center justify-between mb-6 text-[12px]">
           <Link href="/discover" className="text-[#777] hover:text-white transition-colors no-underline">← The Catalog</Link>
           <div className="flex items-center gap-2.5">
-            <button onClick={() => setShowShare(true)} className="font-sans text-[12px] font-semibold px-3.5 py-1.5 rounded-full border border-[#242424] text-[#ccc] hover:border-[#c8ff00]/50 hover:text-[#c8ff00] transition-all inline-flex items-center gap-1.5">
+            <Link href={`/bot/${slug}/share`} className="font-sans text-[12px] font-semibold px-3.5 py-1.5 rounded-full border border-[#242424] text-[#ccc] hover:border-[#c8ff00]/50 hover:text-[#c8ff00] transition-all inline-flex items-center gap-1.5 no-underline">
               <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
               Share
-            </button>
+            </Link>
             {isOwner && (
               <button onClick={() => setIsEditing(v => !v)} className="font-sans text-[12px] font-semibold px-3.5 py-1.5 rounded-full border border-[#222] text-[#ccc] hover:border-[#444] hover:text-white transition-all">
                 {isEditing ? 'Close editor' : 'Edit profile'}
@@ -493,7 +491,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                     <div className="text-[12px] text-[#666]">Connect your wallet to deposit.</div>
                   ) : (
                     <div className="flex gap-2">
-                      <input type="number" value={depositAmt} onChange={e => setDepositAmt(e.target.value)} placeholder="USDC" className="flex-1 min-w-0 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2.5 text-[13px] text-white outline-none focus:border-primary/50 placeholder:text-[#555]" />
+                      <input type="text" inputMode="decimal" value={depositAmt} onChange={e => setDepositAmt(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Amount in USDC" className="flex-1 min-w-0 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3.5 py-2.5 text-[13px] text-white outline-none focus:border-primary/50 placeholder:text-[#555] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                       <button onClick={handleDeposit} disabled={depositing} className="rounded-lg bg-primary text-[#030303] font-bold text-[13px] px-5 disabled:opacity-50 hover:shadow-[0_0_16px_rgba(255,42,77,0.4)] transition-all">{depositing ? '…' : 'Deposit'}</button>
                     </div>
                   )}
@@ -720,15 +718,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="fixed bottom-8 right-8 z-[9999] bg-[#0d0d0d] border border-primary/40 text-white text-[13px] px-4 py-2.5 rounded-xl shadow-[0_0_24px_rgba(255,42,77,0.25)]">{toast}</motion.div>
       )}
 
-      <AnimatePresence>
-        {showShare && (
-          <BotShareCard
-            bot={bot} slug={slug} eye={eye}
-            lcb={lcb} brierSkill={brierSkill} winRate={winRate} tradesCount={tradesCount} roi={roi}
-            onClose={() => setShowShare(false)}
-          />
-        )}
-      </AnimatePresence>
     </div>
   )
 }
