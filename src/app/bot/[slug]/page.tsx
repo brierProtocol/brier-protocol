@@ -489,15 +489,15 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           {/* RIGHT: Vault (Stretching horizontally to occupy all space, filling up as progress) */}
           <div className="flex-1 bg-[#0a0a0c] border border-[#141414] rounded-[16px] p-6 md:p-8 flex items-center w-full min-w-0 shadow-inner relative overflow-hidden">
             
-            {/* The Vault Fill Background */}
+            {/* The Vault Fill Background - Dark Matter Nebula Effect */}
             <motion.div 
               className="absolute inset-y-0 left-0"
               style={{
                 background: sp.live 
-                  ? 'linear-gradient(90deg, rgba(255,42,77,0.05), rgba(255,42,77,0.15))' 
-                  : `linear-gradient(90deg, ${VIOLET}11, ${VIOLET}33)`,
-                borderRight: sp.live ? '1px solid rgba(255,42,77,0.4)' : `1px solid ${VIOLET}66`,
-                boxShadow: sp.live ? '2px 0 12px rgba(255,42,77,0.2)' : `2px 0 12px ${VIOLET}33`
+                  ? `radial-gradient(150% 100% at 100% 50%, rgba(255,100,0,0.25) 0%, rgba(255,42,77,0.15) 40%, transparent 100%), linear-gradient(90deg, rgba(10,0,0,0.8) 0%, rgba(40,5,10,0.5) 60%, rgba(255,42,77,0.2) 100%)`
+                  : `radial-gradient(150% 100% at 100% 50%, rgba(180,123,255,0.25) 0%, rgba(139,123,255,0.15) 40%, transparent 100%), linear-gradient(90deg, rgba(5,0,15,0.8) 0%, rgba(20,10,40,0.5) 60%, rgba(139,123,255,0.2) 100%)`,
+                borderRight: sp.live ? '2px solid rgba(255,80,0,0.6)' : `2px solid ${VIOLET}88`,
+                boxShadow: sp.live ? '4px 0 24px rgba(255,80,0,0.3), inset -4px 0 16px rgba(255,42,77,0.3)' : `4px 0 24px ${VIOLET}44, inset -4px 0 16px ${VIOLET}33`
               }}
               initial={{ width: 0 }}
               animate={{ width: `${Math.min(100, Math.max(0, sp.live ? (animatedTVL / (vaultCap || Math.max(animatedTVL * 1.5, 10000))) * 100 : sp.pct * 100))}%` }}
