@@ -610,74 +610,13 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           </div>
         </div>
 
-        {/* ── VAULT (full width) ── */}
-        <div id="vault" className="scroll-mt-28 rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden mb-8">
-          <div className="flex flex-col sm:flex-row items-stretch">
-            <div className="sm:w-[280px] shrink-0 p-5 sm:border-r border-b sm:border-b-0 border-[#141414]">
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-[#888]">Vault</span>
-                {sp.live && (
-                  <span className={`font-mono text-[11px] font-bold ${navDelta >= 0 ? 'text-[#c8ff00]' : 'text-[#ff5570]'}`}>
-                    {navDelta >= 0 ? '▲' : '▼'} {Math.abs(navDelta).toFixed(1)}%
-                  </span>
-                )}
-              </div>
-              <VaultGlass tvl={animatedTVL} cap={vaultCap} live={sp.live} />
-            </div>
-            <div className="flex-1 p-6 flex flex-col justify-between min-w-0">
-              <div>
-                <div className="font-mono text-[10px] tracking-[0.24em] uppercase text-[#5a5a64] mb-2">
-                  {sp.live ? 'Total assets secured' : 'Vault status'}
-                </div>
-                <div className="font-sans font-black text-[clamp(30px,4.5vw,52px)] leading-[0.92] tabular-nums text-white tracking-[-0.045em]">
-                  {sp.live ? fmtUSD(animatedTVL) : 'Shadow phase'}
-                </div>
-                <div className="font-mono text-[12px] mt-2.5 tracking-wide" style={{ color: sp.live ? '#6a6a74' : VIOLET }}>
-                  {sp.live
-                    ? (isCapped ? `of ${fmtUSD(capDeclared)} capacity` : 'Open capacity · finding the ceiling')
-                    : `Vault unlocks after the shadow gate. ${sp.resolved}/${SHADOW_RESOLVED_TARGET} resolved`}
-                </div>
-              </div>
-              <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-4 border-t border-[#141420] pt-4">
-                {[
-                  { k: 'Capacity', v: isCapped ? fmtUSD(capDeclared) : 'Open' },
-                  { k: sp.live ? 'Phase' : 'Progress', v: sp.live ? 'LIVE' : `${Math.round(sp.pct * 100)}%` },
-                  { k: "Maker's Skin in the Game", v: fmtUSD(bot.skinInGame || 0) },
-                ].map(m => (
-                  <div key={m.k}>
-                    <div className="font-mono text-[9px] text-[#48484f] tracking-[0.14em] uppercase mb-1">{m.k}</div>
-                    <div className="font-sans font-bold text-[15px] text-white tabular-nums tracking-tight">{m.v}</div>
-                  </div>
-                ))}
-              </div>
-              {sp.live && (
-                <div className="mt-4">
-                  {!FEATURES.CAPITAL_LAYER ? (
-                    <div className="rounded-lg border border-[#1a1a1a] bg-[#0c0c0c] p-3 text-center text-[12px] text-[#888] font-sans">
-                      <span className="font-bold text-white mb-1 block">Shadow Phase</span>
-                      Capital Layer disabled. Building reputation on-chain.
-                    </div>
-                  ) : atCapacity ? (
-                    <div className="rounded-lg border border-primary/30 p-2.5 text-center font-mono text-[11px] text-primary tracking-widest">AT CAPACITY · DEPOSITS CLOSED</div>
-                  ) : !isConnected ? (
-                    <div className="text-[12px] text-[#666]">Connect your wallet to deposit.</div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <input type="number" value={depositAmt} onChange={e => setDepositAmt(e.target.value)} placeholder="USDC" className="flex-1 min-w-0 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2.5 text-[13px] text-white outline-none focus:border-primary/50 placeholder:text-[#555]" />
-                      <button onClick={handleDeposit} disabled={depositing} className="rounded-lg bg-primary text-[#030303] font-bold text-[13px] px-5 disabled:opacity-50 hover:shadow-[0_0_16px_rgba(255,42,77,0.4)] transition-all">{depositing ? '…' : 'Deposit'}</button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        {/* Vault moved to right column */}
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
           {/* LEFT COLUMN */}
           <div className="flex flex-col gap-6 min-w-0">
             {/* signal — live connection visual */}
-            <div id="signal" className="scroll-mt-28">
+            <div id="signal" className="scroll-mt-28 transform scale-[0.9] origin-top-left w-[111.11%]">
               <BotUplink eye={eye} status={uplink} lastFill={lastFill} resolved={sp.resolved} online={isOnline} target={SHADOW_RESOLVED_TARGET} winRate={bot.winRate} />
             </div>
 
@@ -836,6 +775,71 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
 
           {/* RIGHT COLUMN */}
           <div className="flex flex-col gap-6">
+            {/* ── VAULT (moved to right column) ── */}
+            <div id="vault" className="scroll-mt-28 rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden">
+              <div className="p-5 border-b border-[#141414] bg-[#050507]">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-[#888]">Vault</span>
+                  {sp.live && (
+                    <span className={`font-mono text-[11px] font-bold ${navDelta >= 0 ? 'text-[#c8ff00]' : 'text-[#ff5570]'}`}>
+                      {navDelta >= 0 ? '▲' : '▼'} {Math.abs(navDelta).toFixed(1)}%
+                    </span>
+                  )}
+                </div>
+                <div className="flex justify-center mb-4">
+                  <div className="transform scale-[0.8] origin-center">
+                    <VaultGlass tvl={animatedTVL} cap={vaultCap} live={sp.live} />
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="font-mono text-[10px] tracking-[0.24em] uppercase text-[#5a5a64] mb-1">
+                    {sp.live ? 'Total assets secured' : 'Vault status'}
+                  </div>
+                  <div className="font-sans font-black text-[32px] leading-tight tabular-nums text-white tracking-[-0.04em]">
+                    {sp.live ? fmtUSD(animatedTVL) : 'Shadow phase'}
+                  </div>
+                  <div className="font-mono text-[10px] mt-1 tracking-wide" style={{ color: sp.live ? '#6a6a74' : VIOLET }}>
+                    {sp.live
+                      ? (isCapped ? `of ${fmtUSD(capDeclared)} capacity` : 'Open capacity')
+                      : `Unlocks after gate. ${sp.resolved}/${SHADOW_RESOLVED_TARGET} resolved`}
+                  </div>
+                </div>
+              </div>
+              <div className="p-5 flex flex-col justify-between">
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { k: 'Capacity', v: isCapped ? fmtUSD(capDeclared) : 'Open' },
+                    { k: sp.live ? 'Phase' : 'Progress', v: sp.live ? 'LIVE' : `${Math.round(sp.pct * 100)}%` },
+                    { k: "Maker Skin in Game", v: fmtUSD(bot.skinInGame || 0) },
+                  ].map(m => (
+                    <div key={m.k}>
+                      <div className="font-mono text-[8px] text-[#48484f] tracking-[0.14em] uppercase mb-1">{m.k}</div>
+                      <div className="font-sans font-bold text-[14px] text-white tabular-nums tracking-tight">{m.v}</div>
+                    </div>
+                  ))}
+                </div>
+                {sp.live && (
+                  <div className="mt-5 border-t border-[#141420] pt-4">
+                    {!FEATURES.CAPITAL_LAYER ? (
+                      <div className="rounded-lg border border-[#1a1a1a] bg-[#0c0c0c] p-3 text-center text-[11px] text-[#888] font-sans">
+                        <span className="font-bold text-white mb-1 block">Shadow Phase</span>
+                        Capital Layer disabled.
+                      </div>
+                    ) : atCapacity ? (
+                      <div className="rounded-lg border border-primary/30 p-2.5 text-center font-mono text-[10px] text-primary tracking-widest">AT CAPACITY</div>
+                    ) : !isConnected ? (
+                      <div className="text-[11px] text-[#666] text-center">Connect wallet to deposit.</div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <input type="number" value={depositAmt} onChange={e => setDepositAmt(e.target.value)} placeholder="USDC" className="w-full bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[12px] text-white outline-none focus:border-primary/50 placeholder:text-[#555]" />
+                        <button onClick={handleDeposit} disabled={depositing} className="w-full rounded-lg bg-primary text-[#030303] font-bold text-[12px] px-4 py-2 disabled:opacity-50 hover:shadow-[0_0_16px_rgba(255,42,77,0.4)] transition-all">{depositing ? '…' : 'Deposit'}</button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* eligibility */}
             <Panel className="p-5">
               <div className="flex items-center justify-between mb-2">
