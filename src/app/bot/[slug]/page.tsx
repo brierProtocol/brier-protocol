@@ -498,7 +498,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 boxShadow: '4px 0 24px rgba(255,80,0,0.3), inset -4px 0 16px rgba(255,42,77,0.3)'
               }}
               initial={{ width: 0 }}
-              animate={{ width: `${Math.min(100, Math.max(0, sp.live ? (animatedTVL / (vaultCap || Math.max(animatedTVL * 1.5, 10000))) * 100 : sp.pct * 100))}%` }}
+              animate={{ width: '100%' }}
               transition={{ duration: 1.5, ease: 'easeOut' }}
             />
 
