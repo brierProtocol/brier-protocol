@@ -12,7 +12,8 @@ const crypto = require('crypto');
 async function syncToPostgres(payload: unknown) {
     try {
         const url = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3000';
-        const secret = process.env.BUILDER_SECRET_KEY || 'your-64-char-hex-secret';
+        const secret = process.env.BUILDER_SECRET_KEY;
+        if (!secret) throw new Error('BUILDER_SECRET_KEY is missing');
         const t = Date.now().toString();
         const body = JSON.stringify(payload);
         const sig = crypto.createHmac('sha256', secret).update(t + body).digest('hex');
@@ -68,34 +69,12 @@ const executionWorker = new Worker('trade-signals', async job => {
   console.log(`[Executor] Processing ${actionType} trade ${tradeId} for Vault ${vaultAddress} (${marketType})`);
   
   try {
-    if (marketType === 'SPOT') {
-        // --- LÓGICA SPOT ORIGINAL (CTF) ---
-        const vaultContract = new ethers.Contract(vaultAddress as string, BrierVaultArtifact.abi, executorWallet) as any;
-        await redis.hset(`trade:${tradeId}`, 'status', 'active');
-        const tradeIdBytes32 = ethers.encodeBytes32String(tradeId.substring(0, 31));
-        const marketIdBytes32 = marketId.startsWith('0x') ? marketId : ethers.encodeBytes32String(marketId.substring(0, 31));
-        
-        const outcomeArray = [0, 0];
-        outcomeArray[outcomeIndex] = 1;
-        
-        const tx = await vaultContract.executeTrade(tradeIdBytes32, marketIdBytes32, outcomeArray, ethers.parseUnits(size.toString(), 6));
-        await tx.wait();
-        console.log(`[Executor] Spot Trade ${tradeId} confirmed: ${tx.hash}`);
-        
-        await syncToPostgres({
-            tradeId,
-            botId,
-            marketId,
-            side: outcomeIndex === 0 ? 'YES' : 'NO',
-            amount: size,
-            entryPrice: worstPrice || 0.5,
-            executionWallet: vaultAddress,
-            outcome: 'PENDING'
-        });
-
-    } else if (marketType === 'PERP') {
-        // --- NUEVA LÓGICA PERP (CLOB Polymarket) ---
-        if (actionType === 'OPEN') {
+    if (marketType === 'SPOT' || marketType === 'PERP') {
+        // --- ROUTING TODOS AL CLOB (SPOT Y PERP) ---
+        // FIX: SPOT flow via CTF (executeTrade) is economically inert (zero PnL).
+        // Routing SPOT through the CLOB just like PERP to get real directional exposure.
+        if (actionType === 'OPEN' || !actionType) {
+            const resolvedActionType = 'OPEN';
             console.log(`[Perp Engine] Opening ${leverage}x ${direction} on ${marketId} (worstPrice=${worstPrice}, slip=${slippageBps}bps)...`);
             // Real CLOB execution: Fill-And-Kill bounded by worstPrice (slippage guard).
             // marketId here must be the outcome tokenID being traded.

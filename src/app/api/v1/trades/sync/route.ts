@@ -16,7 +16,10 @@ export async function POST(req: NextRequest) {
     }
 
     const rawBody = await req.text()
-    const secret = process.env.BUILDER_SECRET_KEY || 'your-64-char-hex-secret'
+    const secret = process.env.BUILDER_SECRET_KEY
+    if (!secret) {
+      return NextResponse.json({ error: 'Server configuration error: BUILDER_SECRET_KEY missing' }, { status: 500 })
+    }
     const expected = crypto.createHmac('sha256', secret).update(timestamp + rawBody).digest('hex')
     
     if (signature !== expected) {
