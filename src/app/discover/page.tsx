@@ -203,108 +203,182 @@ export default function DiscoverPage() {
               </Link>
             </div>
           ) : (
-            <motion.div
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-              initial="hidden"
-              animate="show"
-              variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05 } } }}
-            >
-              {filtered.map((b) => {
-                const brier  = getBrier(b)
-                const wr     = b.scores?.[0]?.winRate ?? b.winRate ?? 0
-                const tvl    = getTvl(b)
-                const sharpe = b.scores?.[0]?.sharpe ?? b.sharpe ?? 0
-                const st     = deriveTag(b)
-                const cat    = botCategory(b)
+            <div className="flex flex-col gap-10">
+              {/* TOP 5 BOTS (CARDS) */}
+              <motion.div
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                initial="hidden"
+                animate="show"
+                variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05 } } }}
+              >
+                {filtered.slice(0, 5).map((b, idx) => {
+                  const brier  = getBrier(b)
+                  const wr     = b.scores?.[0]?.winRate ?? b.winRate ?? 0
+                  const tvl    = getTvl(b)
+                  const sharpe = b.scores?.[0]?.sharpe ?? b.sharpe ?? 0
+                  const st     = deriveTag(b)
+                  const cat    = botCategory(b)
 
-                return (
-                  <motion.div
-                    key={b.id}
-                    variants={{
-                      hidden: { opacity: 0, y: 16, scale: 0.97 },
-                      show:   { opacity: 1, y: 0, scale: 1, transition: { ease: [0.16, 1, 0.3, 1], duration: 0.4 } },
-                    }}
-                    whileHover={{ y: -4 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                  >
-                    <Link
-                      href={`/bot/${b.slug || b.id}`}
-                      className="flex flex-col bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg no-underline group relative overflow-hidden transition-all hover:border-[#2c2c2c] hover:shadow-[0_14px_44px_rgba(0,0,0,0.6),0_0_0_0.5px_rgba(255,42,77,0.10)]"
+                  return (
+                    <motion.div
+                      key={b.id}
+                      variants={{
+                        hidden: { opacity: 0, y: 16, scale: 0.97 },
+                        show:   { opacity: 1, y: 0, scale: 1, transition: { ease: [0.16, 1, 0.3, 1], duration: 0.4 } },
+                      }}
+                      whileHover={{ y: -4 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
                     >
-                      {/* head: name + status */}
-                      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[#141414]">
-                        <span className="text-[13px] font-sans font-bold text-white group-hover:text-primary transition-colors truncate pr-2">
-                          {b.name}
-                        </span>
-                        <StatusMark tag={st.tag} color={st.color} />
-                      </div>
-
-                      {/* avatar: the creature floats; photos get a round frame */}
-                      <div className="relative flex justify-center py-6 border-b border-[#141414]">
-                        {/* soft halo so the entity feels alive without a hard box */}
-                        <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120px] h-[120px] rounded-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: 'radial-gradient(circle, rgba(255,42,77,0.10), transparent 70%)' }} />
-                        {b.pfpUrl ? (
-                          <span className="relative w-[76px] h-[76px] rounded-full overflow-hidden border border-[#222] group-hover:border-primary/35 transition-colors flex items-center justify-center">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={b.pfpUrl} alt={b.name} className="w-full h-full object-cover" />
+                      <Link
+                        href={`/bot/${b.slug || b.id}`}
+                        className="flex flex-col bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg no-underline group relative overflow-hidden transition-all hover:border-[#2c2c2c] hover:shadow-[0_14px_44px_rgba(0,0,0,0.6),0_0_0_0.5px_rgba(255,42,77,0.10)]"
+                      >
+                        {/* rank badge */}
+                        <div className="absolute top-0 left-0 bg-[#111] text-[#777] font-mono text-[10px] px-2 py-1 rounded-br-lg z-10 border-r border-b border-[#1a1a1a]">
+                          #{idx + 1}
+                        </div>
+                        {/* head: name + status */}
+                        <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[#141414] pl-10">
+                          <span className="text-[13px] font-sans font-bold text-white group-hover:text-primary transition-colors truncate pr-2">
+                            {b.name}
                           </span>
-                        ) : (
-                          <span className="relative transition-transform duration-300 group-hover:scale-110">
-                            <BotIrisAvatar {...botEye(b)} size={76} />
-                          </span>
-                        )}
-                      </div>
-
-                      {/* stats */}
-                      <div className="p-3.5 flex flex-col gap-2.5">
-                        <div className="grid grid-cols-3 gap-2">
-                          {[
-                            { lbl: 'BRIER',  val: brier > 0 ? brier.toFixed(3) : '—', good: brier <= 0.25 && brier > 0 },
-                            { lbl: 'WIN %',  val: wr > 0 ? `${(wr * 100).toFixed(0)}%` : '—', good: wr > 0.54 },
-                            { lbl: 'SHARPE', val: sharpe > 0 ? sharpe.toFixed(2) : '—', good: sharpe > 1.5 },
-                          ].map(({ lbl, val, good }) => (
-                            <div key={lbl} className="bg-[#070707] border border-[#141414] rounded p-2 flex flex-col gap-0.5">
-                              <span className="text-[8px] font-mono text-[#555] tracking-widest">{lbl}</span>
-                              <span className={`text-[13px] font-mono font-bold ${good ? 'text-primary' : 'text-white'}`}>{val}</span>
-                            </div>
-                          ))}
+                          <StatusMark tag={st.tag} color={st.color} />
                         </div>
 
-                        <div className="flex items-center justify-between text-[11px] font-mono pt-0.5">
-                          <span className="text-[#555] tracking-widest">VAULT TVL</span>
-                          <span className={tvl > 0 ? 'text-white font-bold' : 'text-[#444]'}>
-                            {tvl > 0 ? `$${tvl.toLocaleString()}` : '—'}
-                          </span>
-                        </div>
-
-                        {/* footer: maker + category */}
-                        <div className="flex items-center justify-between gap-2 border-t border-[#141414] pt-2.5">
-                          <span
-                            role="link"
-                            tabIndex={0}
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (b.walletAddress) router.push(`/maker/${b.walletAddress}`) }}
-                            onKeyDown={(e) => { if (e.key === 'Enter' && b.walletAddress) { e.preventDefault(); e.stopPropagation(); router.push(`/maker/${b.walletAddress}`) } }}
-                            className="flex items-center gap-1.5 text-[10px] font-mono text-[#555] truncate hover:text-primary transition-colors cursor-pointer min-w-0"
-                          >
-                            <span className="rounded-full overflow-hidden shrink-0 inline-flex">
-                              {b.maker?.pfpUrl
-                                ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={b.maker.pfpUrl} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
-                                : <BotIrisAvatar {...makerEye(b.walletAddress || 'anon')} size={14} bg="transparent" />}
+                        {/* avatar: the creature floats; photos get a round frame */}
+                        <div className="relative flex justify-center py-6 border-b border-[#141414]">
+                          {b.pfpUrl ? (
+                            <span className="relative w-[76px] h-[76px] rounded-full overflow-hidden border border-[#222] group-hover:border-primary/35 transition-colors flex items-center justify-center">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={b.pfpUrl} alt={b.name} className="w-full h-full object-cover" />
                             </span>
-                            <span className="truncate">by {b.maker?.handle ? `@${b.maker.handle}` : (b.maker?.name || `${(b.walletAddress || 'anon').substring(0, 6)}…`)}</span>
-                          </span>
-                          {cat && (
-                            <span className="shrink-0 text-[9px] font-mono uppercase tracking-widest text-[#888] border border-[#1f1f1f] rounded px-1.5 py-0.5">
-                              {cat}
+                          ) : (
+                            <span className="relative transition-transform duration-300 group-hover:scale-110">
+                              <BotIrisAvatar {...botEye(b)} size={76} />
                             </span>
                           )}
                         </div>
-                      </div>
-                    </Link>
-                  </motion.div>
-                )
-              })}
-            </motion.div>
+
+                        {/* stats */}
+                        <div className="p-3.5 flex flex-col gap-2.5">
+                          <div className="grid grid-cols-3 gap-2">
+                            {[
+                              { lbl: 'BRIER',  val: brier > 0 ? brier.toFixed(3) : '—', good: brier <= 0.25 && brier > 0 },
+                              { lbl: 'WIN %',  val: wr > 0 ? `${(wr * 100).toFixed(0)}%` : '—', good: wr > 0.54 },
+                              { lbl: 'SHARPE', val: sharpe > 0 ? sharpe.toFixed(2) : '—', good: sharpe > 1.5 },
+                            ].map(({ lbl, val, good }) => (
+                              <div key={lbl} className="bg-[#070707] border border-[#141414] rounded p-2 flex flex-col gap-0.5">
+                                <span className="text-[8px] font-mono text-[#555] tracking-widest">{lbl}</span>
+                                <span className={`text-[13px] font-mono font-bold ${good ? 'text-primary' : 'text-white'}`}>{val}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="flex items-center justify-between text-[11px] font-mono pt-0.5">
+                            <span className="text-[#555] tracking-widest">VAULT TVL</span>
+                            <span className={tvl > 0 ? 'text-white font-bold' : 'text-[#444]'}>
+                              {tvl > 0 ? `$${tvl.toLocaleString()}` : '—'}
+                            </span>
+                          </div>
+
+                          {/* footer: maker + category */}
+                          <div className="flex items-center justify-between gap-2 border-t border-[#141414] pt-2.5">
+                            <span
+                              role="link"
+                              tabIndex={0}
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (b.walletAddress) router.push(`/maker/${b.walletAddress}`) }}
+                              onKeyDown={(e) => { if (e.key === 'Enter' && b.walletAddress) { e.preventDefault(); e.stopPropagation(); router.push(`/maker/${b.walletAddress}`) } }}
+                              className="flex items-center gap-1.5 text-[10px] font-mono text-[#555] truncate hover:text-primary transition-colors cursor-pointer min-w-0"
+                            >
+                              <span className="rounded-full overflow-hidden shrink-0 inline-flex">
+                                {b.maker?.pfpUrl
+                                  ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={b.maker.pfpUrl} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                                  : <BotIrisAvatar {...makerEye(b.walletAddress || 'anon')} size={14} bg="transparent" />}
+                              </span>
+                              <span className="truncate">by {b.maker?.handle ? `@${b.maker.handle}` : (b.maker?.name || `${(b.walletAddress || 'anon').substring(0, 6)}…`)}</span>
+                            </span>
+                            {cat && (
+                              <span className="shrink-0 text-[9px] font-mono uppercase tracking-widest text-[#888] border border-[#1f1f1f] rounded px-1.5 py-0.5">
+                                {cat}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </Link>
+                    </motion.div>
+                  )
+                })}
+              </motion.div>
+
+              {/* REST OF BOTS (LIST) */}
+              {filtered.length > 5 && (
+                <div className="flex flex-col border border-[#141414] rounded-xl overflow-hidden bg-[#0a0a0a]">
+                  {/* List Header */}
+                  <div className="hidden sm:grid grid-cols-[60px_2fr_1fr_1fr_1fr] gap-4 px-5 py-3 border-b border-[#141414] bg-[#0c0c0c] text-[10px] font-mono tracking-widest text-[#666] uppercase">
+                    <div>Rank</div>
+                    <div>Algorithm</div>
+                    <div>Brier Score</div>
+                    <div>Win Rate</div>
+                    <div>Status</div>
+                  </div>
+                  {/* List Rows */}
+                  <div className="flex flex-col divide-y divide-[#141414]">
+                    {filtered.slice(5).map((b, idx) => {
+                      const brier = getBrier(b)
+                      const wr    = b.scores?.[0]?.winRate ?? b.winRate ?? 0
+                      const st    = deriveTag(b)
+                      
+                      return (
+                        <Link
+                          key={b.id}
+                          href={`/bot/${b.slug || b.id}`}
+                          className="group grid grid-cols-[40px_1fr] sm:grid-cols-[60px_2fr_1fr_1fr_1fr] gap-4 px-5 py-4 items-center no-underline hover:bg-[#0f0f0f] transition-colors"
+                        >
+                          <div className="text-[12px] font-mono text-[#555]">
+                            #{idx + 6}
+                          </div>
+                          
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="relative w-8 h-8 rounded-full overflow-hidden shrink-0 border border-[#222]">
+                              {b.pfpUrl ? (
+                                /* eslint-disable-next-line @next/next/no-img-element */
+                                <img src={b.pfpUrl} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <BotIrisAvatar {...botEye(b)} size={32} />
+                              )}
+                            </span>
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[14px] font-bold text-white group-hover:text-primary transition-colors truncate">
+                                {b.name}
+                              </span>
+                              <span className="text-[11px] text-[#666] truncate">
+                                by {b.maker?.handle ? `@${b.maker.handle}` : (b.maker?.name || `${(b.walletAddress || 'anon').substring(0, 6)}…`)}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="hidden sm:flex flex-col">
+                            <span className={`text-[13px] font-mono ${brier <= 0.25 && brier > 0 ? 'text-primary font-bold' : 'text-[#aaa]'}`}>
+                              {brier > 0 ? brier.toFixed(4) : '—'}
+                            </span>
+                          </div>
+                          
+                          <div className="hidden sm:flex flex-col">
+                            <span className={`text-[13px] font-mono ${wr > 0.54 ? 'text-primary font-bold' : 'text-[#aaa]'}`}>
+                              {wr > 0 ? `${(wr * 100).toFixed(1)}%` : '—'}
+                            </span>
+                          </div>
+                          
+                          <div className="hidden sm:flex items-center">
+                            <StatusMark tag={st.tag} color={st.color} />
+                          </div>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
