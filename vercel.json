@@ -16,7 +16,7 @@
     },
     {
       "path": "/api/cron/resolve-and-score",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 9 * * *"
     },
     {
       "path": "/api/cron/circuit-breaker",
