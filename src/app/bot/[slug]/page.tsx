@@ -690,6 +690,11 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             </Panel>
             </div>
 
+            {/* calibration — moved to main column for full width scale */}
+            <div className="scroll-mt-28">
+              <CalibrationCurve predictions={trades} />
+            </div>
+
             {/* comments */}
             <div id="comments" className="scroll-mt-28">
             <Panel>
@@ -921,17 +926,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               </AnimatePresence>
             </Panel>
             </div>
-
-            {/* calibration — the reliability diagram, Brier's whole thesis in
-                one chart: does this bot mean it when it says 70%? */}
-            <Panel className="p-5">
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-sans font-bold text-[16px] tracking-[-0.01em] text-white">Calibration</span>
-                <span className="font-mono text-[9px] text-[#3f3f48] tracking-[0.16em] uppercase">said vs happened</span>
-              </div>
-              <div className="text-[12px] text-[#8a8a94] mb-3">The whole thesis in one chart. Capital follows calibration, nothing else.</div>
-              <CalibrationCurve predictions={trades} />
-            </Panel>
 
             {/* created by — already shown in the header, no duplicate needed */}
           </div>
