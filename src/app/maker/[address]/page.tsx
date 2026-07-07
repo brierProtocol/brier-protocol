@@ -59,7 +59,7 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
 
   const [bots, setBots] = useState<any[]>([])
   const [profile, setProfile] = useState<any>({ handle: '', name: '', bio: '', pfpUrl: '', xHandle: null })
-  const [portfolio, setPortfolio] = useState<any>({ portfolioValue: 0, totalDeposited: 0, totalEarned: 0, activePositions: 0, allocations: [] })
+  const [portfolio, setPortfolio] = useState<any>({ portfolioValue: 0, totalDeposited: 0, totalEarned: 0, activePositions: 0, creatorEarnings: 0, allocations: [] })
   const [followersList, setFollowersList] = useState<Person[]>([])
   const [followingList, setFollowingList] = useState<Person[]>([])
   const [viewerFollowing, setViewerFollowing] = useState<Set<string>>(new Set())
@@ -104,7 +104,7 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
         }
         if (dRes.ok) {
           const d = await dRes.json()
-          setPortfolio({ portfolioValue: d.portfolioValue || 0, totalDeposited: d.totalDeposited || 0, totalEarned: d.totalEarned || 0, activePositions: d.activePositions || 0, allocations: d.allocations || [] })
+          setPortfolio({ portfolioValue: d.portfolioValue || 0, totalDeposited: d.totalDeposited || 0, totalEarned: d.totalEarned || 0, activePositions: d.activePositions || 0, creatorEarnings: d.creatorEarnings || 0, allocations: d.allocations || [] })
           setTab((d.allocations?.length ? 'portfolio' : 'bots'))
         }
       } catch (e) { console.error(e) } finally { if (alive) setLoading(false) }
@@ -380,7 +380,7 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
           <StatCard label="Portfolio value" value={portfolio.portfolioValue} prefix="$" color={CRIMSON} delay={0.05} />
           <StatCard label="Capital deposited" value={portfolio.totalDeposited} prefix="$" delay={0.1} />
           <StatCard label="Profit earned" value={portfolio.totalEarned} prefix="$" color={portfolio.totalEarned > 0 ? POS : '#f0f0f4'} delay={0.15} />
-          <StatCard label="Active vaults" value={portfolio.activePositions} delay={0.2} />
+          <StatCard label="Builder fees" value={portfolio.creatorEarnings || 0} prefix="$" color={portfolio.creatorEarnings > 0 ? POS : '#f0f0f4'} delay={0.2} />
         </div>
 
         {/* tabs */}

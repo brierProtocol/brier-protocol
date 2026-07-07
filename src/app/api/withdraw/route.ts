@@ -6,7 +6,7 @@ import { DEPOSIT_RPC_URL as RPC_URL, USDC_ADDRESS_ENV, USDC_DECIMALS } from '@/c
 
 // Misma cadena/RPC y token que los depositos.
 const USDC_ADDRESS = USDC_ADDRESS_ENV?.toLowerCase();
-const TRANSFER_EVENT_SIG = ethers.id('Transfer(address,address,uint256)');
+const WITHDRAW_EVENT_SIG = ethers.id('Withdraw(address,address,address,uint256,uint256)');
 
 /**
  * POST /api/withdraw
@@ -60,53 +60,77 @@ export async function POST(request: NextRequest) {
     }
 
     let withdrawnAmount = 0;
+    let sharesBurned = 0;
     for (const log of receipt.logs) {
-      if (log.topics[0] !== TRANSFER_EVENT_SIG) continue;
-      if (USDC_ADDRESS && log.address.toLowerCase() !== USDC_ADDRESS) continue;
+      if (log.topics[0] !== WITHDRAW_EVENT_SIG) continue;
+      if (log.address.toLowerCase() !== bot.vaultAddress.toLowerCase()) continue;
 
-      const fromHex = log.topics[1];
-      const toHex = log.topics[2];
-      if (!fromHex || !toHex) continue;
+      const ownerHex = log.topics[3];
+      if (!ownerHex) continue;
 
-      const from = ethers.getAddress(ethers.dataSlice(fromHex, 12));
-      const to = ethers.getAddress(ethers.dataSlice(toHex, 12));
-
-      if (
-        from.toLowerCase() === bot.vaultAddress.toLowerCase() &&
-        to.toLowerCase() === depositorWallet.toLowerCase()
-      ) {
-        withdrawnAmount = Number(ethers.formatUnits(ethers.toBigInt(log.data), USDC_DECIMALS));
+      const owner = ethers.getAddress(ethers.dataSlice(ownerHex, 12));
+      if (owner.toLowerCase() === depositorWallet.toLowerCase()) {
+        const decoded = ethers.AbiCoder.defaultAbiCoder().decode(['uint256', 'uint256'], log.data);
+        withdrawnAmount = Number(ethers.formatUnits(decoded[0], USDC_DECIMALS));
+        sharesBurned = Number(ethers.formatUnits(decoded[1], USDC_DECIMALS));
         break;
       }
     }
 
-    if (withdrawnAmount <= 0) {
+    if (withdrawnAmount <= 0 || sharesBurned <= 0) {
       return NextResponse.json(
-        { error: 'No valid USDC withdrawal from the Vault to this wallet found' },
+        { error: 'No valid ERC4626 Withdraw from the Vault for this wallet found' },
         { status: 400 }
       );
     }
 
-    // Posición agregada del inversor (case-insensitive: el depósito pudo guardar la
-    // wallet con otro case). MVP = salida total, así que se queman TODAS sus shares.
     const position = await prisma.vaultPosition.findFirst({
       where: { botId, userWallet: { equals: depositorWallet, mode: 'insensitive' } },
     });
-    const sharesBurned = position?.shares ?? 0;
-    // PnL realizado en salida total = lo que recibió on-chain menos su cost basis.
-    const realizedDelta = withdrawnAmount - (position?.costBasisUsdc ?? 0);
+    const currentShares = position?.shares ?? 0;
+    const currentCostBasis = position?.costBasisUsdc ?? 0;
+    
+    // Proportional cost basis reduction for partial withdrawals
+    const proportionBurned = currentShares > 0 ? Math.min(1, sharesBurned / currentShares) : 0;
+    const costBasisReduced = currentCostBasis * proportionBurned;
+    const realizedDelta = withdrawnAmount - costBasisReduced;
+    const newShares = Math.max(0, currentShares - sharesBurned);
+    const newCostBasis = Math.max(0, currentCostBasis - costBasisReduced);
 
-    // Un retiro desde un vault cerrado (black swan) es un "claim" / wind-down, no
-    // una salida voluntaria: lo reflejamos en exitReason con el motivo del cierre.
     const exitReason = bot.vaultClosedAt ? (bot.vaultCloseReason || 'VAULT_CLOSED') : 'MANUAL';
 
-    // Actualizar estado: marcar los depósitos del LP como retirados, bajar el TVL,
-    // quemar las shares del bot y cerrar la posición agregada (realizando el PnL).
-    // MVP = salida total. TODO: soportar retiros parciales reduciendo shares (FIFO).
+    // FIFO Partial Withdrawal Logic
+    const activeDeposits = await prisma.vaultDeposit.findMany({
+      where: { botId, depositorWallet, active: true, kind: 'DEPOSIT' },
+      orderBy: { depositedAt: 'asc' },
+    });
+
+    let remainingSharesToBurn = sharesBurned;
+    const depositUpdates = [];
+
+    for (const dep of activeDeposits) {
+      if (remainingSharesToBurn <= 0) break;
+      if (dep.shares <= remainingSharesToBurn) {
+        remainingSharesToBurn -= dep.shares;
+        depositUpdates.push(
+          prisma.vaultDeposit.update({
+            where: { id: dep.id },
+            data: { active: false, shares: 0, exitedAt: new Date(), exitReason }
+          })
+        );
+      } else {
+        depositUpdates.push(
+          prisma.vaultDeposit.update({
+            where: { id: dep.id },
+            data: { shares: dep.shares - remainingSharesToBurn }
+          })
+        );
+        remainingSharesToBurn = 0;
+      }
+    }
+
     try {
       await prisma.$transaction([
-        // Anti-replay ledger row: the @unique on txHash makes a duplicate/concurrent
-        // resubmit fail with P2002 instead of decrementing TVL/shares again (F1).
         prisma.vaultDeposit.create({
           data: {
             botId,
@@ -120,13 +144,9 @@ export async function POST(request: NextRequest) {
             exitReason,
           },
         }),
-        prisma.vaultDeposit.updateMany({
-          where: { botId, depositorWallet, active: true, kind: 'DEPOSIT' },
-          data: { active: false, exitedAt: new Date(), exitReason },
-        }),
+        ...depositUpdates,
         prisma.bot.update({
           where: { id: botId },
-          // Evita TVL/shares negativos si hubo ganancias contabilizadas aparte.
           data: {
             currentTVL: { decrement: Math.min(withdrawnAmount, bot.currentTVL) },
             totalShares: { decrement: Math.min(sharesBurned, bot.totalShares) },
@@ -137,8 +157,8 @@ export async function POST(request: NextRequest) {
               prisma.vaultPosition.update({
                 where: { id: position.id },
                 data: {
-                  shares: 0,
-                  costBasisUsdc: 0,
+                  shares: newShares,
+                  costBasisUsdc: newCostBasis,
                   realizedPnlUsdc: { increment: realizedDelta },
                 },
               }),
