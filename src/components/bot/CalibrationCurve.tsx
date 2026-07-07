@@ -90,31 +90,9 @@ export default function CalibrationCurve({ predictions }: { predictions: Pred[] 
         <button onClick={() => setDetail(v => !v)} className="font-mono text-[10px] text-[#7a7a84] hover:text-white transition-colors">{detail ? 'hide −' : 'breakdown +'}</button>
       </div>
 
-      <div className="p-5 flex flex-col gap-6 items-center">
-        {/* SUMMARY */}
-        <div className="w-full text-center max-w-2xl mx-auto">
-          <div className="font-sans font-black text-[22px] tracking-tight leading-tight mb-2" style={{ color: accent }}>{honest ? 'Keeps its word' : 'Talks bigger than it delivers'}</div>
-          <p className="text-[13px] text-[#b4b4be] leading-relaxed m-0 mb-6 px-4">
-            {honest
-              ? 'When it sounds sure, it is right about as often as it claims.'
-              : `When it sounds sure it is right ${deliversPct}% of the time — but it claims ${saysPct}%.`}
-          </p>
-          <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
-            {[
-              { k: 'Claims', v: `${saysPct}%`, c: '#aaa' },
-              { k: 'Delivers', v: `${deliversPct}%`, c: accent },
-            ].map(m => (
-              <div key={m.k} className="rounded-xl border border-[#161620] bg-[#08080c] p-3.5">
-                <div className="font-mono text-[9px] text-[#5a5a64] tracking-[0.12em] uppercase mb-1.5">{m.k}</div>
-                <div className="font-sans font-bold text-[20px] leading-none tabular-nums" style={{ color: m.c }}>{m.v}</div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-5 font-mono text-[10px] text-[#48484f]">{n} resolved calls · Brier: {brier.toFixed(3)}</div>
-        </div>
-
+      <div className="p-5 flex flex-col md:flex-row gap-8 items-center">
         {/* 3D ISO SCENE */}
-        <div className="relative w-full h-[360px] shrink-0 grid place-items-center mt-2" style={{ perspective: 1200 }}>
+        <div className="relative w-full md:w-[320px] h-[360px] shrink-0 grid place-items-center mt-2" style={{ perspective: 1200 }}>
           <motion.div 
             className="relative"
             style={{ width: 260, height: 160, transformStyle: 'preserve-3d', scale: 1.25 }}
@@ -162,6 +140,28 @@ export default function CalibrationCurve({ predictions }: { predictions: Pred[] 
               )
             })}
           </motion.div>
+        </div>
+
+        {/* SUMMARY */}
+        <div className="flex-1 min-w-0 w-full">
+          <div className="font-sans font-black text-[22px] tracking-tight leading-tight mb-2" style={{ color: accent }}>{honest ? 'Keeps its word' : 'Talks bigger than it delivers'}</div>
+          <p className="text-[13px] text-[#b4b4be] leading-relaxed m-0 mb-6">
+            {honest
+              ? 'When it sounds sure, it is right about as often as it claims.'
+              : `When it sounds sure it is right ${deliversPct}% of the time — but it claims ${saysPct}%.`}
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              { k: 'Claims', v: `${saysPct}%`, c: '#aaa' },
+              { k: 'Delivers', v: `${deliversPct}%`, c: accent },
+            ].map(m => (
+              <div key={m.k} className="rounded-xl border border-[#161620] bg-[#08080c] p-3.5">
+                <div className="font-mono text-[9px] text-[#5a5a64] tracking-[0.12em] uppercase mb-1.5">{m.k}</div>
+                <div className="font-sans font-bold text-[20px] leading-none tabular-nums" style={{ color: m.c }}>{m.v}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 font-mono text-[10px] text-[#48484f]">{n} resolved calls · Brier: {brier.toFixed(3)}</div>
         </div>
       </div>
 
