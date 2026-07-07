@@ -58,9 +58,11 @@ export default function ListBotPage() {
     if (!address) { setErrorMsg('Wallet not connected.'); return }
     setVerifying(true)
     try {
-      const message = `I confirm this wallet trades for the Brier bot ${formData.name || '[NAME]'}. Timestamp: ${Date.now()}`
+      const timestamp = Date.now()
+      const message = `I confirm this wallet trades for the Brier bot ${formData.name || '[NAME]'}. Timestamp: ${timestamp}`
+      let signature;
       try {
-        await signMessageAsync({ message })
+        signature = await signMessageAsync({ message })
       } catch (signErr: any) {
         throw new Error(signErr?.shortMessage || signErr?.message || 'Signature rejected.')
       }
@@ -68,7 +70,7 @@ export default function ListBotPage() {
       const res = await fetch('/api/bots/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: formData.name, description: formData.description, market: formData.market, categories: formData.categories, vaultCap: formData.vaultCap, walletAddress: address }),
+        body: JSON.stringify({ name: formData.name, description: formData.description, market: formData.market, categories: formData.categories, vaultCap: formData.vaultCap, walletAddress: address, signature, timestamp, message }),
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error || 'Registration failed. Please try again.')

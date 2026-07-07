@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { deriveAvatarColor } from '@/lib/botIdentity'
 import { events } from '@/lib/events/bus'
+import { ethers } from 'ethers'
 
 /**
  * POST /api/bots/register
@@ -13,7 +14,7 @@ import { events } from '@/lib/events/bus'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { name, description, market, walletAddress, color, eyeShape, pfpUrl, categories, vaultCap } = body
+    const { name, description, market, walletAddress, color, eyeShape, pfpUrl, categories, vaultCap, signature, timestamp, message } = body
 
     // Declared capacity: the max USDC this strategy can absorb. Parsed defensively
     // (the form sends a string). Negative/NaN => 0 (uncapped / "Open").
@@ -47,6 +48,23 @@ export async function POST(req: NextRequest) {
     }
     if (!walletAddress || !walletAddress.startsWith('0x')) {
       return NextResponse.json({ error: 'Valid wallet address is required' }, { status: 400 })
+    }
+    if (!signature || !timestamp || !message) {
+      return NextResponse.json({ error: 'Missing wallet ownership proof (signature)' }, { status: 400 })
+    }
+
+    // Cryptographic signature validation
+    const MAX_SKEW_MS = 5 * 60 * 1000 // 5 minutes
+    if (Math.abs(Date.now() - timestamp) > MAX_SKEW_MS) {
+      return NextResponse.json({ error: 'Signature expired — sign again' }, { status: 400 })
+    }
+    try {
+      const recovered = ethers.verifyMessage(message, signature)
+      if (recovered.toLowerCase() !== walletAddress.toLowerCase()) {
+        return NextResponse.json({ error: 'Signature does not match the provided wallet address' }, { status: 403 })
+      }
+    } catch (e) {
+      return NextResponse.json({ error: 'Invalid signature proof' }, { status: 400 })
     }
 
     // Generate slug from name
