@@ -57,7 +57,8 @@ export async function GET(req: NextRequest) {
           }
 
           const executorUrl = process.env.EXECUTOR_URL || 'http://127.0.0.1:3001'
-          const executorSecret = process.env.BUILDER_SECRET_KEY || 'your-64-char-hex-secret'
+          const executorSecret = process.env.BUILDER_SECRET_KEY
+          if (!executorSecret) throw new Error('BUILDER_SECRET_KEY missing in production config')
           const t = Date.now().toString()
           
           const executorBody = JSON.stringify({
@@ -73,7 +74,7 @@ export async function GET(req: NextRequest) {
 
           const sig = require('crypto').createHmac('sha256', executorSecret).update(t + executorBody).digest('hex')
 
-          await fetch(`${executorUrl}/api/v1/settle`, {
+          const settleRes = await fetch(`${executorUrl}/api/v1/settle`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -81,7 +82,15 @@ export async function GET(req: NextRequest) {
               'x-signature': sig,
             },
             body: executorBody
-          }).catch(err => console.error('[resolve] Executor settle error (network):', err))
+          }).catch(err => {
+            console.error('[resolve] Executor settle error (network):', err)
+            return null
+          })
+
+          if (!settleRes || !settleRes.ok) {
+            console.error(`[resolve] Executor failed to settle trade ${trade.id} on-chain. Skipping DB bookkeeping.`)
+            continue // IMPORTANT: do not update DB if the on-chain execution failed, avoiding divergence.
+          }
           
           await prisma.tradeEvent.update({
              where: { id: trade.id },
