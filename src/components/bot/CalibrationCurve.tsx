@@ -11,11 +11,12 @@ const MIN_SAMPLE = 8
 const NB = 5 // Bins: 50-60, 60-70, 70-80, 80-90, 90-100
 
 function Cuboid({ x, y, w, d, h, color, delay = 0, ghost = false }: any) {
-  const bFront = ghost ? 0.3 : 0.7
-  const bRight = ghost ? 0.2 : 0.4
-  const bTop = ghost ? 0.4 : 1.1
+  const bFront = ghost ? 0.3 : 0.8
+  const bRight = ghost ? 0.2 : 0.5
+  const bTop = ghost ? 0.4 : 1.2
   const o = ghost ? 0.4 : 1
-  const stroke = ghost ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.3)'
+  const stroke = ghost ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.2)'
+  const shadow = ghost ? 'none' : `0 0 16px ${color}66, inset 0 0 12px ${color}99`
 
   return (
     <div className="absolute" style={{ left: x, top: y, width: w, height: d, transformStyle: 'preserve-3d' }}>
@@ -23,25 +24,25 @@ function Cuboid({ x, y, w, d, h, color, delay = 0, ghost = false }: any) {
       <motion.div 
         className="absolute bottom-0 left-0" 
         style={{ width: w, background: color, filter: `brightness(${bFront})`, opacity: o, transformOrigin: 'bottom', border: `1px solid ${stroke}` }} 
-        initial={{ height: 0, transform: 'rotateX(-90deg)' }} 
-        animate={{ height: h }} 
-        transition={{ duration: 1, delay, ease: 'easeOut' }} 
+        initial={{ height: 0, rotateX: -90 }} 
+        animate={{ height: h, rotateX: -90 }} 
+        transition={{ duration: 1.2, delay, ease: [0.16, 1, 0.3, 1] }} 
       />
       {/* RIGHT */}
       <motion.div 
         className="absolute top-0 right-0" 
         style={{ height: d, background: color, filter: `brightness(${bRight})`, opacity: o, transformOrigin: 'right', border: `1px solid ${stroke}` }} 
-        initial={{ width: 0, transform: 'rotateY(-90deg)' }} 
-        animate={{ width: h }} 
-        transition={{ duration: 1, delay, ease: 'easeOut' }} 
+        initial={{ width: 0, rotateY: -90 }} 
+        animate={{ width: h, rotateY: -90 }} 
+        transition={{ duration: 1.2, delay, ease: [0.16, 1, 0.3, 1] }} 
       />
       {/* TOP */}
       <motion.div 
         className="absolute top-0 left-0" 
-        style={{ width: w, height: d, background: color, filter: `brightness(${bTop})`, opacity: o, border: `1px solid ${stroke}` }} 
-        initial={{ transform: 'translateZ(0px)' }} 
-        animate={{ transform: `translateZ(${h}px)` }} 
-        transition={{ duration: 1, delay, ease: 'easeOut' }} 
+        style={{ width: w, height: d, background: color, filter: `brightness(${bTop})`, opacity: o, border: `1px solid ${stroke}`, boxShadow: shadow }} 
+        initial={{ z: 0 }} 
+        animate={{ z: h }} 
+        transition={{ duration: 1.2, delay, ease: [0.16, 1, 0.3, 1] }} 
       />
     </div>
   )
@@ -91,14 +92,13 @@ export default function CalibrationCurve({ predictions }: { predictions: Pred[] 
 
       <div className="p-5 flex flex-col md:flex-row gap-8 items-center">
         {/* 3D ISO SCENE */}
-        <div className="relative w-full md:w-[320px] h-[280px] shrink-0 grid place-items-center perspective-[1200px]">
-          <div 
+        <div className="relative w-full md:w-[320px] h-[280px] shrink-0 grid place-items-center" style={{ perspective: 1200 }}>
+          <motion.div 
             className="relative"
-            style={{ 
-              width: 260, height: 160, 
-              transform: 'rotateX(60deg) rotateZ(-45deg)', 
-              transformStyle: 'preserve-3d' 
-            }}
+            style={{ width: 260, height: 160, transformStyle: 'preserve-3d' }}
+            initial={{ rotateX: 60, rotateZ: -45 }}
+            animate={{ rotateX: 60, rotateZ: -45, y: [0, -6, 0] }}
+            transition={{ y: { duration: 5, repeat: Infinity, ease: 'easeInOut' } }}
           >
             {/* Floor Grid */}
             <div className="absolute inset-0 border border-white/10" style={{ background: 'rgba(255,255,255,0.02)', transformStyle: 'preserve-3d' }}>
@@ -109,8 +109,8 @@ export default function CalibrationCurve({ predictions }: { predictions: Pred[] 
                 <div key={pct} className="absolute top-0 bottom-0 border-l border-white/5" style={{ left: `${pct}%` }} />
               ))}
               {/* Axis labels flat on floor */}
-              <div className="absolute -left-[30px] top-[15px] font-mono text-[9px] text-[#555] tracking-widest">CLAIM</div>
-              <div className="absolute -left-[30px] top-[95px] font-mono text-[9px] text-[#555] tracking-widest">REAL</div>
+              <div className="absolute -left-[40px] top-[15px] font-mono text-[9px] text-white/50 tracking-widest">CLAIM</div>
+              <div className="absolute -left-[40px] top-[95px] font-mono text-[9px] text-white/50 tracking-widest">REAL</div>
             </div>
 
             {/* Bars */}
@@ -133,13 +133,13 @@ export default function CalibrationCurve({ predictions }: { predictions: Pred[] 
                   <Cuboid x={x} y={95} w={32} d={32} h={hReal} color={c} delay={0.1 * i + 0.3} />
                   
                   {/* Bin label */}
-                  <div className="absolute top-[170px] font-mono text-[9px] text-[#666] text-center" style={{ left: x, width: 32 }}>
+                  <div className="absolute top-[170px] font-mono text-[9px] text-white/60 text-center" style={{ left: x, width: 32 }}>
                     ~{55 + i * 10}%
                   </div>
                 </div>
               )
             })}
-          </div>
+          </motion.div>
         </div>
 
         {/* SUMMARY */}
