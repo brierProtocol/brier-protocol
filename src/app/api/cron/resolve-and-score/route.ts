@@ -8,7 +8,10 @@ import { deriveVerifiedCategories } from '@/lib/marketCategories'
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
-  if (process.env.NODE_ENV === 'production' && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const querySecret = req.nextUrl.searchParams.get('secret')
+  const isValidCron = authHeader === `Bearer ${process.env.CRON_SECRET}` || querySecret === process.env.CRON_SECRET
+
+  if (process.env.NODE_ENV === 'production' && !isValidCron) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
