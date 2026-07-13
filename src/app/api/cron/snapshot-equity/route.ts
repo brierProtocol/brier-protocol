@@ -25,3 +25,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'snapshot failed' }, { status: 500 })
   }
 }
+
+// Vercel Cron invoca SIEMPRE por GET, y esta route solo exportaba POST: en produccion
+// devolvia 405 y la curva de equity nunca se alimentaba. Mismo handler, misma auth.
+export const GET = POST
