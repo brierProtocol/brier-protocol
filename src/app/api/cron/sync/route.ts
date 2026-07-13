@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
 
     await prisma.cronLog.create({
       data: {
-        job: 'FULL_SYNC',
+        job: 'sync_polymarket',
         status: failed === 0 ? 'SUCCESS' : 'FAILED',
         errorMessage: failed > 0 ? errorMessages.join('; ') : null,
       }
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     await prisma.cronLog.create({
       data: {
-        job: 'FULL_SYNC',
+        job: 'sync_polymarket',
         status: 'FAILED',
         errorMessage: String(err),
       }

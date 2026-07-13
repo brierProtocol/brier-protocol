@@ -5,16 +5,18 @@ import { botReputation, absoluteBotBrier, reputationScoreFromLcb, ResolvedPredic
 import { checkStatusTransitions } from '@/lib/incubation'
 import { settleResolvedTrades } from '@/lib/settlement'
 import { deriveVerifiedCategories } from '@/lib/marketCategories'
+import { recordCronRun, captureError } from '@/lib/observability'
 
 export async function GET(req: NextRequest) {
+  // Solo header. El `?secret=` que habia aca viajaba en la URL, y una URL termina en los
+  // logs de acceso de Vercel, en el header Referer y en el historial — es un secret filtrado.
+  // Todo lo que dispara este endpoint (Vercel Cron y .github/workflows/cron.yml) manda header.
   const authHeader = req.headers.get('authorization')
-  const querySecret = req.nextUrl.searchParams.get('secret')
-  const isValidCron = authHeader === `Bearer ${process.env.CRON_SECRET}` || querySecret === process.env.CRON_SECRET
-
-  if (process.env.NODE_ENV === 'production' && !isValidCron) {
+  if (process.env.NODE_ENV === 'production' && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const startedAt = Date.now()
   try {
     // ── 1. RESOLVE ── group PENDING predictions by market so we hit the CLOB once each.
     const pending = await prisma.prediction.findMany({
@@ -191,9 +193,19 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Heartbeat: sin esto el cron era invisible para /api/health — podia estar caido
+    // dias y el dead-man's-switch no se enteraba. Es el que resuelve las predicciones.
+    await recordCronRun('resolve_and_score', 'SUCCESS', {
+      records: resolvedPreds, durationMs: Date.now() - startedAt,
+    })
+
     return NextResponse.json({ ok: true, resolvedMarkets, resolvedPredictions: resolvedPreds, settlement, scored, categorized })
   } catch (err: any) {
     console.error('[cron/resolve-and-score]', err)
+    captureError(err, { job: 'resolve_and_score' })
+    await recordCronRun('resolve_and_score', 'FAILED', {
+      durationMs: Date.now() - startedAt, error: err?.message ?? String(err),
+    })
     return NextResponse.json({ error: err?.message || 'resolve-and-score failed' }, { status: 500 })
   }
 }
