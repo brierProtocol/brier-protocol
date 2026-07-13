@@ -17,9 +17,12 @@ name: Crons
 # (botId, snapshotDate)), asi que una corrida doble no duplica nada.
 #
 # SETUP (una sola vez):
-#   Settings -> Secrets and variables -> Actions -> New repository secret
-#     CRON_SECRET  = el mismo valor que tenes en las env vars de Vercel
-#     APP_URL      = https://brier-protocol.vercel.app   (o el dominio final)
+#   Settings -> Secrets and variables -> Actions -> pestania "Secrets"
+#   -> New repository secret:  CRON_SECRET = el mismo valor de las env vars de Vercel
+#
+#   Solo CRON_SECRET es obligatorio. APP_URL tiene default (ver env de abajo) y se puede
+#   pisar con una repo variable si algun dia cambia el dominio — no es un secreto, es una
+#   URL publica, y pedirla como secret solo agregaba un modo de falla.
 
 on:
   schedule:
@@ -37,24 +40,35 @@ permissions:
 jobs:
   cron:
     runs-on: ubuntu-latest
+    env:
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      # No es un secreto: URL publica. Repo variable si algun dia cambia el dominio,
+      # con default para que el workflow nunca dependa de que alguien la cargue.
+      APP_URL: ${{ vars.APP_URL || 'https://brier-protocol.vercel.app' }}
     steps:
-      - name: Verificar que los secrets existan
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          APP_URL: ${{ secrets.APP_URL }}
+      - name: Verificar que CRON_SECRET exista
         run: |
-          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
-            echo "::error::Faltan los secrets CRON_SECRET y/o APP_URL. Ver el header de este archivo."
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET llega vacio al runner."
+            echo "Causas, por probabilidad:"
+            echo "  1) Lo cargaste como secret de la ORGANIZACION (brierProtocol) sin darle"
+            echo "     acceso a este repo. Los repos PRIVADOS no heredan los secrets de org:"
+            echo "     hay que ir al secret -> Repository access -> agregar brier-protocol."
+            echo "  2) Lo pusiste en la pestania 'Variables' en vez de 'Secrets'."
+            echo "  3) Lo pusiste como 'Environment secret' en vez de 'Repository secret'"
+            echo "     (esos solo llegan si el job declara 'environment:', y este no lo hace)."
             exit 1
           fi
+          echo "CRON_SECRET presente (${#CRON_SECRET} chars). APP_URL=$APP_URL"
 
       - name: Disparar los endpoints que tocan en este horario
         env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          APP_URL: ${{ secrets.APP_URL }}
           SCHEDULE: ${{ github.event.schedule }}
         run: |
           set -uo pipefail
+
+          # Un '/' final convertiria la URL en //api/cron/... — normalizamos y listo.
+          APP_URL="${APP_URL%/}"
 
           # Mapea el cron que disparo -> endpoints a llamar.
           # En workflow_dispatch (SCHEDULE vacio) corre todos, para poder probar.
@@ -77,6 +91,8 @@ jobs:
             # 000 = curl fallo (timeout/red). Cualquier no-2xx tambien es error.
             if [ "$code" -lt 200 ] 2>/dev/null || [ "$code" -ge 300 ] 2>/dev/null; then
               echo "::error::/api/cron/$job devolvio HTTP $code"
+              [ "$code" = "401" ] && echo "::error::401 = el CRON_SECRET del repo NO coincide con el de las env vars de Vercel (ojo con espacios o saltos de linea al copiarlo)."
+              [ "$code" = "404" ] && echo "::error::404 = APP_URL apunta al dominio equivocado: $APP_URL"
               failed=1
             fi
           done
