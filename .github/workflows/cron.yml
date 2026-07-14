@@ -48,7 +48,23 @@ jobs:
     steps:
       - name: Verificar que CRON_SECRET exista
         run: |
-          if [ -z "$CRON_SECRET" ]; then
+          # Un espacio o un \n al final del secret es invalido en un header HTTP: el
+          # request sale mal formado y la route responde 401. Vercel ya rechaza el
+          # deploy si su env var tiene whitespace (nos rompio un build por esto), pero
+          # GitHub guarda el secret tal cual lo pegas. Lo limpiamos y avisamos.
+          TRIMMED="$(printf '%s' "$CRON_SECRET" | tr -d '[:space:]')"
+          if [ "$TRIMMED" != "$CRON_SECRET" ]; then
+            # GitHub enmascara el secret EXACTO que tiene registrado; la version limpia
+            # es un string distinto y NO se enmascara sola. Hay que pedirlo explicitamente
+            # o se podria filtrar en los logs.
+            echo "::add-mask::$TRIMMED"
+            echo "::warning::El secret CRON_SECRET tiene whitespace y lo estoy limpiando."
+            echo "::warning::Arreglalo en Settings -> Secrets: si no coincide EXACTO con el de"
+            echo "::warning::Vercel (que ya esta sin whitespace), los endpoints devuelven 401."
+            echo "CRON_SECRET=$TRIMMED" >> "$GITHUB_ENV"
+          fi
+
+          if [ -z "$TRIMMED" ]; then
             echo "::error::CRON_SECRET llega vacio al runner."
             echo "Causas, por probabilidad:"
             echo "  1) Lo cargaste como secret de la ORGANIZACION (brierProtocol) sin darle"
@@ -59,7 +75,7 @@ jobs:
             echo "     (esos solo llegan si el job declara 'environment:', y este no lo hace)."
             exit 1
           fi
-          echo "CRON_SECRET presente (${#CRON_SECRET} chars). APP_URL=$APP_URL"
+          echo "CRON_SECRET presente (${#TRIMMED} chars, ya limpio). APP_URL=$APP_URL"
 
       - name: Disparar los endpoints que tocan en este horario
         env:
