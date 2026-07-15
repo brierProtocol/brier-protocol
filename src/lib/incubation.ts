@@ -3,6 +3,9 @@ import { FEATURES } from './features'
 import { SHADOW_RESOLVED_TARGET, SHADOW_DAYS_TARGET, SHADOW_LCB_TARGET } from './botProgress'
 import { computeVaultCapacity } from './vault-capacity'
 
+// Max peak-to-trough equity drop tolerated to graduate to a Tier-1 vault (25%).
+// A strategy that already bled 25% during the shadow phase is too fragile to be
+// handed real depositor capital, regardless of how good its Brier/LCB looks.
 const T1_MAX_DRAWDOWN = 0.25
 const MS_PER_DAY = 1000 * 60 * 60 * 24
 
@@ -71,7 +74,8 @@ export async function checkStatusTransitions(botId: string) {
         })
 
         // MVP Fix: If Vault deployment fails on-chain, do not graduate the bot to a phantom state.
-        // Returning here ensures the cron will attempt to deploy it again in the next tick.
+        // We return WITHOUT touching status/tier, so the bot stays LIVE (not a half-migrated
+        // VAULT_ELIGIBLE_T1 with no vault) and the next cron tick retries the deployment.
         if (!vaultAddress) {
             console.error(`[Incubation] Vault deployment failed for bot ${botId}. Aborting transition.`);
             return;

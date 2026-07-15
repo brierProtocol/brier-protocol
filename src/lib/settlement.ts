@@ -36,6 +36,9 @@ type SettleableTrade = {
  * Net USDC PnL of a resolved binary trade. entryPrice is the price paid (0..1):
  * a WIN pays $1 per share (shares = amount / entryPrice); a LOSS/LIQUIDATION loses
  * the stake. Unresolved trades are 0.
+ *
+ * Example — WIN at $0.60 on $100 staked: shares = 100 / 0.60, each pays $1, so
+ * profit = 100 * ((1 - 0.60) / 0.60) = 100 * (0.40 / 0.60) = $66.67.
  */
 export function tradePnl(t: { outcome: string; amount: number; entryPrice: number }): number {
   if (t.outcome === 'WIN') {
