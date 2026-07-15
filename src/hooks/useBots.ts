@@ -1,5 +1,5 @@
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query'
-import type { Bot } from '@/data/bots'
+import type { Bot } from '@/types/index'
 
 export function useBots(sort = 'brier', filter = 'all', limit = 20) {
   return useInfiniteQuery({
