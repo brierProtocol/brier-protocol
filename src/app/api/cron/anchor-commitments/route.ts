@@ -143,6 +143,6 @@ export async function GET(req: NextRequest) {
   } catch (err: any) {
     captureError(err, { cron: 'anchor_commitments' })
     await recordCronRun('anchor_commitments', 'FAILED', { error: err?.message })
-    return NextResponse.json({ error: err?.message || 'anchor-commitments cron failed' }, { status: 500 })
+    return NextResponse.json({ error: 'anchor-commitments cron failed' }, { status: 500 })
   }
 }

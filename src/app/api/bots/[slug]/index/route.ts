@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { runBotIndex } from '@/lib/polymarket-indexer'
+import { log } from '@/lib/observability'
 
 /**
  * POST /api/bots/[slug]/index
@@ -20,8 +21,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ sl
   try {
     const result = await runBotIndex(bot.id)
     return NextResponse.json({ ok: true, ...result })
-  } catch (err: any) {
-    console.error('Index error:', err)
-    return NextResponse.json({ error: err?.message || 'Index failed' }, { status: 500 })
+  } catch (err) {
+    log('error', 'bots.index', { message: err instanceof Error ? err.message : String(err), code: (err as any)?.code })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

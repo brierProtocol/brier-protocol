@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
+import { log } from '@/lib/observability'
 import crypto from 'crypto'
 
 export async function POST(req: NextRequest) {
@@ -53,8 +54,8 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json({ success: true, tradeId: trade.id })
-  } catch (error: any) {
-    console.error('[Trade Sync] Error:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  } catch (error) {
+    log('error', 'v1.trades.sync', { message: error instanceof Error ? error.message : String(error), code: (error as any)?.code })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
