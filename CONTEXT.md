@@ -92,6 +92,16 @@ al menos **1 review**.
   del README. Red: Amoy (dev) / Polygon mainnet (prod).
 - **OpenZeppelin fijado en `5.0.2` exacto** (la 5.6 eliminó
   `ReentrancyGuardUpgradeable`). No correr `npm update` sin revisar esto.
+- **Artifacts de Hardhat COMMITEADOS (`artifacts_contracts/`):** el repo trackea los
+  ABIs/bytecode compilados a propósito — el **executor los lee en runtime**
+  (`brier-executor/src/worker.ts` hace `require('../../artifacts_contracts/.../BrierVault.json')`)
+  y su deploy NO corre `hardhat compile`. Por eso **NO gitignorear ni untrackear**
+  `artifacts_contracts/`: rompería el executor. Dos consecuencias:
+  1. Si editás un `.sol`, **recompilá y commiteá los artifacts frescos** (si no, el
+     executor queda con un ABI viejo).
+  2. Si `npm run test:contracts` da fallas raras (ej. un `revert` con un mensaje que
+     ya no existe en el `.sol`), es **cache stale de hardhat**: corré `npx hardhat clean`
+     y volvé a testear. No son bugs reales del contrato.
 - **USDC tiene 6 decimales, NO 18.** Crítico en todo cálculo de monto. Ver
   `src/constants/contracts.ts` (`USDC_DECIMALS`).
 - **`next_dev.log`** ya está en `.gitignore` (además de `*.log`).

@@ -7,7 +7,6 @@ import BotHeroPortrait from '@/components/bot/BotHeroPortrait'
 import CalibrationCurve from '@/components/bot/CalibrationCurve'
 import BotUplink from '@/components/bot/BotUplink'
 import BotPerformance from '@/components/bot/BotPerformance'
-import VaultGlass from '@/components/bot/VaultGlass'
 import { botEye } from '@/lib/botIdentity'
 import { personLabel as sharedPersonLabel } from '@/lib/identity'
 import { classifyMarket } from '@/lib/marketCategories'
@@ -23,8 +22,8 @@ import { BotComments } from '@/components/bot/BotComments'
 import { BotTradeBook } from '@/components/bot/BotTradeBook'
 import { CATEGORY_COLORS, relDay, type BotProfileVM, type ProfileScore, type ProfileTrade, type Post } from '@/components/bot/botProfile.helpers'
 import {
-  shadowProgress, phaseMeta, botRank, BOT_RANKS,
-  SHADOW_RESOLVED_TARGET, SHADOW_DAYS_TARGET, SHADOW_LCB_TARGET,
+  shadowProgress, botRank,
+  SHADOW_RESOLVED_TARGET, SHADOW_DAYS_TARGET,
 } from '@/lib/botProgress'
 
 const fmtUSD = (n: number) =>
@@ -69,12 +68,10 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const [trades, setTrades] = useState<ProfileTrade[]>([])
   const [hearts, setHearts] = useState(0)
   const [hearted, setHearted] = useState(false)
-  const [likeFx, setLikeFx] = useState(0)
   const [depositing, setDepositing] = useState(false)
   const [toast, setToast] = useState('')
   const [activeStat, setActiveStat] = useState<string | null>(null)
   const [openHint, setOpenHint] = useState<string | null>(null)
-  const [confettiBurst, setConfettiBurst] = useState(0)
 
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState('')
@@ -182,7 +179,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     const nextHearted = !hearted
     setHearted(nextHearted)
     setHearts(h => nextHearted ? h + 1 : Math.max(0, h - 1))
-    if (nextHearted) { setLikeFx(Date.now()); setConfettiBurst(Date.now()) }
     try {
       const res = await fetch('/api/hearts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: address, botId: bot.id }) })
       if (!res.ok) throw new Error('request failed')
@@ -290,9 +286,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     scores: [{ lcb: bot.lcb ?? undefined, brierScore: bot.brierScore ?? undefined, winRate: bot.winRate ?? undefined, totalTrades: bot.totalTrades }],
     tradesIndexed: bot.tradesIndexed,
   })
-  const pm = phaseMeta(sp)
   const rank = botRank(sp.resolved)
-  const nextRankAt = BOT_RANKS.find(r => r.at > sp.resolved)?.at ?? null
   const eye = botEye({ slug, id: bot.id, name: bot.name, color: bot.color, eyeShape: bot.eyeShape })
   
   // Featured Brier + ORACLE grade (the headline pair on Proof of edge).
@@ -304,12 +298,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     : { t: 'NOISE', c: '#ff5570' }
 
   const lcb = bot.lcb ?? 0
-  const brierSkill = bot.brierScore ?? 0
-  const winRate = bot.winRate ?? 0
   const tradesCount = bot.totalTrades ?? 0
 
   const hasVerifiedPerformance = tradesCount >= 100
-  const hasVerifiedReputation = lcb > 0
 
   // We map the historical LCB scores into snapshots for the BotPerformance chart.
   // Rows without an lcb (pre-reputation snapshots) would poison the curve as 0s.

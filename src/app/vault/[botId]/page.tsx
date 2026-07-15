@@ -15,7 +15,6 @@ import { parseUnits, erc20Abi, parseAbi } from 'viem'
 import dynamic from 'next/dynamic'
 const Liveline = dynamic(() => import('liveline').then(mod => mod.Liveline), { ssr: false })
 
-type ChartView = 'cumulative' | 'wr' | 'daily' | 'brier'
 type TimeRange = '7d' | '30d' | '90d' | 'all'
 
 export default function VaultPage() {
