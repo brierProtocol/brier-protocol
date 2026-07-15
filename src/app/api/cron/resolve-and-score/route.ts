@@ -201,11 +201,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ ok: true, resolvedMarkets, resolvedPredictions: resolvedPreds, settlement, scored, categorized })
   } catch (err: any) {
-    console.error('[cron/resolve-and-score]', err)
     captureError(err, { job: 'resolve_and_score' })
     await recordCronRun('resolve_and_score', 'FAILED', {
       durationMs: Date.now() - startedAt, error: err?.message ?? String(err),
     })
-    return NextResponse.json({ error: err?.message || 'resolve-and-score failed' }, { status: 500 })
+    return NextResponse.json({ error: 'resolve-and-score failed' }, { status: 500 })
   }
 }

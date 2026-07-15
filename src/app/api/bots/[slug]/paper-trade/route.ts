@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
+import { log } from '@/lib/observability'
 
 // POST /api/bots/[slug]/paper-trade — shadow-phase ingestion.
 // The bot's brain (e.g. ADAN) reports each paper bet here; the ResolutionWatcher
@@ -78,8 +79,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     })
 
     return NextResponse.json({ ok: true, tradeId: trade.id, outcome: trade.outcome })
-  } catch (e: any) {
-    console.error('[paper-trade] error', e)
-    return NextResponse.json({ error: e?.message || 'Internal server error' }, { status: 500 })
+  } catch (e) {
+    log('error', 'bots.paper-trade', { message: e instanceof Error ? e.message : String(e), code: (e as any)?.code })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

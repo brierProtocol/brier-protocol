@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
+import { log } from '@/lib/observability'
 
 export async function POST(request: Request) {
   try {
@@ -58,8 +59,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json(comment)
   } catch (error) {
-    console.error('Comment error:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    log('error', 'comments.post', { message: error instanceof Error ? error.message : String(error), code: (error as any)?.code })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -79,7 +80,7 @@ export async function GET(request: Request) {
     })
     return NextResponse.json(comments)
   } catch (error) {
-    console.error(error)
-    return NextResponse.json({ error: 'Failed to fetch comments' }, { status: 500 })
+    log('error', 'comments.get', { message: error instanceof Error ? error.message : String(error), code: (error as any)?.code })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

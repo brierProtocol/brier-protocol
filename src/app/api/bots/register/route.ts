@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma'
 import { deriveAvatarColor } from '@/lib/botIdentity'
 import { events } from '@/lib/events/bus'
 import { ethers } from 'ethers'
+import { log } from '@/lib/observability'
 
 /**
  * POST /api/bots/register
@@ -137,8 +138,8 @@ export async function POST(req: NextRequest) {
       message: `Algorithm "${bot.name}" registered. Entering shadow phase, Brier detects its category and sizing automatically as it trades.`
     })
 
-  } catch (err: any) {
-    console.error('Bot registration error:', err)
-    return NextResponse.json({ error: err?.message || 'Internal server error' }, { status: 500 })
+  } catch (err) {
+    log('error', 'bots.register', { message: err instanceof Error ? err.message : String(err), code: (err as any)?.code })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -112,6 +112,6 @@ export async function GET(req: NextRequest) {
   } catch (err: any) {
     captureError(err, { cron: 'score' })
     await recordCronRun('score', 'FAILED', { error: err?.message })
-    return NextResponse.json({ error: err?.message || 'score cron failed' }, { status: 500 })
+    return NextResponse.json({ error: 'score cron failed' }, { status: 500 })
   }
 }

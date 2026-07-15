@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
+import { log } from '@/lib/observability'
 
 // GET /api/follows?address=...&viewerId=...
 // Devuelve los seguidores y seguidos de `address`, sus contadores, y
@@ -45,8 +46,8 @@ export async function GET(request: Request) {
       isFollowing,
     })
   } catch (error) {
-    console.error('Follow fetch error:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    log('error', 'follows.get', { message: error instanceof Error ? error.message : String(error), code: (error as any)?.code })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -110,14 +111,14 @@ export async function POST(request: Request) {
           }
         })
       } catch (notifyErr) {
-        console.error('Follow notification failed (follow still saved):', notifyErr)
+        log('warn', 'follows.notify', { message: notifyErr instanceof Error ? notifyErr.message : String(notifyErr) })
       }
 
       const followersCount = await prisma.follow.count({ where: { followingId } })
       return NextResponse.json({ status: 'followed', followersCount })
     }
   } catch (error) {
-    console.error('Follow error:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    log('error', 'follows.post', { message: error instanceof Error ? error.message : String(error), code: (error as any)?.code })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
