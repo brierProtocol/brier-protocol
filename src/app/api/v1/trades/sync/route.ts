@@ -11,6 +11,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing security headers' }, { status: 401 })
     }
 
+    // Anti-replay: reject anything signed more than 5 min ago. The HMAC covers
+    // timestamp + body, so a captured request is only replayable inside this window
+    // before it expires — bounding the replay-attack surface to 5 minutes.
     if (Math.abs(Date.now() - Number(timestamp)) > 5 * 60 * 1000) {
       return NextResponse.json({ error: 'Timestamp is stale or invalid' }, { status: 401 })
     }
