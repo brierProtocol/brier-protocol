@@ -1,3 +1,7 @@
+// DEPRECATED: este endpoint es un wizard multi-step del prototipo inicial.
+// El registro activo usa POST /api/bots/register (src/app/api/bots/register/route.ts),
+// llamado desde /list-bot. Este archivo se conserva como referencia pero NO está
+// conectado a ningún componente del UI (verificado: cero imports/fetch en src/).
 import { z } from 'zod'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'

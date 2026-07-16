@@ -182,6 +182,6 @@ export async function GET(req: NextRequest) {
   } catch (err: any) {
     captureError(err, { cron: 'circuit_breaker' })
     await recordCronRun('circuit_breaker', 'FAILED', { error: err?.message })
-    return NextResponse.json({ error: err?.message || 'circuit-breaker cron failed' }, { status: 500 })
+    return NextResponse.json({ error: 'circuit-breaker cron failed' }, { status: 500 })
   }
 }

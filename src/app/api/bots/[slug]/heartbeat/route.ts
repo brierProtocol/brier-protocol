@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { decryptApiKey } from '@/lib/crypto'
 import { recordHeartbeat } from '@/lib/heartbeat'
+import { log } from '@/lib/observability'
 
 // POST /api/bots/[slug]/heartbeat — liveness ping from the bot (e.g. ADAN).
 // Stamps Bot.lastHeartbeatAt = now so the dashboard can flag stale bots and
@@ -67,8 +68,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
 
     await recordHeartbeat(bot.id, liveActivity, liveConstraints)
     return NextResponse.json({ ok: true, at: new Date().toISOString() })
-  } catch (e: any) {
-    console.error('[heartbeat] error', e)
-    return NextResponse.json({ error: e?.message || 'Internal server error' }, { status: 500 })
+  } catch (e) {
+    log('error', 'bots.heartbeat', { message: e instanceof Error ? e.message : String(e), code: (e as any)?.code })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

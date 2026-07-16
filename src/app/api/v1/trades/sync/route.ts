@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
+import { log } from '@/lib/observability'
 import crypto from 'crypto'
 
 export async function POST(req: NextRequest) {
@@ -11,6 +12,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing security headers' }, { status: 401 })
     }
 
+    // Anti-replay: reject anything signed more than 5 min ago. The HMAC covers
+    // timestamp + body, so a captured request is only replayable inside this window
+    // before it expires — bounding the replay-attack surface to 5 minutes.
     if (Math.abs(Date.now() - Number(timestamp)) > 5 * 60 * 1000) {
       return NextResponse.json({ error: 'Timestamp is stale or invalid' }, { status: 401 })
     }
@@ -53,8 +57,8 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json({ success: true, tradeId: trade.id })
-  } catch (error: any) {
-    console.error('[Trade Sync] Error:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  } catch (error) {
+    log('error', 'v1.trades.sync', { message: error instanceof Error ? error.message : String(error), code: (error as any)?.code })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

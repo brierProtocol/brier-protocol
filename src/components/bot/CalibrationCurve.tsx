@@ -3,7 +3,9 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-type Pred = { confidence: number; status?: string; outcome?: string }
+// confidence is read null-safe below (`p.confidence ?? 0.5`), so the type is
+// nullable/optional to match the profile's committed-call shape (ProfileTrade).
+type Pred = { confidence?: number | null; status?: string; outcome?: string }
 
 const TEAL = '#c8ff00'
 const RED = '#ff5570'

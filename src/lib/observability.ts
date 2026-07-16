@@ -81,10 +81,19 @@ export async function runCron<T>(job: string, fn: () => Promise<{ result: T; rec
 
 // Critical crons and how stale (minutes) a last-SUCCESS may be before we call it unhealthy.
 // Generous vs the schedule so a single skipped run doesn't page; a real outage does.
-export const CRITICAL_CRONS: { job: string; maxAgeMin: number }[] = [
-  { job: 'score', maxAgeMin: 180 },           // hourly → stale after 3h
-  { job: 'circuit_breaker', maxAgeMin: 60 * 9 }, // 6h → stale after 9h
-  { job: 'sync_polymarket', maxAgeMin: 60 * 30 }, // daily → stale after 30h
+//
+// Estos umbrales asumen las frecuencias REALES, que las restaura .github/workflows/cron.yml.
+// Los crons de vercel.json solos NO alcanzan: el plan Hobby los limita a 1 vez por dia, y con
+// eso este health check se quedaba en rojo casi 24/7 — un dead-man's-switch que grita siempre
+// no despierta a nadie.
+//
+// `aliases`: nombres historicos del mismo job en CronLog, para no perder el heartbeat al
+// renombrar (sync escribia 'FULL_SYNC' y este check buscaba 'sync_polymarket' → "never ran").
+export const CRITICAL_CRONS: { job: string; maxAgeMin: number; aliases?: string[] }[] = [
+  { job: 'score', maxAgeMin: 180 },                  // hourly → stale after 3h
+  { job: 'circuit_breaker', maxAgeMin: 60 * 9 },     // 6h → stale after 9h
+  { job: 'resolve_and_score', maxAgeMin: 180 },      // 30min → stale after 3h
+  { job: 'sync_polymarket', maxAgeMin: 60 * 30, aliases: ['FULL_SYNC'] }, // daily → stale after 30h
 ]
 
 export interface HealthCheck { name: string; healthy: boolean; detail?: string }
@@ -104,10 +113,11 @@ export async function healthReport(): Promise<HealthReport> {
 
   // 2. Cron freshness (skip if DB is down — we can't read CronLog)
   if (checks[0].healthy) {
-    for (const { job, maxAgeMin } of CRITICAL_CRONS) {
+    for (const { job, maxAgeMin, aliases } of CRITICAL_CRONS) {
       try {
         const last = await prisma.cronLog.findFirst({
-          where: { job, status: 'SUCCESS' }, orderBy: { ranAt: 'desc' }, select: { ranAt: true },
+          where: { job: { in: [job, ...(aliases ?? [])] }, status: 'SUCCESS' },
+          orderBy: { ranAt: 'desc' }, select: { ranAt: true },
         })
         if (!last) {
           checks.push({ name: `cron:${job}`, healthy: false, detail: 'never ran' })

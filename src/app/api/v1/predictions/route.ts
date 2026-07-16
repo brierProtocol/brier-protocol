@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { verifyBotSignatureWithPrefix, touchKeyByPrefix } from '@/lib/api-keys'
 import { captureMarket } from '@/lib/market-data'
+import { log } from '@/lib/observability'
 
 /**
  * POST /api/v1/predictions — the endpoint both SDKs (@brier/sdk, brier-sdk-py)
@@ -60,9 +61,9 @@ export async function GET(req: NextRequest) {
         committedAt: p.createdAt,
       })),
     })
-  } catch (err: any) {
-    console.error('[GET v1/predictions]', err)
-    return NextResponse.json({ error: err?.message || 'Internal server error' }, { status: 500 })
+  } catch (err) {
+    log('error', 'v1.predictions.get', { message: err instanceof Error ? err.message : String(err), code: (err as any)?.code })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -159,8 +160,8 @@ export async function POST(req: NextRequest) {
       capturedMarketProbability: marketProbabilityAtCommit,
       ...(devFallback ? { devFallback: true, note: 'TEST midpoint' } : {}),
     })
-  } catch (err: any) {
-    console.error('[v1/predictions]', err)
-    return NextResponse.json({ error: err?.message || 'Internal server error' }, { status: 500 })
+  } catch (err) {
+    log('error', 'v1.predictions.post', { message: err instanceof Error ? err.message : String(err), code: (err as any)?.code })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -5,12 +5,9 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import BotHeroPortrait from '@/components/bot/BotHeroPortrait'
 import CalibrationCurve from '@/components/bot/CalibrationCurve'
-import MakerAvatar from '@/components/MakerAvatar'
 import BotUplink from '@/components/bot/BotUplink'
 import BotPerformance from '@/components/bot/BotPerformance'
-import VaultGlass from '@/components/bot/VaultGlass'
-import ApiKeysManager from '@/components/bot/ApiKeysManager'
-import { botEye, codename } from '@/lib/botIdentity'
+import { botEye } from '@/lib/botIdentity'
 import { personLabel as sharedPersonLabel } from '@/lib/identity'
 import { classifyMarket } from '@/lib/marketCategories'
 import { FEATURES } from '@/lib/features'
@@ -18,44 +15,25 @@ import { useAccount } from 'wagmi'
 import { ethers } from 'ethers'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCountUp } from '@/hooks/useCountUp'
-import { PostBody } from '@/components/bot/PostBody'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { Panel } from '@/components/bot/Panel'
+import { BotEditModal } from '@/components/bot/BotEditModal'
+import { BotComments } from '@/components/bot/BotComments'
+import { BotTradeBook } from '@/components/bot/BotTradeBook'
+import { CATEGORY_COLORS, relDay, type BotProfileVM, type ProfileScore, type ProfileTrade, type Post } from '@/components/bot/botProfile.helpers'
 import {
-  shadowProgress, phaseMeta, botRank, BOT_RANKS,
-  SHADOW_RESOLVED_TARGET, SHADOW_DAYS_TARGET, SHADOW_LCB_TARGET,
+  shadowProgress, botRank,
+  SHADOW_RESOLVED_TARGET, SHADOW_DAYS_TARGET,
 } from '@/lib/botProgress'
-
-interface Post {
-  id: string; wallet: string; text: string; createdAt: string;
-  user?: { handle?: string | null; name?: string | null; pfpUrl?: string | null } | null
-}
 
 const fmtUSD = (n: number) =>
   n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `$${(n / 1000).toFixed(1)}K` : `$${Math.round(n).toLocaleString()}`
-// Universal identity: the SAME resolver the navbar and maker page use, so one
-// wallet never reads as two different people. Anonymous commenters keep their
-// deterministic codename (more human than a hex stub in a conversation).
-const personLabel = (u?: Post['user'], wallet = '') => {
-  const label = sharedPersonLabel(u, wallet)
-  return label.startsWith('0x') || label === '—' ? codename(wallet) : label
-}
-const shortAddr = (addr: string) => addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : 'anon'
-const relDay = (d?: string | Date | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
-
-function txOf(t: any): string | null {
-  const hash = String(t.externalTradeId || '').split('-')[0]
-  return hash.startsWith('0x') && hash.length >= 40 ? hash : null
-}
 
 const Empty = () => <span className="text-[#333]">·</span>
 
-// One color per Polymarket category — used by the hunting-grounds panel and
-// the per-call dots in the prediction book so a bot from ANY category reads
-// as first-class on this page.
-const CATEGORY_COLORS: Record<string, string> = {
-  politics: '#8b7bff', crypto: '#c8ff00', sports: '#4fc3f7', economy: '#ffd400',
-  culture: '#ff5ccd', tech: '#4285f0', world: '#ff8a3c', other: '#8a8a94',
-}
+// Shared helpers/types (relDay, txOf, personLabel, CATEGORY_COLORS, Post,
+// BotProfileVM, ProfileTrade) live in @/components/bot/botProfile.helpers so the
+// page and the extracted panels (BotComments, BotTradeBook) read the same shapes.
 
 // Wayfinding — the profile is long; these anchors + scrollspy keep the whole
 // story reachable in one tap from anywhere on the page.
@@ -66,20 +44,6 @@ const SECTIONS = [
   { id: 'comments', label: 'Comments' },
   { id: 'edge', label: 'Edge' },
 ] as const
-
-// Defined at MODULE level (not inside the component) — a component redefined on
-// every render gets a new identity, so React remounts its subtree and inputs lose
-// focus after one keystroke. That was the "can only type one letter" comment bug.
-// Panels rise into view once as you scroll; border warms on hover.
-const Panel = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 14 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true, margin: '-40px' }}
-    transition={{ duration: 0.5, ease: 'easeOut' }}
-    className={`rounded-2xl border border-[#1a1a1a] bg-[#080809] overflow-hidden transition-colors duration-300 hover:border-[#26262e] ${className}`}
-  >{children}</motion.div>
-)
 
 // Tiny inline sparkline for the Brier trajectory (no external chart dep).
 const Sparkline = ({ values, color }: { values: number[]; color: string }) => {
@@ -96,20 +60,18 @@ const Sparkline = ({ values, color }: { values: number[]; color: string }) => {
 export default function BotProfilePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
 
-  const [bot, setBot] = useState<any>(null)
+  const [bot, setBot] = useState<BotProfileVM | null>(null)
   const [loading, setLoading] = useState(true)
   const [posts, setPosts] = useState<Post[]>([])
   const [postText, setPostText] = useState('')
   const [depositAmt, setDepositAmt] = useState('')
-  const [trades, setTrades] = useState<any[]>([])
+  const [trades, setTrades] = useState<ProfileTrade[]>([])
   const [hearts, setHearts] = useState(0)
   const [hearted, setHearted] = useState(false)
-  const [likeFx, setLikeFx] = useState(0)
   const [depositing, setDepositing] = useState(false)
   const [toast, setToast] = useState('')
   const [activeStat, setActiveStat] = useState<string | null>(null)
   const [openHint, setOpenHint] = useState<string | null>(null)
-  const [confettiBurst, setConfettiBurst] = useState(0)
 
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState('')
@@ -118,8 +80,6 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const [editPfp, setEditPfp] = useState('')
   const [savingBot, setSavingBot] = useState(false)
   const [activeSection, setActiveSection] = useState<string>('vault')
-  const [bookFilter, setBookFilter] = useState<'ALL' | 'WIN' | 'LOSS' | 'PENDING'>('ALL')
-  const [bookLimit, setBookLimit] = useState(40)
 
   // Scrollspy for the sticky section nav — re-arms once the bot renders.
   useEffect(() => {
@@ -146,15 +106,17 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   useEffect(() => {
     fetch(`/api/bots/${slug}?t=${Date.now()}`)
       .then(res => res.ok ? res.json() : null)
-      .then(dbBot => {
+      // TODO: type this properly — `dbBot` is the raw /api/bots/[slug] JSON boundary
+      // (res.json() is `any`); we map it into the typed BotProfileVM below.
+      .then((dbBot: any) => {
         if (!dbBot) { setLoading(false); return }
         // Headline score: the row flagged isLatest (the scorer maintains exactly one),
         // NOT the last by snapshotDate — same-day rows (cron at 00:00 UTC vs seeds at
         // any hour) made positional "last" grab a stale/empty snapshot.
-        const s = dbBot.scores?.find((x: any) => x.isLatest)
+        const s = dbBot.scores?.find((x: ProfileScore) => x.isLatest)
           ?? (dbBot.scores?.length > 0 ? dbBot.scores[dbBot.scores.length - 1] : null)
-        
-        const mapped = {
+
+        const mapped: BotProfileVM = {
           // builder = the human's wallet (ownerWallet) — walletAddress can be
           // the bot's execution wallet, which has no profile behind it.
           id: dbBot.id, name: dbBot.name, builder: dbBot.makerWallet || dbBot.ownerWallet || dbBot.walletAddress, tagline: dbBot.tagline,
@@ -169,9 +131,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           brierScore: s?.brierScore ?? null, winRate: s?.winRate ?? null, sharpe: s?.sharpe ?? null, lcb: s?.lcb ?? null,
           maxDrawdown: s?.maxDrawdown ?? null, totalTrades: s?.totalTrades ?? 0, totalVolume: s?.totalVolume ?? null,
           reputationScore: s?.reputationScore ?? null, resolvedPredictions: s?.resolvedPredictions ?? 0,
-          reputationHistory: (dbBot.scores || []).map((x: any) => x.reputationScore).filter((v: any) => typeof v === 'number'),
+          reputationHistory: (dbBot.scores || []).map((x: ProfileScore) => x.reputationScore).filter((v: unknown): v is number => typeof v === 'number'),
           lastHeartbeatAt: dbBot.lastHeartbeatAt ?? null, liveActivity: dbBot.liveActivity ?? null,
-          scoreHistory: (dbBot.scores || []).map((s: any) => ({ brier: s.brierScore, date: s.snapshotDate })),
+          scoreHistory: (dbBot.scores || []).map((sc: ProfileScore) => ({ brier: sc.brierScore ?? null, date: sc.snapshotDate ?? null })),
           allScores: dbBot.scores || [],
           predictions: dbBot.predictions || [],
           pnlSnapshots: dbBot.pnlSnapshots || [],
@@ -195,7 +157,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     if (!slug) return
     const tick = () => fetch(`/api/bots/${slug}`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setBot((prev: any) => prev ? { ...prev, lastHeartbeatAt: d.lastHeartbeatAt ?? null, liveActivity: d.liveActivity ?? null, predictions: d.predictions ?? prev.predictions } : prev) })
+      .then(d => { if (d) setBot(prev => prev ? { ...prev, lastHeartbeatAt: d.lastHeartbeatAt ?? null, liveActivity: d.liveActivity ?? null, predictions: d.predictions ?? prev.predictions } : prev) })
       .catch(() => {})
     const id = setInterval(tick, 5000)
     return () => clearInterval(id)
@@ -212,11 +174,11 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
 
   const toggleHeart = async () => {
     if (!isConnected || !address) return showToast('Connect your wallet to like.')
+    if (!bot) return
     const prevHearted = hearted, prevHearts = hearts
     const nextHearted = !hearted
     setHearted(nextHearted)
     setHearts(h => nextHearted ? h + 1 : Math.max(0, h - 1))
-    if (nextHearted) { setLikeFx(Date.now()); setConfettiBurst(Date.now()) }
     try {
       const res = await fetch('/api/hearts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: address, botId: bot.id }) })
       if (!res.ok) throw new Error('request failed')
@@ -232,13 +194,14 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   const addPost = async () => {
     if (!postText.trim()) return
     if (!isConnected || !address) return showToast('Connect your wallet to comment.')
+    if (!bot) return
     const res = await fetch('/api/comments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ botId: bot.id, wallet: address, text: postText.trim() }) })
     if (res.ok) { const c = await res.json(); setPosts([c, ...posts]); setPostText('') }
     else showToast('Could not post comment.')
   }
 
   const handleSaveBot = async () => {
-    if (!address) return
+    if (!address || !bot) return
     setSavingBot(true)
     try {
       const res = await fetch(`/api/bots/${slug}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: address, name: editName, tagline: editTagline, description: editDesc, pfpUrl: editPfp }) })
@@ -252,6 +215,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     const amt = parseFloat(depositAmt) || 0
     if (amt <= 0) return showToast('Enter a valid amount.')
     if (typeof window === 'undefined' || !window.ethereum) return showToast('No wallet detected.')
+    if (!bot) return
     if (!bot.vaultAddress) return showToast('This vault is not deployed yet.')
     setDepositing(true)
     try {
@@ -307,7 +271,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
   // Brier trajectory: is the bot getting sharper over time? History comes newest
   // first; reverse to oldest→newest. A FALLING Brier means improving calibration.
   const brierSeries: number[] = [...(bot.scoreHistory || [])]
-    .map((s: any) => s.brier).filter((v: any) => typeof v === 'number').reverse()
+    .map(s => s.brier).filter((v): v is number => typeof v === 'number').reverse()
   const trend = brierSeries.length >= 2
     ? (() => {
         const delta = brierSeries[brierSeries.length - 1] - brierSeries[0] // <0 = improving
@@ -316,15 +280,13 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     : null
 
   // Reputation (LCB → 0..100) history, oldest→newest, for the reputation curve.
-  const repSeries: number[] = [...(bot.reputationHistory || [])].filter((v: any) => typeof v === 'number').reverse()
+  const repSeries: number[] = [...(bot.reputationHistory || [])].filter((v): v is number => typeof v === 'number').reverse()
   const sp = shadowProgress({
     status: bot.status, createdAt: bot.createdAt, vaultOpen: bot.vaultOpen, currentTVL: bot.tvl,
     scores: [{ lcb: bot.lcb ?? undefined, brierScore: bot.brierScore ?? undefined, winRate: bot.winRate ?? undefined, totalTrades: bot.totalTrades }],
     tradesIndexed: bot.tradesIndexed,
   })
-  const pm = phaseMeta(sp)
   const rank = botRank(sp.resolved)
-  const nextRankAt = BOT_RANKS.find(r => r.at > sp.resolved)?.at ?? null
   const eye = botEye({ slug, id: bot.id, name: bot.name, color: bot.color, eyeShape: bot.eyeShape })
   
   // Featured Brier + ORACLE grade (the headline pair on Proof of edge).
@@ -336,37 +298,18 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     : { t: 'NOISE', c: '#ff5570' }
 
   const lcb = bot.lcb ?? 0
-  const brierSkill = bot.brierScore ?? 0
-  const winRate = bot.winRate ?? 0
   const tradesCount = bot.totalTrades ?? 0
 
   const hasVerifiedPerformance = tradesCount >= 100
-  const hasVerifiedReputation = lcb > 0
 
   // We map the historical LCB scores into snapshots for the BotPerformance chart.
   // Rows without an lcb (pre-reputation snapshots) would poison the curve as 0s.
-  const lcbSnapshots = bot.allScores?.filter((s: any) => typeof s.lcb === 'number').map((s: any) => ({
+  const lcbSnapshots = bot.allScores?.filter(s => typeof s.lcb === 'number').map(s => ({
     cumulativePnl: s.lcb,
     date: s.snapshotDate
   })) || []
 
-  const wins = trades.filter(t => t.status === 'WIN' || t.outcome === 'WIN').length
-  const losses = trades.filter(t => t.status === 'LOSS' || t.outcome === 'LOSS').length
-  const pending = trades.filter(t => t.status === 'PENDING' || t.outcome === 'PENDING').length
-
-  // Prediction book at scale: filter + pagination so a bot with thousands of
-  // calls in any category stays fast and navigable.
-  const filteredTrades = bookFilter === 'ALL' ? trades : trades.filter(t => (t.status || t.outcome) === bookFilter)
-  const visibleTrades = filteredTrades.slice(0, bookLimit)
-
-  // Form guide: the last 10 resolved calls as W/L, oldest → newest. Trades
-  // arrive newest-first, so take the head and reverse for reading order.
-  const formGuide = trades
-    .filter(t => { const st = t.status || t.outcome; return st === 'WIN' || st === 'LOSS' })
-    .slice(0, 10)
-    .map(t => (t.status || t.outcome) === 'WIN')
-    .reverse()
-  const navValues: number[] = (bot.pnlSnapshots || []).map((s: any) => s.cumulativePnl ?? s.pnlUsd).filter((v: any) => typeof v === 'number')
+  const navValues: number[] = (bot.pnlSnapshots || []).map(s => s.cumulativePnl ?? s.pnlUsd).filter((v): v is number => typeof v === 'number')
   const navStart = navValues[0] ?? 0
   const navDelta = bot.sharePrice && bot.sharePrice !== 1 ? (bot.sharePrice - 1) * 100 : (navValues.length > 1 && Math.abs(navStart) > 1 ? ((navValues[navValues.length - 1] - navStart) / Math.abs(navStart)) * 100 : 0)
   const roi = bot.sharePrice && bot.sharePrice !== 1 ? navDelta : null
@@ -539,19 +482,13 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         </div>
 
         {isOwner && isEditing && (
-          <Panel className="mb-8 p-5">
-            <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-4">Edit profile</div>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <label className="block"><span className="text-[12px] text-[#bbb] font-semibold">Name</span><input value={editName} onChange={e => setEditName(e.target.value)} className="mt-1.5 w-full bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50" /></label>
-              <label className="block"><span className="text-[12px] text-[#bbb] font-semibold">Tagline</span><input value={editTagline} onChange={e => setEditTagline(e.target.value)} className="mt-1.5 w-full bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50" /></label>
-              <label className="block sm:col-span-2"><span className="text-[12px] text-[#bbb] font-semibold">Bio</span><textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} className="mt-1.5 w-full h-24 bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-3 py-2 text-[13px] text-white outline-none focus:border-primary/50 resize-y" /></label>
-            </div>
-            <button onClick={handleSaveBot} disabled={savingBot} className="mt-4 rounded-full bg-primary text-[#030303] font-bold text-[13px] px-6 py-2.5 disabled:opacity-50 hover:shadow-[0_0_18px_rgba(255,42,77,0.4)] transition-all">{savingBot ? 'Saving…' : 'Save changes'}</button>
-            {/* API Keys — owner-only, inside settings panel */}
-            <div className="mt-6 pt-5 border-t border-[#1a1a1a]">
-              <ApiKeysManager botId={bot.id} />
-            </div>
-          </Panel>
+          <BotEditModal
+            botId={bot.id}
+            editName={editName} setEditName={setEditName}
+            editTagline={editTagline} setEditTagline={setEditTagline}
+            editDesc={editDesc} setEditDesc={setEditDesc}
+            saving={savingBot} onSave={handleSaveBot}
+          />
         )}
 
         {/* API keys moved inside the edit panel — not on the public profile */}
@@ -601,94 +538,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             />
 
             {/* prediction book — the bot's committed calls (fills join in capital phase) */}
-            <div id="calls" className="scroll-mt-28">
-            <Panel>
-              <div className="px-5 py-3.5 border-b border-[#141414]">
-                <div className="flex items-center justify-between mb-2.5">
-                  <div><span className="font-sans font-bold text-[14px]">Prediction book</span><span className="ml-2 font-mono text-[10px] text-[#555]">calls locked before resolution · on-chain fills join in capital phase</span></div>
-                  <span className="font-mono text-[11px] text-[#888] tabular-nums">{trades.length} calls</span>
-                </div>
-                <div className="flex h-1.5 rounded-full overflow-hidden bg-[#0e0e0e]">
-                  {wins > 0 && <div style={{ width: `${(wins / trades.length) * 100}%`, background: TEAL }} />}
-                  {losses > 0 && <div style={{ width: `${(losses / trades.length) * 100}%`, background: '#ff5570' }} />}
-                  {pending > 0 && <div style={{ width: `${(pending / trades.length) * 100}%`, background: VIOLET }} />}
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <div className="flex items-center gap-4 font-mono text-[10px]">
-                    <span style={{ color: TEAL }}>{wins} won</span><span style={{ color: '#ff5570' }}>{losses} lost</span><span style={{ color: VIOLET }}>{pending} pending</span>
-                    {/* form guide — last 10 resolved, newest on the right */}
-                    {formGuide.length >= 3 && (
-                      <span className="flex items-center gap-[3px] pl-2 border-l border-[#1a1a22]" title="last 10 resolved calls, newest right">
-                        {formGuide.map((won, i) => (
-                          <motion.span
-                            key={i}
-                            className="w-[6px] h-[6px] rounded-[1.5px]"
-                            style={{ background: won ? TEAL : '#ff5570', boxShadow: won ? `0 0 5px ${TEAL}55` : '0 0 5px #ff557044' }}
-                            initial={{ scale: 0, opacity: 0 }}
-                            whileInView={{ scale: 1, opacity: 1 }}
-                            viewport={{ once: true }}
-                            transition={{ delay: i * 0.05, type: 'spring', stiffness: 300, damping: 18 }}
-                          />
-                        ))}
-                      </span>
-                    )}
-                  </div>
-                  {/* filters — a bot with thousands of calls stays navigable */}
-                  <div className="flex gap-1">
-                    {([['ALL', 'All'], ['WIN', 'Won'], ['LOSS', 'Lost'], ['PENDING', 'Open']] as const).map(([k, label]) => (
-                      <button
-                        key={k}
-                        onClick={() => { setBookFilter(k); setBookLimit(40) }}
-                        className={`font-mono text-[9px] font-bold tracking-[0.08em] uppercase px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
-                          bookFilter === k ? 'bg-primary text-[#030303] border-primary' : 'bg-transparent text-[#6a6a74] border-[#22222a] hover:text-white hover:border-[#3a3a44]'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              {trades.length === 0 ? (
-                <div className="px-5 py-12 text-center text-[13px] text-[#555]">No calls yet. The moment the bot commits a prediction it shows up here, then flips to WIN or LOSS when the market resolves.</div>
-              ) : filteredTrades.length === 0 ? (
-                <div className="px-5 py-10 text-center text-[13px] text-[#555]">No {bookFilter === 'PENDING' ? 'open' : bookFilter.toLowerCase()} calls yet.</div>
-              ) : (
-                <div className="max-h-[420px] overflow-y-auto">
-                  {visibleTrades.map((t, i) => {
-                    const tx = txOf(t); const yes = t.side === 'YES' || t.side === 'LONG'
-                    const status = t.status || t.outcome
-                    const oc = status === 'WIN' ? TEAL : status === 'LOSS' ? '#ff5570' : VIOLET
-                    const cat = classifyMarket(t.marketTitle || '') || 'other'
-                    const catColor = CATEGORY_COLORS[cat] || CATEGORY_COLORS.other
-                    // How far from the market it dared to stand at commit time.
-                    const edge = (typeof t.confidence === 'number' && typeof t.marketProbabilityAtCommit === 'number')
-                      ? t.confidence - t.marketProbabilityAtCommit : null
-                    return (
-                      <div key={t.id || i} className="flex items-center gap-3 px-5 py-2.5 border-b border-[#101010] hover:bg-[#0b0b0b] transition-colors" style={{ borderLeft: `2px solid ${oc}` }}>
-                        <span className="font-mono text-[10px] text-[#555] w-12 shrink-0 tabular-nums">{relDay(t.timestamp)}</span>
-                        {/* category dot — politics, sports, crypto… every market family reads at a glance */}
-                        <span className="w-1.5 h-1.5 rounded-full shrink-0" title={cat} style={{ background: catColor, boxShadow: `0 0 5px ${catColor}66` }} />
-                        <span className="flex-1 min-w-0 text-[12px] text-[#bbb] truncate">{tx ? <a href={`https://polygonscan.com/tx/${tx}`} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors no-underline">{t.marketTitle} <span className="text-[#444] text-[9px]">↗</span></a> : t.marketTitle}</span>
-                        <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ color: yes ? TEAL : '#ff5570', background: yes ? `${TEAL}14` : '#ff557014' }}>{t.side}</span>
-                        <span className="font-mono text-[11px] text-[#999] w-9 text-right tabular-nums shrink-0">{((t.confidence || t.entryPrice || 0) * 100).toFixed(0)}¢</span>
-                        <span className="font-mono text-[10px] w-11 text-right tabular-nums shrink-0" title="edge vs the market price at commit" style={{ color: edge == null ? '#3a3a44' : edge >= 0 ? TEAL : '#ff5570' }}>{edge == null ? '·' : `${edge >= 0 ? '+' : ''}${Math.round(edge * 100)}%`}</span>
-                        <span className="font-mono text-[9px] font-bold w-14 text-right shrink-0" style={{ color: oc }}>{status}</span>
-                      </div>
-                    )
-                  })}
-                  {filteredTrades.length > bookLimit && (
-                    <button
-                      onClick={() => setBookLimit(l => l + 60)}
-                      className="w-full py-3 font-mono text-[11px] font-bold text-[#7a7a84] hover:text-white hover:bg-[#0b0b0b] transition-colors cursor-pointer"
-                    >
-                      Show more · {filteredTrades.length - bookLimit} remaining
-                    </button>
-                  )}
-                </div>
-              )}
-            </Panel>
-            </div>
+            <BotTradeBook trades={trades} />
 
             {/* calibration — moved to main column for full width scale */}
             <div className="scroll-mt-28">
@@ -696,52 +546,15 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             </div>
 
             {/* comments */}
-            <div id="comments" className="scroll-mt-28">
-            <Panel>
-              <div className="flex items-center justify-between px-5 py-4 border-b border-[#141414]">
-                <div className="flex items-baseline gap-2.5">
-                  <span className="font-sans font-bold text-[15px] tracking-tight">Comments</span>
-                  <span className="font-mono text-[11px] text-[#5a5a64] tabular-nums">{posts.length}</span>
-                </div>
-                <span className="font-mono text-[10px] text-[#48484f] tracking-wide">traders weigh in on this bot</span>
-              </div>
-              <div className="px-5 py-4 border-b border-[#141414] bg-[#050507]">
-                {isConnected && address ? (
-                  <div className="flex gap-3">
-                    <MakerAvatar address={address} pfpUrl={currentUser?.pfpUrl} size={36} square />
-                    <div className="flex-1">
-                      <textarea value={postText} onChange={e => setPostText(e.target.value)} maxLength={500} placeholder="Is this edge real? Share your read, cite the tape, call the top…" className="w-full h-[68px] bg-[#0a0a0c] border border-[#1f1f28] rounded-lg px-3.5 py-2.5 text-[13px] text-white outline-none focus:border-primary/50 resize-y placeholder:text-[#4a4a54] leading-relaxed" />
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="font-mono text-[10px] text-[#3f3f48]">{postText.length}/500 · markdown & {'>'}quotes</span>
-                        <button onClick={addPost} disabled={!postText.trim()} className="rounded-full bg-primary text-[#030303] font-bold text-[12px] px-5 py-2 disabled:opacity-30 hover:shadow-[0_0_14px_rgba(255,42,77,0.4)] transition-all">Post</button>
-                      </div>
-                    </div>
-                  </div>
-                ) : <div className="text-[13px] text-[#8a8a94]">Connect your wallet to weigh in.</div>}
-              </div>
-              {posts.length === 0 ? (
-                <div className="px-5 py-12 text-center">
-                  <div className="text-[13px] text-[#6a6a74]">No comments yet.</div>
-                  <div className="text-[11px] text-[#3f3f48] mt-1 font-mono">be the first to call it</div>
-                </div>
-              ) : (
-                <div className="flex flex-col">
-                  {posts.map((p, i) => (
-                    <div key={p.id || i} className="flex gap-3 px-5 py-4 border-b border-[#101010] last:border-b-0 hover:bg-[#070709] transition-colors">
-                      <MakerAvatar address={p.wallet} pfpUrl={p.user?.pfpUrl} size={36} square />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[13px] font-bold text-white">{personLabel(p.user, p.wallet)}</span>
-                          <span className="font-mono text-[10px] text-[#48484f] tabular-nums">{relDay(p.createdAt) || 'now'}</span>
-                        </div>
-                        <div className="text-[13px] text-[#cfcfd6] leading-relaxed"><PostBody text={p.text} onQuoteClick={() => {}} /></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Panel>
-            </div>
+            <BotComments
+              posts={posts}
+              postText={postText}
+              setPostText={setPostText}
+              onPost={addPost}
+              isConnected={isConnected}
+              address={address}
+              currentUser={currentUser}
+            />
           </div>
 
           {/* RIGHT COLUMN */}

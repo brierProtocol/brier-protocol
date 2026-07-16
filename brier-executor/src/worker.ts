@@ -76,7 +76,8 @@ const executionWorker = new Worker('trade-signals', async job => {
         if (actionType === 'OPEN' || !actionType) {
             const resolvedActionType = 'OPEN';
             console.log(`[Perp Engine] Opening ${leverage}x ${direction} on ${marketId} (worstPrice=${worstPrice}, slip=${slippageBps}bps)...`);
-            // Real CLOB execution: Fill-And-Kill bounded by worstPrice (slippage guard).
+            // [REAL] CLOB execution (Fill-And-Kill bounded by worstPrice, slippage guard)
+            // via polymarket.ts → real @polymarket/clob-client. No mock left on this path.
             // marketId here must be the outcome tokenID being traded.
             const result = await openPerpPosition({
                 tokenID: marketId,
@@ -112,6 +113,7 @@ const executionWorker = new Worker('trade-signals', async job => {
             });
         } else if (actionType === 'CLOSE') {
             console.log(`[Perp Engine] Executing Market CLOSE for ${tradeId}...`);
+            // [REAL] CLOB market-close via polymarket.ts → real @polymarket/clob-client.
             const result = await closePerpPosition({
                 tokenID: marketId,
                 direction: (direction || 'LONG') as 'LONG' | 'SHORT',

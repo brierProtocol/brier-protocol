@@ -18,8 +18,10 @@ se reparten **60% depositantes / 30% builder / 10% protocolo**.
   Framer Motion. ⚠️ Es un Next.js con breaking changes — ver `AGENTS.md`: leer
   `node_modules/next/dist/docs/` antes de escribir código.
 - **Web3:** RainbowKit + wagmi v3 + viem (auth wallet-native, MetaMask).
-- **Datos:** Prisma + PostgreSQL (Supabase en prod). Cliente singleton en
-  `src/lib/db/prisma.ts`.
+- **Datos:** Prisma + PostgreSQL (Supabase en prod, pooler PgBouncer en
+  `DATABASE_URL` / conexión directa en `DIRECT_URL`). Cliente singleton en
+  `src/lib/db/prisma.ts`. Data fetching en el cliente con **React Query**
+  (`@tanstack/react-query`) — ver `hooks/useBots.ts`.
 - **Contratos:** Solidity + Hardhat. `BrierVault` (ERC-4626 upgradeable) +
   `BrierVaultFactory` (clones EIP-1167). Deploy a Polygon Amoy (test) / mainnet.
 - **Executor (`brier-executor/`):** servicio Node/TS (Fastify + BullMQ/Redis).
@@ -76,9 +78,11 @@ al menos **1 review**.
 
 ## Trampas conocidas
 
-- **Rate limit en `middleware.ts`:** el `Map()` en memoria NO funciona en
-  serverless (cada lambda tiene el suyo). Está estructurado + con TODO para
-  Upstash Redis (`UPSTASH_REDIS_REST_URL` / `_TOKEN`).
+- **Rate limit en `middleware.ts`:** ya **migrado a Upstash Redis** (distribuido).
+  Si `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` están seteadas usa
+  `@upstash/ratelimit` (sliding window, **fail-open** si Upstash cae). Si no, cae a
+  un `Map()` en memoria **solo para dev** — que NO sirve en serverless (cada lambda
+  tiene el suyo); es fallback, no mecanismo de prod.
 - **Sin FK Bot→User:** `Bot.walletAddress` no tiene relación Prisma con `User`;
   el perfil del maker se resuelve con un **join manual por wallet** en cada route
   (ver `api/bots/route.ts`, `api/bots/[slug]/route.ts`).
@@ -88,6 +92,16 @@ al menos **1 review**.
   del README. Red: Amoy (dev) / Polygon mainnet (prod).
 - **OpenZeppelin fijado en `5.0.2` exacto** (la 5.6 eliminó
   `ReentrancyGuardUpgradeable`). No correr `npm update` sin revisar esto.
+- **Artifacts de Hardhat COMMITEADOS (`artifacts_contracts/`):** el repo trackea los
+  ABIs/bytecode compilados a propósito — el **executor los lee en runtime**
+  (`brier-executor/src/worker.ts` hace `require('../../artifacts_contracts/.../BrierVault.json')`)
+  y su deploy NO corre `hardhat compile`. Por eso **NO gitignorear ni untrackear**
+  `artifacts_contracts/`: rompería el executor. Dos consecuencias:
+  1. Si editás un `.sol`, **recompilá y commiteá los artifacts frescos** (si no, el
+     executor queda con un ABI viejo).
+  2. Si `npm run test:contracts` da fallas raras (ej. un `revert` con un mensaje que
+     ya no existe en el `.sol`), es **cache stale de hardhat**: corré `npx hardhat clean`
+     y volvé a testear. No son bugs reales del contrato.
 - **USDC tiene 6 decimales, NO 18.** Crítico en todo cálculo de monto. Ver
   `src/constants/contracts.ts` (`USDC_DECIMALS`).
 - **`next_dev.log`** ya está en `.gitignore` (además de `*.log`).
@@ -116,5 +130,8 @@ al menos **1 review**.
 
 ## Estado
 
-Contratos **sin auditar** — no depositar fondos reales antes de una auditoría.
+**v1 = reputación-only:** el feature flag `FEATURES.CAPITAL_LAYER` está en `false`
+por defecto, así que la UI no permite depósitos/vaults; los bots se registran, hacen
+shadow phase y se rankean. Los contratos existen en Amoy testnet pero están
+**sin auditar** — no depositar fondos reales antes de una auditoría.
 Runbooks de despliegue: `GO_LIVE.md`, `DEPLOY_AMOY.md`.

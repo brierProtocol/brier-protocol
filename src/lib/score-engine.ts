@@ -68,6 +68,8 @@ export function computeBotMetrics(trades: ResolvedTrade[]): {
     returns.push(won ? (1 - p) / p : -1) // share bought at p pays 1 on win
   }
 
+  // Mean squared error of P(win) vs the realized outcome. LOWER is better:
+  // 0 = perfect, 0.25 = coin flip, 1 = always wrong. This is the core edge measure.
   const brierScore = sse / n
   const winRate = wins / n
 

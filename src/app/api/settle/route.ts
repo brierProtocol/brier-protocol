@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { bookTradeSettlement } from '@/lib/settlement'
+import { log } from '@/lib/observability'
 
 // POST /api/settle — EVENT-DRIVEN NAV booking (§2.6). The executor's resolution
 // watcher calls this the instant it sees a market resolve, so the dashboard NAV
@@ -31,8 +32,8 @@ export async function POST(req: NextRequest) {
 
     const result = await bookTradeSettlement({ ...trade, marketType: trade.bot.marketType })
     return NextResponse.json({ ok: true, booked: result !== null, result })
-  } catch (e: any) {
-    console.error('[settle] error', e)
-    return NextResponse.json({ error: e?.message || 'Internal server error' }, { status: 500 })
+  } catch (e) {
+    log('error', 'settle', { message: e instanceof Error ? e.message : String(e), code: (e as any)?.code })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
