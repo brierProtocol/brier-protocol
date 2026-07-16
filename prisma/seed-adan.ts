@@ -13,7 +13,7 @@ const { PrismaClient } = require('@prisma/client')
 const prisma = new PrismaClient()
 
 // ─── UPDATE THIS before connecting to the real indexer ───────────────────────
-const ADAN_WALLET = '0xad49000000000000000000000000000000000001'
+const ADAN_WALLET = '0xA93414C04412D6D9Bb0777e61119cd2F0713AD7C'
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function main() {

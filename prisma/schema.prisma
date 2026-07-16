@@ -18,7 +18,8 @@ model Bot {
   mood        String  @default("neutral")
 
   // Status state machine
-  status   String  @default("PAPER")
+  status     String    @default("PAPER")
+  lastPingAt DateTime?
   tier     String  @default("NONE")
   pfpUrl   String?
   avatarId String  @default("void-eye")

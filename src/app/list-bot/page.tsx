@@ -5,9 +5,12 @@ import Link from 'next/link'
 import { useAccount, useSignMessage } from 'wagmi'
 import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { motion } from 'framer-motion'
+import useSWR from 'swr'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import MakerAvatar from '@/components/MakerAvatar'
 import { botEye } from '@/lib/botIdentity'
+
+const fetcher = (url: string) => fetch(url).then(r => r.json())
 
 const INPUT_CLS =
   'w-full bg-[#0a0a0a] border border-[#1f1f1f] text-white font-sans text-[14px] outline-none px-4 py-3 rounded-xl placeholder:text-[#555] transition-all focus:border-primary/50 focus:bg-[#0c0c0c] focus:shadow-[0_0_24px_rgba(255,42,77,0.08)] hover:border-[#2a2a2a]'
@@ -52,6 +55,14 @@ export default function ListBotPage() {
 
   const handle = formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'your-bot'
   const shortAddr = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : ''
+
+  // Poll the bot's status to check for real-time connection (ping)
+  const { data: botData } = useSWR(
+    step === 3 && deployedSlug ? `/api/bots/${deployedSlug}` : null,
+    fetcher,
+    { refreshInterval: 2000 } // Check every 2 seconds
+  )
+  const isConnectedToPing = !!botData?.lastPingAt
 
   const register = async () => {
     setErrorMsg('')
@@ -385,29 +396,35 @@ export default function ListBotPage() {
               Brier is now tracking your algorithm. Use your builder credentials to connect your bot and start submitting predictions via the SDK.
             </p>
 
-            {/* Complete connection block — everything the bot needs, in one paste.
-                The bot is identified by its API key, so the name/slug never has to
-                match; this block just wires it cleanly. */}
-            {apiKeys && (
-              <div className="rounded-xl border border-primary/40 bg-primary/[0.05] p-5 mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-primary">Connection — paste into your bot&apos;s .env</span>
-                  <span className="text-primary font-bold text-[10px]">SECRET SHOWN ONCE. SAVE IT NOW.</span>
-                </div>
-                <pre className="font-mono text-[12px] text-[#00d4aa] bg-[#000] px-3 py-3 border border-[#222] rounded overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
+            {/* Complete connection block */}
+            {!isConnectedToPing ? (
+              <>
+                {apiKeys && (
+                  <div className="rounded-xl border border-primary/40 bg-primary/[0.05] p-5 mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-primary">Connection — paste into your bot&apos;s .env</span>
+                      <span className="text-primary font-bold text-[10px]">SECRET SHOWN ONCE. SAVE IT NOW.</span>
+                    </div>
+                    <pre className="font-mono text-[12px] text-[#00d4aa] bg-[#000] px-3 py-3 border border-[#222] rounded overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
 {`BRIER_URL=${typeof window !== 'undefined' ? window.location.origin : 'https://brier.world'}
 BRIER_BOT_SLUG=${deployedSlug || handle}
 BRIER_API_KEY=${apiKeys.apiKey}
 BRIER_API_SECRET=${apiKeys.apiSecret}`}
-                </pre>
-                <div className="mt-2 text-[11px] text-[#8f8f8f]">These four lines are all your bot needs to connect and be scored.</div>
-              </div>
-            )}
+                    </pre>
+                    <div className="mt-2 text-[11px] text-[#8f8f8f]">These four lines are all your bot needs to connect and be scored.</div>
+                  </div>
+                )}
 
-            {/* SDK Snippet */}
-            <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-8">
-              <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666] mb-3">SDK — install &amp; predict</div>
-              <pre className="font-mono text-[11px] text-[#a0a0a0] overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                {/* SDK Snippet */}
+                <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-8">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">SDK — install &amp; predict</span>
+                    <span className="flex items-center gap-2 font-mono text-[10px] text-primary">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                      Listening for connection...
+                    </span>
+                  </div>
+                  <pre className="font-mono text-[11px] text-[#a0a0a0] overflow-x-auto whitespace-pre-wrap leading-relaxed">
 {`npm install brier-sdk
 
 import { BrierClient } from 'brier-sdk'
@@ -423,8 +440,28 @@ await brier.predict({
   marketId: 'polymarket-1234',
   forecast: 0.85, // 85% probability of YES
 })`}
-              </pre>
-            </div>
+                  </pre>
+                </div>
+              </>
+            ) : (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-[#00d4aa]/40 bg-[#00d4aa]/[0.05] p-8 mb-8 text-center flex flex-col items-center justify-center relative overflow-hidden">
+                <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at center, rgba(0,212,170,0.1) 0%, transparent 70%)' }} />
+                <div className="w-16 h-16 rounded-full bg-[#00d4aa]/20 border border-[#00d4aa]/50 flex items-center justify-center mb-4 relative">
+                  <div className="absolute inset-0 rounded-full animate-ping bg-[#00d4aa]/30" style={{ animationDuration: '3s' }} />
+                  <svg className="w-8 h-8 text-[#00d4aa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-sans font-bold text-white mb-2 relative">Connection Successful</h3>
+                <p className="text-[14px] text-[#00d4aa] font-mono tracking-wide relative">
+                  {formData.name} is online and transmitting.
+                </p>
+                <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#000] border border-[#00d4aa]/30 text-[11px] font-mono text-[#00d4aa]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#00d4aa] shadow-[0_0_8px_#00d4aa]" />
+                  Awaiting first signal
+                </div>
+              </motion.div>
+            )}
 
             {/* what happens next */}
             <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-8">
