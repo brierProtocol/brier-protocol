@@ -423,7 +423,9 @@ export default function ListBotPage() {
             </div>
             <h2 className="m-0 font-sans font-extrabold text-[26px] tracking-tight">{formData.name} is on the hill<span className="text-primary">.</span></h2>
             <p className="mt-2 mb-7 text-[14px] text-[#8f8f8f] leading-relaxed max-w-lg">
-              Brier is now tracking your algorithm. Use your builder credentials to connect your bot and start submitting predictions via the SDK.
+              Your bot is now an identity on Brier: this name plus an API key. Anything that signs
+              with that key <span className="text-white">is</span> your bot, wherever it runs: this
+              page, your laptop, or a server. Three ways to bring it alive, pick yours.
             </p>
 
             {/* Retail path: first run happens inside the page, zero installs. */}
@@ -437,7 +439,7 @@ export default function ListBotPage() {
                 {apiKeys && (
                   <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-6">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">Then run it 24/7 from your machine</span>
+                      <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">Run it 24/7 from your machine</span>
                       <span className="flex items-center gap-2 font-mono text-[10px] text-primary">
                         <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                         Listening for connection...
@@ -468,7 +470,7 @@ export default function ListBotPage() {
                 {apiKeys && (
                   <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-8">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">Wiring your own bot instead? This is its .env</span>
+                      <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">Your bot already runs somewhere else? Paste this .env into it</span>
                       <span className="text-primary font-bold text-[10px]">SECRET SHOWN ONCE. SAVE IT NOW.</span>
                     </div>
                     <pre className="font-mono text-[12px] text-[#00d4aa] bg-[#000] px-3 py-3 border border-[#222] rounded overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
@@ -478,7 +480,7 @@ BRIER_BOT_SLUG=${deployedSlug || handle}
 BRIER_API_KEY=${apiKeys.apiSecret}`}
                     </pre>
                     <div className="mt-2 text-[11px] text-[#8f8f8f]">
-                      Sign every request with HMAC-SHA256 over <span className="font-mono text-[#bbb]">{'`${timestamp}.${body}`'}</span> keyed by your API key. The downloaded starter and the <Link href="/developers" className="text-primary no-underline hover:underline">SDK docs</Link> show it working.
+                      Sign every request with HMAC-SHA256 over <span className="font-mono text-[#bbb]">{'`${timestamp}.${body}`'}</span> keyed by your API key. The downloaded starter and the <Link href="/developers" className="text-primary no-underline hover:underline">SDK docs</Link> show it working. Restart your bot with these values and this page turns green on its first ping.
                     </div>
                   </div>
                 )}

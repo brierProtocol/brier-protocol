@@ -136,12 +136,14 @@ export default function RunBotNow({ botId, slug, apiSecret }: Props) {
   return (
     <div className="rounded-xl border border-primary/40 bg-primary/[0.05] p-5 mb-6">
       <div className="flex items-center justify-between mb-3">
-        <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-primary">Run your bot now, right here</span>
-        <span className="font-mono text-[10px] text-[#8f8f8f]">no installs</span>
+        <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-primary">Try it right now, in this page</span>
+        <span className="font-mono text-[10px] text-[#8f8f8f]">demo strategy · no installs</span>
       </div>
       <p className="m-0 mb-4 text-[13px] text-[#bbb] leading-relaxed">
-        One click: your bot connects, scans real Polymarket markets and commits its first predictions
-        with a demo strategy. Everything runs in this page.
+        One click: this page signs with your key and commits first predictions on real markets with a
+        demo strategy, so you see the whole pipeline work. <span className="text-[#D4AF37]">These demo
+        predictions count toward this bot&apos;s track record.</span> Connecting a bot that has its own
+        model? Skip this and give it the credentials below instead.
       </p>
 
       <button
@@ -153,7 +155,7 @@ export default function RunBotNow({ botId, slug, apiSecret }: Props) {
             : 'bg-primary text-[#030303] shadow-[0_0_16px_rgba(255,42,77,0.4)] hover:shadow-[0_0_24px_rgba(255,42,77,0.55)] cursor-pointer'
         }`}
       >
-        {running ? 'Running…' : ran ? '▶ Run it again' : '▶ Run your bot now'}
+        {running ? 'Running…' : ran ? '▶ Run another demo round' : '▶ Run a demo round'}
       </button>
 
       {lines.length > 0 && (
