@@ -8,6 +8,7 @@ import { motion } from 'framer-motion'
 import useSWR from 'swr'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import MakerAvatar from '@/components/MakerAvatar'
+import RunBotNow from '@/components/bot/RunBotNow'
 import { botEye } from '@/lib/botIdentity'
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
@@ -47,7 +48,9 @@ export default function ListBotPage() {
   const [verifying, setVerifying] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [deployedSlug, setDeployedSlug] = useState('')
+  const [deployedBotId, setDeployedBotId] = useState('')
   const [apiKeys, setApiKeys] = useState<{ apiKey: string, apiSecret: string } | null>(null)
+  const [downloading, setDownloading] = useState(false)
 
   const { isConnected, address } = useAccount()
   const { signMessageAsync } = useSignMessage()
@@ -123,12 +126,39 @@ export default function ListBotPage() {
         setApiKeys({ apiKey: keysData.prefix, apiSecret: keysData.secret })
       }
 
+      setDeployedBotId(newBotId)
       setDeployedSlug(result.slug)
       setStep(3)
     } catch (err: any) {
       setErrorMsg(err?.message || 'An error occurred.')
     } finally {
       setVerifying(false)
+    }
+  }
+
+  // Server assembles a runnable folder (example bot + bundled SDK + filled .env)
+  // from the credentials we still hold in memory. Zero installs on the dev side.
+  const downloadStarter = async () => {
+    if (!apiKeys || !deployedBotId) return
+    setDownloading(true)
+    try {
+      const res = await fetch(`/api/bots/${deployedSlug}/starter`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ botId: deployedBotId, apiKey: apiKeys.apiSecret, baseUrl: window.location.origin }),
+      })
+      if (!res.ok) throw new Error('Could not build your starter. Copy the .env below instead.')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${deployedSlug}-brier-bot.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Download failed.')
+    } finally {
+      setDownloading(false)
     }
   }
 
@@ -396,52 +426,62 @@ export default function ListBotPage() {
               Brier is now tracking your algorithm. Use your builder credentials to connect your bot and start submitting predictions via the SDK.
             </p>
 
+            {/* Retail path: first run happens inside the page, zero installs. */}
+            {apiKeys && deployedBotId && (
+              <RunBotNow botId={deployedBotId} slug={deployedSlug || handle} apiSecret={apiKeys.apiSecret} />
+            )}
+
             {/* Complete connection block */}
             {!isConnectedToPing ? (
               <>
                 {apiKeys && (
-                  <div className="rounded-xl border border-primary/40 bg-primary/[0.05] p-5 mb-6">
+                  <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-6">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-primary">Connection — paste into your bot&apos;s .env</span>
+                      <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">Then run it 24/7 from your machine</span>
+                      <span className="flex items-center gap-2 font-mono text-[10px] text-primary">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                        Listening for connection...
+                      </span>
+                    </div>
+                    <p className="m-0 mb-4 text-[13px] text-[#bbb] leading-relaxed">
+                      A runnable folder with an example bot, the SDK bundled inside, and your keys already in place. Node 18+ is the only requirement, nothing to install.
+                    </p>
+                    <button
+                      onClick={downloadStarter}
+                      disabled={downloading}
+                      className={`w-full rounded-full font-sans font-semibold text-[13px] px-7 py-3 transition-all border ${
+                        downloading
+                          ? 'bg-white/[0.04] text-[#555] cursor-not-allowed border-[#1a1a1a]'
+                          : 'border-[#2a2a2a] text-white hover:border-[#555] hover:bg-white/[0.03] cursor-pointer'
+                      }`}
+                    >
+                      {downloading ? 'Packing your bot…' : `↓ Download ${deployedSlug || handle}-brier-bot.zip`}
+                    </button>
+                    <div className="mt-4 flex flex-col gap-1.5 text-[12px] font-mono text-[#8f8f8f]">
+                      <div><span className="text-primary">1.</span> unzip it</div>
+                      <div><span className="text-primary">2.</span> <span className="text-[#00d4aa]">node index.js</span></div>
+                      <div><span className="text-primary">3.</span> this page turns green on its first ping</div>
+                    </div>
+                  </div>
+                )}
+
+                {apiKeys && (
+                  <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-8">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">Wiring your own bot instead? This is its .env</span>
                       <span className="text-primary font-bold text-[10px]">SECRET SHOWN ONCE. SAVE IT NOW.</span>
                     </div>
                     <pre className="font-mono text-[12px] text-[#00d4aa] bg-[#000] px-3 py-3 border border-[#222] rounded overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
 {`BRIER_URL=${typeof window !== 'undefined' ? window.location.origin : 'https://brier.world'}
+BRIER_BOT_ID=${deployedBotId}
 BRIER_BOT_SLUG=${deployedSlug || handle}
-BRIER_API_KEY=${apiKeys.apiKey}
-BRIER_API_SECRET=${apiKeys.apiSecret}`}
+BRIER_API_KEY=${apiKeys.apiSecret}`}
                     </pre>
-                    <div className="mt-2 text-[11px] text-[#8f8f8f]">These four lines are all your bot needs to connect and be scored.</div>
+                    <div className="mt-2 text-[11px] text-[#8f8f8f]">
+                      Sign every request with HMAC-SHA256 over <span className="font-mono text-[#bbb]">{'`${timestamp}.${body}`'}</span> keyed by your API key. The downloaded starter and the <Link href="/developers" className="text-primary no-underline hover:underline">SDK docs</Link> show it working.
+                    </div>
                   </div>
                 )}
-
-                {/* SDK Snippet */}
-                <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-8">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">SDK — install &amp; predict</span>
-                    <span className="flex items-center gap-2 font-mono text-[10px] text-primary">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                      Listening for connection...
-                    </span>
-                  </div>
-                  <pre className="font-mono text-[11px] text-[#a0a0a0] overflow-x-auto whitespace-pre-wrap leading-relaxed">
-{`npm install brier-sdk
-
-import { BrierClient } from 'brier-sdk'
-
-const brier = new BrierClient({
-  apiKey: process.env.BRIER_API_KEY,
-  apiSecret: process.env.BRIER_API_SECRET,
-  baseUrl: process.env.BRIER_URL,
-})
-
-// Submit a prediction (HMAC-signed automatically)
-await brier.predict({
-  marketId: 'polymarket-1234',
-  forecast: 0.85, // 85% probability of YES
-})`}
-                  </pre>
-                </div>
               </>
             ) : (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-[#00d4aa]/40 bg-[#00d4aa]/[0.05] p-8 mb-8 text-center flex flex-col items-center justify-center relative overflow-hidden">
@@ -460,6 +500,15 @@ await brier.predict({
                   <span className="w-1.5 h-1.5 rounded-full bg-[#00d4aa] shadow-[0_0_8px_#00d4aa]" />
                   Awaiting first signal
                 </div>
+                {apiKeys && (
+                  <button
+                    onClick={downloadStarter}
+                    disabled={downloading}
+                    className="relative mt-5 text-[12px] font-sans font-semibold text-[#9a9a9a] hover:text-white transition-colors underline underline-offset-4 decoration-[#333] cursor-pointer"
+                  >
+                    {downloading ? 'Packing your bot…' : 'Keep it running 24/7: download your bot (.zip)'}
+                  </button>
+                )}
               </motion.div>
             )}
 

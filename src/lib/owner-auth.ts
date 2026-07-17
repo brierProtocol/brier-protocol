@@ -23,6 +23,37 @@ export function ownershipMessage(botId: string, address: string, timestamp: numb
 
 export type OwnershipProof = { address: string; signature: string; timestamp: number }
 
+export function publishMessage(name: string, timestamp: number): string {
+  return `I confirm this wallet trades for the Brier bot ${name}. Timestamp: ${timestamp}`
+}
+
+/**
+ * Verifies the one-shot publish signature: the wallet signed the canonical
+ * publish message (reconstructed server-side, never trusted from the client)
+ * within the freshness window. Same guarantees as verifyOwnership but bound
+ * to the bot name instead of a bot id, since the bot doesn't exist yet.
+ */
+export function verifyPublishProof(
+  name: string,
+  walletAddress: string,
+  signature: string,
+  timestamp: number,
+): { ok: true } | { ok: false; reason: string } {
+  if (!Number.isFinite(timestamp) || Math.abs(Date.now() - timestamp) > MAX_SKEW_MS) {
+    return { ok: false, reason: 'Signature expired, sign again' }
+  }
+  let recovered: string
+  try {
+    recovered = ethers.verifyMessage(publishMessage(name, timestamp), signature)
+  } catch {
+    return { ok: false, reason: 'Invalid signature' }
+  }
+  if (recovered.toLowerCase() !== walletAddress.toLowerCase()) {
+    return { ok: false, reason: 'Signer is not the provided wallet' }
+  }
+  return { ok: true }
+}
+
 /**
  * Verifies that `proof` is a fresh signature by `expectedWallet` for this bot.
  * Returns { ok: true } or { ok: false, reason } — never throws.

@@ -111,7 +111,8 @@ export async function POST(req: NextRequest) {
     })
     
     // --- INTEGRACIÓN EXECUTOR (LIVE PHASE) ---
-    if (bot.vaultOpen && bot.vaultAddress) {
+    // GUARD: Ensure the Capital Layer is explicitly enabled in production before sending real money signals.
+    if (process.env.CAPITAL_LAYER === 'true' && bot.vaultOpen && bot.vaultAddress) {
       try {
         const executorUrl = process.env.EXECUTOR_URL || 'http://127.0.0.1:3001'
         const executorSecret = process.env.BUILDER_SECRET_KEY || 'your-64-char-hex-secret'
