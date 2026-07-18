@@ -5,7 +5,7 @@ import { captureMarket } from '@/lib/market-data'
 import { log } from '@/lib/observability'
 
 /**
- * POST /api/v1/predictions — the endpoint both SDKs (@brier/sdk, brier-sdk-py)
+ * POST /api/v1/predictions — the endpoint both SDKs (brier-sdk, brier-sdk-py)
  * actually call. The bot identifies itself via `botId` in the body and proves it
  * with an HMAC-SHA256 of `${timestamp}.${rawBody}` using one of its ACTIVE
  * per-builder keys (ApiKey table, issued from the profile's "Connect your bot"

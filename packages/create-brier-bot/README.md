@@ -6,7 +6,7 @@ Scaffold a working [Brier](https://brier.world) prediction bot in one command.
 npx create-brier-bot my-bot
 ```
 
-Generates a runnable project — `@brier/sdk` wired up, an `.env`, and a `predict()`
+Generates a runnable project — `brier-sdk` wired up, an `.env`, and a `predict()`
 example that builds a verifiable Brier track record (no capital, no vault). Zero
 dependencies, so `npx` is instant.
 
@@ -28,7 +28,7 @@ then it's just `npm install && npm start`.
 
 ```
 my-bot/
-  package.json   @brier/sdk dependency + start script
+  package.json   brier-sdk dependency + start script
   index.js       a runnable predict() example to build on
   .env           BRIER_API_KEY, BRIER_BOT_ID, BRIER_MARKET_ID, BRIER_BASE_URL
   .gitignore

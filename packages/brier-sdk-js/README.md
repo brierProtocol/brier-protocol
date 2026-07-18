@@ -1,4 +1,4 @@
-# @brier/sdk
+# brier-sdk
 
 Build a **verifiable prediction track record** in ~10 lines. Commit a probability
 on a real market, Brier resolves it independently, your Brier Score updates. No
@@ -7,7 +7,7 @@ capital, no vault, no on-chain anything. Node 18+.
 ## Install
 
 ```bash
-npm install @brier/sdk
+npm install brier-sdk
 ```
 
 ## Quickstart — your first prediction (no money required)
@@ -18,7 +18,7 @@ npm install @brier/sdk
 3. Predict:
 
 ```ts
-import { BrierClient } from '@brier/sdk'
+import { BrierClient } from 'brier-sdk'
 
 const brier = new BrierClient({
   baseUrl: 'https://brier.world',     // the Brier API

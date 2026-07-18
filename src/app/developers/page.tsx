@@ -53,8 +53,8 @@ brier.predict(
     probability=0.62,   # your P(YES wins), strictly 0..1
 )`
 
-const TS_CODE = `// npm install @brier/sdk
-import { BrierClient } from '@brier/sdk';
+const TS_CODE = `// npm install brier-sdk
+import { BrierClient } from 'brier-sdk';
 
 const brier = new BrierClient({
   baseUrl: 'https://brier.world',          // the Brier API
