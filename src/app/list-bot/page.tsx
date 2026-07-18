@@ -51,6 +51,7 @@ export default function ListBotPage() {
   const [deployedBotId, setDeployedBotId] = useState('')
   const [apiKeys, setApiKeys] = useState<{ apiKey: string, apiSecret: string } | null>(null)
   const [downloading, setDownloading] = useState(false)
+  const [connectPath, setConnectPath] = useState<'demo' | 'starter' | 'existing' | null>(null)
 
   const { isConnected, address } = useAccount()
   const { signMessageAsync } = useSignMessage()
@@ -424,26 +425,51 @@ export default function ListBotPage() {
             <h2 className="m-0 font-sans font-extrabold text-[26px] tracking-tight">{formData.name} is on the hill<span className="text-primary">.</span></h2>
             <p className="mt-2 mb-7 text-[14px] text-[#8f8f8f] leading-relaxed max-w-lg">
               Your bot is now an identity on Brier: this name plus an API key. Anything that signs
-              with that key <span className="text-white">is</span> your bot, wherever it runs: this
-              page, your laptop, or a server. Three ways to bring it alive, pick yours.
+              with that key <span className="text-white">is</span> your bot, wherever it runs.
+              Deploying again later creates a <span className="text-white">separate</span> bot, so
+              this one is yours to keep alive.
             </p>
 
-            {/* Retail path: first run happens inside the page, zero installs. */}
-            {apiKeys && deployedBotId && (
-              <RunBotNow botId={deployedBotId} slug={deployedSlug || handle} apiSecret={apiKeys.apiSecret} />
-            )}
-
-            {/* Complete connection block */}
+            {/* One question, one path. Everything below signs with the same key. */}
             {!isConnectedToPing ? (
               <>
-                {apiKeys && (
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-mono text-[11px] tracking-[0.18em] uppercase text-[#8f8f8f]">Where will {formData.name || 'it'} run?</span>
+                  <span className="flex items-center gap-2 font-mono text-[10px] text-primary">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                    Listening for its first ping...
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                  {([
+                    { id: 'demo', title: 'Nowhere yet, just show me', desc: 'One click in this page, nothing to install' },
+                    { id: 'starter', title: 'On my computer', desc: 'Download a ready-to-run folder' },
+                    { id: 'existing', title: 'It already runs elsewhere', desc: 'My own code, my server. Give me the keys' },
+                  ] as const).map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setConnectPath(p.id)}
+                      className={`rounded-xl border p-4 text-left transition-all cursor-pointer ${
+                        connectPath === p.id
+                          ? 'border-primary/60 bg-primary/[0.06]'
+                          : 'border-[#1a1a1a] bg-[#070708] hover:border-[#333]'
+                      }`}
+                    >
+                      <div className="font-sans font-bold text-[13px] text-white mb-1">{p.title}</div>
+                      <div className="text-[11px] text-[#8f8f8f] leading-snug">{p.desc}</div>
+                    </button>
+                  ))}
+                </div>
+
+                {connectPath === 'demo' && apiKeys && deployedBotId && (
+                  <RunBotNow botId={deployedBotId} slug={deployedSlug || handle} apiSecret={apiKeys.apiSecret} />
+                )}
+
+                {connectPath === 'starter' && apiKeys && (
                   <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-6">
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="mb-3">
                       <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">Run it 24/7 from your machine</span>
-                      <span className="flex items-center gap-2 font-mono text-[10px] text-primary">
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                        Listening for connection...
-                      </span>
                     </div>
                     <p className="m-0 mb-4 text-[13px] text-[#bbb] leading-relaxed">
                       A runnable folder with an example bot, the SDK bundled inside, and your keys already in place. Node 18+ is the only requirement, nothing to install.
@@ -467,10 +493,10 @@ export default function ListBotPage() {
                   </div>
                 )}
 
-                {apiKeys && (
-                  <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-8">
+                {connectPath === 'existing' && apiKeys && (
+                  <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-6">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">Your bot already runs somewhere else? Paste this .env into it</span>
+                      <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">Paste this .env into your bot</span>
                       <span className="text-primary font-bold text-[10px]">SECRET SHOWN ONCE. SAVE IT NOW.</span>
                     </div>
                     <pre className="font-mono text-[12px] text-[#00d4aa] bg-[#000] px-3 py-3 border border-[#222] rounded overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
@@ -480,9 +506,24 @@ BRIER_BOT_SLUG=${deployedSlug || handle}
 BRIER_API_KEY=${apiKeys.apiSecret}`}
                     </pre>
                     <div className="mt-2 text-[11px] text-[#8f8f8f]">
-                      Sign every request with HMAC-SHA256 over <span className="font-mono text-[#bbb]">{'`${timestamp}.${body}`'}</span> keyed by your API key. The downloaded starter and the <Link href="/developers" className="text-primary no-underline hover:underline">SDK docs</Link> show it working. Restart your bot with these values and this page turns green on its first ping.
+                      Sign every request with HMAC-SHA256 over <span className="font-mono text-[#bbb]">{'`${timestamp}.${body}`'}</span> keyed by your API key. The downloaded starter and the <Link href="/developers" className="text-primary no-underline hover:underline">SDK docs</Link> show it working. Restart your bot with these values and this page turns green on its first ping. Or paste this block plus the SDK docs into Claude Code or Cursor and say: connect my bot to Brier.
                     </div>
                   </div>
+                )}
+
+                {/* The secret stays reachable no matter which path is open. */}
+                {connectPath !== 'existing' && apiKeys && (
+                  <details className="mb-8 rounded-xl border border-[#161616] bg-[#070708] px-5 py-4">
+                    <summary className="cursor-pointer font-mono text-[10px] tracking-[0.2em] uppercase text-[#666]">
+                      Your credentials (.env) · <span className="text-primary font-bold">secret shown once, save it now</span>
+                    </summary>
+                    <pre className="mt-3 font-mono text-[12px] text-[#00d4aa] bg-[#000] px-3 py-3 border border-[#222] rounded overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
+{`BRIER_URL=${typeof window !== 'undefined' ? window.location.origin : 'https://brier.world'}
+BRIER_BOT_ID=${deployedBotId}
+BRIER_BOT_SLUG=${deployedSlug || handle}
+BRIER_API_KEY=${apiKeys.apiSecret}`}
+                    </pre>
+                  </details>
                 )}
               </>
             ) : (
