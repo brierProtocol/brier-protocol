@@ -49,7 +49,6 @@ export default function ListBotPage() {
   const [deployedSlug, setDeployedSlug] = useState('')
   const [deployedBotId, setDeployedBotId] = useState('')
   const [apiKeys, setApiKeys] = useState<{ apiKey: string, apiSecret: string } | null>(null)
-  const [downloading, setDownloading] = useState(false)
 
   const { isConnected, address } = useAccount()
   const { signMessageAsync } = useSignMessage()
@@ -132,32 +131,6 @@ export default function ListBotPage() {
       setErrorMsg(err?.message || 'An error occurred.')
     } finally {
       setVerifying(false)
-    }
-  }
-
-  // Server assembles a runnable folder (example bot + bundled SDK + filled .env)
-  // from the credentials we still hold in memory. Zero installs on the dev side.
-  const downloadStarter = async () => {
-    if (!apiKeys || !deployedBotId) return
-    setDownloading(true)
-    try {
-      const res = await fetch(`/api/bots/${deployedSlug}/starter`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ botId: deployedBotId, apiKey: apiKeys.apiSecret, baseUrl: window.location.origin }),
-      })
-      if (!res.ok) throw new Error('Could not build your starter. Copy the .env below instead.')
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${deployedSlug}-brier-bot.zip`
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'Download failed.')
-    } finally {
-      setDownloading(false)
     }
   }
 
@@ -461,17 +434,6 @@ BRIER_API_KEY=${apiKeys.apiSecret}`}
 {`npx create-brier-bot my-bot --bot-id ${deployedBotId} --api-key ${apiKeys.apiSecret}
 cd my-bot && npm install && npm start`}
                           </pre>
-                          <span className="text-[12px] text-[#8f8f8f]">
-                            Prefer no terminal?{' '}
-                            <button
-                              onClick={downloadStarter}
-                              disabled={downloading}
-                              className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary transition-all cursor-pointer disabled:text-[#555] disabled:cursor-not-allowed bg-transparent border-0 p-0 font-sans text-[12px]"
-                            >
-                              {downloading ? 'Packing…' : 'download the same template as a .zip'}
-                            </button>
-                            {' '}and run <span className="font-mono text-[11px] text-[#00d4aa]">node index.js</span>.
-                          </span>
                         </div>
                       </div>
                     </div>
@@ -503,15 +465,6 @@ cd my-bot && npm install && npm start`}
                   <span className="w-1.5 h-1.5 rounded-full bg-[#00d4aa] shadow-[0_0_8px_#00d4aa]" />
                   Awaiting first signal
                 </div>
-                {apiKeys && (
-                  <button
-                    onClick={downloadStarter}
-                    disabled={downloading}
-                    className="relative mt-5 text-[12px] font-sans font-semibold text-[#9a9a9a] hover:text-white transition-colors underline underline-offset-4 decoration-[#333] cursor-pointer"
-                  >
-                    {downloading ? 'Packing your bot…' : 'Keep it running 24/7: download your bot (.zip)'}
-                  </button>
-                )}
               </motion.div>
             )}
 
