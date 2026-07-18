@@ -96,7 +96,19 @@ export async function resolveMarket(marketId: string): Promise<{ resolved: boole
     if (res.ok && res.json && res.json.closed === true) {
       const tokens: Array<{ outcome?: string; winner?: boolean }> = res.json.tokens || []
       const winner = tokens.find(tk => tk.winner === true)
-      if (winner) return { resolved: true, yesWon: (winner.outcome || '').toUpperCase() === 'YES' }
+      if (winner) {
+        const label = (winner.outcome || '').toUpperCase()
+        if (label === 'YES' || label === 'NO') {
+          return { resolved: true, yesWon: label === 'YES' }
+        }
+        // Binary markets whose outcomes are NOT named Yes/No (Up/Down, team
+        // names…): the commit frame is "first outcome" — captureMarket takes
+        // pYes from outcomePrices[0] and the CLOB lists tokens in that same
+        // order — so YES ≡ tokens[0]. Comparing the label against 'YES' here
+        // made yesWon false for EVERY Up/Down market: all NO commits scored
+        // WIN and all YES commits LOSS regardless of reality (found 18 jul).
+        return { resolved: true, yesWon: tokens.indexOf(winner) === 0 }
+      }
     }
 
     // 2) Gamma fallback — the CLOB 404s for the fast Up/Down markets. Gamma
