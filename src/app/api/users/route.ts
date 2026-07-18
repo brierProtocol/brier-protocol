@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.json({
-      user: user || { walletAddress: address, handle: null, name: null, bio: null, pfpUrl: null },
+      user: user || { walletAddress: lowerAddress, handle: null, name: null, bio: null, pfpUrl: null },
       followersCount: user?.followers.length || 0,
       followingCount: user?.following.length || 0
     });

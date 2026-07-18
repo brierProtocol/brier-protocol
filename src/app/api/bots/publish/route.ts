@@ -8,10 +8,10 @@
  * PolyConnection so the indexer watches the wallet, AgentRegistered event),
  * then issues the API key in the same request.
  *
- * Used by:
- * 1. Web: brier.world/publish (UI form → POST here)
- * 2. CLI: npx brier publish (agent → POST here)
- * 3. LLM editor: @brier publish my bot (Cursor agent → POST here)
+ * The web wizard (/list-bot) is the canonical UI path and does NOT call this —
+ * it goes through /api/bots/register + a separate key-issuance step. This
+ * endpoint has no caller yet; it exists for the planned `npx brier publish`
+ * CLI and LLM-editor flows (deploying a bot without opening a browser).
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
