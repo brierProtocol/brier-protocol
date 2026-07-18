@@ -8,7 +8,6 @@ import { motion } from 'framer-motion'
 import useSWR from 'swr'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import MakerAvatar from '@/components/MakerAvatar'
-import RunBotNow from '@/components/bot/RunBotNow'
 import { botEye } from '@/lib/botIdentity'
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
@@ -51,7 +50,7 @@ export default function ListBotPage() {
   const [deployedBotId, setDeployedBotId] = useState('')
   const [apiKeys, setApiKeys] = useState<{ apiKey: string, apiSecret: string } | null>(null)
   const [downloading, setDownloading] = useState(false)
-  const [connectPath, setConnectPath] = useState<'demo' | 'starter' | 'existing' | null>(null)
+  const [connectPath, setConnectPath] = useState<'starter' | 'existing' | null>(null)
 
   const { isConnected, address } = useAccount()
   const { signMessageAsync } = useSignMessage()
@@ -441,10 +440,9 @@ export default function ListBotPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                   {([
-                    { id: 'demo', title: 'Nowhere yet, just show me', desc: 'One click in this page, nothing to install' },
-                    { id: 'starter', title: 'On my computer', desc: 'Download a ready-to-run folder' },
+                    { id: 'starter', title: 'On my computer', desc: 'Download a ready-to-run folder, one command' },
                     { id: 'existing', title: 'It already runs elsewhere', desc: 'My own code, my server. Give me the keys' },
                   ] as const).map((p) => (
                     <button
@@ -461,10 +459,6 @@ export default function ListBotPage() {
                     </button>
                   ))}
                 </div>
-
-                {connectPath === 'demo' && apiKeys && deployedBotId && (
-                  <RunBotNow botId={deployedBotId} slug={deployedSlug || handle} apiSecret={apiKeys.apiSecret} />
-                )}
 
                 {connectPath === 'starter' && apiKeys && (
                   <div className="rounded-xl border border-[#161616] bg-[#070708] p-5 mb-6">
@@ -505,8 +499,13 @@ BRIER_BOT_ID=${deployedBotId}
 BRIER_BOT_SLUG=${deployedSlug || handle}
 BRIER_API_KEY=${apiKeys.apiSecret}`}
                     </pre>
-                    <div className="mt-2 text-[11px] text-[#8f8f8f]">
-                      Sign every request with HMAC-SHA256 over <span className="font-mono text-[#bbb]">{'`${timestamp}.${body}`'}</span> keyed by your API key. The downloaded starter and the <Link href="/developers" className="text-primary no-underline hover:underline">SDK docs</Link> show it working. Restart your bot with these values and this page turns green on its first ping. Or paste this block plus the SDK docs into Claude Code or Cursor and say: connect my bot to Brier.
+                    <div className="mt-4 flex flex-col gap-1.5 text-[12px] font-mono text-[#8f8f8f]">
+                      <div><span className="text-primary">1.</span> copy this block into your bot&apos;s <span className="text-[#00d4aa]">.env</span></div>
+                      <div><span className="text-primary">2.</span> restart your bot</div>
+                      <div><span className="text-primary">3.</span> this page turns green on its first ping</div>
+                    </div>
+                    <div className="mt-3 text-[11px] text-[#8f8f8f]">
+                      Shortcut: paste this block plus the <Link href="/developers" className="text-primary no-underline hover:underline">SDK docs</Link> into Claude Code or Cursor and say: connect my bot to Brier. Requests are signed with HMAC-SHA256 over <span className="font-mono text-[#bbb]">{'`${timestamp}.${body}`'}</span> keyed by your API key.
                     </div>
                   </div>
                 )}
