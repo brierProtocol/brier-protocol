@@ -41,9 +41,11 @@ export async function POST(request: Request) {
     const finalHandle = handle === undefined ? undefined : (handle?.trim() || null);
 
     if (finalHandle) {
-      // Check if handle is already taken by someone else
+      // Check if handle is already taken by someone else. Compare in the
+      // canonical lowercase form or a checksummed caller gets rejected for
+      // owning their own handle.
       const existing = await prisma.user.findUnique({ where: { handle: finalHandle } });
-      if (existing && existing.walletAddress !== walletAddress) {
+      if (existing && existing.walletAddress !== lowerAddress) {
         return NextResponse.json({ error: 'Handle already taken' }, { status: 400 });
       }
     }

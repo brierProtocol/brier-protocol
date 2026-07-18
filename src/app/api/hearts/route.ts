@@ -6,7 +6,9 @@ import { prisma } from '@/lib/db/prisma'
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const botId = searchParams.get('botId')
-  const userId = searchParams.get('userId')
+  // Wallets live lowercased in the DB; normalize or the "already hearted"
+  // check misses for checksummed addresses.
+  const userId = searchParams.get('userId')?.toLowerCase() || null
 
   if (!botId) {
     return NextResponse.json({ error: 'Missing botId' }, { status: 400 })
@@ -32,7 +34,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { userId, botId } = await request.json()
+    const body = await request.json()
+    const botId = body.botId
+    // Canonical lowercase, like the rest of the social layer. A checksummed
+    // address here used to create a second heart from the "same" user.
+    const userId = typeof body.userId === 'string' ? body.userId.toLowerCase() : ''
 
     if (!userId || !botId) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 })
@@ -70,17 +76,20 @@ export async function POST(request: Request) {
         }
       })
 
-      // Notify the bot owner. This is best-effort: a notification failure must
-      // never break the like itself, so it runs in its own try/catch.
+      // Notify the bot's OWNER (ownerWallet is the human; walletAddress may be
+      // the bot's execution wallet). Best-effort: a notification failure must
+      // never break the like itself. actorWallet lets the bell show a face.
       try {
-        const bot = await prisma.bot.findUnique({ where: { id: botId } })
-        if (bot && bot.walletAddress && bot.walletAddress !== userId) {
+        const bot = await prisma.bot.findUnique({ where: { id: botId }, select: { name: true, ownerWallet: true, walletAddress: true } })
+        const ownerWallet = (bot?.ownerWallet || bot?.walletAddress || '').toLowerCase()
+        if (bot && ownerWallet && ownerWallet !== userId) {
           await prisma.notification.create({
             data: {
-              walletAddress: bot.walletAddress,
+              walletAddress: ownerWallet,
               type: 'LIKE',
               title: 'ALGORITHM LIKED',
-              message: `Wallet ${userId.substring(0, 6)}... liked your bot [${bot.name}].`
+              message: `liked ${bot.name}.`,
+              metadata: JSON.stringify({ actorWallet: userId, botName: bot.name }),
             }
           })
         }
