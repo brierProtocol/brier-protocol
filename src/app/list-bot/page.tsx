@@ -456,7 +456,7 @@ BRIER_API_KEY=${apiKeys.apiSecret}`}
                       <div className="flex gap-3 items-start">
                         <span className="font-mono text-[11px] text-primary shrink-0 mt-0.5">B.</span>
                         <div className="text-[13px] text-[#bbb] leading-relaxed min-w-0 flex-1">
-                          <span className="text-white font-semibold">No bot yet?</span> One command, keys included:
+                          <span className="text-white font-semibold">Want to verify the pipeline first?</span> One command scaffolds the reference template with your keys. It proves the connection; the model inside is yours to replace:
                           <pre className="mt-2 mb-0 font-mono text-[11px] text-[#00d4aa] bg-[#000] px-3 py-2.5 border border-[#222] rounded overflow-x-auto whitespace-pre leading-relaxed select-all">
 {`npx create-brier-bot my-bot --bot-id ${deployedBotId} --api-key ${apiKeys.apiSecret}
 cd my-bot && npm install && npm start`}
@@ -468,7 +468,7 @@ cd my-bot && npm install && npm start`}
                               disabled={downloading}
                               className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary transition-all cursor-pointer disabled:text-[#555] disabled:cursor-not-allowed bg-transparent border-0 p-0 font-sans text-[12px]"
                             >
-                              {downloading ? 'Packing…' : 'download the same bot as a .zip'}
+                              {downloading ? 'Packing…' : 'download the same template as a .zip'}
                             </button>
                             {' '}and run <span className="font-mono text-[11px] text-[#00d4aa]">node index.js</span>.
                           </span>
