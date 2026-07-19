@@ -40,6 +40,15 @@ next_dev.log   # next dev server log (also covered by *.log)
 .env*
 !.env.example
 
+# one-shot / local ops scripts — these hold DB URLs and prod credentials and
+# must NEVER be committed (a leaked .repair.mjs put the prod password on a
+# public commit once; the leading dot keeps these out of the repo by default).
+.repair.mjs
+.*.mjs
+.*.cjs
+*.local.mjs
+scratch*.mjs
+
 # vercel
 .vercel
 

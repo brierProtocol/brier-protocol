@@ -146,10 +146,17 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
         setHearts(dbBot._count?.hearts || 0)
         setTrades(mapped.predictions.length ? mapped.predictions : (dbBot.trades || []))
         setLoading(false)
-        fetch(`/api/comments?botId=${mapped.id}`).then(r => r.json()).then(d => { if (Array.isArray(d)) setPosts(d) })
       })
       .catch(() => setLoading(false))
   }, [slug])
+
+  // Comments load once the bot id is known, and reload when the viewer's
+  // wallet becomes available so likedByViewer reflects who's actually looking.
+  useEffect(() => {
+    if (!bot?.id) return
+    const url = address ? `/api/comments?botId=${bot.id}&viewer=${address}` : `/api/comments?botId=${bot.id}`
+    fetch(url).then(r => r.ok ? r.json() : null).then(d => { if (Array.isArray(d)) setPosts(d) }).catch(() => {})
+  }, [bot?.id, address])
 
   // Live liveness poll — refresh heartbeat + activity every 5s so the profile
   // shows the bot as operating/offline in near real time (the bot beats ~4s).
@@ -198,6 +205,52 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
     const res = await fetch('/api/comments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ botId: bot.id, wallet: address, text: postText.trim() }) })
     if (res.ok) { const c = await res.json(); setPosts([c, ...posts]); setPostText('') }
     else showToast('Could not post comment.')
+  }
+
+  // Reply and top-level share the same endpoint; a reply just carries parentId
+  // and is appended to that comment's `replies` in local state, not the top list.
+  const addReply = async (parentId: string, text: string, mediaUrl?: string) => {
+    if (!isConnected || !address) return showToast('Connect your wallet to reply.')
+    if (!bot || (!text.trim() && !mediaUrl)) return
+    const res = await fetch('/api/comments', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ botId: bot.id, wallet: address, text: text.trim(), parentId, mediaUrl }),
+    })
+    if (res.ok) {
+      const c = await res.json()
+      setPosts(prev => prev.map(p => p.id === parentId ? { ...p, replies: [...(p.replies || []), c] } : p))
+    } else showToast('Could not post reply.')
+  }
+
+  const deletePost = async (id: string, parentId?: string | null) => {
+    if (!address) return
+    const prev = posts
+    setPosts(ps => parentId
+      ? ps.map(p => p.id === parentId ? { ...p, replies: (p.replies || []).filter(r => r.id !== id) } : p)
+      : ps.filter(p => p.id !== id))
+    try {
+      const res = await fetch(`/api/comments?id=${id}&wallet=${address}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
+    } catch {
+      setPosts(prev)
+      showToast('Could not delete comment.')
+    }
+  }
+
+  const toggleCommentLike = async (id: string, parentId?: string | null) => {
+    if (!isConnected || !address) return showToast('Connect your wallet to like.')
+    const apply = (p: Post) => p.id === id ? { ...p, likedByViewer: !p.likedByViewer, likes: (p.likes || 0) + (p.likedByViewer ? -1 : 1) } : p
+    const prev = posts
+    setPosts(ps => parentId
+      ? ps.map(p => p.id === parentId ? { ...p, replies: (p.replies || []).map(apply) } : p)
+      : ps.map(apply))
+    try {
+      const res = await fetch('/api/comments/like', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: address, commentId: id }) })
+      if (!res.ok) throw new Error()
+    } catch {
+      setPosts(prev)
+      showToast('Could not save your like. Try again.')
+    }
   }
 
   const handleSaveBot = async () => {
@@ -397,7 +450,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-2.5">
                 <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#555]">by</span>
                 {bot.maker?.pfpUrl && (
-                  <img src={bot.maker.pfpUrl} alt={bot.builder || ''} className="w-5 h-5 rounded-full object-cover shrink-0 border border-[#222]" />
+                  <img src={bot.maker.pfpUrl} alt={bot.builder || ''} className="w-8 h-8 rounded-full object-cover shrink-0 border border-[#222]" />
                 )}
                 <Link href={`/maker/${bot.builder || ''}`} className="font-sans font-semibold text-[13px] text-[#e8e8e8] hover:text-white transition-colors truncate max-w-[120px]">{sharedPersonLabel(bot.maker, bot.builder)}</Link>
                 <div className="w-1 h-1 rounded-full bg-[#333] hidden sm:block" />
@@ -551,6 +604,9 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
               postText={postText}
               setPostText={setPostText}
               onPost={addPost}
+              onReply={addReply}
+              onDelete={deletePost}
+              onLike={toggleCommentLike}
               isConnected={isConnected}
               address={address}
               currentUser={currentUser}

@@ -367,8 +367,36 @@ model Comment {
   wallet    String
   user      User?    @relation(fields: [wallet], references: [walletAddress])
   text      String
+  // Optional attachment: a data: URL (small uploads) or an https image/gif URL —
+  // same permissive shape already accepted for User/Bot pfpUrl.
+  mediaUrl  String?
   likes     Int      @default(0)
+
+  // One level of replies: a reply's parent is always a top-level comment (no
+  // reply-to-reply chains, keeps the thread flat and easy to render).
+  parentId String?
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
+
+  commentLikes CommentLike[]
+
   createdAt DateTime @default(now())
+
+  @@index([botId, parentId])
+}
+
+// Per-user like on a comment or reply — mirrors Heart (bot-level likes), just
+// scoped to a comment so `likes` on Comment stays an accurate cached counter
+// and the UI can show "you liked this" without a second query shape.
+model CommentLike {
+  id        String  @id @default(cuid())
+  userId    String
+  commentId String
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, commentId])
 }
 
 model User {

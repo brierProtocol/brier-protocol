@@ -5,6 +5,11 @@ import { codename } from '@/lib/botIdentity'
 
 export interface Post {
   id: string; wallet: string; text: string; createdAt: string;
+  mediaUrl?: string | null
+  likes?: number
+  likedByViewer?: boolean
+  parentId?: string | null
+  replies?: Post[]
   user?: { handle?: string | null; name?: string | null; pfpUrl?: string | null } | null
 }
 
