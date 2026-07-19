@@ -46,46 +46,63 @@ export default function ConnectXModal({
           onClick={onClose}
         >
           <motion.div
-            className="w-full max-w-[400px] rounded-2xl border border-[#1f1f28] bg-[#0a0a0e] p-6"
+            className="w-full max-w-[400px] rounded-2xl border border-[#1f1f28] bg-[#0a0a0e] p-7 shadow-2xl relative overflow-hidden"
             initial={{ scale: 0.94, y: 8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }}
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center gap-2.5 mb-1.5">
-              <span className="grid place-items-center w-8 h-8 rounded-lg bg-white text-black"><XLogo size={15} /></span>
-              <span className="font-sans font-bold text-[16px] text-white">Link your X</span>
-            </div>
-            <p className="text-[12px] text-[#8a8a94] leading-relaxed mb-4">
-              Show your X on your Brier profile so traders know who is behind the algorithms.
-            </p>
+            {/* Subtle background glow */}
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl" />
+            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-[#fff]/5 rounded-full blur-3xl" />
 
-            {wallet && !initial && (
-              <button
-                onClick={() => { window.location.href = `/api/auth/twitter?wallet=${wallet}` }}
-                className="w-full flex items-center justify-center gap-2 rounded-lg bg-white text-black font-bold text-[13px] py-2.5 mb-3 hover:bg-[#e8e8e8] transition-colors"
-              >
-                <XLogo size={14} /> Connect with X (verified)
-              </button>
-            )}
-
-            {initial && (
-              <div className="mt-2 mb-6">
-                <span className="font-mono text-[10px] tracking-[0.16em] uppercase text-[#5a5a64] block mb-2">Connected Account</span>
-                <div className="flex items-center gap-2 rounded-lg border border-[#1f1f28] bg-[#070709] px-3 py-2.5">
-                  <XLogo size={12} className="text-[#8a8a94]" />
-                  <span className="text-[14px] text-white font-mono">@{initial}</span>
-                  <span className="text-primary text-[14px] ml-auto">✓</span>
+            <div className="relative z-10">
+              <div className="flex flex-col items-center justify-center text-center mb-6">
+                <div className="relative mb-4">
+                  <div className="absolute inset-0 bg-primary/20 rounded-xl blur-lg animate-pulse" />
+                  <span className="relative grid place-items-center w-12 h-12 rounded-xl bg-gradient-to-b from-white to-[#e0e0e0] text-black shadow-lg">
+                    <XLogo size={20} />
+                  </span>
                 </div>
+                <h3 className="font-sans font-bold text-[20px] text-white tracking-tight mb-2">Initialize X Uplink</h3>
+                <p className="text-[13px] text-[#8a8a94] leading-relaxed max-w-[280px]">
+                  Securely link your X identity to Brier. Let traders verify the mastermind behind the algorithms.
+                </p>
               </div>
-            )}
 
-            <div className="flex items-center justify-between mt-2">
-              {initial ? (
-                <button onClick={() => submit(null)} disabled={saving} className="font-mono text-[11px] text-[#ff5570] hover:text-[#ff7a8c] transition-colors disabled:opacity-40">
-                  {saving ? 'Unlinking…' : 'Unlink account'}
+              {wallet && !initial && (
+                <button
+                  onClick={() => { window.location.href = `/api/auth/twitter?wallet=${wallet}` }}
+                  className="group relative w-full flex items-center justify-center gap-2 rounded-xl bg-white text-black font-bold text-[14px] py-3.5 mb-2 hover:bg-[#f0f0f0] transition-all overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 opacity-0 group-hover:opacity-100 group-hover:animate-shimmer" style={{ backgroundSize: '200% 100%' }} />
+                  <span className="relative z-10 flex items-center gap-2">
+                    <XLogo size={15} /> Authenticate via X
+                  </span>
                 </button>
-              ) : <span />}
-              <div className="flex gap-2">
-                <button onClick={onClose} className="rounded-full border border-[#262630] px-4 py-2 text-[12px] font-semibold text-[#aaa] hover:text-white hover:border-[#3a3a44] transition-colors">Cancel</button>
+              )}
+
+              {initial && (
+                <div className="mt-2 mb-6">
+                  <span className="font-mono text-[10px] tracking-[0.16em] uppercase text-[#5a5a64] block mb-2 text-center">Verified Identity</span>
+                  <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 shadow-[0_0_15px_rgba(255,42,77,0.05)]">
+                    <XLogo size={14} className="text-white" />
+                    <span className="text-[15px] text-white font-mono font-medium">@{initial}</span>
+                    <div className="ml-auto flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                      <span className="font-mono text-[9px] uppercase tracking-wider text-primary">Active</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between mt-6 pt-4 border-t border-[#1f1f28]">
+                {initial ? (
+                  <button onClick={() => submit(null)} disabled={saving} className="font-mono text-[11px] uppercase tracking-widest text-[#ff5570] hover:text-[#ff7a8c] transition-colors disabled:opacity-40">
+                    {saving ? 'Severing…' : 'Sever Link'}
+                  </button>
+                ) : <span />}
+                <button onClick={onClose} className="rounded-full bg-[#12121a] border border-[#262630] px-5 py-2 text-[12px] font-semibold text-[#aaa] hover:text-white hover:border-[#3a3a44] transition-all">
+                  Cancel
+                </button>
               </div>
             </div>
           </motion.div>
