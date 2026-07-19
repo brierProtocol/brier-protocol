@@ -142,6 +142,12 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
     () => followersList.filter(u => viewerFollowing.has(u.walletAddress?.toLowerCase())),
     [followersList, viewerFollowing]
   )
+  // "Follows you": the profile's following list contains the viewer → this
+  // person already follows the viewer back (the Messi case: on Messi's profile
+  // the viewer sees a "Follows you" badge because Messi follows them).
+  const followsViewer = !isOwner && !!activeUser && profileFollowingSet.has(activeUser)
+  // Whether viewer + profile follow each other → mutual, surfaced on the button.
+  const isMutual = followsViewer && followed
 
   const totalTVL = bots.reduce((s, b) => s + (b.currentTVL || b.tvl || 0), 0)
   const botsWithBrier = bots.filter(b => b.scores?.[0]?.brierScore || b.brierScore)
@@ -278,6 +284,13 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h1 className="font-black text-[26px] tracking-[-0.03em] text-white m-0 leading-none">{displayName}</h1>
                 {profile?.handle && hasName && <span className="font-mono text-[13px] text-[#8a8a94]">@{profile.handle}</span>}
+                {/* "Follows you" — this person already follows the viewer back */}
+                {followsViewer && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[#8b7bff44] bg-[#8b7bff14] px-2 py-0.5 font-mono text-[10px] font-bold tracking-wide" style={{ color: VIOLET }}>
+                    {isMutual && <span className="text-[#c8ff00]">⇄</span>}
+                    {isMutual ? 'You follow each other' : 'Follows you'}
+                  </span>
+                )}
                 {xHandle && (
                   <a href={`https://x.com/${xHandle}`} target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 rounded-full border border-[#262630] px-2.5 py-1 text-[11px] text-[#ddd] hover:border-[#3a3a44] hover:text-white no-underline transition-colors" title={profile?.xVerified ? 'Verified via X' : ''}>
@@ -308,8 +321,37 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
                   <span className="font-sans font-bold text-[15px] text-white tabular-nums">{followingList.length}</span>
                   <span className="text-[12px] text-[#7a7a84] group-hover:text-white transition-colors">following</span>
                 </button>
-
               </div>
+
+              {/* follower faces in circles under the name — always visible when
+                  anyone follows, mutual-with-viewer ones marked with ⇄ */}
+              {followersList.length > 0 && (
+                <button onClick={() => setSocialModal('followers')} className="group flex items-center gap-2.5 mt-3">
+                  <div className="flex -space-x-2">
+                    {followersList.slice(0, 7).map((u, i) => (
+                      <motion.span
+                        key={u.walletAddress}
+                        initial={{ scale: 0, x: -8 }}
+                        animate={{ scale: 1, x: 0 }}
+                        transition={{ delay: i * 0.05, type: 'spring', stiffness: 300, damping: 20 }}
+                        style={{ zIndex: 10 - i }}
+                        className="relative rounded-full ring-2 ring-[#050507] group-hover:ring-[#0e0e14] transition-colors"
+                        title={personLabel(u)}
+                      >
+                        <MakerAvatar address={u.walletAddress} pfpUrl={u.pfpUrl} size={26} />
+                        {viewerFollowing.has(u.walletAddress?.toLowerCase()) && (
+                          <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full grid place-items-center ring-1 ring-[#050507]" style={{ background: POS }}>
+                            <span className="text-[6px] text-black font-black leading-none">⇄</span>
+                          </span>
+                        )}
+                      </motion.span>
+                    ))}
+                  </div>
+                  {followersList.length > 7 && (
+                    <span className="font-mono text-[11px] text-[#6a6a74] group-hover:text-white transition-colors">+{followersList.length - 7}</span>
+                  )}
+                </button>
+              )}
 
               {/* social proof — people YOU follow who also follow this maker,
                   shown as a prominent animated avatar stack (real mutual data) */}

@@ -573,7 +573,7 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
           <div className="flex flex-col gap-6 min-w-0">
             {/* signal — live connection visual */}
             <div id="signal" className="scroll-mt-28 transform scale-[0.9] origin-top-left w-[111.11%]">
-              <BotUplink eye={eye} status={uplink} lastFill={lastFill} resolved={sp.resolved} online={isOnline} target={SHADOW_RESOLVED_TARGET} winRate={bot.winRate} />
+              <BotUplink eye={eye} status={uplink} lastFill={lastFill} resolved={sp.resolved} online={isOnline} target={SHADOW_RESOLVED_TARGET} winRate={bot.winRate} lastHeartbeatAt={bot.lastHeartbeatAt} liveActivity={bot.liveActivity} />
             </div>
 
             {/* performance — Liveline real-time-style Reputation (LCB) curve */}

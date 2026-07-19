@@ -1,8 +1,24 @@
 'use client'
 
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import BotIrisAvatar from './BotIrisAvatar'
+
+/** Live "beat Xs ago" ticker — re-reads the clock each second so a connected
+ *  bot visibly pulses in real time (the strongest proof it is talking to Brier
+ *  right now), and a dead one shows exactly how long it has been silent. */
+function HeartbeatAge({ lastHeartbeatAt, live }: { lastHeartbeatAt?: string | null; live: boolean }) {
+  const [, tick] = useState(0)
+  useEffect(() => { const id = setInterval(() => tick(t => t + 1), 1000); return () => clearInterval(id) }, [])
+  if (!lastHeartbeatAt) return <span className="font-mono text-[10px] text-[#5a5a64]">never connected</span>
+  const secs = Math.max(0, Math.floor((Date.now() - new Date(lastHeartbeatAt).getTime()) / 1000))
+  const ago = secs < 60 ? `${secs}s` : secs < 3600 ? `${Math.floor(secs / 60)}m` : `${Math.floor(secs / 3600)}h`
+  return (
+    <span className="font-mono text-[10px] tabular-nums" style={{ color: live ? '#c8ff00' : '#7a5a64' }}>
+      {live ? `beat ${ago} ago` : `silent ${ago}`}
+    </span>
+  )
+}
 
 // Honest gamification: every element below derives from REAL protocol data
 // (resolved count, heartbeat, win rate). Rank tiers live in lib/botProgress —
@@ -10,7 +26,7 @@ import BotIrisAvatar from './BotIrisAvatar'
 import { BOT_RANKS as RANKS, botRank as rankOf } from '@/lib/botProgress'
 
 export default function BotUplink({
-  eye, status, lastFill, resolved, online, target = 100, winRate,
+  eye, status, lastFill, resolved, online, target = 100, winRate, lastHeartbeatAt, liveActivity,
 }: {
   eye: { avatarId: string; accentColor: string; shape?: any }
   status: 'live' | 'awaiting'
@@ -23,11 +39,16 @@ export default function BotUplink({
   target?: number
   /** Win rate 0..1 from the latest score row, if any. */
   winRate?: number | null
+  /** ISO timestamp of the bot's last heartbeat — powers the live "beat Xs ago". */
+  lastHeartbeatAt?: string | null
+  /** The bot's most recent self-reported action (what it's thinking right now). */
+  liveActivity?: string | null
 }) {
   // Signal = the live heartbeat. Falls back to trade-derived status only if the
   // heartbeat state was not passed in.
   const live = online === undefined ? status === 'live' : online
   const accent = live ? '#c8ff00' : '#3a3a4a'
+  const VIOLET = '#8b7bff'
   const n = resolved ?? 0
   const rank = rankOf(n)
   const nextRank = RANKS.find(r => r.at > n) || null
@@ -90,6 +111,37 @@ export default function BotUplink({
       }} />
 
       <div className="relative p-5">
+        {/* CONNECTION BANNER — the first thing you read: is it live, and when
+            did it last beat? Big, unmissable, updates every second. */}
+        <div className="flex items-center justify-between mb-4 rounded-xl border px-3.5 py-2.5"
+          style={{ borderColor: live ? '#c8ff0028' : '#2a1a22', background: live ? '#c8ff0008' : '#12060a' }}>
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-3 w-3">
+              {live && <motion.span className="absolute inline-flex h-full w-full rounded-full"
+                style={{ background: accent }} animate={{ scale: [1, 2.2], opacity: [0.6, 0] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }} />}
+              <span className="relative inline-flex rounded-full h-3 w-3" style={{ background: live ? accent : '#5a3a44', boxShadow: live ? `0 0 8px ${accent}` : 'none' }} />
+            </span>
+            <div className="leading-none">
+              <div className="font-sans font-bold text-[14px]" style={{ color: live ? '#eaffb0' : '#c98a98' }}>
+                {live ? 'Connected & transmitting' : 'Not connected'}
+              </div>
+              <div className="mt-1"><HeartbeatAge lastHeartbeatAt={lastHeartbeatAt} live={live} /></div>
+            </div>
+          </div>
+          <div className="text-right leading-none">
+            <div className="font-mono text-[8px] tracking-[0.2em] uppercase text-[#5a5a64] mb-1">Heartbeat</div>
+            <div className="flex items-end gap-[2px] justify-end h-4">
+              {live ? [0,1,2,3,4,5,6].map(i => (
+                <motion.span key={i} className="w-[3px] rounded-full" style={{ background: accent }}
+                  animate={{ height: [4, 14, 4] }} transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.12, ease: 'easeInOut' }} />
+              )) : [0,1,2,3,4,5,6].map(i => (
+                <span key={i} className="w-[3px] h-[3px] rounded-full bg-[#3a2a30]" />
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* header — rank chip + signal strength bars */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
@@ -292,6 +344,16 @@ export default function BotUplink({
             </div>
           ))}
         </div>
+        {/* last self-reported thought — the bot's live inner monologue */}
+        {live && liveActivity && (
+          <div className="mt-3 flex items-start gap-2 rounded-lg border border-[#12121a] bg-[#050508] px-3 py-2">
+            <motion.span className="mt-[3px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: VIOLET }}
+              animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.6, repeat: Infinity }} />
+            <span className="font-mono text-[10px] text-[#8a8a94] leading-relaxed break-words min-w-0">
+              <span className="text-[#5a5a64]">last action · </span>{liveActivity}
+            </span>
+          </div>
+        )}
         <div className="mt-3 text-[10px] text-[#333] font-mono leading-relaxed">
           {live
             ? 'Live heartbeat from the bot. Rank and reactor fill only from resolved predictions — nothing here is decorative.'
