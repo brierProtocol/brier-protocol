@@ -447,36 +447,21 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
                 {bot.name}
               </h1>
               
+              {/* by [maker] — a bigger, friendlier attribution row. Connection
+                  status lives in the Signal panel now, so no redundant dot here. */}
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-2.5">
                 <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#555]">by</span>
                 {bot.maker?.pfpUrl && (
                   <img src={bot.maker.pfpUrl} alt={bot.builder || ''} className="w-8 h-8 rounded-full object-cover shrink-0 border border-[#222]" />
                 )}
-                <Link href={`/maker/${bot.builder || ''}`} className="font-sans font-semibold text-[13px] text-[#e8e8e8] hover:text-white transition-colors truncate max-w-[120px]">{sharedPersonLabel(bot.maker, bot.builder)}</Link>
-                <div className="w-1 h-1 rounded-full bg-[#333] hidden sm:block" />
-                <div className="flex items-center gap-1.5 font-mono text-[10px]">
-                  {isOnline ? (
-                    <><span className="w-1.5 h-1.5 rounded-full" style={{ background: TEAL, boxShadow: `0 0 8px ${TEAL}88` }} /><span className="font-bold tracking-[0.16em] uppercase" style={{ color: TEAL }}>Live</span></>
-                  ) : (
-                    <><span className="w-1.5 h-1.5 rounded-full bg-[#3a3a44]" /><span className="text-[#5a5a64] font-bold tracking-[0.16em] uppercase">Standby</span></>
-                  )}
-                </div>
+                <Link href={`/maker/${bot.builder || ''}`} className="font-sans font-semibold text-[14px] text-[#e8e8e8] hover:text-white transition-colors truncate max-w-[160px]">{sharedPersonLabel(bot.maker, bot.builder)}</Link>
               </div>
-              
+
               {bot.description && (
-                <p className="text-[12px] leading-relaxed text-[#888] line-clamp-2 mb-3 max-w-sm">
+                <p className="text-[12px] leading-relaxed text-[#888] line-clamp-2 mb-1 max-w-sm">
                   {bot.description}
                 </p>
               )}
-              
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                <div className="px-2 py-1 rounded text-[9px] font-mono font-bold tracking-widest uppercase border bg-[#c8ff00]/10 text-[#c8ff00] border-[#c8ff00]/30 flex items-center gap-1.5">
-                  <span className="text-[11px] leading-none">⬡</span> {hasVerifiedPerformance ? 'Verified' : 'Pending'}
-                </div>
-                <div className="px-2 py-1 rounded text-[9px] font-mono font-bold tracking-widest uppercase border" style={{ color: rank.color, borderColor: `${rank.color}33`, background: `${rank.color}0d` }}>
-                  {rank.tag}
-                </div>
-              </div>
             </div>
           </div>
 
@@ -656,34 +641,43 @@ export default function BotProfilePage({ params }: { params: Promise<{ slug: str
             )}
 
             {/* eligibility */}
-            <Panel className="p-5">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-sans font-bold text-[16px] tracking-[-0.01em] text-white">Vault eligibility</span>
-                <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-[4px]" style={{ color: sp.live || sp.eligible ? TEAL : VIOLET, background: sp.live || sp.eligible ? `${TEAL}14` : `${VIOLET}14`, border: `1px solid ${sp.live || sp.eligible ? TEAL : VIOLET}33` }}>
-                  {sp.live ? 'OPEN' : sp.eligible ? 'ELIGIBLE' : 'SHADOW PHASE'}
+            <Panel className="p-6 relative overflow-hidden">
+              {/* Background glow if open/eligible */}
+              {(sp.live || sp.eligible) && (
+                <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-20 pointer-events-none blur-3xl" style={{ background: TEAL, transform: 'translate(30%, -30%)' }} />
+              )}
+              
+              <div className="relative z-10 flex items-center justify-between mb-2">
+                <span className="font-sans font-black text-[18px] tracking-tight text-white flex items-center gap-2">
+                  Vault eligibility
+                  {sp.live && <span className="text-[14px]">🔓</span>}
+                </span>
+                <span className="font-mono text-[11px] font-bold px-2.5 py-1 rounded-[6px] tracking-widest uppercase" style={{ color: sp.live || sp.eligible ? '#000' : VIOLET, background: sp.live || sp.eligible ? TEAL : `${VIOLET}14`, border: `1px solid ${sp.live || sp.eligible ? TEAL : VIOLET}33`, boxShadow: sp.live || sp.eligible ? `0 0 12px ${TEAL}40` : 'none' }}>
+                  {sp.live ? 'Unlocked' : sp.eligible ? 'Eligible' : 'Shadow Phase'}
                 </span>
               </div>
-              <div className="text-[12px] text-[#8a8a94] mb-4 leading-relaxed">
-                {sp.live ? 'This bot cleared the gate. Its vault is open.' : `Proving in the open. ${clearedCount} of 3 cleared. The vault unlocks when all three are met.`}
+              <div className="relative z-10 text-[13px] text-[#8a8a94] mb-6 leading-relaxed">
+                {sp.live ? 'This agent has proven its edge. The vault is open and accepting capital.' : `Proving in the open. ${clearedCount} of 3 milestones cleared. The vault unlocks when all three are met.`}
               </div>
-              <div className="flex flex-col gap-4">
+              
+              <div className="relative z-10 flex flex-col gap-4">
                 {criteria.map((c, idx) => (
-                  <div key={c.label}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[13px] font-semibold inline-flex items-center gap-2" style={{ color: c.ok ? '#e8e8e8' : '#bbb' }}>
-                        <span className="grid place-items-center w-4 h-4 rounded-full text-[9px]" style={{ background: c.ok ? TEAL : '#1c1c22', color: c.ok ? '#030303' : VIOLET }}>{c.ok ? '✓' : idx + 1}</span>
+                  <div key={c.label} className={`rounded-xl border p-4 transition-colors ${c.ok ? 'border-[#c8ff00] bg-[#c8ff00]/[0.03]' : 'border-[#1a1a24] bg-[#0a0a0f]'}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[14px] font-bold flex items-center gap-2.5" style={{ color: c.ok ? TEAL : '#e8e8e8' }}>
+                        <span className="grid place-items-center w-5 h-5 rounded-full text-[10px] shadow-sm" style={{ background: c.ok ? TEAL : '#1c1c22', color: c.ok ? '#030303' : VIOLET, boxShadow: c.ok ? `0 0 8px ${TEAL}66` : 'none' }}>{c.ok ? '✓' : idx + 1}</span>
                         {c.label}
-                        <button onClick={() => setOpenHint(openHint === c.label ? null : c.label)} className="grid place-items-center w-4 h-4 rounded-full border border-[#2a2a34] text-[#6a6a74] text-[9px] hover:text-white hover:border-[#444] transition-colors cursor-pointer" aria-label="What is this?">?</button>
+                        <button onClick={() => setOpenHint(openHint === c.label ? null : c.label)} className="grid place-items-center w-[18px] h-[18px] rounded-full border border-[#2a2a34] text-[#6a6a74] text-[10px] hover:text-white hover:border-[#444] transition-colors cursor-pointer" aria-label="What is this?">?</button>
                       </span>
-                      <span className="font-mono text-[12px] tabular-nums" style={{ color: c.ok ? '#9a9a9a' : VIOLET }}>{c.val}</span>
+                      <span className="font-mono text-[13px] font-bold tabular-nums" style={{ color: c.ok ? TEAL : '#888' }}>{c.val}</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-[#0e0e0e] overflow-hidden">
-                      <motion.div className="h-full rounded-full" style={{ background: c.ok ? TEAL : VIOLET }} initial={{ width: 0 }} animate={{ width: `${c.pct * 100}%` }} transition={{ duration: 0.9, ease: 'easeOut', delay: idx * 0.12 }} />
+                    <div className="h-2 rounded-full bg-[#12121a] overflow-hidden shadow-inner">
+                      <motion.div className="h-full rounded-full" style={{ background: c.ok ? `linear-gradient(90deg, ${TEAL}88, ${TEAL})` : `linear-gradient(90deg, ${VIOLET}66, ${VIOLET})` }} initial={{ width: 0 }} animate={{ width: `${c.pct * 100}%` }} transition={{ duration: 1.2, ease: 'easeOut', delay: idx * 0.15 }} />
                     </div>
                     <AnimatePresence>
                       {openHint === c.label && (
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                          <div className="mt-2 rounded-lg border-l-2 border-primary/50 bg-[#0a0a0e] px-3 py-2 text-[12px] text-[#b4b4be] leading-relaxed">{c.hint}</div>
+                          <div className="mt-3 text-[12px] text-[#9a9a9a] leading-relaxed pr-8">{c.hint}</div>
                         </motion.div>
                       )}
                     </AnimatePresence>

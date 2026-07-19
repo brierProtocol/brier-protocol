@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useAccount } from 'wagmi'
+import { useAccount, useDisconnect } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { motion, AnimatePresence } from 'framer-motion'
 import MakerAvatar from '@/components/MakerAvatar'
@@ -276,9 +276,6 @@ export default function Navbar() {
                   return (
                     <div className="flex items-center gap-2.5">
                       <NotificationBell address={account.address} />
-                      <Link href={`/maker/${account.address}`} className="font-sans text-[12px] font-semibold px-4 py-2 rounded-full border border-[#222] text-[#ccc] hover:text-white hover:border-[#444] transition-all no-underline hidden sm:flex items-center">
-                        Profile
-                      </Link>
                       <AccountButton account={account} openAccountModal={openAccountModal} />
                     </div>
                   )
@@ -320,18 +317,76 @@ export default function Navbar() {
 
 function AccountButton({ account, openAccountModal }: { account: any, openAccountModal: () => void }) {
   const user = useCurrentUser(account.address)
+  const { disconnect } = useDisconnect()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  // Close on outside click / Escape — a dropdown should never trap the user.
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDoc); document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey) }
+  }, [open])
+
+  const short = `${account.address.slice(0, 6)}…${account.address.slice(-4)}`
+
   return (
-    <button
-      onClick={openAccountModal}
-      type="button"
-      aria-label="Account"
-      className="rounded-[9px] p-[3px] bg-[#0d0d0d] border border-[#222] hover:border-primary/60 transition-all cursor-pointer flex items-center gap-2"
-    >
-      <MakerAvatar address={account.address} pfpUrl={user?.pfpUrl} size={28} />
-      {/* the identity you edited on your profile follows you here */}
-      <span className="hidden md:inline font-sans text-[12px] font-semibold text-[#ddd] max-w-[120px] truncate pr-1.5">
-        {personLabel(user, account.address)}
-      </span>
-    </button>
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        type="button"
+        aria-label="Account menu"
+        aria-expanded={open}
+        className={`rounded-full pl-[3px] pr-3 py-[3px] bg-[#0d0d0d] border transition-all cursor-pointer flex items-center gap-2 ${open ? 'border-primary/60' : 'border-[#222] hover:border-[#3a3a3a]'}`}
+      >
+        <MakerAvatar address={account.address} pfpUrl={user?.pfpUrl} size={30} />
+        <span className="hidden md:inline font-sans text-[12px] font-semibold text-[#eaeaea] max-w-[120px] truncate">
+          {personLabel(user, account.address)}
+        </span>
+        <motion.svg animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7a7a84" strokeWidth="2.5" className="hidden md:block">
+          <path d="M6 9l6 6 6-6" />
+        </motion.svg>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.97 }}
+            transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+            className="absolute right-0 mt-2 w-[224px] rounded-2xl border border-[#1e1e26] bg-[#0a0a0e] shadow-[0_16px_40px_rgba(0,0,0,0.6)] overflow-hidden z-50"
+          >
+            {/* identity header */}
+            <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#141420] bg-gradient-to-b from-[#101018] to-transparent">
+              <MakerAvatar address={account.address} pfpUrl={user?.pfpUrl} size={38} />
+              <div className="min-w-0">
+                <div className="font-sans font-bold text-[13px] text-white truncate">{personLabel(user, account.address)}</div>
+                <div className="font-mono text-[10px] text-[#6a6a74] truncate">{short}</div>
+              </div>
+            </div>
+            <div className="p-1.5">
+              <Link href={`/maker/${account.address}`} onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium text-[#d4d4dc] hover:bg-white/[0.05] hover:text-white transition-colors no-underline">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg>
+                Your profile
+              </Link>
+              <button onClick={() => { setOpen(false); openAccountModal() }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium text-[#d4d4dc] hover:bg-white/[0.05] hover:text-white transition-colors cursor-pointer">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="6" width="14" height="12" rx="2"/><path d="M17 9l4 3-4 3"/></svg>
+                Wallet & network
+              </button>
+              <button onClick={() => { setOpen(false); disconnect() }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium text-[#ff6b81] hover:bg-[#ff2a4d14] transition-colors cursor-pointer">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+                Disconnect
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }

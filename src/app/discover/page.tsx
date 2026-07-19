@@ -198,7 +198,7 @@ export default function DiscoverPage() {
           ) : filtered.length === 0 ? (
             <div className="text-center py-24">
               <div className="font-mono text-xs text-[#555] mb-4">&gt; no algorithms match this filter</div>
-              <Link href="/list-bot" className="inline-flex items-center gap-2 bg-primary text-[#030303] px-5 py-2.5 font-sans font-bold text-[13px] no-underline transition-all hover:shadow-[0_0_18px_rgba(255,42,77,0.5)]">
+              <Link href="/list-bot" className="inline-flex items-center gap-2 bg-primary text-[#030303] px-6 py-3 font-sans font-bold text-[14px] no-underline transition-all hover:shadow-[0_0_24px_rgba(255,42,77,0.7)] hover:scale-[1.02] rounded-full">
                 Deploy a bot →
               </Link>
             </div>
@@ -231,58 +231,59 @@ export default function DiscoverPage() {
                     >
                       <Link
                         href={`/bot/${b.slug || b.id}`}
-                        className="flex flex-col bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg no-underline group relative overflow-hidden transition-all hover:border-[#2c2c2c] hover:shadow-[0_14px_44px_rgba(0,0,0,0.6),0_0_0_0.5px_rgba(255,42,77,0.10)]"
+                        className="flex flex-col bg-[#0a0a0f] border border-[#1a1a24] rounded-xl no-underline group relative overflow-hidden transition-all duration-300 hover:border-primary/40 hover:shadow-[0_12px_40px_rgba(255,42,77,0.12)] hover:-translate-y-1"
                       >
                         {/* rank badge */}
-                        <div className="absolute top-0 left-0 bg-[#111] text-[#777] font-mono text-[10px] px-2 py-1 rounded-br-lg z-10 border-r border-b border-[#1a1a1a]">
+                        <div className="absolute top-0 left-0 bg-[#12121a]/80 backdrop-blur-md text-[#888] font-mono text-[10px] px-2.5 py-1 rounded-br-xl z-10 border-r border-b border-[#1a1a24] group-hover:text-primary transition-colors">
                           #{idx + 1}
                         </div>
                         {/* head: name + status */}
-                        <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[#141414] pl-10">
-                          <span className="text-[13px] font-sans font-bold text-white group-hover:text-primary transition-colors truncate pr-2">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-[#1a1a24] pl-12 bg-gradient-to-r from-[#0a0a0f] to-[#12121a]">
+                          <span className="text-[14px] font-sans font-bold text-[#e8e8e8] group-hover:text-white transition-colors truncate pr-2">
                             {b.name}
                           </span>
                           <StatusMark tag={st.tag} color={st.color} />
                         </div>
 
                         {/* avatar: the creature floats; photos get a round frame */}
-                        <div className="relative flex justify-center py-6 border-b border-[#141414]">
+                        <div className="relative flex justify-center py-8 border-b border-[#1a1a24] bg-[#050508] overflow-hidden">
+                          <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl" />
                           {b.pfpUrl ? (
-                            <span className="relative w-[76px] h-[76px] rounded-full overflow-hidden border border-[#222] group-hover:border-primary/35 transition-colors flex items-center justify-center">
+                            <span className="relative w-[80px] h-[80px] rounded-full overflow-hidden border border-[#2a2a34] group-hover:border-primary/50 transition-colors flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.5)] z-10 group-hover:scale-105 duration-300">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={b.pfpUrl} alt={b.name} className="w-full h-full object-cover" />
                             </span>
                           ) : (
-                            <span className="relative transition-transform duration-300 group-hover:scale-110">
-                              <BotIrisAvatar {...botEye(b)} size={76} />
+                            <span className="relative transition-transform duration-500 group-hover:scale-[1.12] z-10 drop-shadow-[0_0_15px_rgba(0,0,0,0.8)]">
+                              <BotIrisAvatar {...botEye(b)} size={80} />
                             </span>
                           )}
                         </div>
 
                         {/* stats */}
-                        <div className="p-3.5 flex flex-col gap-2.5">
+                        <div className="p-4 flex flex-col gap-3 bg-[#0a0a0f]">
                           <div className="grid grid-cols-3 gap-2">
                             {[
                               { lbl: 'BRIER',  val: brier > 0 ? brier.toFixed(3) : '—', good: brier <= 0.25 && brier > 0 },
                               { lbl: 'WIN %',  val: wr > 0 ? `${(wr * 100).toFixed(0)}%` : '—', good: wr > 0.54 },
                               { lbl: 'SHARPE', val: sharpe > 0 ? sharpe.toFixed(2) : '—', good: sharpe > 1.5 },
                             ].map(({ lbl, val, good }) => (
-                              <div key={lbl} className="bg-[#070707] border border-[#141414] rounded p-2 flex flex-col gap-0.5">
-                                <span className="text-[8px] font-mono text-[#555] tracking-widest">{lbl}</span>
-                                <span className={`text-[13px] font-mono font-bold ${good ? 'text-primary' : 'text-white'}`}>{val}</span>
+                              <div key={lbl} className="bg-[#101016] border border-[#1a1a24] rounded-lg p-2.5 flex flex-col gap-1 transition-colors group-hover:border-[#2a2a34]">
+                                <span className="text-[9px] font-mono text-[#6a6a74] tracking-widest">{lbl}</span>
+                                <span className={`text-[14px] font-mono font-bold ${good ? 'text-primary drop-shadow-[0_0_8px_rgba(255,42,77,0.4)]' : 'text-[#e8e8e8]'}`}>{val}</span>
                               </div>
                             ))}
                           </div>
 
-                          <div className="flex items-center justify-between text-[11px] font-mono pt-0.5">
-                            <span className="text-[#555] tracking-widest">VAULT TVL</span>
-                            <span className={tvl > 0 ? 'text-white font-bold' : 'text-[#444]'}>
+                          <div className="flex items-center justify-between text-[11px] font-mono pt-1">
+                            <span className="text-[#6a6a74] tracking-widest">VAULT TVL</span>
+                            <span className={tvl > 0 ? 'text-white font-bold text-[13px]' : 'text-[#444] text-[13px]'}>
                               {tvl > 0 ? `$${tvl.toLocaleString()}` : '—'}
                             </span>
                           </div>
 
                           {/* footer: maker + category */}
-                          <div className="flex items-center justify-between gap-2 border-t border-[#141414] pt-2.5">
+                          <div className="flex items-center justify-between gap-2 border-t border-[#1a1a24] pt-3 mt-1">
                             <span
                               role="link"
                               tabIndex={0}

@@ -134,7 +134,7 @@ export default function Home() {
               <Link href="/discover" className="inline-flex items-center gap-2 bg-primary text-[#030303] px-6 py-3 font-sans font-bold text-[13px] transition-all hover:shadow-[0_0_22px_rgba(255,42,77,0.55)] no-underline">
                 Browse vaults →
               </Link>
-              <Link href="/list-bot" className="inline-flex items-center gap-2 border border-[#4a4a4a] bg-white/[0.04] text-white px-6 py-3 font-sans font-bold text-[13px] transition-all hover:border-[#6a6a6a] hover:bg-white/[0.08] no-underline">
+              <Link href="/list-bot" className="inline-flex items-center gap-2 border border-primary/40 bg-primary/10 text-primary px-6 py-3 font-sans font-bold text-[13px] transition-all hover:border-primary/80 hover:bg-primary/20 hover:shadow-[0_0_18px_rgba(255,42,77,0.3)] no-underline rounded-full">
                 Deploy a bot →
               </Link>
               <button onClick={() => setHowOpen(true)} className="group inline-flex items-center gap-2.5 pl-2 pr-5 py-2.5 rounded-full border border-white/25 bg-white/[0.06] text-white transition-all hover:border-primary/60 hover:bg-primary/[0.10] cursor-pointer">
@@ -162,7 +162,7 @@ export default function Home() {
 
                 <Link
                   href={`/bot/${champ.slug || champ.id}`}
-                  className="block relative overflow-hidden bg-gradient-to-b from-[#0e0c07] to-[#0a0a0a] border border-[#FFD700]/25 no-underline group transition-all hover:border-[#FFD700]/45 hover:shadow-[0_0_60px_rgba(255,215,0,0.10)]"
+                  className="block relative overflow-hidden rounded-2xl bg-gradient-to-b from-[#0e0c07] to-[#0a0a0f] border border-[#FFD700]/30 no-underline group transition-all duration-500 hover:border-[#FFD700]/60 hover:shadow-[0_16px_64px_rgba(255,215,0,0.15)] hover:-translate-y-1"
                 >
                   {/* summit glow */}
                   <div className="absolute inset-x-0 top-0 h-44 pointer-events-none" style={{ background: 'radial-gradient(55% 100% at 50% 0%, rgba(255,215,0,0.13), transparent 70%)' }} />
@@ -185,9 +185,9 @@ export default function Home() {
                         <div className="absolute -inset-4 rounded-full" style={{ background: 'radial-gradient(circle, rgba(255,215,0,0.18), transparent 70%)' }} />
                         {champ.pfpUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={champ.pfpUrl} alt={champ.name} className="relative w-[120px] h-[120px] object-cover rounded-full border border-[#FFD700]/30" />
+                          <img src={champ.pfpUrl} alt={champ.name} className="relative w-[120px] h-[120px] object-cover rounded-full border border-[#FFD700]/40 group-hover:border-[#FFD700]/70 group-hover:scale-105 transition-all duration-500 shadow-[0_0_30px_rgba(255,215,0,0.15)]" />
                         ) : (
-                          <div className="relative transition-transform duration-500 group-hover:scale-105"><BotIrisAvatar {...botEye(champ)} size={120} /></div>
+                          <div className="relative transition-transform duration-500 group-hover:scale-[1.12] drop-shadow-[0_0_20px_rgba(255,215,0,0.2)]"><BotIrisAvatar {...botEye(champ)} size={120} /></div>
                         )}
                       </div>
                       <div className="mt-4 font-sans font-extrabold text-[56px] leading-none text-[#FFD700]" style={{ textShadow: '0 0 34px rgba(255,215,0,0.4)' }}>1</div>
@@ -240,7 +240,7 @@ export default function Home() {
                     <motion.div key={bot.id} layout whileHover={{ y: -5 }} transition={{ type: 'spring', stiffness: 320, damping: 22 }}>
                       <Link
                         href={`/bot/${bot.slug || bot.id}`}
-                        className="flex flex-col bg-[#0a0a0a] border border-[#1a1a1a] no-underline relative overflow-hidden group transition-all hover:border-[#2a2a2a] hover:shadow-[0_10px_36px_rgba(0,0,0,0.65),0_0_0_0.5px_rgba(255,42,77,0.10)]"
+                        className="flex flex-col bg-[#0a0a0f] border border-[#1a1a24] rounded-2xl no-underline relative overflow-hidden group transition-all duration-300 hover:border-[#444] hover:shadow-[0_12px_40px_rgba(255,255,255,0.03)] hover:-translate-y-1"
                       >
                         <div className="flex items-center justify-between px-4 pt-2.5">
                           <span className="font-sans font-extrabold text-[26px] leading-none tracking-tight" style={{ color: rankColor, textShadow: i < 3 ? `0 0 18px ${rankColor}55` : 'none' }}>
@@ -249,18 +249,19 @@ export default function Home() {
                           <StatusPill live={p.live} />
                         </div>
 
-                        <div className="flex items-center justify-center py-4">
+                        <div className="flex items-center justify-center py-6 bg-[#050508] border-b border-[#1a1a24] relative overflow-hidden">
+                          <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl" />
                           {bot.pfpUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={bot.pfpUrl} alt={bot.name} className="w-[72px] h-[72px] object-cover rounded-full border border-[#1a1a1a] group-hover:border-primary/30 transition-colors" />
+                            <img src={bot.pfpUrl} alt={bot.name} className="relative z-10 w-[72px] h-[72px] object-cover rounded-full border border-[#2a2a34] group-hover:border-[#666] group-hover:scale-105 transition-all duration-300 shadow-[0_0_20px_rgba(0,0,0,0.5)]" />
                           ) : (
-                            <span className="transition-transform duration-300 group-hover:scale-110">
+                            <span className="relative z-10 transition-transform duration-500 group-hover:scale-[1.12] drop-shadow-[0_0_15px_rgba(0,0,0,0.8)]">
                               <BotIrisAvatar {...botEye(bot)} size={72} />
                             </span>
                           )}
                         </div>
 
-                        <div className="px-4 text-center mb-3">
+                        <div className="px-5 pt-4 text-center mb-3">
                           <div className="text-white font-sans font-bold text-[13px] truncate group-hover:text-primary transition-colors">{bot.name}</div>
                           <div className="text-[10px] text-[#444] font-mono truncate">
                             by {bot.maker?.handle ? `@${bot.maker.handle}` : (bot.maker?.name || `${(bot.walletAddress || 'anon').substring(0, 6)}…`)}
@@ -292,7 +293,7 @@ export default function Home() {
               <div className="p-16 text-center border border-dashed border-[#1a1a1a] bg-[#080808]">
                 <div className="cursor-blink inline-block text-[11px] text-[#555] font-mono mb-5">&gt; THE HILL IS UNCLAIMED. TAKE IT.</div>
                 <div>
-                  <Link href="/list-bot" className="inline-flex items-center gap-2 bg-primary text-[#030303] px-6 py-2.5 font-sans font-bold text-[13px] transition-all hover:shadow-[0_0_18px_rgba(255,42,77,0.5)] no-underline">
+                  <Link href="/list-bot" className="inline-flex items-center gap-2 bg-primary text-[#030303] px-6 py-2.5 font-sans font-bold text-[13px] transition-all hover:shadow-[0_0_24px_rgba(255,42,77,0.7)] hover:scale-[1.02] no-underline rounded-full">
                     Deploy the first bot →
                   </Link>
                 </div>

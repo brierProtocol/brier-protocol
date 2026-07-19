@@ -142,18 +142,10 @@ export default function BotUplink({
           </div>
         </div>
 
-        {/* header — rank chip + signal strength bars */}
+        {/* header — signal strength bars */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
             <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-[#666]">Signal</span>
-            {/* rank chip: earned purely from resolved predictions */}
-            <span
-              className="font-mono text-[9px] font-bold tracking-[0.18em] px-2 py-0.5 rounded-[4px] border"
-              style={{ color: rank.color, borderColor: `${rank.color}44`, background: `${rank.color}12` }}
-              title={nextRank ? `${nextRank.at - n} resolved to ${nextRank.tag}` : 'Cleared the shadow gate'}
-            >
-              {rank.tag}
-            </span>
           </div>
           <div className="flex items-center gap-2.5">
             {/* signal strength — game HUD bars, driven by liveness + evidence */}
@@ -211,63 +203,72 @@ export default function BotUplink({
             <span className="font-mono text-[8px] tracking-[0.22em] text-[#3a3a4a] uppercase mt-2.5">Bot</span>
           </motion.div>
 
-          {/* transmission channel */}
+          {/* CERBERUS — three guardian heads watching the conduit between the
+              bot and the Brier core. Each head is a layered orb (3D depth) that
+              pulses in sequence, a live heartbeat rippling down the link; a
+              prediction payload rides the beam past all three to the gate. */}
           <div className="relative flex-1 h-full">
-            <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-              {[25, 50, 75].map(y => (
-                <line key={y} x1="0" y1={`${y}%`} x2="100%" y2={`${y}%`}
-                  stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.04" strokeDasharray="4 10" />
-              ))}
-            </svg>
-
-            {/* main carrier wire */}
+            {/* the conduit beam */}
             <div
-              className="absolute top-1/2 left-0 right-0 h-px -translate-y-1/2"
+              className="absolute top-1/2 left-0 right-0 -translate-y-1/2"
               style={live
-                ? { background: `linear-gradient(90deg, ${accent}33, ${accent}bb, ${accent}33)` }
-                : { background: '#0e0e18', borderTop: '1px dashed #1a1a28' }}
-            >
-              {/* data packets — prediction payloads leaving the bot for the core */}
-              {live && [0, 1, 2, 3].map(i => (
-                <motion.span
-                  key={i}
-                  className="absolute top-1/2 -translate-y-1/2 font-mono font-bold select-none"
-                  style={{
-                    fontSize: 7,
-                    letterSpacing: '0.08em',
-                    color: i % 2 ? '#8b7bff' : accent,
-                    textShadow: `0 0 8px ${i % 2 ? '#8b7bff' : accent}`,
-                  }}
-                  initial={{ left: '0%', opacity: 0 }}
-                  animate={{ left: ['0%', '100%'], opacity: [0, 1, 1, 0] }}
-                  transition={{ duration: 1.6, repeat: Infinity, delay: i * 0.4, ease: 'linear' }}
-                >
-                  {i % 2 ? '▓▓' : '01'}
-                </motion.span>
-              ))}
-            </div>
-
-            {/* secondary wires */}
+                ? { height: 2, background: `linear-gradient(90deg, ${accent}22, ${accent}aa 20%, #8b7bffaa 50%, #ff2a4daa 80%, #ff2a4d22)`, boxShadow: `0 0 10px ${accent}44` }
+                : { height: 1, background: '#12121c', borderTop: '1px dashed #1a1a28' }}
+            />
+            {/* soft depth glow under the beam */}
             {live && (
-              <>
-                {[['30%', 0.15, 1.9], ['70%', 0.55, 2.3]].map(([y, delay, dur], idx) => (
-                  <div key={idx} className="absolute left-0 right-0 h-px" style={{ top: y as string, background: `${accent}15` }}>
-                    <motion.span
-                      className="absolute top-1/2 -translate-y-1/2 rounded-full"
-                      style={{ width: 6, height: 2, background: `${accent}99` }}
-                      initial={{ left: '0%', opacity: 0 }}
-                      animate={{ left: ['0%', '100%'], opacity: [0, 0.9, 0] }}
-                      transition={{ duration: dur as number, repeat: Infinity, delay: delay as number, ease: 'linear' }}
-                    />
-                  </div>
-                ))}
-              </>
+              <motion.div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 blur-md" style={{ height: 10, background: `linear-gradient(90deg, transparent, ${accent}22 30%, #8b7bff22 50%, #ff2a4d22 70%, transparent)` }}
+                animate={{ opacity: [0.4, 0.8, 0.4] }} transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }} />
             )}
+
+            {/* three guardian heads at 24% / 50% / 76% of the conduit */}
+            {[0, 1, 2].map(i => {
+              const left = `${24 + i * 26}%`
+              const hue = i === 0 ? accent : i === 1 ? '#8b7bff' : '#ff5570'
+              return (
+                <div key={i} className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left }}>
+                  {live && (
+                    <motion.span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                      style={{ width: 30, height: 30, border: `1px solid ${hue}55` }}
+                      animate={{ scale: [0.6, 1.6], opacity: [0.7, 0] }}
+                      transition={{ duration: 1.8, repeat: Infinity, delay: i * 0.6, ease: 'easeOut' }} />
+                  )}
+                  {/* layered orb = 3D head */}
+                  <motion.span
+                    className="relative block rounded-full"
+                    style={{
+                      width: 15, height: 15,
+                      background: live
+                        ? `radial-gradient(circle at 35% 30%, #ffffffcc 0%, ${hue} 42%, ${hue}55 72%, #050508 100%)`
+                        : 'radial-gradient(circle at 35% 30%, #2a2a34 0%, #14141c 60%, #050508 100%)',
+                      boxShadow: live ? `0 0 12px ${hue}88, inset 0 0 4px #ffffff44` : 'inset 0 0 3px #00000088',
+                      border: live ? `1px solid ${hue}` : '1px solid #1c1c26',
+                    }}
+                    animate={live ? { scale: [1, 1.18, 1] } : {}}
+                    transition={{ duration: 1.8, repeat: Infinity, delay: i * 0.6, ease: 'easeInOut' }}
+                  >
+                    {/* pupil / spark */}
+                    {live && <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ width: 3, height: 3, background: '#fff', boxShadow: `0 0 4px #fff` }} />}
+                  </motion.span>
+                </div>
+              )
+            })}
+
+            {/* prediction payload riding the beam past all three guardians */}
+            {live && [0, 1].map(i => (
+              <motion.span key={i}
+                className="absolute top-1/2 -translate-y-1/2 rounded-full"
+                style={{ width: 5, height: 5, background: '#fff', boxShadow: `0 0 8px #fff, 0 0 14px ${accent}` }}
+                initial={{ left: '2%', opacity: 0 }}
+                animate={{ left: ['2%', '98%'], opacity: [0, 1, 1, 1, 0] }}
+                transition={{ duration: 2.2, repeat: Infinity, delay: i * 1.1, ease: 'linear' }}
+              />
+            ))}
 
             {!live && (
               <div className="absolute inset-0 grid place-items-center">
                 <span className="bg-[#040406] px-2.5 py-0.5 font-mono text-[9px] tracking-[0.22em] text-[#282832] border border-[#0f0f18] rounded-sm">
-                  NO CARRIER
+                  LINK DOWN
                 </span>
               </div>
             )}
@@ -313,27 +314,26 @@ export default function BotUplink({
           </div>
         </div>
 
-        {/* rank progress — one thin XP bar to the next tier (real resolved counts) */}
-        {nextRank && (
-          <div className="mt-4 flex items-center gap-3">
-            <span className="font-mono text-[8px] tracking-[0.16em] uppercase text-[#3f3f48] shrink-0">next · {nextRank.tag}</span>
-            <div className="relative flex-1 h-[3px] rounded-full bg-[#12121a] overflow-hidden">
-              <motion.div
-                className="absolute inset-y-0 left-0 rounded-full"
-                style={{ background: `linear-gradient(90deg, ${rank.color}88, ${nextRank.color})` }}
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.min(100, (n / nextRank.at) * 100)}%` }}
-                transition={{ duration: 1.2, ease: 'easeOut' }}
-              />
-            </div>
-            <span className="font-mono text-[9px] tabular-nums text-[#5a5a64] shrink-0">{n}/{nextRank.at}</span>
-            {typeof winRate === 'number' && n > 0 && (
-              <span className="font-mono text-[9px] tabular-nums shrink-0" style={{ color: winRate >= 0.5 ? '#c8ff00' : '#8a8a94' }}>
-                {Math.round(winRate * 100)}% WR
-              </span>
-            )}
+        {/* progress to the Brier gate — real resolved-prediction count toward
+            the shadow gate (100), the one milestone that actually means something */}
+        <div className="mt-4 flex items-center gap-3">
+          <span className="font-mono text-[8px] tracking-[0.16em] uppercase text-[#3f3f48] shrink-0">to gate</span>
+          <div className="relative flex-1 h-[3px] rounded-full bg-[#12121a] overflow-hidden">
+            <motion.div
+              className="absolute inset-y-0 left-0 rounded-full"
+              style={{ background: `linear-gradient(90deg, ${accent}88, #ff2a4d)` }}
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(100, (n / target) * 100)}%` }}
+              transition={{ duration: 1.2, ease: 'easeOut' }}
+            />
           </div>
-        )}
+          <span className="font-mono text-[9px] tabular-nums text-[#5a5a64] shrink-0">{n}/{target}</span>
+          {typeof winRate === 'number' && n > 0 && (
+            <span className="font-mono text-[9px] tabular-nums shrink-0" style={{ color: winRate >= 0.5 ? '#c8ff00' : '#8a8a94' }}>
+              {Math.round(winRate * 100)}% WR
+            </span>
+          )}
+        </div>
 
         {/* metrics strip */}
         <div className="grid grid-cols-4 gap-px bg-[#09090f] border border-[#09090f] rounded-lg overflow-hidden mt-4">
