@@ -58,49 +58,34 @@ export default function ConnectXModal({
               Show your X on your Brier profile so traders know who is behind the algorithms.
             </p>
 
-            {wallet && (
-              <>
-                <button
-                  onClick={() => { window.location.href = `/api/auth/twitter?wallet=${wallet}` }}
-                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-white text-black font-bold text-[13px] py-2.5 mb-3 hover:bg-[#e8e8e8] transition-colors"
-                >
-                  <XLogo size={14} /> Connect with X (verified)
-                </button>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="flex-1 h-px bg-[#1f1f28]" />
-                  <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-[#3f3f48]">or enter manually</span>
-                  <span className="flex-1 h-px bg-[#1f1f28]" />
-                </div>
-              </>
+            {wallet && !initial && (
+              <button
+                onClick={() => { window.location.href = `/api/auth/twitter?wallet=${wallet}` }}
+                className="w-full flex items-center justify-center gap-2 rounded-lg bg-white text-black font-bold text-[13px] py-2.5 mb-3 hover:bg-[#e8e8e8] transition-colors"
+              >
+                <XLogo size={14} /> Connect with X (verified)
+              </button>
             )}
 
-            <label className="block">
-              <span className="font-mono text-[10px] tracking-[0.16em] uppercase text-[#5a5a64]">X handle</span>
-              <div className="mt-1.5 flex items-center rounded-lg border border-[#1f1f28] bg-[#070709] focus-within:border-primary/50 transition-colors">
-                <span className="pl-3 text-[#5a5a64] font-mono text-[14px]">@</span>
-                <input
-                  autoFocus
-                  value={val}
-                  onChange={e => setVal(e.target.value)}
-                  placeholder="yourhandle"
-                  className="flex-1 bg-transparent px-2 py-2.5 text-[14px] text-white outline-none placeholder:text-[#3f3f48]"
-                  onKeyDown={e => { if (e.key === 'Enter' && clean) submit(clean) }}
-                />
+            {initial && (
+              <div className="mt-2 mb-6">
+                <span className="font-mono text-[10px] tracking-[0.16em] uppercase text-[#5a5a64] block mb-2">Connected Account</span>
+                <div className="flex items-center gap-2 rounded-lg border border-[#1f1f28] bg-[#070709] px-3 py-2.5">
+                  <XLogo size={12} className="text-[#8a8a94]" />
+                  <span className="text-[14px] text-white font-mono">@{initial}</span>
+                  <span className="text-primary text-[14px] ml-auto">✓</span>
+                </div>
               </div>
-              {clean && <span className="block mt-1.5 font-mono text-[11px] text-[#6a6a74]">x.com/{clean}</span>}
-            </label>
+            )}
 
-            <div className="flex items-center justify-between mt-5">
+            <div className="flex items-center justify-between mt-2">
               {initial ? (
                 <button onClick={() => submit(null)} disabled={saving} className="font-mono text-[11px] text-[#ff5570] hover:text-[#ff7a8c] transition-colors disabled:opacity-40">
-                  Unlink
+                  {saving ? 'Unlinking…' : 'Unlink account'}
                 </button>
               ) : <span />}
               <div className="flex gap-2">
                 <button onClick={onClose} className="rounded-full border border-[#262630] px-4 py-2 text-[12px] font-semibold text-[#aaa] hover:text-white hover:border-[#3a3a44] transition-colors">Cancel</button>
-                <button onClick={() => submit(clean)} disabled={!clean || saving} className="rounded-full bg-white text-black font-bold text-[12px] px-5 py-2 disabled:opacity-30 hover:bg-[#e8e8e8] transition-colors">
-                  {saving ? 'Linking…' : 'Link X'}
-                </button>
               </div>
             </div>
           </motion.div>
