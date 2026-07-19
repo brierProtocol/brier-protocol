@@ -288,16 +288,9 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
                 )}
                 {xHandle && (
                   <a href={`https://x.com/${xHandle}`} target="_blank" rel="noopener noreferrer"
-                    className="group flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-[12px] text-white hover:border-primary/40 hover:bg-primary/10 hover:shadow-[0_0_12px_rgba(255,42,77,0.15)] no-underline transition-all" title={profile?.xVerified ? 'Identity cryptographically verified via X OAuth' : 'X Identity Verified'}>
-                    <XLogo size={12} className="text-[#e8e8e8] group-hover:text-white transition-colors" /> 
+                    className="group flex items-center gap-1.5 rounded-full border border-[#262630] px-3 py-1.5 text-[12px] text-[#ddd] hover:border-[#4a4a54] hover:text-white hover:bg-[#12121a] no-underline transition-all" title={profile?.xVerified ? 'Identity cryptographically verified via X OAuth' : 'X Identity'}>
+                    <XLogo size={12} className="text-[#8a8a94] group-hover:text-white transition-colors" /> 
                     <span className="font-mono font-medium tracking-tight">@{xHandle}</span>
-                    <div className="flex items-center gap-1.5 ml-1 pl-2.5 border-l border-primary/20">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
-                      </span>
-                      <span className="text-primary text-[9px] uppercase tracking-[0.2em] font-bold">Verified</span>
-                    </div>
                   </a>
                 )}
               </div>
