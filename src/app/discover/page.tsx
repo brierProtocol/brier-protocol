@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
+import HeroCard from '@/components/leaderboard/HeroCard'
 import { botEye, makerEye } from '@/lib/botIdentity'
 import { StatusMark } from '@/components/LiveFeedStrip'
 import { classifyMarket } from '@/lib/marketCategories'
@@ -344,56 +345,40 @@ export default function DiscoverPage() {
                           whileHover={{ y: -4 }}
                           transition={{ type: 'spring', stiffness: 300, damping: 25 }}
                         >
-                          <Link
-                            href={`/bot/${b.slug || b.id}`}
-                            className="flex flex-col bg-[#0a0a0f] border border-[#1a1a24] rounded-xl no-underline group relative overflow-hidden transition-all duration-300 hover:border-primary/40 hover:shadow-[0_12px_40px_rgba(255,42,77,0.12)] hover:-translate-y-1"
-                          >
-                            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1a1a24] bg-gradient-to-r from-[#0a0a0f] to-[#12121a]">
-                              <span className="text-[14px] font-sans font-bold text-[#e8e8e8] group-hover:text-white transition-colors truncate pr-2">
-                                {b.name}
-                              </span>
-                              <StatusMark tag={st.tag} color={st.color} />
-                            </div>
-
-                            <div className="relative flex justify-center py-6 border-b border-[#1a1a24] bg-[#050508] overflow-hidden">
-                              <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl" />
-                              {b.pfpUrl ? (
-                                <span className="relative w-[60px] h-[60px] rounded-full overflow-hidden border border-[#2a2a34] group-hover:border-primary/50 transition-colors flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.5)] z-10 group-hover:scale-105 duration-300">
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <HeroCard
+                            kind="agent"
+                            size="normal"
+                            avatar={
+                              <div className="relative w-[76px] h-[76px] rounded-[18px] overflow-hidden flex items-center justify-center">
+                                {b.pfpUrl ? (
+                                  /* eslint-disable-next-line @next/next/no-img-element */
                                   <img src={b.pfpUrl} alt={b.name} className="w-full h-full object-cover" />
-                                </span>
-                              ) : (
-                                <span className="relative transition-transform duration-500 group-hover:scale-[1.12] z-10 drop-shadow-[0_0_15px_rgba(0,0,0,0.8)]">
-                                  <BotIrisAvatar {...botEye(b)} size={60} />
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="p-4 flex flex-col gap-3 bg-[#0a0a0f]">
-                              <div className="grid grid-cols-2 gap-2">
-                                {[
-                                  { lbl: 'BRIER',  val: brier > 0 ? brier.toFixed(3) : '—', good: brier <= 0.25 && brier > 0 },
-                                  { lbl: 'WIN %',  val: wr > 0 ? `${(wr * 100).toFixed(0)}%` : '—', good: wr > 0.54 },
-                                ].map(({ lbl, val, good }) => (
-                                  <div key={lbl} className="bg-[#101016] border border-[#1a1a24] rounded-lg p-2.5 flex flex-col gap-1 transition-colors group-hover:border-[#2a2a34]">
-                                    <span className="text-[9px] font-mono text-[#6a6a74] tracking-widest">{lbl}</span>
-                                    <span className={`text-[14px] font-mono font-bold ${good ? 'text-primary drop-shadow-[0_0_8px_rgba(255,42,77,0.4)]' : 'text-[#e8e8e8]'}`}>{val}</span>
-                                  </div>
-                                ))}
+                                ) : (
+                                  <BotIrisAvatar {...botEye(b)} size={76} />
+                                )}
                               </div>
-
-                              <div className="flex items-center justify-between gap-2 border-t border-[#1a1a24] pt-3 mt-1">
+                            }
+                            name={b.name}
+                            heroLabel="Brier"
+                            heroValue={brier > 0 ? brier.toFixed(3) : '—'}
+                            secondaryStats={[
+                              { label: 'WIN %', value: wr > 0 ? `${(wr * 100).toFixed(0)}%` : '—' },
+                            ]}
+                            accentColor={botEye(b).accentColor}
+                            onClick={() => router.push(`/bot/${b.slug || b.id}`)}
+                            footer={
+                              <>
                                 <span
                                   role="link"
                                   tabIndex={0}
                                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (b.walletAddress) router.push(`/maker/${b.walletAddress}`) }}
                                   onKeyDown={(e) => { if (e.key === 'Enter' && b.walletAddress) { e.preventDefault(); e.stopPropagation(); router.push(`/maker/${b.walletAddress}`) } }}
-                                  className="flex items-center gap-1.5 text-[10px] font-mono text-[#555] truncate hover:text-primary transition-colors cursor-pointer min-w-0"
+                                  className="flex items-center gap-1.5 text-[10px] font-mono text-[#777] truncate hover:text-primary transition-colors cursor-pointer min-w-0"
                                 >
-                                  <span className="rounded-full overflow-hidden shrink-0 inline-flex">
+                                  <span className="rounded-full overflow-hidden shrink-0 inline-flex shadow-[0_0_0_1px_rgba(255,255,255,0.1)]">
                                     {b.maker?.pfpUrl
-                                      ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={b.maker.pfpUrl} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
-                                      : <BotIrisAvatar {...makerEye(b.walletAddress || 'anon')} size={14} bg="transparent" />}
+                                      ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={b.maker.pfpUrl} alt="" className="w-4 h-4 rounded-full object-cover" />
+                                      : <BotIrisAvatar {...makerEye(b.walletAddress || 'anon')} size={16} bg="transparent" />}
                                   </span>
                                   <span className="truncate">by {b.maker?.handle ? `@${b.maker.handle}` : (b.maker?.name || `${(b.walletAddress || 'anon').substring(0, 6)}…`)}</span>
                                 </span>
@@ -402,9 +387,9 @@ export default function DiscoverPage() {
                                     {cat}
                                   </span>
                                 )}
-                              </div>
-                            </div>
-                          </Link>
+                              </>
+                            }
+                          />
                         </motion.div>
                       )
                     })}

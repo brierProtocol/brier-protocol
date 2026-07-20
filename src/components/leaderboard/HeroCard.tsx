@@ -17,10 +17,11 @@ interface HeroCardProps {
   size?: "normal" | "featured" | "boss";
   accentColor?: string;
   onClick?: () => void;
+  footer?: React.ReactNode;
 }
 
 export default function HeroCard({
-  kind, avatar, name, tagline, heroLabel, heroValue, secondaryStats, delta24h, badge, size = "normal", accentColor, onClick,
+  kind, avatar, name, tagline, heroLabel, heroValue, secondaryStats, delta24h, badge, size = "normal", accentColor, onClick, footer
 }: HeroCardProps) {
   const momentum = formatMomentum(delta24h);
 
@@ -58,6 +59,8 @@ export default function HeroCard({
           </div>
         ))}
       </div>
+
+      {footer && <div className={styles.heroFooter}>{footer}</div>}
     </div>
   );
 }
