@@ -49,7 +49,7 @@ export default function BuildersClient({ builders }: Props) {
       {/* --- Top 3 (The Architect Roster) --- */}
       <div className={styles.roster}>
         <div className={styles.rosterHead}>
-          <span className={styles.rosterTitle}>Builders</span>
+          <h3 className="font-sans text-[22px] md:text-[24px] font-bold text-white m-0 tracking-[-0.02em]">Builders<span className="text-primary">.</span></h3>
           <span className={styles.rosterHint}>Top {top3.length} Builders</span>
         </div>
         
@@ -90,7 +90,7 @@ export default function BuildersClient({ builders }: Props) {
       {/* --- Leaderboard Completo (CSS Grid, sin <table>) --- */}
       <div className={styles.standings}>
         <div className={styles.standingsTop}>
-          <span className={styles.standingsTitle}>Full Builder Ranking</span>
+          <h3 className="font-sans text-[22px] md:text-[24px] font-bold text-white m-0 tracking-[-0.02em]">Full Builder Ranking<span className="text-primary">.</span></h3>
           <span className={styles.rosterHint}>{ranked.length} builders</span>
         </div>
         
@@ -99,7 +99,7 @@ export default function BuildersClient({ builders }: Props) {
             <span>#</span>
             <span>Builder</span>
             <span>Global TVL</span>
-            <span>Avg. Brier</span>
+            <span className="text-primary font-bold">Avg. Brier</span>
             <span>Bots (Live)</span>
             <span>Top Bot</span>
           </div>

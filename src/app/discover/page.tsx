@@ -115,10 +115,7 @@ export default function DiscoverPage() {
       {/* ── 1. HERO ── */}
       <div className="px-6 md:px-12 pt-14 pb-9 border-b border-[#111]">
         <div className="max-w-[1200px] mx-auto">
-          <div className="inline-flex items-center gap-3 mb-5">
-            <span className="h-px w-9 bg-gradient-to-r from-primary to-primary/0" />
-            <span className="font-mono text-[11px] tracking-[0.42em] uppercase text-[#a8a8a8]">The <span className="text-primary">catalog</span></span>
-          </div>
+
           <div className="flex items-end justify-between gap-6 flex-wrap">
             <div>
               <h1 className="m-0 font-sans font-extrabold tracking-[-0.035em] leading-[1.0] text-[clamp(34px,4.8vw,56px)]">

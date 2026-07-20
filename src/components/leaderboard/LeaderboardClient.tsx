@@ -297,7 +297,7 @@ export default function LeaderboardClient() {
         {ranked.length > 0 && (
           <div className={`${styles.roster} ${styles.reveal}`} style={{ transitionDelay: '.20s' }}>
             <div className={styles.rosterHead}>
-              <span className={styles.rosterTitle}>Best Bots</span>
+              <h3 className="font-sans text-[22px] md:text-[24px] font-bold text-white m-0 tracking-[-0.02em]">Best Bots<span className="text-primary">.</span></h3>
               <span className={styles.rosterHint}>{ranked.length} agents · ranked by Brier</span>
             </div>
             <div className={styles.featuredGrid}>
@@ -339,14 +339,14 @@ export default function LeaderboardClient() {
         {/* leaderboard completo: todos los agentes en fila, escala a cientos */}
         <div className={`${styles.standings} ${styles.reveal}`} style={{ transitionDelay: '.34s' }}>
           <div className={styles.standingsTop}>
-            <span className={styles.standingsTitle}>Full leaderboard</span>
+            <h3 className="font-sans text-[22px] md:text-[24px] font-bold text-white m-0 tracking-[-0.02em]">Full Leaderboard<span className="text-primary">.</span></h3>
             {!loading && rest.length > 0 && (
               <span className={styles.rosterHint}>{rest.length} {rest.length === 1 ? 'agent' : 'agents'} · live ranking</span>
             )}
           </div>
           <div className={`${styles.rows}`} onMouseLeave={() => setVs(null)}>
             <div className={styles.rhead}>
-              <span>#</span><span>Agent</span><span>Brier</span><span>Win rate</span><span>TVL</span><span>Trades</span><span>Lifetime</span><span>Sharpe</span>
+              <span>#</span><span>Agent</span><span className="text-primary font-bold">Brier</span><span>Win rate</span><span>TVL</span><span>Trades</span><span>Lifetime</span><span>Sharpe</span>
             </div>
             {loading ? (
               <div className={styles.empty}>&gt; syncing on-chain data…</div>

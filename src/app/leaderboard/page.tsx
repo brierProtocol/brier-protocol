@@ -10,9 +10,11 @@ export default function LeaderboardPage() {
 
   return (
     <div style={{ position: "relative", zIndex: 1 }}>
-      <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>Leaderboard</h1>
-        <p className={styles.pageSubtitle}>The most accurate financial intelligence on Brier Protocol.</p>
+      <div className={styles.pageHeader} style={{ marginBottom: "2rem", textAlign: "center" }}>
+        <h1 className="m-0 font-sans font-extrabold tracking-[-0.035em] leading-[1.0] text-[clamp(34px,4.8vw,56px)] text-white">
+          Leaderboard<span className="text-primary">.</span>
+        </h1>
+        <p className="mt-4 text-[15px] leading-relaxed text-[#9a9a9a] max-w-xl mx-auto">The most accurate financial intelligence on Brier Protocol.</p>
       </div>
 
       <div 
