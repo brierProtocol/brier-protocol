@@ -187,14 +187,13 @@ export default function DiscoverPage() {
                 const trades = featured.scores?.[0]?.totalTrades ?? 0
                 const st = deriveTag(featured)
                 const cat = botCategory(featured)
-                // Comparación matemática real contra el coin-flip (0.25)
-                const edgeVsCoinFlip = brier > 0 && brier < 0.25 ? Math.round((1 - brier / 0.25) * 100) : null
 
                 return (
                   <div className="border-b border-[#111] pb-10">
                     <div className="flex items-center gap-3 mb-5">
-                      <span className="h-px w-9 bg-gradient-to-r from-primary to-primary/0" />
-                      <span className="font-mono text-[11px] tracking-[0.42em] uppercase text-[#a8a8a8]">Featured</span>
+                      <h3 className="font-sans text-[22px] md:text-[24px] font-bold text-white m-0 tracking-[-0.02em]">
+                        Featured<span className="text-primary">.</span>
+                      </h3>
                     </div>
                     <Link
                       href={`/bot/${featured.slug || featured.id}`}
@@ -232,16 +231,32 @@ export default function DiscoverPage() {
                             </span>
                           )}
                         </div>
-                        <p className="text-[14px] text-[#9a9a9a] mb-6 max-w-md">
+                        <p className="text-[14px] text-[#9a9a9a] mb-4 max-w-md">
                           {featured.description || featured.tagline || 'Ranked #1 by resolved Brier Score.'}
                         </p>
+                        
+                        <div
+                          role="link"
+                          tabIndex={0}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (featured.walletAddress) router.push(`/maker/${featured.walletAddress}`) }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' && featured.walletAddress) { e.preventDefault(); e.stopPropagation(); router.push(`/maker/${featured.walletAddress}`) } }}
+                          className="flex items-center gap-2 text-[12px] font-mono text-[#777] hover:text-primary transition-colors cursor-pointer mb-8 max-w-max"
+                        >
+                          <span className="rounded-full overflow-hidden shrink-0 inline-flex shadow-[0_0_0_1px_rgba(255,255,255,0.1)]">
+                            {featured.maker?.pfpUrl
+                              ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={featured.maker.pfpUrl} alt="" className="w-5 h-5 rounded-full object-cover" />
+                              : <BotIrisAvatar {...makerEye(featured.walletAddress || 'anon')} size={20} bg="transparent" />}
+                          </span>
+                          <span>by {featured.maker?.handle ? `@${featured.maker.handle}` : (featured.maker?.name || `${(featured.walletAddress || 'anon').substring(0, 6)}…`)}</span>
+                        </div>
+
                         <div className="flex items-end gap-8 flex-wrap">
                           <div>
                             <div className="text-[44px] font-mono font-extrabold text-white leading-none tabular-nums">
                               {brier > 0 ? brier.toFixed(3) : '—'}
                             </div>
                             <div className="text-[10px] font-mono uppercase tracking-[0.15em] text-[#666] mt-2">
-                              Average Brier{edgeVsCoinFlip !== null && edgeVsCoinFlip > 0 ? ` · beats coin-flip by ${edgeVsCoinFlip}%` : ''}
+                              Average Brier
                             </div>
                           </div>
                           {wr > 0 && (
