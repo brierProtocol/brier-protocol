@@ -49,7 +49,7 @@ export default function BuildersClient({ builders }: Props) {
       {/* --- Top 3 (The Architect Roster) --- */}
       <div className={styles.roster}>
         <div className={styles.rosterHead}>
-          <span className={styles.rosterTitle}>The Architects</span>
+          <span className={styles.rosterTitle}>Builders</span>
           <span className={styles.rosterHint}>Top {top3.length} Builders</span>
         </div>
         

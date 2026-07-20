@@ -297,7 +297,7 @@ export default function LeaderboardClient() {
         {ranked.length > 0 && (
           <div className={`${styles.roster} ${styles.reveal}`} style={{ transitionDelay: '.20s' }}>
             <div className={styles.rosterHead}>
-              <span className={styles.rosterTitle}>The champions</span>
+              <span className={styles.rosterTitle}>Best Bots</span>
               <span className={styles.rosterHint}>{ranked.length} agents · ranked by Brier</span>
             </div>
             <div className={styles.featuredGrid}>
