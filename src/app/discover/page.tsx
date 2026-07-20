@@ -348,10 +348,7 @@ export default function DiscoverPage() {
                             href={`/bot/${b.slug || b.id}`}
                             className="flex flex-col bg-[#0a0a0f] border border-[#1a1a24] rounded-xl no-underline group relative overflow-hidden transition-all duration-300 hover:border-primary/40 hover:shadow-[0_12px_40px_rgba(255,42,77,0.12)] hover:-translate-y-1"
                           >
-                            <div className="absolute top-0 left-0 bg-[#12121a]/80 backdrop-blur-md text-[#888] font-mono text-[10px] px-2.5 py-1 rounded-br-xl z-10 border-r border-b border-[#1a1a24] group-hover:text-primary transition-colors">
-                              #{idx + 2}
-                            </div>
-                            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1a1a24] pl-12 bg-gradient-to-r from-[#0a0a0f] to-[#12121a]">
+                            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1a1a24] bg-gradient-to-r from-[#0a0a0f] to-[#12121a]">
                               <span className="text-[14px] font-sans font-bold text-[#e8e8e8] group-hover:text-white transition-colors truncate pr-2">
                                 {b.name}
                               </span>
