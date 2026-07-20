@@ -77,7 +77,7 @@ export default function BuildersClient({ builders }: Props) {
                 </div>
               }
               secondaryStats={[
-                { label: "TVL", value: `$${b.globalTVL.toLocaleString()}` },
+                { label: "Net PnL", value: "AWAITING VAULT" },
                 { label: "Bots", value: `${b.liveBots}` },
               ]}
               accentColor={getBuilderColor(b.handle)}
@@ -98,7 +98,7 @@ export default function BuildersClient({ builders }: Props) {
           <div className={styles.rheadBuilder}>
             <span>#</span>
             <span>Builder</span>
-            <span>Global TVL</span>
+            <span>Net PnL</span>
             <span className="text-primary font-bold">Avg. Brier</span>
             <span>Bots (Live)</span>
             <span>Top Bot</span>
@@ -122,7 +122,7 @@ export default function BuildersClient({ builders }: Props) {
                       <Link href={`/maker/${b.address}`} onClick={e => e.stopPropagation()}>@{b.handle}</Link>
                     </span>
                   </span>
-                  <span className={styles.cell}>${b.globalTVL.toLocaleString()}</span>
+                  <span className={styles.cell} style={{ color: '#888', fontSize: '10px', letterSpacing: '0.5px' }}>AWAITING VAULT</span>
                   <span className={`${styles.cell} ${styles.cellBrier}`}>{b.avgBrier.toFixed(3)}</span>
                   <span className={styles.cell}>{b.liveBots}</span>
                   <span className={styles.cell}>{b.topBot?.name ? <Link href={`/bot/${b.topBot.id}`} onClick={(e) => e.stopPropagation()}>{b.topBot.name}</Link> : "—"}</span>
@@ -134,7 +134,7 @@ export default function BuildersClient({ builders }: Props) {
                       <div key={bot.id} className={styles.portfolioBot}>
                         <span className={`${styles.statusDot} ${styles[`statusDot${bot.status}`]}`} />
                         <span style={{color: '#fff', fontWeight: 600}}>{bot.name}</span> 
-                        <span>— TVL ${bot.tvl.toLocaleString()}</span>
+                        <span>— Net PnL AWAITING VAULT</span>
                         <span>— Brier {bot.brierScore.toFixed(3)}</span>
                       </div>
                     ))}
