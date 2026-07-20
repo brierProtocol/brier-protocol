@@ -161,21 +161,6 @@ export default function DiscoverPage() {
         </div>
       </div>
 
-      {/* Quick Actions (only showing existing list routes) */}
-      <div className="grid grid-cols-2 gap-3 max-w-[1200px] mx-auto px-6 md:px-12 mt-6 mb-2">
-        <Link
-          href="/discover"
-          className="flex flex-col items-center justify-center gap-2 py-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] backdrop-blur-md transition-all duration-300 hover:bg-white/[0.05] hover:border-white/20 hover:-translate-y-1 no-underline"
-        >
-          <span className="text-[12px] font-semibold text-[#e8e8e8]">Algorithms</span>
-        </Link>
-        <Link
-          href="/leaderboard"
-          className="flex flex-col items-center justify-center gap-2 py-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] backdrop-blur-md transition-all duration-300 hover:bg-white/[0.05] hover:border-white/20 hover:-translate-y-1 no-underline"
-        >
-          <span className="text-[12px] font-semibold text-[#e8e8e8]">Builders</span>
-        </Link>
-      </div>
 
       <div className="px-6 md:px-12 py-6">
         <div className="max-w-[1200px] mx-auto">
@@ -328,12 +313,11 @@ export default function DiscoverPage() {
                 <div>
                   <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-3">
-                      <span className="h-px w-9 bg-gradient-to-r from-primary to-primary/0" />
                       <span className="font-mono text-[11px] tracking-[0.42em] uppercase text-[#a8a8a8]">Top agents</span>
                     </div>
-                    <a href="#all-agents" className="text-[12px] font-mono text-[#777] hover:text-primary transition-colors">
-                      View full ranking ↓
-                    </a>
+                    <Link href="/leaderboard" className="text-[12px] font-mono text-[#777] hover:text-primary transition-colors">
+                      View full ranking →
+                    </Link>
                   </div>
 
                   <motion.div
@@ -389,11 +373,10 @@ export default function DiscoverPage() {
                             </div>
 
                             <div className="p-4 flex flex-col gap-3 bg-[#0a0a0f]">
-                              <div className="grid grid-cols-3 gap-2">
+                              <div className="grid grid-cols-2 gap-2">
                                 {[
                                   { lbl: 'BRIER',  val: brier > 0 ? brier.toFixed(3) : '—', good: brier <= 0.25 && brier > 0 },
                                   { lbl: 'WIN %',  val: wr > 0 ? `${(wr * 100).toFixed(0)}%` : '—', good: wr > 0.54 },
-                                  { lbl: 'SHARPE', val: sharpe > 0 ? sharpe.toFixed(2) : '—', good: sharpe > 1.5 },
                                 ].map(({ lbl, val, good }) => (
                                   <div key={lbl} className="bg-[#101016] border border-[#1a1a24] rounded-lg p-2.5 flex flex-col gap-1 transition-colors group-hover:border-[#2a2a34]">
                                     <span className="text-[9px] font-mono text-[#6a6a74] tracking-widest">{lbl}</span>
@@ -432,72 +415,12 @@ export default function DiscoverPage() {
                 </div>
               )}
 
-              {/* ── 5. ALL AGENTS (LIST) ── */}
-              {filtered.length > 0 && (
-                <div id="all-agents" className="flex flex-col border border-[#141414] rounded-xl overflow-hidden bg-[#0a0a0a] mt-8">
-                  {/* List Header */}
-                  <div className="hidden sm:grid grid-cols-[60px_2fr_1fr_1fr_1fr] gap-4 px-5 py-3 border-b border-[#141414] bg-[#0c0c0c] text-[10px] font-mono tracking-widest text-[#666] uppercase">
-                    <div>Rank</div>
-                    <div>Algorithm</div>
-                    <div>Brier Score</div>
-                    <div>Win Rate</div>
-                    <div>Status</div>
-                  </div>
-                  {/* List Rows */}
-                  <div className="flex flex-col divide-y divide-[#141414]">
-                    {filtered.map((b, idx) => {
-                      const brier = getBrier(b)
-                      const wr    = b.scores?.[0]?.winRate ?? b.winRate ?? 0
-                      const st    = deriveTag(b)
-                      
-                      return (
-                        <Link
-                          key={b.id}
-                          href={`/bot/${b.slug || b.id}`}
-                          className="group grid grid-cols-[40px_1fr] sm:grid-cols-[60px_2fr_1fr_1fr_1fr] gap-4 px-5 py-4 items-center no-underline hover:bg-[#0f0f0f] transition-colors"
-                        >
-                          <div className="text-[12px] font-mono text-[#555]">
-                            #{idx + 1}
-                          </div>
-                          
-                          <div className="flex items-center gap-3 min-w-0">
-                            <span className="relative w-8 h-8 rounded-full overflow-hidden shrink-0 border border-[#222]">
-                              {b.pfpUrl ? (
-                                /* eslint-disable-next-line @next/next/no-img-element */
-                                <img src={b.pfpUrl} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <BotIrisAvatar {...botEye(b)} size={32} />
-                              )}
-                            </span>
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-[14px] font-bold text-white group-hover:text-primary transition-colors truncate">
-                                {b.name}
-                              </span>
-                              <span className="text-[11px] text-[#666] truncate">
-                                by {b.maker?.handle ? `@${b.maker.handle}` : (b.maker?.name || `${(b.walletAddress || 'anon').substring(0, 6)}…`)}
-                              </span>
-                            </div>
-                          </div>
-                          
-                          <div className="hidden sm:flex flex-col">
-                            <span className={`text-[13px] font-mono ${brier <= 0.25 && brier > 0 ? 'text-primary font-bold' : 'text-[#aaa]'}`}>
-                              {brier > 0 ? brier.toFixed(4) : '—'}
-                            </span>
-                          </div>
-                          
-                          <div className="hidden sm:flex flex-col">
-                            <span className={`text-[13px] font-mono ${wr > 0.54 ? 'text-primary font-bold' : 'text-[#aaa]'}`}>
-                              {wr > 0 ? `${(wr * 100).toFixed(1)}%` : '—'}
-                            </span>
-                          </div>
-                          
-                          <div className="hidden sm:flex items-center">
-                            <StatusMark tag={st.tag} color={st.color} />
-                          </div>
-                        </Link>
-                      )
-                    })}
-                  </div>
+              {/* ── 5. FULL RANKING LINK ── */}
+              {filtered.length > 6 && (
+                <div className="text-center py-6 mt-8">
+                  <Link href="/leaderboard" className="inline-flex items-center gap-2 text-[13px] font-mono text-[#9a9a9a] hover:text-primary transition-colors">
+                    +{filtered.length - 6} more algorithms ranked on the Leaderboard →
+                  </Link>
                 </div>
               )}
             </div>
