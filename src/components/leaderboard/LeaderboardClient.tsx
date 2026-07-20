@@ -129,6 +129,17 @@ function makeSprite(seed: number, cell: number) {
   return c;
 }
 
+const SHADOW_THRESHOLD = 100; // Bots need 100 trades to get out of shadow mode
+
+export function getBotTag(brier: number | null, trades: number) {
+  if (trades < SHADOW_THRESHOLD) return { label: "Shadow Mode", color: "#888", bg: "#1a1a1a", border: "#333" };
+  if (brier == null) return { label: "Shadow Mode", color: "#888", bg: "#1a1a1a", border: "#333" };
+  if (brier <= 0.15) return { label: "Elite", color: "#10b981", bg: "rgba(16,185,129,0.1)", border: "rgba(16,185,129,0.2)" };
+  if (brier <= 0.20) return { label: "Solid", color: "#3b82f6", bg: "rgba(59,130,246,0.1)", border: "rgba(59,130,246,0.2)" };
+  if (brier <= 0.25) return { label: "Unproven", color: "#eab308", bg: "rgba(234,179,8,0.1)", border: "rgba(234,179,8,0.2)" };
+  return { label: "High Risk", color: "#ef4444", bg: "rgba(239,68,68,0.1)", border: "rgba(239,68,68,0.2)" };
+}
+
 export default function LeaderboardClient() {
   const [bots, setBots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -327,6 +338,28 @@ export default function LeaderboardClient() {
                       { label: "Trades", value: tradesOf(b).toString() }
                     ]}
                     accentColor={botEye(b).accentColor}
+                    footer={
+                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }}>
+                        {(() => {
+                          const tag = getBotTag(br, tradesOf(b));
+                          return (
+                            <span style={{ 
+                              color: tag.color, 
+                              backgroundColor: tag.bg, 
+                              border: `1px solid ${tag.border}`,
+                              padding: '4px 10px', 
+                              borderRadius: '12px', 
+                              fontSize: '11px', 
+                              fontWeight: 600,
+                              letterSpacing: '0.02em',
+                              textTransform: 'uppercase'
+                            }}>
+                              {tag.label}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    }
                     onClick={() => { window.location.href = `/bot/${slug}`; }}
                   />
                 );
@@ -364,7 +397,28 @@ export default function LeaderboardClient() {
                       <span className={styles.rowFrame}><BotFace bot={b} size={34} /></span>
                       <span>
                         <span className={styles.rname}><Link href={`/bot/${slug}`} onClick={(e) => e.stopPropagation()}>{b.name}</Link></span>
-                        <br /><span className={styles.rby}>by {authorOf(b)}</span>
+                        <br />
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span className={styles.rby}>by {authorOf(b)}</span>
+                          {(() => {
+                            const tag = getBotTag(br, n);
+                            return (
+                              <span style={{ 
+                                color: tag.color, 
+                                backgroundColor: tag.bg, 
+                                border: `1px solid ${tag.border}`,
+                                padding: '2px 6px', 
+                                borderRadius: '8px', 
+                                fontSize: '9px', 
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                lineHeight: 1
+                              }}>
+                                {tag.label}
+                              </span>
+                            );
+                          })()}
+                        </span>
                       </span>
                     </span>
                     <span className={`${styles.cell} ${styles.cellBrier}`}>{br != null ? br.toFixed(3) : 'AWAITING'}</span>
