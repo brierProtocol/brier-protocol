@@ -379,7 +379,7 @@ export default function LeaderboardClient() {
           </div>
           <div className={`${styles.rows}`} onMouseLeave={() => setVs(null)}>
             <div className={styles.rhead}>
-              <span>#</span><span>Agent</span><span className="text-primary font-bold">Brier</span><span>Win rate</span><span>TVL</span><span>Trades</span><span>Lifetime</span><span>Sharpe</span>
+              <span>#</span><span>Agent</span><span className="text-primary font-bold">Brier</span><span>Win rate</span><span>Net PnL</span><span>Trades</span><span>Lifetime</span><span>Sharpe</span>
             </div>
             {loading ? (
               <div className={styles.empty}>&gt; syncing on-chain data…</div>
@@ -423,7 +423,9 @@ export default function LeaderboardClient() {
                     </span>
                     <span className={`${styles.cell} ${styles.cellBrier}`}>{br != null ? br.toFixed(3) : 'AWAITING'}</span>
                     <span className={styles.cell}>{wrOf(b) != null ? `${(wrOf(b)! * 100).toFixed(1)}%` : '—'}</span>
-                    <span className={styles.cell}>{fmtTvl(tvlOf(b))}</span>
+                    <span className={styles.cell} style={{ color: '#888', fontSize: '10px', letterSpacing: '0.5px' }}>
+                      {n >= SHADOW_THRESHOLD ? 'AWAITING VAULT' : '—'}
+                    </span>
                     <span className={styles.cell}>{n > 0 ? n.toLocaleString() : '—'}{n > 0 && n < 100 && <span className={styles.lowN}>LOW N</span>}</span>
                     <span className={styles.cell}>{lifetimeOf(b)}</span>
                     <span className={styles.cell}>{sharpeOf(b) != null ? sharpeOf(b)!.toFixed(2) : '—'}</span>
