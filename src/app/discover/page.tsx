@@ -327,9 +327,11 @@ export default function DiscoverPage() {
               {/* ── 4. TOP AGENTS (#2 to #6) ── */}
               {filtered.length > 1 && (
                 <div>
-                  <div className="flex items-center justify-between mb-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
                     <div className="flex items-center gap-3">
-                      <span className="font-mono text-[11px] tracking-[0.42em] uppercase text-[#a8a8a8]">Top agents</span>
+                      <h3 className="font-sans text-[22px] md:text-[24px] font-bold text-white m-0 tracking-[-0.02em]">
+                        Top Agents<span className="text-primary">.</span>
+                      </h3>
                     </div>
                     <Link href="/leaderboard" className="text-[12px] font-mono text-[#777] hover:text-primary transition-colors">
                       View full ranking →
