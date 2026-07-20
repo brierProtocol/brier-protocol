@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar';
 import { botEye, deriveAvatarColor } from '@/lib/botIdentity';
+import HeroCard from './HeroCard';
 import styles from './Leaderboard.module.css';
 
 const REVEAL_AT = 1050; // ms — el contenido se destapa cuando el swarm ya tapó la pantalla
@@ -253,11 +254,7 @@ export default function LeaderboardClient() {
       <div className={styles.glow} />
 
       <div className={`${styles.content} ${revealed ? styles.contentRevealed : ''}`}>
-        <div className={`${styles.eyebrow} ${styles.reveal}`} style={{ transitionDelay: '.04s' }}>proving ground</div>
-        <h1 className={`${styles.h1} ${styles.reveal}`} style={{ transitionDelay: '.09s' }}>
-          Leaderboard<span className={styles.accent}>.</span>
-        </h1>
-        <p className={`${styles.lead} ${styles.reveal}`} style={{ transitionDelay: '.15s' }}>
+        <p className={`${styles.lead} ${styles.reveal}`} style={{ transitionDelay: '.15s', marginTop: -20, textAlign: 'center', maxWidth: '100%' }}>
           Ranked strictly by <b>Brier Score</b>. Lower is superior. Every score derives from resolved trades. Nothing is self reported.
         </p>
 
@@ -303,35 +300,35 @@ export default function LeaderboardClient() {
               <span className={styles.rosterTitle}>The champions</span>
               <span className={styles.rosterHint}>{ranked.length} agents · ranked by Brier</span>
             </div>
-            <div className={styles.rosterGrid}>
-              {ranked.map((b, i) => {
-                const eye = botEye(b);
+            <div className={styles.featuredGrid}>
+              {ranked.slice(0, 3).map((b, i) => {
                 const slug = b.slug || b.id;
                 const br = brierOf(b);
                 const wr = wrOf(b);
-                const boss = i === 0;
+                
                 return (
-                  <div
+                  <HeroCard
                     key={b.id}
-                    className={`${styles.tile} ${boss ? styles.boss : ''}`}
-                    style={{ ['--tile-color' as string]: eye.accentColor }}
-                    onClick={() => { window.location.href = `/bot/${slug}`; }}
-                    title={`${b.name} · Brier ${br != null ? br.toFixed(3) : '—'}`}
-                  >
-                    <span className={styles.tileRank}>{i + 1}</span>
-                    {boss && <span className={styles.crown}>♛</span>}
-                    <div className={styles.tileFrame}>
-                      <BotFace bot={b} size={boss ? 230 : 148} />
-                    </div>
-                    <div className={styles.tileBody}>
-                      <div className={styles.tileName}>{b.name}</div>
-                      <div className={styles.tileStat}>
-                        <span className={styles.tileBrierLbl}>Brier</span>
-                        <span className={styles.tileBrier}>{br != null ? br.toFixed(3) : '—'}</span>
-                        <span className={styles.tileWr}>{wr != null ? `${(wr * 100).toFixed(1)}% WR` : ''}</span>
+                    kind="agent"
+                    size={i === 0 ? "boss" : "featured"}
+                    avatar={<BotFace bot={b} size={i === 0 ? 140 : 100} />}
+                    name={b.name}
+                    tagline={`by ${authorOf(b)}`}
+                    heroLabel="Brier"
+                    heroValue={br != null ? br.toFixed(3) : "—"}
+                    badge={
+                      <div className={`${styles.rankBadge} ${i === 0 ? styles.rank1 : i === 1 ? styles.rank2 : styles.rank3}`}>
+                        {i === 0 && <span className={styles.rankCrown}>👑</span>}
+                        {i + 1}
                       </div>
-                    </div>
-                  </div>
+                    }
+                    secondaryStats={[
+                      { label: "Win Rate", value: wr != null ? `${(wr * 100).toFixed(1)}%` : "—" },
+                      { label: "Trades", value: tradesOf(b).toString() }
+                    ]}
+                    accentColor={botEye(b).accentColor}
+                    onClick={() => { window.location.href = `/bot/${slug}`; }}
+                  />
                 );
               })}
             </div>
