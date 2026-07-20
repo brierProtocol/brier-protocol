@@ -246,8 +246,6 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
                   <div className="rounded-xl overflow-hidden ring-4 ring-[#08080c]">
                     <MakerAvatar address={makerAddress} pfpUrl={profile?.pfpUrl} size={88} square />
                   </div>
-                  <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-[4px] font-mono text-[8px] font-bold tracking-[0.12em] whitespace-nowrap"
-                    style={{ color: tier.c, background: '#08080c', border: `1px solid ${tier.c}55` }}>{tier.t}</span>
                 </div>
               </div>
 
