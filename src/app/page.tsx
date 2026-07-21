@@ -51,9 +51,6 @@ export default function ComingSoon() {
           <h2 className="font-sans font-extrabold text-[36px] md:text-[48px] tracking-[-0.04em] leading-tight">
             Coming Soon
           </h2>
-          <p className="text-[#888] text-[15px] md:text-[17px] leading-relaxed max-w-[340px] mx-auto font-medium">
-            The proving ground for prediction algorithms is almost ready. Capital follows calibration.
-          </p>
         </div>
 
         {/* Form */}
