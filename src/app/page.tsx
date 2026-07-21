@@ -14,34 +14,32 @@ export default function ComingSoon() {
 
   useEffect(() => {
     let counter = 0
+    let timeoutId: NodeJS.Timeout
     const colors = ['#ff2a4d', '#3cff4d', '#4d2aff', '#ffc12a', '#2affc1', '#d42aff', '#ff2a9d']
     
-    const spawnAlien = () => {
+    const spawnNextAlien = () => {
       const id = Math.random().toString(36).substring(7)
       const color = colors[Math.floor(Math.random() * colors.length)]
-      const size = 100 + Math.random() * 150
-      const duration = 20 + Math.random() * 15 // 20 to 35 seconds
+      const size = 30 + Math.random() * 40 // Smaller: 30px to 70px
+      const duration = 12 + Math.random() * 8 // 12 to 20 seconds
       
       const edge = Math.floor(Math.random() * 4)
       let startX = 0, startY = 0
-      if (edge === 0) { startX = Math.random() * 100; startY = -20 }
-      else if (edge === 1) { startX = 120; startY = Math.random() * 100 }
-      else if (edge === 2) { startX = Math.random() * 100; startY = 120 }
-      else { startX = -20; startY = Math.random() * 100 }
+      if (edge === 0) { startX = 10 + Math.random() * 80; startY = -10 }
+      else if (edge === 1) { startX = 110; startY = 10 + Math.random() * 80 }
+      else if (edge === 2) { startX = 10 + Math.random() * 80; startY = 110 }
+      else { startX = -10; startY = 10 + Math.random() * 80 }
 
-      const endX = edge === 1 ? -30 : (edge === 3 ? 130 : Math.random() * 100)
-      const endY = edge === 2 ? -30 : (edge === 0 ? 130 : Math.random() * 100)
+      const endX = edge === 1 ? -10 : (edge === 3 ? 110 : 10 + Math.random() * 80)
+      const endY = edge === 2 ? -10 : (edge === 0 ? 110 : 10 + Math.random() * 80)
 
-      setAliens(prev => [...prev, { id, startX, startY, endX, endY, color, key: counter++, size, duration }])
+      setAliens([{ id, startX, startY, endX, endY, color, key: counter++, size, duration }])
       
-      setTimeout(() => {
-        setAliens(prev => prev.filter(a => a.key !== counter - 1))
-      }, duration * 1000)
+      timeoutId = setTimeout(spawnNextAlien, (duration * 1000) + 3000)
     }
 
-    spawnAlien()
-    const interval = setInterval(spawnAlien, 10000)
-    return () => clearInterval(interval)
+    spawnNextAlien()
+    return () => clearTimeout(timeoutId)
   }, [])
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -72,7 +70,7 @@ export default function ComingSoon() {
             key={a.key}
             initial={{ opacity: 0, x: `${a.startX}vw`, y: `${a.startY}vh`, scale: 0.8, rotate: -30 }}
             animate={{ 
-              opacity: [0, 0.12, 0], 
+              opacity: [0, 0.45, 0], 
               x: `${a.endX}vw`, 
               y: `${a.endY}vh`, 
               scale: [0.8, 1.2, 0.8],
