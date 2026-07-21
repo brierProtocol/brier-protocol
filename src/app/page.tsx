@@ -29,7 +29,6 @@ export default function ComingSoon() {
       {/* Deep Space Atmosphere */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
         {/* Core red glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] md:w-[900px] h-[600px] md:h-[900px] bg-primary/20 rounded-full blur-[140px] opacity-40 mix-blend-screen" />
         <div className="absolute top-0 left-0 w-full h-full bg-[url('/noise.png')] opacity-[0.04] mix-blend-overlay" />
       </div>
 
@@ -74,7 +73,8 @@ export default function ComingSoon() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email..."
                     required
-                    className="flex-1 bg-transparent border-none outline-none text-[15px] text-white px-5 placeholder:text-[#444] font-sans"
+                    className="flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-[15px] text-white px-5 placeholder:text-[#444] font-sans"
+                    style={{ boxShadow: 'none' }}
                   />
                   <button 
                     type="submit"
