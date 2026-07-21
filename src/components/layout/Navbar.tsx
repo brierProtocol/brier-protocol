@@ -192,7 +192,8 @@ export default function Navbar() {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  if (pathname === '/') return <LandingNav />
+  if (pathname === '/home') return <LandingNav />
+  if (pathname === '/') return null
   // Docs trae su propio header (logo + search ⌘K + tabs) — sin navbar global encima
   if (pathname.startsWith('/docs')) return null
 
