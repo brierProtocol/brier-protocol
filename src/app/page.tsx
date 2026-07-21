@@ -44,9 +44,6 @@ export default function ComingSoon() {
           <h1 className="font-sans font-extrabold text-[64px] md:text-[80px] tracking-[-0.05em] leading-none text-white transition-transform duration-500 hover:scale-105">
             Brier<span className="text-primary group-hover:drop-shadow-[0_0_20px_rgba(255,42,77,0.8)] transition-all duration-300">.</span>
           </h1>
-          <div className="mt-3 font-mono text-[10px] md:text-[12px] tracking-[0.35em] uppercase text-[#777] group-hover:text-primary transition-colors duration-500">
-            Prediction Market Protocol
-          </div>
         </div>
 
         {/* Content */}
@@ -130,18 +127,6 @@ export default function ComingSoon() {
           </AnimatePresence>
         </div>
         
-        {/* Subtle bypass to main app for internal use */}
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.5, duration: 1 }}
-          className="absolute bottom-10 flex items-center justify-center w-full"
-        >
-          <Link href="/home" className="group flex items-center gap-2 px-4 py-2 rounded-full hover:bg-white/[0.03] transition-all no-underline">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#333] group-hover:bg-primary transition-colors shadow-[0_0_8px_rgba(255,42,77,0)] group-hover:shadow-[0_0_8px_rgba(255,42,77,0.8)]" />
-            <span className="text-[10px] font-mono tracking-widest uppercase text-[#444] group-hover:text-[#888] transition-colors">Enter Preview</span>
-          </Link>
-        </motion.div>
       </motion.div>
     </div>
   )
