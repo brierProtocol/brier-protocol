@@ -22,6 +22,13 @@ export async function GET(request: NextRequest) {
     });
 
     if (positions.length === 0) {
+      // Even if they have no positions, they might have creator earnings
+      const creatorEarningsResult = await prisma.distribution.aggregate({
+        where: { bot: { ownerWallet: { equals: address, mode: 'insensitive' } } },
+        _sum: { builderCut: true }
+      });
+      const creatorEarnings = creatorEarningsResult._sum.builderCut || 0;
+
       return NextResponse.json({
         portfolioValue: 0,
         totalDeposited: 0,
@@ -29,6 +36,7 @@ export async function GET(request: NextRequest) {
         totalEarned: 0,
         annualizedReturn: 0,
         activePositions: 0,
+        creatorEarnings,
         allocations: [],
         history: [],
         equityCurve: [],
@@ -109,6 +117,12 @@ export async function GET(request: NextRequest) {
       ? parseFloat((((equityCurve[equityCurve.length - 1] - equityCurve[0]) / equityCurve[0]) * 100).toFixed(1))
       : 0;
 
+    const creatorEarningsResult = await prisma.distribution.aggregate({
+      where: { bot: { ownerWallet: { equals: address, mode: 'insensitive' } } },
+      _sum: { builderCut: true }
+    });
+    const creatorEarnings = creatorEarningsResult._sum.builderCut || 0;
+
     return NextResponse.json({
       portfolioValue: parseFloat(portfolioValue.toFixed(2)),
       totalDeposited: parseFloat(investedCapital.toFixed(2)),
@@ -116,6 +130,7 @@ export async function GET(request: NextRequest) {
       yield30d,
       annualizedReturn,
       activePositions: allocations.length,
+      creatorEarnings: parseFloat(creatorEarnings.toFixed(2)),
       allocations,
       history,
       equityCurve,

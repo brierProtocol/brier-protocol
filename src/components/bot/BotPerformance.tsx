@@ -110,39 +110,40 @@ export default function BotPerformance({ snapshots, winRate, sharpe, maxDrawdown
   const active = model && hoverIdx != null ? model.pts[hoverIdx] : null
 
   return (
-    <div className="rounded-2xl border border-[#161620] bg-[#06060a] overflow-hidden">
+    <div className="rounded-2xl border border-[#1a1a24] bg-[#0a0a0f] overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
       {/* header */}
-      <div className="flex items-end justify-between px-5 pt-5 pb-3.5 relative">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <div className="font-mono text-[10px] tracking-[0.24em] uppercase text-[#5a5a66]">{title}</div>
+      <div className="flex items-end justify-between px-6 pt-6 pb-4 relative">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="font-sans font-bold text-[16px] tracking-tight text-[#e8e8e8]">{title}</div>
             {info && (
               <button 
                 onClick={() => setShowInfo(!showInfo)}
-                className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold font-mono transition-colors ${showInfo ? 'bg-primary text-black border-primary' : 'bg-transparent text-[#666] border-[#444] hover:border-primary hover:text-primary'}`}
+                className={`w-[18px] h-[18px] rounded-full border flex items-center justify-center text-[10px] font-bold font-mono transition-colors cursor-pointer ${showInfo ? 'bg-primary text-black border-primary' : 'bg-transparent text-[#6a6a74] border-[#2a2a34] hover:border-[#444] hover:text-white'}`}
+                aria-label="What is this?"
               >
                 ?
               </button>
             )}
           </div>
-          <div className="flex items-baseline gap-3">
-            <span className="font-sans font-black text-[34px] leading-none tracking-[-0.03em] tabular-nums" style={{ color: model ? accent : '#3a3a44' }}>
-              {model ? (mode === 'money' ? fmtMoney(active ? active.v : model.last) : fmtScore(active ? active.v : model.last)) : '—'}
+          <div className="flex items-baseline gap-3 mt-1">
+            <span className="font-sans font-black text-[42px] leading-none tracking-[-0.04em] tabular-nums" style={{ color: model ? accent : '#5a5a66' }}>
+              {model ? (mode === 'money' ? fmtMoney(active ? active.v : model.last) : fmtScore(active ? active.v : model.last)) : (mode === 'money' ? '$0' : '0.000')}
             </span>
             {model && (
-              <span className="font-mono text-[13px] font-bold tabular-nums" style={{ color: accent }}>
+              <span className="font-mono text-[14px] font-bold tabular-nums px-2 py-0.5 rounded-md" style={{ color: accent, background: `${accent}14` }}>
                 {isUp ? '▲' : '▼'} {Math.abs(changePct).toFixed(1)}%
               </span>
             )}
           </div>
-          <div className="font-mono text-[10px] text-[#48484f] mt-1.5 tracking-wide">
+          <div className="font-mono text-[11px] text-[#6a6a74] mt-2 tracking-wide uppercase">
             {active ? fmtDate(active.t) : subtitle}
           </div>
         </div>
         {model && (
-          <div className="text-right">
-            <div className="font-mono text-[10px] tracking-[0.16em] uppercase text-[#48484f] mb-1">Net</div>
-            <div className="font-mono text-[15px] font-bold tabular-nums" style={{ color: accent }}>{mode === 'money' ? fmtMoney(changeAbs) : fmtScore(changeAbs)}</div>
+          <div className="text-right flex flex-col gap-1">
+            <div className="font-mono text-[11px] tracking-[0.16em] uppercase text-[#6a6a74]">Net {mode === 'money' ? 'Profit' : 'Change'}</div>
+            <div className="font-mono text-[18px] font-bold tabular-nums" style={{ color: accent }}>{mode === 'money' ? fmtMoney(changeAbs) : fmtScore(changeAbs)}</div>
           </div>
         )}
       </div>
@@ -231,12 +232,15 @@ export default function BotPerformance({ snapshots, winRate, sharpe, maxDrawdown
           )}
         </svg>
       ) : (
-        <div className="grid place-items-center text-center px-6" style={{ height: 200 }}>
-          <div>
-            <div className="text-[13px] text-[#6a6a74] font-sans">The curve draws itself as predictions resolve.</div>
-            <div className="text-[11px] text-[#3f3f48] font-mono mt-1.5">not enough data yet</div>
-          </div>
-        </div>
+        // No settled P&L yet → show a FLAT baseline (starts at $0), not an empty box.
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" style={{ height: 200 }} preserveAspectRatio="none">
+          <line x1={PAD.l} y1={H / 2} x2={W - PAD.r} y2={H / 2} stroke="#ffffff10" strokeWidth="1" strokeDasharray="3 5" />
+          <line x1={PAD.l} y1={H / 2} x2={W - PAD.r} y2={H / 2} stroke="#3a3a44" strokeWidth="2.5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          <motion.circle cx={W - PAD.r} cy={H / 2} r="9" fill="#5a5a66" opacity="0.18"
+            animate={{ r: [6, 12, 6], opacity: [0.22, 0, 0.22] }} transition={{ duration: 2.4, repeat: Infinity }} />
+          <circle cx={W - PAD.r} cy={H / 2} r="3.5" fill="#5a5a66" />
+          <text x={PAD.l} y={H / 2 - 10} fill="#3f3f48" fontSize="10" fontFamily="monospace">the curve draws itself as predictions resolve</text>
+        </svg>
       )}
     </div>
   )

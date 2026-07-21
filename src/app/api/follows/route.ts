@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
+import { log } from '@/lib/observability'
 
 // GET /api/follows?address=...&viewerId=...
 // Devuelve los seguidores y seguidos de `address`, sus contadores, y
 // (si se pasa viewerId) si el visitante ya sigue a `address`.
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const address = searchParams.get('address')
-  const viewerId = searchParams.get('viewerId')
+  // Wallets are stored lowercased everywhere (users, comments, notifications);
+  // normalize here too or checksummed addresses read a phantom empty profile.
+  const address = searchParams.get('address')?.toLowerCase() || null
+  const viewerId = searchParams.get('viewerId')?.toLowerCase() || null
 
   if (!address) {
     return NextResponse.json({ error: 'Missing address' }, { status: 400 })
@@ -45,14 +48,19 @@ export async function GET(request: Request) {
       isFollowing,
     })
   } catch (error) {
-    console.error('Follow fetch error:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    log('error', 'follows.get', { message: error instanceof Error ? error.message : String(error), code: (error as any)?.code })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const { followerId, followingId } = await request.json()
+    const body = await request.json()
+    // Same canonical form as the rest of the social layer: lowercase wallets.
+    // Without this a checksummed address creates duplicate phantom users and
+    // follows that the (lowercased) profile queries never see.
+    const followerId = typeof body.followerId === 'string' ? body.followerId.toLowerCase() : ''
+    const followingId = typeof body.followingId === 'string' ? body.followingId.toLowerCase() : ''
 
     if (!followerId || !followingId) {
       return NextResponse.json({ error: 'Missing addresses' }, { status: 400 })
@@ -100,24 +108,26 @@ export async function POST(request: Request) {
       })
 
       // Best-effort notification — a failure here must never break the follow.
+      // actorWallet lets the bell resolve the follower's face and name.
       try {
         await prisma.notification.create({
           data: {
             walletAddress: followingId,
             type: 'FOLLOW',
             title: 'NEW FOLLOWER',
-            message: `Wallet ${followerId.substring(0,6)}...${followerId.substring(followerId.length-4)} started following you.`
+            message: 'started following you.',
+            metadata: JSON.stringify({ actorWallet: followerId }),
           }
         })
       } catch (notifyErr) {
-        console.error('Follow notification failed (follow still saved):', notifyErr)
+        log('warn', 'follows.notify', { message: notifyErr instanceof Error ? notifyErr.message : String(notifyErr) })
       }
 
       const followersCount = await prisma.follow.count({ where: { followingId } })
       return NextResponse.json({ status: 'followed', followersCount })
     }
   } catch (error) {
-    console.error('Follow error:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    log('error', 'follows.post', { message: error instanceof Error ? error.message : String(error), code: (error as any)?.code })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

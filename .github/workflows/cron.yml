@@ -1,0 +1,115 @@
+name: Crons
+
+# POR QUE ESTO EXISTE
+#
+# Los crons viven en vercel.json, pero el plan Hobby de Vercel solo permite
+# ejecutarlos UNA VEZ POR DIA (cualquier expresion mas frecuente falla el deploy).
+# Eso degrado el sistema en silencio: el circuit-breaker -- el que pausa un vault
+# cuando el Brier se deteriora -- paso de correr cada 6h a una vez al dia. Con
+# capital real adentro, un bot puede sangrar 24h antes de que salte.
+#
+# Este workflow le pega a los mismos endpoints desde GitHub Actions (gratis, sin
+# limite de frecuencia) y restaura las frecuencias reales.
+#
+# Los crons de vercel.json SE QUEDAN a proposito: son el piso diario garantizado.
+# Si este workflow se rompe o falta el secret, seguis como hoy (diario) en vez de
+# quedarte sin crons. Todos los endpoints son idempotentes (score hace upsert por
+# (botId, snapshotDate)), asi que una corrida doble no duplica nada.
+#
+# SETUP (una sola vez):
+#   Settings -> Secrets and variables -> Actions -> pestania "Secrets"
+#   -> New repository secret:  CRON_SECRET = el mismo valor de las env vars de Vercel
+#
+#   Solo CRON_SECRET es obligatorio. APP_URL tiene default (ver env de abajo) y se puede
+#   pisar con una repo variable si algun dia cambia el dominio — no es un secreto, es una
+#   URL publica, y pedirla como secret solo agregaba un modo de falla.
+
+on:
+  schedule:
+    # NOTA: el scheduler de GitHub es best-effort; puede atrasarse algunos minutos.
+    # Los umbrales de CRITICAL_CRONS en src/lib/observability.ts ya tienen margen.
+    - cron: '*/30 * * * *'   # resolve-and-score: resolver predicciones
+    - cron: '15 * * * *'     # score: recalcular Brier
+    - cron: '45 */6 * * *'   # circuit-breaker: pausar vaults que se deterioran
+    - cron: '0 6 * * *'      # sync + anchor + snapshot (diarios)
+  workflow_dispatch:         # permite dispararlo a mano desde la UI de Actions
+
+permissions:
+  contents: read
+
+jobs:
+  cron:
+    runs-on: ubuntu-latest
+    env:
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      # No es un secreto: URL publica. Repo variable si algun dia cambia el dominio,
+      # con default para que el workflow nunca dependa de que alguien la cargue.
+      APP_URL: ${{ vars.APP_URL || 'https://brier-protocol.vercel.app' }}
+    steps:
+      - name: Verificar que CRON_SECRET exista
+        run: |
+          # Un espacio o un \n al final del secret es invalido en un header HTTP: el
+          # request sale mal formado y la route responde 401. Vercel ya rechaza el
+          # deploy si su env var tiene whitespace (nos rompio un build por esto), pero
+          # GitHub guarda el secret tal cual lo pegas. Lo limpiamos y avisamos.
+          TRIMMED="$(printf '%s' "$CRON_SECRET" | tr -d '[:space:]')"
+          if [ "$TRIMMED" != "$CRON_SECRET" ]; then
+            # GitHub enmascara el secret EXACTO que tiene registrado; la version limpia
+            # es un string distinto y NO se enmascara sola. Hay que pedirlo explicitamente
+            # o se podria filtrar en los logs.
+            echo "::add-mask::$TRIMMED"
+            echo "::warning::El secret CRON_SECRET tiene whitespace y lo estoy limpiando."
+            echo "::warning::Arreglalo en Settings -> Secrets: si no coincide EXACTO con el de"
+            echo "::warning::Vercel (que ya esta sin whitespace), los endpoints devuelven 401."
+            echo "CRON_SECRET=$TRIMMED" >> "$GITHUB_ENV"
+          fi
+
+          if [ -z "$TRIMMED" ]; then
+            echo "::error::CRON_SECRET llega vacio al runner."
+            echo "Causas, por probabilidad:"
+            echo "  1) Lo cargaste como secret de la ORGANIZACION (brierProtocol) sin darle"
+            echo "     acceso a este repo. Los repos PRIVADOS no heredan los secrets de org:"
+            echo "     hay que ir al secret -> Repository access -> agregar brier-protocol."
+            echo "  2) Lo pusiste en la pestania 'Variables' en vez de 'Secrets'."
+            echo "  3) Lo pusiste como 'Environment secret' en vez de 'Repository secret'"
+            echo "     (esos solo llegan si el job declara 'environment:', y este no lo hace)."
+            exit 1
+          fi
+          echo "CRON_SECRET presente (${#TRIMMED} chars, ya limpio). APP_URL=$APP_URL"
+
+      - name: Disparar los endpoints que tocan en este horario
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          set -uo pipefail
+
+          # Un '/' final convertiria la URL en //api/cron/... — normalizamos y listo.
+          APP_URL="${APP_URL%/}"
+
+          # Mapea el cron que disparo -> endpoints a llamar.
+          # En workflow_dispatch (SCHEDULE vacio) corre todos, para poder probar.
+          case "$SCHEDULE" in
+            '*/30 * * * *') JOBS="resolve-and-score" ;;
+            '15 * * * *')   JOBS="score" ;;
+            '45 */6 * * *') JOBS="circuit-breaker" ;;
+            '0 6 * * *')    JOBS="sync anchor-commitments snapshot-equity" ;;
+            *)              JOBS="resolve-and-score score circuit-breaker sync anchor-commitments snapshot-equity" ;;
+          esac
+
+          failed=0
+          for job in $JOBS; do
+            echo "--- POST /api/cron/$job"
+            code=$(curl -sS -o /tmp/out.txt -w '%{http_code}' --max-time 120 \
+                     -H "Authorization: Bearer $CRON_SECRET" \
+                     "$APP_URL/api/cron/$job") || code="000"
+            echo "HTTP $code"
+            head -c 500 /tmp/out.txt; echo
+            # 000 = curl fallo (timeout/red). Cualquier no-2xx tambien es error.
+            if [ "$code" -lt 200 ] 2>/dev/null || [ "$code" -ge 300 ] 2>/dev/null; then
+              echo "::error::/api/cron/$job devolvio HTTP $code"
+              [ "$code" = "401" ] && echo "::error::401 = el CRON_SECRET del repo NO coincide con el de las env vars de Vercel (ojo con espacios o saltos de linea al copiarlo)."
+              [ "$code" = "404" ] && echo "::error::404 = APP_URL apunta al dominio equivocado: $APP_URL"
+              failed=1
+            fi
+          done
+          exit $failed

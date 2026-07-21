@@ -17,7 +17,7 @@ async function main() {
   const makerWallets = {
     paper: '0x0000000000000000000000000000000000001234',
     live: '0x1111111111111111111111111111111111115678',
-    adan: '0xADAN00000000000000000000000000000000PRED',
+    adan: '0x000000000000000000000000000000000000ADAN',
   }
   for (const [key, wallet] of Object.entries(makerWallets)) {
     await prisma.user.upsert({
@@ -80,7 +80,7 @@ async function main() {
       name: 'ADAN-PRED',
       tagline: 'Perp-based Predictive Engine',
       description: 'HFT predictive market engine leveraging Tier-1 infrastructure. Aggressive latency and Fill-And-Kill execution.',
-      walletAddress: '0xADAN00000000000000000000000000000000PRED',
+      walletAddress: '0x000000000000000000000000000000000000ADAN',
       ownerWallet: makerWallets.adan,
       status: 'VAULT_ELIGIBLE_T1',
       marketType: 'POLITICS', // Can be CRYPTO or POLITICS, politics fee = 0.04%

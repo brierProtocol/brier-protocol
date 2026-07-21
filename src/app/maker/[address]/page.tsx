@@ -8,6 +8,8 @@ import BotIrisAvatar from '@/components/bot/BotIrisAvatar'
 import MakerAvatar from '@/components/MakerAvatar'
 import ConnectXModal, { XLogo } from '@/components/profile/ConnectXModal'
 import { botEye } from '@/lib/botIdentity'
+import { personLabel as sharedPersonLabel } from '@/lib/identity'
+import { broadcastProfileUpdate } from '@/hooks/useCurrentUser'
 import { useCountUp } from '@/hooks/useCountUp'
 
 const POS = '#c8ff00', VIOLET = '#8b7bff', CRIMSON = '#ff2a4d'
@@ -15,8 +17,8 @@ const POS = '#c8ff00', VIOLET = '#8b7bff', CRIMSON = '#ff2a4d'
 type Person = { walletAddress: string; name?: string | null; handle?: string | null; pfpUrl?: string | null }
 
 const shortAddr = (a = '') => a ? `${a.slice(0, 6)}…${a.slice(-4)}` : 'anon'
-const personLabel = (u?: Person | null) =>
-  u?.handle ? `@${u.handle}` : (u?.name && !u.name.startsWith('User_') ? u.name : shortAddr(u?.walletAddress))
+// Universal identity — same resolver as navbar / bot profile / comments.
+const personLabel = (u?: Person | null) => sharedPersonLabel(u)
 const fmtUSD = (n: number) => n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `$${(n / 1000).toFixed(1)}K` : `$${Math.round(n).toLocaleString()}`
 
 function StatCard({ label, value, prefix = '', suffix = '', decimals = 0, color = '#f0f0f4', delay = 0 }:
@@ -57,7 +59,7 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
 
   const [bots, setBots] = useState<any[]>([])
   const [profile, setProfile] = useState<any>({ handle: '', name: '', bio: '', pfpUrl: '', xHandle: null })
-  const [portfolio, setPortfolio] = useState<any>({ portfolioValue: 0, totalDeposited: 0, totalEarned: 0, activePositions: 0, allocations: [] })
+  const [portfolio, setPortfolio] = useState<any>({ portfolioValue: 0, totalDeposited: 0, totalEarned: 0, activePositions: 0, creatorEarnings: 0, allocations: [] })
   const [followersList, setFollowersList] = useState<Person[]>([])
   const [followingList, setFollowingList] = useState<Person[]>([])
   const [viewerFollowing, setViewerFollowing] = useState<Set<string>>(new Set())
@@ -66,6 +68,7 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
   const [tab, setTab] = useState<'portfolio' | 'bots'>('portfolio')
   const [socialModal, setSocialModal] = useState<null | 'followers' | 'following'>(null)
   const [copied, setCopied] = useState(false)
+  const [xOpen, setXOpen] = useState(false)
 
   const [isEditing, setIsEditing] = useState(false)
   const [editHandle, setEditHandle] = useState('')
@@ -101,7 +104,7 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
         }
         if (dRes.ok) {
           const d = await dRes.json()
-          setPortfolio({ portfolioValue: d.portfolioValue || 0, totalDeposited: d.totalDeposited || 0, totalEarned: d.totalEarned || 0, activePositions: d.activePositions || 0, allocations: d.allocations || [] })
+          setPortfolio({ portfolioValue: d.portfolioValue || 0, totalDeposited: d.totalDeposited || 0, totalEarned: d.totalEarned || 0, activePositions: d.activePositions || 0, creatorEarnings: d.creatorEarnings || 0, allocations: d.allocations || [] })
           setTab((d.allocations?.length ? 'portfolio' : 'bots'))
         }
       } catch (e) { console.error(e) } finally { if (alive) setLoading(false) }
@@ -139,6 +142,12 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
     () => followersList.filter(u => viewerFollowing.has(u.walletAddress?.toLowerCase())),
     [followersList, viewerFollowing]
   )
+  // "Follows you": the profile's following list contains the viewer → this
+  // person already follows the viewer back (the Messi case: on Messi's profile
+  // the viewer sees a "Follows you" badge because Messi follows them).
+  const followsViewer = !isOwner && !!activeUser && profileFollowingSet.has(activeUser)
+  // Whether viewer + profile follow each other → mutual, surfaced on the button.
+  const isMutual = followsViewer && followed
 
   const totalTVL = bots.reduce((s, b) => s + (b.currentTVL || b.tvl || 0), 0)
   const botsWithBrier = bots.filter(b => b.scores?.[0]?.brierScore || b.brierScore)
@@ -177,12 +186,20 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
     window.location.href = `/api/auth/twitter?wallet=${activeUser}`
   }
 
+  // Manual link/unlink from the modal (the OAuth path is initiateXLink).
+  const saveX = async (handle: string | null) => {
+    if (!activeUser) return
+    const res = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: activeUser, xHandle: handle }) })
+    if (res.ok) { const u = await res.json(); setProfile(u); showToast(handle ? 'X linked.' : 'X unlinked.') }
+    else showToast('Could not link X.')
+  }
+
   const handleSaveProfile = async () => {
     if (!activeUser) return
     setSaving(true)
     try {
       const res = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: activeUser, handle: editHandle, name: editName, bio: editBio, pfpUrl: editPfp }) })
-      if (res.ok) { const u = await res.json(); setProfile(u); setIsEditing(false); showToast('Profile updated.') }
+      if (res.ok) { const u = await res.json(); setProfile(u); setIsEditing(false); broadcastProfileUpdate(u); showToast('Profile updated.') }
       else { const e = await res.json(); showToast(e.error || 'Save failed.') }
     } catch (e: any) { showToast(e.message) } finally { setSaving(false) }
   }
@@ -229,15 +246,16 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
                   <div className="rounded-xl overflow-hidden ring-4 ring-[#08080c]">
                     <MakerAvatar address={makerAddress} pfpUrl={profile?.pfpUrl} size={88} square />
                   </div>
-                  <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-[4px] font-mono text-[8px] font-bold tracking-[0.12em] whitespace-nowrap"
-                    style={{ color: tier.c, background: '#08080c', border: `1px solid ${tier.c}55` }}>{tier.t}</span>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
                 {isOwner ? (
                   <>
-                    <button onClick={initiateXLink} className="inline-flex items-center gap-2 rounded-full border border-[#262630] px-4 py-2 text-[12px] font-semibold text-[#ddd] hover:border-[#3a3a44] hover:text-white transition-colors">
+                    <button
+                      onClick={() => setXOpen(true)}
+                      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[12px] font-semibold transition-colors ${xHandle ? 'border border-[#262630] text-[#ddd] hover:border-[#3a3a44] hover:text-white' : 'bg-white text-black hover:bg-[#e8e8e8]'}`}
+                    >
                       <XLogo size={13} /> {xHandle ? 'Manage X' : 'Connect X'}
                     </button>
                     <button onClick={() => { setIsEditing(v => !v); setEditHandle(profile?.handle || ''); setEditName(profile?.name || ''); setEditBio(profile?.bio || ''); setEditPfp(profile?.pfpUrl || '') }}
@@ -259,10 +277,18 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h1 className="font-black text-[26px] tracking-[-0.03em] text-white m-0 leading-none">{displayName}</h1>
                 {profile?.handle && hasName && <span className="font-mono text-[13px] text-[#8a8a94]">@{profile.handle}</span>}
+                {/* "Follows you" — this person already follows the viewer back */}
+                {followsViewer && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[#8b7bff44] bg-[#8b7bff14] px-2 py-0.5 font-mono text-[10px] font-bold tracking-wide" style={{ color: VIOLET }}>
+                    {isMutual && <span className="text-[#c8ff00]">⇄</span>}
+                    {isMutual ? 'You follow each other' : 'Follows you'}
+                  </span>
+                )}
                 {xHandle && (
                   <a href={`https://x.com/${xHandle}`} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[#262630] px-2.5 py-1 text-[11px] text-[#ddd] hover:border-[#3a3a44] hover:text-white no-underline transition-colors" title={profile?.xVerified ? 'Verified via X' : ''}>
-                    <XLogo size={11} /> {xHandle} {profile?.xVerified && <span className="text-primary ml-0.5">✓</span>}
+                    className="group flex items-center gap-1.5 rounded-full border border-[#262630] px-3 py-1.5 text-[12px] text-[#ddd] hover:border-[#4a4a54] hover:text-white hover:bg-[#12121a] no-underline transition-all" title={profile?.xVerified ? 'Identity cryptographically verified via X OAuth' : 'X Identity'}>
+                    <XLogo size={12} className="text-[#8a8a94] group-hover:text-white transition-colors" /> 
+                    <span className="font-mono font-medium tracking-tight">@{xHandle}</span>
                   </a>
                 )}
               </div>
@@ -289,20 +315,63 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
                   <span className="font-sans font-bold text-[15px] text-white tabular-nums">{followingList.length}</span>
                   <span className="text-[12px] text-[#7a7a84] group-hover:text-white transition-colors">following</span>
                 </button>
-
-                {mutualFollowers.length > 0 && (
-                  <div className="inline-flex items-center gap-2">
-                    <div className="flex -space-x-2">
-                      {mutualFollowers.slice(0, 3).map(u => (
-                        <span key={u.walletAddress} className="ring-2 ring-[#08080c] rounded-[5px]"><MakerAvatar address={u.walletAddress} pfpUrl={u.pfpUrl} size={20} square /></span>
-                      ))}
-                    </div>
-                    <span className="text-[11px] text-[#7a7a84]">
-                      Followed by {personLabel(mutualFollowers[0])}{mutualFollowers.length > 1 ? ` +${mutualFollowers.length - 1} you follow` : ' you follow'}
-                    </span>
-                  </div>
-                )}
               </div>
+
+              {/* follower faces in circles under the name — always visible when
+                  anyone follows, mutual-with-viewer ones marked with ⇄ */}
+              {followersList.length > 0 && (
+                <button onClick={() => setSocialModal('followers')} className="group flex items-center gap-2.5 mt-3">
+                  <div className="flex -space-x-2">
+                    {followersList.slice(0, 7).map((u, i) => (
+                      <motion.span
+                        key={u.walletAddress}
+                        initial={{ scale: 0, x: -8 }}
+                        animate={{ scale: 1, x: 0 }}
+                        transition={{ delay: i * 0.05, type: 'spring', stiffness: 300, damping: 20 }}
+                        style={{ zIndex: 10 - i }}
+                        className="relative rounded-full ring-2 ring-[#050507] group-hover:ring-[#0e0e14] transition-colors"
+                        title={personLabel(u)}
+                      >
+                        <MakerAvatar address={u.walletAddress} pfpUrl={u.pfpUrl} size={26} />
+                        {viewerFollowing.has(u.walletAddress?.toLowerCase()) && (
+                          <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full grid place-items-center ring-1 ring-[#050507]" style={{ background: POS }}>
+                            <span className="text-[6px] text-black font-black leading-none">⇄</span>
+                          </span>
+                        )}
+                      </motion.span>
+                    ))}
+                  </div>
+                  {followersList.length > 7 && (
+                    <span className="font-mono text-[11px] text-[#6a6a74] group-hover:text-white transition-colors">+{followersList.length - 7}</span>
+                  )}
+                </button>
+              )}
+
+              {/* social proof — people YOU follow who also follow this maker,
+                  shown as a prominent animated avatar stack (real mutual data) */}
+              {mutualFollowers.length > 0 && (
+                <button onClick={() => setSocialModal('followers')} className="group inline-flex items-center gap-3 mt-4 rounded-full border border-[#1a1a22] bg-[#0a0a0f] pl-1.5 pr-4 py-1.5 hover:border-[#2a2a34] transition-colors">
+                  <div className="flex -space-x-2.5">
+                    {mutualFollowers.slice(0, 5).map((u, i) => (
+                      <motion.span
+                        key={u.walletAddress}
+                        initial={{ scale: 0, x: -10 }}
+                        animate={{ scale: 1, x: 0 }}
+                        transition={{ delay: i * 0.07, type: 'spring', stiffness: 280, damping: 18 }}
+                        style={{ zIndex: 10 - i }}
+                        className="ring-2 ring-[#0a0a0f] rounded-[6px] group-hover:ring-[#12121a] transition-colors"
+                      >
+                        <MakerAvatar address={u.walletAddress} pfpUrl={u.pfpUrl} size={28} square />
+                      </motion.span>
+                    ))}
+                  </div>
+                  <span className="text-[12px] text-[#9a9aa4] group-hover:text-white transition-colors text-left leading-tight">
+                    Followed by <span className="text-white font-semibold">{personLabel(mutualFollowers[0])}</span>
+                    {mutualFollowers.length > 1 && <> and <span className="text-white font-semibold">{mutualFollowers.length - 1} other{mutualFollowers.length - 1 > 1 ? 's' : ''}</span></>}
+                    <span className="text-[#5a5a64]"> you follow</span>
+                  </span>
+                </button>
+              )}
 
               {/* bio */}
               {profile?.bio && !isEditing && (
@@ -347,7 +416,7 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
           <StatCard label="Portfolio value" value={portfolio.portfolioValue} prefix="$" color={CRIMSON} delay={0.05} />
           <StatCard label="Capital deposited" value={portfolio.totalDeposited} prefix="$" delay={0.1} />
           <StatCard label="Profit earned" value={portfolio.totalEarned} prefix="$" color={portfolio.totalEarned > 0 ? POS : '#f0f0f4'} delay={0.15} />
-          <StatCard label="Active vaults" value={portfolio.activePositions} delay={0.2} />
+          <StatCard label="Builder fees" value={portfolio.creatorEarnings || 0} prefix="$" color={portfolio.creatorEarnings > 0 ? POS : '#f0f0f4'} delay={0.2} />
         </div>
 
         {/* tabs */}
@@ -503,6 +572,8 @@ export default function MakerProfilePage({ params }: { params: Promise<{ address
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ConnectXModal open={xOpen} initial={xHandle} onClose={() => setXOpen(false)} onSave={saveX} wallet={connected} />
 
       {toast && (
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="fixed bottom-8 right-8 z-[9999] bg-[#0d0d0d] border border-primary/40 text-white text-[13px] px-4 py-2.5 rounded-xl shadow-[0_0_24px_rgba(255,42,77,0.25)]">{toast}</motion.div>

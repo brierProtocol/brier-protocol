@@ -1,7 +1,7 @@
 import { prisma } from './db/prisma'
 
 /**
- * Bot heartbeat / liveness (spec §2.2).
+ * Bot heartbeat / liveness.
  *
  * Each bot emits a heartbeat roughly every HEARTBEAT_INTERVAL_MS. The dashboard
  * must show a bot as "stale" / disconnected — never "operating" — if no heartbeat
@@ -22,10 +22,13 @@ export function isBotStale(
   return now - bot.lastHeartbeatAt.getTime() > HEARTBEAT_STALE_MS
 }
 
-/** Stamp a bot's heartbeat as "now". Called by the bot/executor liveness ping. */
-export async function recordHeartbeat(botId: string) {
+export async function recordHeartbeat(botId: string, liveActivity?: string, liveConstraints?: string) {
   return prisma.bot.update({
     where: { id: botId },
-    data: { lastHeartbeatAt: new Date() },
+    data: {
+      lastHeartbeatAt: new Date(),
+      ...(liveActivity !== undefined && { liveActivity }),
+      ...(liveConstraints !== undefined && { liveConstraints }),
+    },
   })
 }

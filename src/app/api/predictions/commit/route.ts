@@ -53,6 +53,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'confidence must be a number strictly between 0 and 1' }, { status: 400 })
     }
 
+    // One prediction per bot per market: re-committing after the price moves is
+    // free cherry-picking, and duplicates inflate n with correlated predictions.
+    const dup = await prisma.prediction.findFirst({
+      where: { botId: bot.id, marketId, status: 'PENDING' },
+      select: { id: true },
+    })
+    if (dup) {
+      return NextResponse.json({ error: 'Prediction already committed for this market', predictionId: dup.id }, { status: 409 })
+    }
+
     const snap = await captureMarket(marketId)
     if (snap.state === 'closed') {
       return NextResponse.json({ error: 'Market already closed' }, { status: 409 })
@@ -70,6 +80,15 @@ export async function POST(req: NextRequest) {
       console.warn('[commit] DEV market fallback midpoint=0.5 (CLOB unreachable). NOT used in production.')
     }
 
+    // ── Commitment hash: immutable trust anchor ──────────────────────────────
+    // SHA-256 of canonical payload. Anyone can recompute this from the raw fields
+    // and verify the prediction wasn't tampered with after commit time.
+    const commitTimestamp = new Date()
+    const canonicalPayload = [
+      bot.id, marketId, side.toUpperCase(), f.toFixed(8), commitTimestamp.toISOString()
+    ].join('|')
+    const commitHash = crypto.createHash('sha256').update(canonicalPayload).digest('hex')
+
     // append-only prediction insertion
     const prediction = await prisma.prediction.create({
       data: { 
@@ -78,20 +97,61 @@ export async function POST(req: NextRequest) {
         marketId, 
         conditionId,
         side,
-        marketTitle, 
-        confidence: f, 
-        marketProbabilityAtCommit: marketMidpoint, 
+        marketTitle,
+        confidence: f,
+        // Same frame as `confidence`: P(chosen side) at commit. A NO bet must be
+        // compared against the market's P(NO), not P(YES), or the skill engine
+        // scores it against the wrong number.
+        marketProbabilityAtCommit: (String(side).toUpperCase() === 'NO' || String(side).toUpperCase() === 'SHORT') ? 1 - marketMidpoint : marketMidpoint,
         liquidity,
-        status: 'PENDING' 
+        status: 'PENDING',
+        commitHash,
+        timestamp: commitTimestamp,
       },
     })
     
+    // --- INTEGRACIÓN EXECUTOR (LIVE PHASE) ---
+    // GUARD: Ensure the Capital Layer is explicitly enabled in production before sending real money signals.
+    if (process.env.CAPITAL_LAYER === 'true' && bot.vaultOpen && bot.vaultAddress) {
+      try {
+        const executorUrl = process.env.EXECUTOR_URL || 'http://127.0.0.1:3001'
+        const executorSecret = process.env.BUILDER_SECRET_KEY || 'your-64-char-hex-secret'
+        const t = Date.now().toString()
+        const executorBody = JSON.stringify({
+          tradeId: prediction.id,
+          botId: bot.id,
+          vaultAddress: bot.vaultAddress,
+          direction: side === 'YES' ? 'LONG' : 'SHORT',
+          entryPrice: marketMidpoint,
+          size: 10, // MVP: Fixed size for now. Later: dynamic sizing via Risk Engine
+          confidence: f,
+          marketId,
+          outcomeIndex: side === 'YES' ? 0 : 1,
+        })
+        const sig = crypto.createHmac('sha256', executorSecret).update(t + executorBody).digest('hex')
+
+        await fetch(`${executorUrl}/api/v1/signals`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-timestamp': t,
+            'x-signature': sig,
+          },
+          body: executorBody
+        }).catch(err => console.error('[commit] Executor push error (network):', err))
+      } catch (e) {
+        console.error('[commit] Executor integration error:', e)
+      }
+    }
+    // -----------------------------------------
+
     prisma.bot.update({ where: { id: bot.id }, data: { rateLimitCount: { increment: 1 } } }).catch(() => {})
 
     return NextResponse.json({
       success: true,
       message: 'Prediction committed',
       predictionId: prediction.id,
+      commitHash,
       capturedMarketMidpoint: marketMidpoint,
       ...(devFallback ? { devFallback: true, note: 'TEST midpoint' } : {}),
     }, { status: 200 })

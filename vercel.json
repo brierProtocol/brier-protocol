@@ -3,7 +3,7 @@
   "framework": "nextjs",
   "buildCommand": "prisma generate && next build",
   "regions": [
-    "iad1"
+    "lhr1"
   ],
   "crons": [
     {
@@ -15,8 +15,20 @@
       "schedule": "30 6 * * *"
     },
     {
+      "path": "/api/cron/resolve-and-score",
+      "schedule": "0 9 * * *"
+    },
+    {
       "path": "/api/cron/circuit-breaker",
-      "schedule": "0 */6 * * *"
+      "schedule": "30 7 * * *"
+    },
+    {
+      "path": "/api/cron/anchor-commitments",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/snapshot-equity",
+      "schedule": "0 5 * * *"
     }
   ],
   "headers": [
@@ -37,11 +49,5 @@
         }
       ]
     }
-  ],
-  "experimentalServices": {
-    "web": {
-      "routePrefix": "/",
-      "framework": "nextjs"
-    }
-  }
+  ]
 }

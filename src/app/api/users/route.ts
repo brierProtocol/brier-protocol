@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { log } from '@/lib/observability';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,12 +21,12 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.json({
-      user: user || { walletAddress: address, handle: null, name: null, bio: null, pfpUrl: null },
+      user: user || { walletAddress: lowerAddress, handle: null, name: null, bio: null, pfpUrl: null },
       followersCount: user?.followers.length || 0,
       followingCount: user?.following.length || 0
     });
   } catch (error) {
-    console.error('Error fetching user:', error);
+    log('error', 'users.get', { message: error instanceof Error ? error.message : String(error), code: (error as any)?.code });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -40,9 +41,11 @@ export async function POST(request: Request) {
     const finalHandle = handle === undefined ? undefined : (handle?.trim() || null);
 
     if (finalHandle) {
-      // Check if handle is already taken by someone else
+      // Check if handle is already taken by someone else. Compare in the
+      // canonical lowercase form or a checksummed caller gets rejected for
+      // owning their own handle.
       const existing = await prisma.user.findUnique({ where: { handle: finalHandle } });
-      if (existing && existing.walletAddress !== walletAddress) {
+      if (existing && existing.walletAddress !== lowerAddress) {
         return NextResponse.json({ error: 'Handle already taken' }, { status: 400 });
       }
     }
@@ -63,8 +66,8 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(user, { status: 200 });
-  } catch (error: any) {
-    console.error('Error saving user:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+  } catch (error) {
+    log('error', 'users.post', { message: error instanceof Error ? error.message : String(error), code: (error as any)?.code });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

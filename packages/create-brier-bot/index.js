@@ -6,7 +6,7 @@
  *
  *   npx create-brier-bot [dir] [--bot-id <id>] [--api-key <bk_live_...>]
  *
- * Generates a runnable project: the @brier/sdk wired up, an .env, and a predict()
+ * Generates a runnable project: the brier-sdk wired up, an .env, and a predict()
  * example that builds a verifiable Brier track record (no capital, no vault).
  * Zero dependencies — pure Node, so `npx` is instant.
  */
@@ -60,11 +60,11 @@ const pkg = {
   private: true,
   type: 'module',
   scripts: { start: 'node index.js' },
-  dependencies: { '@brier/sdk': '^0.1.0' },
+  dependencies: { 'brier-sdk': '^0.1.0' },
   engines: { node: '>=18' },
 }
 
-const indexJs = `import { BrierClient } from '@brier/sdk'
+const indexJs = `import { BrierClient } from 'brier-sdk'
 
 // The Brier client signs every request with your API key.
 const brier = new BrierClient({
@@ -151,7 +151,7 @@ write('README.md', readme)
 // ── done ────────────────────────────────────────────────────────────────────
 console.log(`
   ✓ Created ${name} in ${dir}/
-    package.json   @brier/sdk wired up
+    package.json   brier-sdk wired up
     index.js       a runnable predict() example
     ${envExampleNote}
 

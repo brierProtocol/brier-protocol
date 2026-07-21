@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import type { Ratelimit } from '@upstash/ratelimit'
 
 // Distributed rate-limit via Upstash Redis.
 // Requires UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN env vars.
@@ -10,7 +11,7 @@ const WINDOW = '1 m'   // sliding window
 
 // Lazily initialise the Upstash limiter the first time it's needed so the
 // middleware still boots even when the env vars aren't set.
-let _ratelimit: any = null
+let _ratelimit: Ratelimit | null = null
 
 async function getUpstashLimiter() {
   if (_ratelimit) return _ratelimit
@@ -38,7 +39,7 @@ function inMemoryCheck(ip: string): boolean {
   return true
 }
 
-const WRITE_ROUTES = ['/api/bots/submit', '/api/bots/register', '/api/deposits', '/api/withdraw', '/api/predictions/commit']
+const WRITE_ROUTES = ['/api/bots/submit', '/api/bots/register', '/api/deposits', '/api/withdraw', '/api/predictions/commit', '/api/v1/predictions']
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname

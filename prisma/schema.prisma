@@ -18,7 +18,8 @@ model Bot {
   mood        String  @default("neutral")
 
   // Status state machine
-  status   String  @default("PAPER")
+  status     String    @default("PAPER")
+  lastPingAt DateTime?
   tier     String  @default("NONE")
   pfpUrl   String?
   avatarId String  @default("void-eye")
@@ -41,6 +42,10 @@ model Bot {
   // and shows "stale" if none arrived within HEARTBEAT_STALE_MS. Null = never
   // reported / not operating. See src/lib/heartbeat.ts.
   lastHeartbeatAt    DateTime?
+  // Optional live telemetry sent with the heartbeat — feeds the profile ticker
+  // ("scanning crypto markets…") and the constraints readout.
+  liveActivity       String?
+  liveConstraints    String?
 
   walletAddress    String
   // Maker/builder wallet that PUBLISHED the bot. Distinct from walletAddress,
@@ -80,9 +85,11 @@ model Bot {
   pnlSnapshots     PnlSnapshot[]
   polyConnection   PolyConnection?
   kalshiConnection KalshiConnection?
+  token            BotToken?
   comments         Comment[]
   hearts           Heart[]
   predictions      Prediction[]
+  apiKeys          ApiKey[]
   maker            User?             @relation("BotMaker", fields: [ownerWallet], references: [walletAddress])
 
   @@index([walletAddress])
@@ -360,8 +367,36 @@ model Comment {
   wallet    String
   user      User?    @relation(fields: [wallet], references: [walletAddress])
   text      String
+  // Optional attachment: a data: URL (small uploads) or an https image/gif URL —
+  // same permissive shape already accepted for User/Bot pfpUrl.
+  mediaUrl  String?
   likes     Int      @default(0)
+
+  // One level of replies: a reply's parent is always a top-level comment (no
+  // reply-to-reply chains, keeps the thread flat and easy to render).
+  parentId String?
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
+
+  commentLikes CommentLike[]
+
   createdAt DateTime @default(now())
+
+  @@index([botId, parentId])
+}
+
+// Per-user like on a comment or reply — mirrors Heart (bot-level likes), just
+// scoped to a comment so `likes` on Comment stays an accurate cached counter
+// and the UI can show "you liked this" without a second query shape.
+model CommentLike {
+  id        String  @id @default(cuid())
+  userId    String
+  commentId String
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, commentId])
 }
 
 model User {
@@ -466,11 +501,21 @@ model Prediction {
   status     String  @default("PENDING") // PENDING | WIN | LOSS | VOID
   resolution String?
 
+  // ── On-chain verification (trust anchor) ──────────────────────
+  // SHA-256 of the canonical payload (botId|marketId|side|confidence|timestamp).
+  // Computed at commit time, immutable. Anyone can recompute and verify.
+  commitHash String?
+  // ID of the CommitmentAnchor batch that includes this prediction's hash.
+  // Null until the next anchor-cron publishes the Merkle root on-chain.
+  anchorId   String?
+  anchor     CommitmentAnchor? @relation(fields: [anchorId], references: [id])
+
   timestamp DateTime @default(now())
   createdAt DateTime @default(now())
 
   @@index([botId, status])
   @@index([marketId])
+  @@index([anchorId])
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -497,4 +542,117 @@ model ProtocolEvent {
   @@index([type, createdAt])
   @@index([botId, createdAt])
   @@index([vaultAddress, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// BONDING-CURVE TOKEN (de la línea main): cada bot puede emitir un token
+// estilo pump.fun. Off-chain MVP. Convive con el resto del modelo de vaults.
+// ─────────────────────────────────────────────────────────────
+model BotToken {
+  id            String   @id @default(cuid())
+  botId         String   @unique
+  bot           Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  ticker         String                         // e.g. ADAN
+  name           String                         // display name
+  supply         Float    @default(0)           // tokens SOLD from the curve
+  reserve        Float    @default(0)           // real virtual-USDC collected
+  basePrice      Float    @default(0.0001)      // LEGACY (old linear curve) — unused
+  slope          Float    @default(0.000000005) // LEGACY (old linear curve) — unused
+  graduationMcap Float    @default(50000)       // mcap that triggers graduation → vault
+
+  status         String   @default("BONDING")   // BONDING | GRADUATED
+  holdersCount   Int      @default(0)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  trades         TokenTrade[]
+  holdings       TokenHolding[]
+
+  @@index([status])
+}
+
+model TokenTrade {
+  id         String   @id @default(cuid())
+  tokenId    String
+  token      BotToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  wallet     String
+  side       String                         // BUY | SELL
+  usdc       Float                          // virtual USDC in/out
+  shares     Float                          // shares minted/burned
+  priceAfter Float                          // curve price after the trade
+  createdAt  DateTime @default(now())
+
+  @@index([tokenId, createdAt])
+  @@index([wallet])
+}
+
+model TokenHolding {
+  id        String   @id @default(cuid())
+  tokenId   String
+  token     BotToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  wallet    String
+  shares    Float    @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([tokenId, wallet])
+}
+
+// ─────────────────────────────────────────────────────────────
+// API KEY (de #68 builder-api-keys): per-builder signing keys que reemplazan
+// el HMAC global. El secreto se guarda encriptado (nunca raw). Revocable por key.
+// ─────────────────────────────────────────────────────────────
+model ApiKey {
+  id            String    @id @default(cuid())
+  botId         String
+  bot           Bot       @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  prefix        String    @unique
+  label         String    @default("default")
+
+  encryptedKey  String
+  keyIv         String
+  keyAuthTag    String
+
+  lastUsedAt    DateTime?
+  revokedAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([botId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// COMMITMENT ANCHOR — Merkle root of a batch of prediction hashes, published
+// on-chain. This is the trust anchor that proves predictions were committed
+// BEFORE they resolved. Anyone can verify: recompute the hash from the
+// prediction data, check it's a leaf in the Merkle tree, and verify the root
+// matches the on-chain transaction. Tamper-proof and immutable.
+//
+// Cron: /api/cron/anchor-commitments runs every hour, collects un-anchored
+// predictions, builds the tree, publishes the root, and links predictions.
+// ─────────────────────────────────────────────────────────────
+model CommitmentAnchor {
+  id          String   @id @default(cuid())
+
+  // Merkle root of all prediction commitHashes in this batch
+  merkleRoot  String
+
+  // Number of predictions included in this batch
+  leafCount   Int
+
+  // On-chain transaction hash that published this root (null = pending)
+  txHash      String?  @unique
+  chainId     Int      @default(137)  // 137 = Polygon mainnet
+  blockNumber Int?
+
+  // Status: PENDING (computed, not yet on-chain) | ANCHORED (tx confirmed)
+  status      String   @default("PENDING")
+
+  createdAt   DateTime @default(now())
+
+  predictions Prediction[]
+
+  @@index([status])
 }

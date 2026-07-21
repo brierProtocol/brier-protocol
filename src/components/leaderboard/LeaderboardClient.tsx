@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import BotIrisAvatar from '@/components/bot/BotIrisAvatar';
 import { botEye, deriveAvatarColor } from '@/lib/botIdentity';
+import HeroCard from './HeroCard';
 import styles from './Leaderboard.module.css';
 
 const REVEAL_AT = 1050; // ms — el contenido se destapa cuando el swarm ya tapó la pantalla
@@ -25,6 +26,16 @@ function sharpeOf(b: any): number | null {
 function tradesOf(b: any): number {
   return b?.scores?.[0]?.totalTrades ?? 0;
 }
+// Reputation = LCB of skill vs the market (0..100). This is the anti-luck metric
+// the engine graduates on — a handful of lucky calls cannot inflate it. Ranking
+// on THIS instead of raw Brier stops a 3-call bot from topping the board.
+function repOf(b: any): number | null {
+  const v = b?.scores?.[0]?.reputationScore ?? b?.reputationScore;
+  return typeof v === 'number' ? v : null;
+}
+// Minimum resolved predictions before a bot is trustworthy enough to be ranked
+// among the proven — mirrors the skill engine's MIN_RANKED_N.
+const MIN_RANKED = 30;
 function tvlOf(b: any): number {
   return b?.currentTVL ?? b?.tvl ?? 0;
 }
@@ -118,6 +129,17 @@ function makeSprite(seed: number, cell: number) {
   return c;
 }
 
+const SHADOW_THRESHOLD = 100; // Bots need 100 trades to get out of shadow mode
+
+export function getBotTag(brier: number | null, trades: number) {
+  if (trades < SHADOW_THRESHOLD) return { label: "Shadow Mode", color: "#888", bg: "#1a1a1a", border: "#333" };
+  if (brier == null) return { label: "Shadow Mode", color: "#888", bg: "#1a1a1a", border: "#333" };
+  if (brier <= 0.15) return { label: "Elite", color: "#10b981", bg: "rgba(16,185,129,0.1)", border: "rgba(16,185,129,0.2)" };
+  if (brier <= 0.20) return { label: "Solid", color: "#3b82f6", bg: "rgba(59,130,246,0.1)", border: "rgba(59,130,246,0.2)" };
+  if (brier <= 0.25) return { label: "Unproven", color: "#eab308", bg: "rgba(234,179,8,0.1)", border: "rgba(234,179,8,0.2)" };
+  return { label: "High Risk", color: "#ef4444", bg: "rgba(239,68,68,0.1)", border: "rgba(239,68,68,0.2)" };
+}
+
 export default function LeaderboardClient() {
   const [bots, setBots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -199,7 +221,17 @@ export default function LeaderboardClient() {
     return () => { cancelAnimationFrame(rafRef.current); if (revealTimer.current) clearTimeout(revealTimer.current); };
   }, [run]);
 
-  const ranked = [...bots].sort((a, b) => (brierOf(a) ?? 1) - (brierOf(b) ?? 1));
+  // Rank by REPUTATION (LCB skill vs market), the anti-luck metric — not raw
+  // Brier, which a lucky handful of calls can top. Bots with enough resolved
+  // predictions AND a reputation score rank first (by reputation desc); the
+  // rest fall below, ordered by raw Brier. This is what keeps the podium honest.
+  const isRanked = (b: any) => repOf(b) != null && tradesOf(b) >= MIN_RANKED;
+  const ranked = [...bots].sort((a, b) => {
+    const ra = isRanked(a), rb = isRanked(b);
+    if (ra && rb) return (repOf(b) ?? 0) - (repOf(a) ?? 0); // higher reputation first
+    if (ra !== rb) return ra ? -1 : 1;                      // proven bots above unproven
+    return (brierOf(a) ?? 1) - (brierOf(b) ?? 1);           // else lowest Brier first
+  });
   const champion = ranked[0];
   // La tabla de abajo es el leaderboard completo: TODOS los agentes en fila,
   // pensado para escalar a decenas/cientos. Los principales además se ven
@@ -233,11 +265,7 @@ export default function LeaderboardClient() {
       <div className={styles.glow} />
 
       <div className={`${styles.content} ${revealed ? styles.contentRevealed : ''}`}>
-        <div className={`${styles.eyebrow} ${styles.reveal}`} style={{ transitionDelay: '.04s' }}>proving ground</div>
-        <h1 className={`${styles.h1} ${styles.reveal}`} style={{ transitionDelay: '.09s' }}>
-          Leaderboard<span className={styles.accent}>.</span>
-        </h1>
-        <p className={`${styles.lead} ${styles.reveal}`} style={{ transitionDelay: '.15s' }}>
+        <p className={`${styles.lead} ${styles.reveal}`} style={{ transitionDelay: '.15s', marginTop: -20, textAlign: 'center', maxWidth: '100%' }}>
           Ranked strictly by <b>Brier Score</b>. Lower is superior. Every score derives from resolved trades. Nothing is self reported.
         </p>
 
@@ -280,38 +308,60 @@ export default function LeaderboardClient() {
         {ranked.length > 0 && (
           <div className={`${styles.roster} ${styles.reveal}`} style={{ transitionDelay: '.20s' }}>
             <div className={styles.rosterHead}>
-              <span className={styles.rosterTitle}>The champions</span>
+              <h3 className="font-sans text-[22px] md:text-[24px] font-bold text-white m-0 tracking-[-0.02em]">Best Bots<span className="text-primary">.</span></h3>
               <span className={styles.rosterHint}>{ranked.length} agents · ranked by Brier</span>
             </div>
-            <div className={styles.rosterGrid}>
-              {ranked.map((b, i) => {
-                const eye = botEye(b);
+            <div className={styles.featuredGrid}>
+              {ranked.slice(0, 3).map((b, i) => {
                 const slug = b.slug || b.id;
                 const br = brierOf(b);
                 const wr = wrOf(b);
-                const boss = i === 0;
+                
                 return (
-                  <div
+                  <HeroCard
                     key={b.id}
-                    className={`${styles.tile} ${boss ? styles.boss : ''}`}
-                    style={{ ['--tile-color' as string]: eye.accentColor }}
-                    onClick={() => { window.location.href = `/bot/${slug}`; }}
-                    title={`${b.name} · Brier ${br != null ? br.toFixed(3) : '—'}`}
-                  >
-                    <span className={styles.tileRank}>{i + 1}</span>
-                    {boss && <span className={styles.crown}>♛</span>}
-                    <div className={styles.tileFrame}>
-                      <BotFace bot={b} size={boss ? 230 : 148} />
-                    </div>
-                    <div className={styles.tileBody}>
-                      <div className={styles.tileName}>{b.name}</div>
-                      <div className={styles.tileStat}>
-                        <span className={styles.tileBrierLbl}>Brier</span>
-                        <span className={styles.tileBrier}>{br != null ? br.toFixed(3) : '—'}</span>
-                        <span className={styles.tileWr}>{wr != null ? `${(wr * 100).toFixed(1)}% WR` : ''}</span>
+                    kind="agent"
+                    size={i === 0 ? "boss" : "featured"}
+                    avatar={<BotFace bot={b} size={i === 0 ? 140 : 100} />}
+                    name={b.name}
+                    tagline={`by ${authorOf(b)}`}
+                    heroLabel="Brier"
+                    heroValue={br != null ? br.toFixed(3) : "—"}
+                    badge={
+                      <div className={`${styles.rankBadge} ${i === 0 ? styles.rank1 : i === 1 ? styles.rank2 : styles.rank3}`}>
+                        {i === 0 && <span className={styles.rankCrown}>👑</span>}
+                        {i + 1}
                       </div>
-                    </div>
-                  </div>
+                    }
+                    secondaryStats={[
+                      { label: "Win Rate", value: wr != null ? `${(wr * 100).toFixed(1)}%` : "—" },
+                      { label: "Trades", value: tradesOf(b).toString() }
+                    ]}
+                    accentColor={botEye(b).accentColor}
+                    footer={
+                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }}>
+                        {(() => {
+                          const tag = getBotTag(br, tradesOf(b));
+                          return (
+                            <span style={{ 
+                              color: tag.color, 
+                              backgroundColor: tag.bg, 
+                              border: `1px solid ${tag.border}`,
+                              padding: '4px 10px', 
+                              borderRadius: '12px', 
+                              fontSize: '11px', 
+                              fontWeight: 600,
+                              letterSpacing: '0.02em',
+                              textTransform: 'uppercase'
+                            }}>
+                              {tag.label}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    }
+                    onClick={() => { window.location.href = `/bot/${slug}`; }}
+                  />
                 );
               })}
             </div>
@@ -322,14 +372,14 @@ export default function LeaderboardClient() {
         {/* leaderboard completo: todos los agentes en fila, escala a cientos */}
         <div className={`${styles.standings} ${styles.reveal}`} style={{ transitionDelay: '.34s' }}>
           <div className={styles.standingsTop}>
-            <span className={styles.standingsTitle}>Full leaderboard</span>
+            <h3 className="font-sans text-[22px] md:text-[24px] font-bold text-white m-0 tracking-[-0.02em]">Full Leaderboard<span className="text-primary">.</span></h3>
             {!loading && rest.length > 0 && (
               <span className={styles.rosterHint}>{rest.length} {rest.length === 1 ? 'agent' : 'agents'} · live ranking</span>
             )}
           </div>
           <div className={`${styles.rows}`} onMouseLeave={() => setVs(null)}>
             <div className={styles.rhead}>
-              <span>#</span><span>Agent</span><span>Brier</span><span>Win rate</span><span>TVL</span><span>Trades</span><span>Lifetime</span><span>Sharpe</span>
+              <span>#</span><span>Agent</span><span className="text-primary font-bold">Brier</span><span>Win rate</span><span>Net PnL</span><span>Trades</span><span>Lifetime</span><span>Sharpe</span>
             </div>
             {loading ? (
               <div className={styles.empty}>&gt; syncing on-chain data…</div>
@@ -347,12 +397,35 @@ export default function LeaderboardClient() {
                       <span className={styles.rowFrame}><BotFace bot={b} size={34} /></span>
                       <span>
                         <span className={styles.rname}><Link href={`/bot/${slug}`} onClick={(e) => e.stopPropagation()}>{b.name}</Link></span>
-                        <br /><span className={styles.rby}>by {authorOf(b)}</span>
+                        <br />
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span className={styles.rby}>by {authorOf(b)}</span>
+                          {(() => {
+                            const tag = getBotTag(br, n);
+                            return (
+                              <span style={{ 
+                                color: tag.color, 
+                                backgroundColor: tag.bg, 
+                                border: `1px solid ${tag.border}`,
+                                padding: '2px 6px', 
+                                borderRadius: '8px', 
+                                fontSize: '9px', 
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                lineHeight: 1
+                              }}>
+                                {tag.label}
+                              </span>
+                            );
+                          })()}
+                        </span>
                       </span>
                     </span>
                     <span className={`${styles.cell} ${styles.cellBrier}`}>{br != null ? br.toFixed(3) : 'AWAITING'}</span>
                     <span className={styles.cell}>{wrOf(b) != null ? `${(wrOf(b)! * 100).toFixed(1)}%` : '—'}</span>
-                    <span className={styles.cell}>{fmtTvl(tvlOf(b))}</span>
+                    <span className={styles.cell} style={{ color: '#888', fontSize: '10px', letterSpacing: '0.5px' }}>
+                      {n >= SHADOW_THRESHOLD ? 'AWAITING VAULT' : '—'}
+                    </span>
                     <span className={styles.cell}>{n > 0 ? n.toLocaleString() : '—'}{n > 0 && n < 100 && <span className={styles.lowN}>LOW N</span>}</span>
                     <span className={styles.cell}>{lifetimeOf(b)}</span>
                     <span className={styles.cell}>{sharpeOf(b) != null ? sharpeOf(b)!.toFixed(2) : '—'}</span>

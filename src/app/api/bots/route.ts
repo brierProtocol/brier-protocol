@@ -5,17 +5,25 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const owner = searchParams.get('owner');
+    const status = searchParams.get('status');
+    const limitParam = searchParams.get('limit');
+    // Optional server-side filtering so the query can use @@index([status]) and a
+    // bounded take instead of scanning the whole Bot table. With no params the
+    // response is unchanged (full list) for the existing catalog/leaderboard consumers.
+    const take = limitParam ? Math.min(Math.max(parseInt(limitParam, 10) || 0, 1), 100) : undefined;
 
-    const whereClause = owner ? {
+    const whereClause: Record<string, unknown> = owner ? {
       OR: [
         { walletAddress: { equals: owner, mode: 'insensitive' as const } },
         { ownerWallet: { equals: owner, mode: 'insensitive' as const } }
       ]
     } : {};
+    if (status) whereClause.status = status;
 
     const bots = await prisma.bot.findMany({
       where: whereClause,
       orderBy: { createdAt: 'desc' },
+      ...(take ? { take } : {}),
       include: {
         scores: {
           where: { isLatest: true },
@@ -33,7 +41,8 @@ export async function GET(request: Request) {
     const byWallet = new Map(users.map(u => [u.walletAddress.toLowerCase(), u]));
     const shaped = bots.map(b => {
       const u = byWallet.get(b.walletAddress?.toLowerCase() || '');
-      const { _count, ...rest } = b;
+      // SECURITY: strip signing credentials — never send them to the catalog.
+      const { _count, apiKey, apiSecret, ...rest } = b;
       return { ...rest, tradesIndexed: _count?.trades ?? 0, maker: u ? { handle: u.handle, name: u.name, pfpUrl: u.pfpUrl } : null };
     });
 

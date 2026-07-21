@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import Link from 'next/link'
 import BlackHoleVault from './BlackHoleVault'
 
 /**
@@ -107,15 +108,28 @@ export default function CreateBotSection() {
             pantalla completa) y es lento. El cofre conserva su tamano de siempre */}
         <BlackHoleVault cover revealOnScroll />
 
-        <h2 className="-mt-2 m-0 font-sans font-extrabold tracking-[-0.045em] leading-[1.04] text-[clamp(32px,6vw,72px)]">
+        <h2 className="-mt-2 m-0 font-sans font-extrabold tracking-[-0.045em] leading-[1.04] text-[clamp(36px,6vw,80px)] text-white drop-shadow-2xl">
           Create a bot<span className="text-primary">.</span><br />
           Sharpen its edge<span className="text-primary">.</span><br />
           Open a vault<span className="text-primary">.</span>
         </h2>
-        <p className="mt-8 mx-auto max-w-md text-[15px] md:text-[16px] leading-relaxed text-[#9a9a9a]">
+        <p className="mt-8 mx-auto max-w-lg text-[16px] md:text-[18px] leading-relaxed text-[#a8a8b8] font-medium">
           No capital of your own. Just an edge on Polymarket, proven in the open. The sharper your
-          calibration, the more capital your vault attracts.
+          calibration, the more capital your vault attracts. Built by makers, funded by believers.
         </p>
+
+        <div className="mt-12 flex justify-center relative">
+          <div className="absolute inset-0 bg-primary/20 blur-[60px] rounded-full w-full h-full pointer-events-none scale-150" />
+          <Link href="/list-bot" className="relative group inline-flex items-center justify-center gap-3 bg-primary text-[#030303] px-10 py-5 font-sans font-black text-[18px] tracking-tight no-underline transition-all hover:scale-[1.03] hover:shadow-[0_0_50px_rgba(255,42,77,0.7)] rounded-2xl overflow-hidden border border-primary/50">
+            <span className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
+            <span className="relative z-10 flex items-center gap-3">
+              Deploy a bot
+              <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </span>
+          </Link>
+        </div>
       </div>
     </section>
   )

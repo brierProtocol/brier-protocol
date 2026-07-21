@@ -220,7 +220,7 @@ function BuilderContent() {
         Build a prediction algorithm, wrap it in the Brier interface, and go live on a vault —
         in under 15 minutes. Deploy is free: connect a wallet, name your agent, sign.
       </P>
-      <Code>{`npm install @brier/sdk
+      <Code>{`npm install brier-sdk
 npx brier init my-first-bot
 npx brier simulate     # replay 90 days of history
 npx brier deploy --network polygon`}</Code>
@@ -235,7 +235,7 @@ npx brier deploy --network polygon`}</Code>
       <P>Your contract must implement <span className="text-white">IBrierBot</span> — a single prediction method returning a probability in WAD (0–1e18):</P>
       <Code>{`// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-import "@brier/sdk/IBrierBot.sol";
+import "brier-sdk/IBrierBot.sol";
 
 contract MyFirstBot is IBrierBot {
   function predict(uint256 marketId)

@@ -161,6 +161,23 @@ export function brierSkill(preds: ResolvedPrediction[]): { skill: number; lcb: n
 }
 
 /**
+ * Absolute Brier of the bot's OWN probabilities: 0 = perfect, 0.25 = coin flip,
+ * 1 = always wrong (HIGHER = WORSE). This is what `BotScore.brierScore`, the
+ * incubation display and the circuit-breaker (Brier rising = deterioration) expect
+ * — distinct from brierSkill() above, which is skill RELATIVE to the market
+ * (higher = better). Do NOT store one in the other's field.
+ */
+export function absoluteBotBrier(preds: ResolvedPrediction[]): number {
+  if (preds.length === 0) return 0.25
+  return preds.reduce((a, p) => a + brier(p.pBot, p.outcome), 0) / preds.length
+}
+
+/** Public 0..100 reputation headline from the LCB (schema: `reputationScore`). */
+export function reputationScoreFromLcb(lcb: number): number {
+  return Math.max(0, Math.min(100, 50 + lcb * 100))
+}
+
+/**
  * Log Skill — analytical / dataset metric. Information the bot adds over the
  * market, in nats (log Bayes factor). Spikier than Brier Skill; not the public rank.
  */

@@ -1,0 +1,50 @@
+{
+  "name": "brier-sdk",
+  "version": "0.1.0",
+  "description": "Connect a prediction bot to Brier Protocol in ~10 lines.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "brier",
+    "prediction-markets",
+    "polymarket",
+    "trading-bot",
+    "sdk"
+  ],
+  "author": "Brier Protocol",
+  "license": "MIT",
+  "homepage": "https://brier.world",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brierProtocol/brier-protocol.git",
+    "directory": "packages/brier-sdk-js"
+  },
+  "bugs": {
+    "url": "https://github.com/brierProtocol/brier-protocol/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

@@ -392,10 +392,174 @@ describe("BrierVault Industrial v4 — Full Test Suite", function () {
         .withArgs(tradeId(60));
     });
 
+    it("Should write off the locked capital (release the accounting lock)", async function () {
+      const deposit = ethers.parseEther("10000");
+      const tradeAmount = ethers.parseEther("1000");
+      await brierVault.connect(whale).deposit(deposit, whale.address);
+      await executeTrade(61, tradeAmount);
+
+      // Before: capital is locked and counted in totalAssets.
+      expect(await brierVault.activeLockedCapital()).to.equal(tradeAmount);
+      expect(await brierVault.totalAssets()).to.equal(deposit);
+
+      await expect(brierVault.connect(daemon).markTradeStale(tradeId(61)))
+        .to.emit(brierVault, "TradeWrittenOff")
+        .withArgs(tradeId(61), tradeAmount);
+
+      // After: the lock is released, the loss is realized against totalAssets,
+      // and idleCapital is NOT inflated (the USDC already left the vault).
+      expect(await brierVault.tradeLockedCapital(tradeId(61))).to.equal(0n);
+      expect(await brierVault.activeLockedCapital()).to.equal(0n);
+      expect(await brierVault.idleCapital()).to.equal(deposit - tradeAmount);
+      expect(await brierVault.totalAssets()).to.equal(deposit - tradeAmount);
+    });
+
+    it("Should reject re-settlement of a written-off trade (write-off is terminal)", async function () {
+      const deposit = ethers.parseEther("10000");
+      await brierVault.connect(whale).deposit(deposit, whale.address);
+      await executeTrade(62, ethers.parseEther("1000"));
+      await brierVault.connect(daemon).markTradeStale(tradeId(62));
+
+      await expect(
+        brierVault.connect(daemon).settleMarket(tradeId(62), ethers.parseEther("1500"))
+      ).to.be.revertedWith("BrierVault: trade not found or already settled");
+    });
+
     it("Should revert markTradeStale for non-existent trade", async function () {
       await expect(
         brierVault.connect(daemon).markTradeStale(tradeId(999))
       ).to.be.revertedWith("BrierVault: trade not active");
+    });
+  });
+
+  // =========================================================
+  // 11. FIX-6 — Pause blocks deposits/trading, never redemptions
+  // =========================================================
+  describe("[FIX-6] Paused vault is claim-only, not a trap", function () {
+    it("Should allow withdraw and redeem while paused", async function () {
+      const deposit = ethers.parseEther("10000");
+      await brierVault.connect(whale).deposit(deposit, whale.address);
+
+      await brierVault.connect(owner).pause();
+
+      // Deposits stay blocked
+      await expect(
+        brierVault.connect(whale).deposit(ethers.parseEther("100"), whale.address)
+      ).to.be.revertedWithCustomError(brierVault, "EnforcedPause");
+
+      // But the LP can exit at current NAV
+      const withdrawAmount = ethers.parseEther("4000");
+      const balBefore = await mockUSDC.balanceOf(whale.address);
+      await brierVault.connect(whale).withdraw(withdrawAmount, whale.address, whale.address);
+      expect((await mockUSDC.balanceOf(whale.address)) - balBefore).to.equal(withdrawAmount);
+
+      const shares = await brierVault.balanceOf(whale.address);
+      await expect(
+        brierVault.connect(whale).redeem(shares, whale.address, whale.address)
+      ).to.not.be.reverted;
+      expect(await brierVault.balanceOf(whale.address)).to.equal(0n);
+    });
+
+    it("Should block executeTrade while paused", async function () {
+      const deposit = ethers.parseEther("10000");
+      await brierVault.connect(whale).deposit(deposit, whale.address);
+      await brierVault.connect(owner).pause();
+
+      await expect(
+        brierVault.connect(daemon).executeTrade(tradeId(70), marketId(70), [1, 2], ethers.parseEther("100"))
+      ).to.be.revertedWithCustomError(brierVault, "EnforcedPause");
+    });
+  });
+
+  // =========================================================
+  // 12. FIX-7 — Skin cannot mask a missing payout
+  // =========================================================
+  describe("[FIX-7] settleMarket accounts for skinInGame", function () {
+    it("Should revert settleMarket when the payout is missing even with skin funded", async function () {
+      const deposit = ethers.parseEther("10000");
+      await brierVault.connect(whale).deposit(deposit, whale.address);
+
+      // Builder funds 5000 of skin — it sits in the same USDC balance.
+      const skin = ethers.parseEther("5000");
+      await mockUSDC.mint(builder.address, skin);
+      await mockUSDC.connect(builder).approve(await brierVault.getAddress(), skin);
+      await brierVault.connect(builder).fundSkinInGame(skin);
+
+      const tradeAmount = ethers.parseEther("2000");
+      await executeTrade(80, tradeAmount);
+
+      // Payout NOT redeemed from the CTF. Before FIX-7 the 5000 of skin covered
+      // the check and the phantom payout was credited to idleCapital.
+      await expect(
+        brierVault.connect(daemon).settleMarket(tradeId(80), ethers.parseEther("3000"))
+      ).to.be.revertedWith("BrierVault: payout not received - redeem from CTF first");
+    });
+
+    it("Should settle normally with skin funded once the payout IS received", async function () {
+      const deposit = ethers.parseEther("10000");
+      await brierVault.connect(whale).deposit(deposit, whale.address);
+
+      const skin = ethers.parseEther("5000");
+      await mockUSDC.mint(builder.address, skin);
+      await mockUSDC.connect(builder).approve(await brierVault.getAddress(), skin);
+      await brierVault.connect(builder).fundSkinInGame(skin);
+
+      const tradeAmount = ethers.parseEther("2000");
+      await executeTrade(81, tradeAmount);
+
+      const payout = ethers.parseEther("3000");
+      await mockUSDC.mint(await brierVault.getAddress(), payout);
+
+      await expect(
+        brierVault.connect(daemon).settleMarket(tradeId(81), payout)
+      ).to.not.be.reverted;
+      // Skin remains a separate buffer — untouched by a normal settlement.
+      expect(await brierVault.skinInGame()).to.equal(skin);
+    });
+  });
+
+  // =========================================================
+  // 13. FIX-8 — Circuit breaker works with or without skin
+  // =========================================================
+  describe("[FIX-8] triggerCircuitBreaker", function () {
+    it("Should slash funded skin into idleCapital and pause", async function () {
+      const deposit = ethers.parseEther("10000");
+      await brierVault.connect(whale).deposit(deposit, whale.address);
+
+      const skin = ethers.parseEther("5000");
+      await mockUSDC.mint(builder.address, skin);
+      await mockUSDC.connect(builder).approve(await brierVault.getAddress(), skin);
+      await brierVault.connect(builder).fundSkinInGame(skin);
+
+      await expect(brierVault.connect(daemon).triggerCircuitBreaker())
+        .to.emit(brierVault, "CircuitBreakerTriggered")
+        .withArgs(skin);
+
+      expect(await brierVault.skinInGame()).to.equal(0n);
+      expect(await brierVault.idleCapital()).to.equal(deposit + skin);
+      expect(await brierVault.paused()).to.equal(true);
+    });
+
+    it("Should pause even when no skin was ever funded", async function () {
+      const deposit = ethers.parseEther("10000");
+      await brierVault.connect(whale).deposit(deposit, whale.address);
+
+      await expect(brierVault.connect(daemon).triggerCircuitBreaker())
+        .to.emit(brierVault, "CircuitBreakerTriggered")
+        .withArgs(0n);
+      expect(await brierVault.paused()).to.equal(true);
+
+      // And the LP can still claim their full balance afterwards [FIX-6].
+      const shares = await brierVault.balanceOf(whale.address);
+      await expect(
+        brierVault.connect(whale).redeem(shares, whale.address, whale.address)
+      ).to.not.be.reverted;
+    });
+
+    it("Should reject triggerCircuitBreaker from non-executor", async function () {
+      await expect(
+        brierVault.connect(attacker).triggerCircuitBreaker()
+      ).to.be.revertedWith("BrierVault: caller is not the executor");
     });
   });
 });

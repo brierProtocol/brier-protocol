@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db/prisma'
 import { checkStatusTransitions } from '@/lib/incubation'
 import { events } from '@/lib/events/bus'
 import { recordCronRun, captureError } from '@/lib/observability'
-import { botReputation, ResolvedPrediction } from '@/lib/skill-engine'
+import { botReputation, absoluteBotBrier, reputationScoreFromLcb, ResolvedPrediction } from '@/lib/skill-engine'
 
 const BATCH_SIZE = 25
 const RESOLVED = ['WIN', 'LOSS']
@@ -58,6 +58,10 @@ export async function GET(req: NextRequest) {
         if (botPreds.length === 0) return null
 
         const rep = botReputation(botPreds)
+        // brierScore = Brier ABSOLUTO (0..1, mayor=peor) para el circuit-breaker y el
+        // gate; relativeSkill/lcb = skill vs mercado; reputationScore = 0..100 del LCB.
+        const absBrier = absoluteBotBrier(botPreds)
+        const repScore = reputationScoreFromLcb(rep.lcb)
         const winRate = botPreds.length > 0 ? botPreds.filter(p => p.outcome === 1).length / botPreds.length : 0
 
         await prisma.$transaction([
@@ -66,7 +70,7 @@ export async function GET(req: NextRequest) {
             where: { botId_snapshotDate: { botId: bot.id, snapshotDate: today } },
             create: {
               botId: bot.id,
-              brierScore: rep.skill,
+              brierScore: absBrier,
               winRate: winRate,
               sharpe: 0, 
               maxDrawdown: 0,
@@ -74,17 +78,17 @@ export async function GET(req: NextRequest) {
               totalVolume: 0,
               relativeSkill: rep.skill,
               lcb: rep.lcb,
-              reputationScore: rep.skill, 
+              reputationScore: repScore, 
               resolvedPredictions: rep.n,
               snapshotDate: today, isLatest: true,
             },
             update: {
-              brierScore: rep.skill,
+              brierScore: absBrier,
               winRate: winRate,
               totalTrades: rep.n,
               relativeSkill: rep.skill,
               lcb: rep.lcb,
-              reputationScore: rep.skill,
+              reputationScore: repScore,
               resolvedPredictions: rep.n,
               isLatest: true,
             },
@@ -108,6 +112,6 @@ export async function GET(req: NextRequest) {
   } catch (err: any) {
     captureError(err, { cron: 'score' })
     await recordCronRun('score', 'FAILED', { error: err?.message })
-    return NextResponse.json({ error: err?.message || 'score cron failed' }, { status: 500 })
+    return NextResponse.json({ error: 'score cron failed' }, { status: 500 })
   }
 }
