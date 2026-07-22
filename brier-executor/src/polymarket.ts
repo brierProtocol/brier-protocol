@@ -7,15 +7,18 @@
 // Requiere (dentro de brier-executor/):
 //   npm i @polymarket/clob-client-v2
 //   EXECUTOR_PRIVATE_KEY      → wallet que FIRMA las órdenes (necesita algo de POL para gas)
-//   POLYMARKET_CLOB_URL       → https://clob-v2.polymarket.com (default)
+//   POLYMARKET_CLOB_URL       → https://clob.polymarket.com (default; el host no cambió con V2)
 //   POLYMARKET_CHAIN_ID       → 137 mainnet | 80002 Amoy
 //   POLYMARKET_FUNDER_ADDRESS → opcional. Si está seteada, las órdenes se firman
 //                               POLY_1271 con esa dirección como `maker` (la fuente
 //                               de fondos), de modo que un BrierVault pueda ser el
 //                               maker mientras el executor solo firma.
 //
-// ⚠️ Polymarket SÍ corre en Amoy: el SDK trae un set completo de AMOY_CONTRACTS
-// (chainID 80002). El comentario anterior de este archivo decía lo contrario.
+// ⚠️ Amoy: los CONTRATOS existen (el SDK trae un set completo de AMOY_CONTRACTS,
+// chainID 80002), pero no se encontró ningún host de CLOB para testnet —
+// clob-amoy / amoy / clob-staging / clob-testnet .polymarket.com no resuelven.
+// O sea: on-chain se puede probar en Amoy, el order book NO. Confirmar con
+// Polymarket antes de planificar un end-to-end en testnet.
 //
 // ⚠️ POLY_1271 + funder: hay dos issues abiertas upstream donde la auth L1 ata la
 // API key a la EOA firmante en vez de al funder, rompiendo el posteo programático
@@ -52,7 +55,10 @@ export async function getClobClient(): Promise<any> {
   })
   const { ClobClient, SignatureTypeV2 } = clob as any
 
-  const host = process.env.POLYMARKET_CLOB_URL || 'https://clob-v2.polymarket.com'
+  // El host NO cambió con V2: `clob-v2.polymarket.com` no existe (sin registro A/AAAA/CNAME).
+  // El mismo `clob.polymarket.com` sirve V2 — verificado contra la API: /ok, /markets,
+  // /midpoint, /tick-size y /book responden 200, y son los mismos paths que usa el SDK v2.
+  const host = process.env.POLYMARKET_CLOB_URL || 'https://clob.polymarket.com'
   const chain = Number(process.env.POLYMARKET_CHAIN_ID || 137)
   const pk = process.env.EXECUTOR_PRIVATE_KEY
   if (!pk) throw new Error('EXECUTOR_PRIVATE_KEY is required for CLOB execution')
