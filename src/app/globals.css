@@ -201,6 +201,25 @@ button:active, a:active { transform: scale(0.97); }
 .mkt-tab:hover { color: #fff; }
 .mkt-tab.active { color: var(--primary); border-color: rgba(255,42,77,0.3); background: rgba(255,42,77,0.06); }
 
+/* ── Coming-soon animations ─────────────────────────────────────────────── */
+
+/* Logo organic float — multi-wave translateY + micro-rotation + drift */
+@keyframes logoFloat {
+  0%   { transform: translateY(0px)   rotate(0deg)    translateX(0px);  }
+  18%  { transform: translateY(-10px) rotate(0.4deg)  translateX(3px);  }
+  36%  { transform: translateY(-16px) rotate(-0.25deg) translateX(-4px); }
+  54%  { transform: translateY(-11px) rotate(0.35deg) translateX(3px);  }
+  72%  { transform: translateY(-4px)  rotate(-0.3deg) translateX(-2px); }
+  100% { transform: translateY(0px)   rotate(0deg)    translateX(0px);  }
+}
+
+/* Pixel alien drift — uses --alien-dx custom property for per-alien X drift */
+@keyframes alienFloat {
+  0%,  100% { transform: translateY(0px)   translateX(0px);                           }
+  33%       { transform: translateY(-13px) translateX(var(--alien-dx, 8px));           }
+  66%       { transform: translateY(-7px)  translateX(calc(var(--alien-dx, 8px) * -0.4)); }
+}
+
 /* Accessibility: respect users who prefer less motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
