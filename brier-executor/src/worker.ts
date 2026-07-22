@@ -1,6 +1,6 @@
 import { Worker } from 'bullmq';
 import { ethers } from 'ethers';
-import { openPerpPosition, closePerpPosition } from './polymarket.js';
+import { buyOutcome, closePosition } from './polymarket.js';
 import { getLivePrice } from './price-feed.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -58,9 +58,12 @@ const ACTIVE_PERP_SET = 'active_perp_trades';
 // Trade Execution Worker (SPOT + PERP Routing)
 // =========================================================
 // REAL vs MOCK status:
-//   - SPOT path → on-chain CTF via BrierVault.executeTrade ........ REAL
-//   - PERP path → Polymarket CLOB via openPerpPosition/closePerpPosition
-//                 in polymarket.ts (real @polymarket/clob-client) .. REAL
+//   - SPOT y PERP → ambos al CLOB V2 vía buyOutcome/closePosition en
+//                 polymarket.ts (@polymarket/clob-client-v2) ....... REAL
+//   - BrierVault.executeTrade ..................................... SIN USO.
+//                 El capital del vault NO llega al order book: las órdenes las
+//                 firma la EOA del executor (o el funder POLY_1271 si está
+//                 configurado), no el vault. Ver el ADR de capital del vault.
 //   - Risk Engine price feed → src/price-feed.ts polls CLOB /midpoint
 //                 (5s Redis cache, null-safe skip if CLOB unreachable) REAL
 const executionWorker = new Worker('trade-signals', async job => {
@@ -76,13 +79,25 @@ const executionWorker = new Worker('trade-signals', async job => {
         if (actionType === 'OPEN' || !actionType) {
             const resolvedActionType = 'OPEN';
             console.log(`[Perp Engine] Opening ${leverage}x ${direction} on ${marketId} (worstPrice=${worstPrice}, slip=${slippageBps}bps)...`);
-            // [REAL] CLOB execution (Fill-And-Kill bounded by worstPrice, slippage guard)
-            // via polymarket.ts → real @polymarket/clob-client. No mock left on this path.
-            // marketId here must be the outcome tokenID being traded.
-            const result = await openPerpPosition({
+            // [REAL] CLOB V2 execution (Fill-And-Kill acotado por worstPrice) vía
+            // polymarket.ts → @polymarket/clob-client-v2. marketId es el tokenID
+            // del outcome que se opera.
+            //
+            // `size` es CAPITAL EN USDC: así lo contabiliza el risk engine
+            // (server.ts → `currentLocked + size > MAX_CAPACITY`, `lockedCapital: size`),
+            // y así se lo pasamos ahora al campo `amount` de un BUY. El código V1 lo
+            // mandaba al campo `size` del SDK, que son shares — comprando `price` veces
+            // menos de lo que el engine creía haber bloqueado.
+            if ((direction || 'LONG') === 'SHORT') {
+                // En un mercado binario no se abre un short vendiendo: no tenés esas
+                // shares y el exchange rechaza la orden al validar balance. Un short de
+                // YES es un BUY del token complementario (NO), y esa resolución de token
+                // no existe todavía en el contrato de señales con ADAN.
+                throw new Error(`SHORT open no soportado: en Polymarket se expresa comprando el outcome complementario. Falta definir el tokenID del complemento en la señal (trade ${tradeId}).`);
+            }
+            const result = await buyOutcome({
                 tokenID: marketId,
-                direction: (direction || 'LONG') as 'LONG' | 'SHORT',
-                size: Number(size),
+                usdcAmount: Number(size),
                 worstPrice: Number(worstPrice ?? 0.5),
             });
             await redis.hset(`trade:${tradeId}`, {
@@ -113,11 +128,11 @@ const executionWorker = new Worker('trade-signals', async job => {
             });
         } else if (actionType === 'CLOSE') {
             console.log(`[Perp Engine] Executing Market CLOSE for ${tradeId}...`);
-            // [REAL] CLOB market-close via polymarket.ts → real @polymarket/clob-client.
-            const result = await closePerpPosition({
+            // [REAL] Cierre a mercado vía CLOB V2. Vende las shares realmente tenidas
+            // (consultadas al exchange), no un monto en USDC: un SELL se expresa en
+            // shares y vender lo que no se tiene lo rechaza la validación de balance.
+            const result = await closePosition({
                 tokenID: marketId,
-                direction: (direction || 'LONG') as 'LONG' | 'SHORT',
-                size: Number(size),
                 worstPrice: Number(worstPrice ?? 0.5),
             });
             await redis.hset(`trade:${tradeId}`, { status: 'settled', closeOrderId: result.orderId ?? '' });
@@ -205,13 +220,11 @@ setInterval(async () => {
                     await redis.hset(key, 'status', 'stop_loss_triggered');
                     await redis.srem(ACTIVE_PERP_SET, id); // leaves the watch set now; don't re-fire while the close is in flight
                     // Close the position via CLOB (best-effort)
-                    closePerpPosition({
+                    closePosition({
                         tokenID: trade.marketId,
-                        direction: (trade.direction || 'LONG') as 'LONG' | 'SHORT',
-                        size: parseFloat(trade.size || '0'),
                         worstPrice: parseFloat(trade.worstPrice || '0.5'),
-                    }).then(r => redis.hset(key, { status: 'stop_loss_executed', closeOrderId: r.orderId ?? '' }))
-                      .catch(e => console.error(`[Risk Engine] Close order failed for ${key}:`, e));
+                    }).then((r: { orderId?: string; status: string }) => redis.hset(key, { status: 'stop_loss_executed', closeOrderId: r.orderId ?? '' }))
+                      .catch((e: unknown) => console.error(`[Risk Engine] Close order failed for ${key}:`, e));
                 }
             }
         }

@@ -1,72 +1,174 @@
-// Real Polymarket CLOB integration for the executor.
+// Polymarket CLOB **V2** integration for the executor.
 //
-// Requires (mainnet only — Polymarket does not run on Amoy):
-//   npm i @polymarket/clob-client      (inside brier-executor/)
-//   EXECUTOR_PRIVATE_KEY  → a funded Polygon wallet (USDC + small MATIC)
-//   POLYMARKET_CLOB_URL   → https://clob.polymarket.com (default)
+// Migrado desde @polymarket/clob-client (V1) el 22-jul-2026. Polymarket cortó a
+// CTF Exchange V2 + colateral pUSD el 28-abr-2026; el cliente V1 ya no describe
+// el protocolo vivo.
 //
-// The client lazily derives L2 API credentials from the wallet signature, so no
-// API key needs to be stored — the wallet IS the credential.
+// Requiere (dentro de brier-executor/):
+//   npm i @polymarket/clob-client-v2
+//   EXECUTOR_PRIVATE_KEY      → wallet que FIRMA las órdenes (necesita algo de POL para gas)
+//   POLYMARKET_CLOB_URL       → https://clob-v2.polymarket.com (default)
+//   POLYMARKET_CHAIN_ID       → 137 mainnet | 80002 Amoy
+//   POLYMARKET_FUNDER_ADDRESS → opcional. Si está seteada, las órdenes se firman
+//                               POLY_1271 con esa dirección como `maker` (la fuente
+//                               de fondos), de modo que un BrierVault pueda ser el
+//                               maker mientras el executor solo firma.
+//
+// ⚠️ Polymarket SÍ corre en Amoy: el SDK trae un set completo de AMOY_CONTRACTS
+// (chainID 80002). El comentario anterior de este archivo decía lo contrario.
+//
+// ⚠️ POLY_1271 + funder: hay dos issues abiertas upstream donde la auth L1 ata la
+// API key a la EOA firmante en vez de al funder, rompiendo el posteo programático
+// (Polymarket/py-clob-client-v2#64 y #70). Si `createOrDeriveApiKey()` devuelve
+// credenciales atadas a la EOA y el exchange rechaza con "the order signer address
+// has to be the address of the API KEY", es ese bug y no un error de config.
 
 import { ethers } from 'ethers'
 
 let _client: any = null
 
+/**
+ * Adapta un `ethers.Wallet` v6 a la interfaz `EthersSigner` que espera el SDK.
+ *
+ * El SDK tipa `EthersSigner._signTypedData` — nomenclatura de ethers **v5**. En
+ * ethers v6 el método se llama `signTypedData` (sin guión bajo), así que un Wallet
+ * v6 crudo NO satisface la interfaz y el SDK lo trataría como viem WalletClient.
+ * Este shim traduce, y evita meter viem como dependencia solo para firmar.
+ */
+function toClobSigner(wallet: ethers.Wallet) {
+  return {
+    getAddress: () => wallet.getAddress(),
+    _signTypedData: (domain: any, types: any, value: any) =>
+      wallet.signTypedData(domain, types, value),
+  }
+}
+
 export async function getClobClient(): Promise<any> {
   if (_client) return _client
 
-  // Lazy import so the executor still boots if the package isn't installed yet.
-  const clob = await import('@polymarket/clob-client').catch(() => {
-    throw new Error('@polymarket/clob-client not installed — run `npm i @polymarket/clob-client` in brier-executor/')
+  // Import perezoso para que el executor siga booteando si el paquete no está instalado.
+  const clob = await import('@polymarket/clob-client-v2').catch(() => {
+    throw new Error('@polymarket/clob-client-v2 not installed — run `npm i @polymarket/clob-client-v2` in brier-executor/')
   })
-  const { ClobClient } = clob as any
+  const { ClobClient, SignatureTypeV2 } = clob as any
 
-  const host = process.env.POLYMARKET_CLOB_URL || 'https://clob.polymarket.com'
-  const chainId = Number(process.env.POLYMARKET_CHAIN_ID || 137) // Polygon mainnet
+  const host = process.env.POLYMARKET_CLOB_URL || 'https://clob-v2.polymarket.com'
+  const chain = Number(process.env.POLYMARKET_CHAIN_ID || 137)
   const pk = process.env.EXECUTOR_PRIVATE_KEY
   if (!pk) throw new Error('EXECUTOR_PRIVATE_KEY is required for CLOB execution')
 
-  const signer = new ethers.Wallet(pk)
+  const signer = toClobSigner(new ethers.Wallet(pk))
 
-  // Derive (or create) L2 API credentials from the wallet, then build the authed client.
-  const bootstrap = new ClobClient(host, chainId, signer)
+  // Cuando hay funder configurado (el vault), las órdenes van firmadas POLY_1271:
+  // el contrato es el `maker` (fuente de fondos) y la EOA solo el `signer`.
+  // Sin funder, se opera como EOA pura — la plata es la de la wallet del executor.
+  const funderAddress = process.env.POLYMARKET_FUNDER_ADDRESS
+  const signatureType = funderAddress ? SignatureTypeV2.POLY_1271 : SignatureTypeV2.EOA
+
+  // L1 (firma de wallet) → deriva credenciales L2 (HMAC). La wallet ES la credencial.
+  const bootstrap = new ClobClient({ host, chain, signer, signatureType, funderAddress })
   const creds = await bootstrap.createOrDeriveApiKey()
-  _client = new ClobClient(host, chainId, signer, creds)
+  _client = new ClobClient({ host, chain, signer, creds, signatureType, funderAddress, throwOnError: true })
   return _client
 }
 
-export type PerpOrder = {
-  tokenID: string        // ERC-1155 positionId of the outcome being bought
-  direction: 'LONG' | 'SHORT'
-  size: number           // USDC notional
-  worstPrice: number     // slippage-bounded limit price (0..1)
+/** Direcciones oficiales (exchange V2/V3, pUSD, ConditionalTokens) para la red activa. */
+export async function getPolymarketContracts(): Promise<Record<string, string>> {
+  const clob = await import('@polymarket/clob-client-v2')
+  const { getContractConfig } = clob as any
+  return getContractConfig(Number(process.env.POLYMARKET_CHAIN_ID || 137))
+}
+
+export type BuyArgs = {
+  /** positionId ERC-1155 del outcome que se compra. */
+  tokenID: string
+  /** Monto en **USDC** a gastar. Es la unidad que usa el risk engine (`lockedCapital`). */
+  usdcAmount: number
+  /** Precio límite (0..1) que acota el slippage. */
+  worstPrice: number
+}
+
+export type SellArgs = {
+  tokenID: string
+  /** Cantidad de **shares** (conditional tokens) a vender, NO USDC. */
+  shares: number
+  worstPrice: number
 }
 
 /**
- * Posts a Fill-And-Kill order: fills whatever the book offers within `worstPrice`
- * and cancels the rest — never sweeps the book beyond the slippage tolerance.
+ * Compra un outcome con una orden Fill-And-Kill: llena lo que haya en el book
+ * dentro de `worstPrice` y cancela el resto — nunca barre el book más allá de la
+ * tolerancia de slippage.
+ *
+ * UNIDADES (esto era un bug en V1): `UserMarketOrderV2.amount` en un BUY es
+ * "$$$ Amount to buy" — dólares. El código V1 pasaba el capital del risk engine
+ * al campo `size`, que el SDK define como "Size in terms of the ConditionalToken",
+ * o sea shares. A precio 0.4 eso bloqueaba $100 de capital y compraba $40.
  */
-export async function openPerpPosition(o: PerpOrder): Promise<{ orderId?: string; status: string }> {
+export async function buyOutcome(o: BuyArgs): Promise<{ orderId?: string; status: string }> {
   const client = await getClobClient()
-  const clob = await import('@polymarket/clob-client') as any
+  const clob = await import('@polymarket/clob-client-v2') as any
   const { Side, OrderType } = clob
 
-  const side = o.direction === 'LONG' ? Side.BUY : Side.SELL
-  const price = Math.min(Math.max(o.worstPrice, 0.001), 0.999)
-
-  const order = await client.createOrder({
-    tokenID: o.tokenID,
-    price,
-    side,
-    size: o.size,
-    feeRateBps: 0,
-  })
-
-  const res = await client.postOrder(order, OrderType.FAK)
+  const res = await client.createAndPostMarketOrder(
+    {
+      tokenID: o.tokenID,
+      amount: o.usdcAmount,
+      side: Side.BUY,
+      price: clampPrice(o.worstPrice),
+      orderType: OrderType.FAK,
+    },
+    undefined,           // tickSize lo resuelve el cliente contra el mercado
+    OrderType.FAK,
+  )
   return { orderId: res?.orderID, status: res?.status || 'submitted' }
 }
 
-/** Closes a position with an opposite FAK order. */
-export async function closePerpPosition(o: PerpOrder): Promise<{ orderId?: string; status: string }> {
-  return openPerpPosition({ ...o, direction: o.direction === 'LONG' ? 'SHORT' : 'LONG' })
+/** Vende shares ya tenidas, FAK acotado por `worstPrice`. */
+export async function sellOutcome(o: SellArgs): Promise<{ orderId?: string; status: string }> {
+  const client = await getClobClient()
+  const clob = await import('@polymarket/clob-client-v2') as any
+  const { Side, OrderType } = clob
+
+  const res = await client.createAndPostMarketOrder(
+    {
+      tokenID: o.tokenID,
+      amount: o.shares,
+      side: Side.SELL,
+      price: clampPrice(o.worstPrice),
+      orderType: OrderType.FAK,
+    },
+    undefined,
+    OrderType.FAK,
+  )
+  return { orderId: res?.orderID, status: res?.status || 'submitted' }
+}
+
+/**
+ * Shares de `tokenID` que el funder tiene realmente en su poder.
+ *
+ * Necesario para cerrar: un SELL se expresa en shares, y vender lo que no se tiene
+ * lo rechaza el exchange al validar balance/allowance.
+ */
+export async function getHeldShares(tokenID: string): Promise<number> {
+  const client = await getClobClient()
+  const clob = await import('@polymarket/clob-client-v2') as any
+  const { AssetType } = clob
+
+  const res = await client.getBalanceAllowance({ asset_type: AssetType.CONDITIONAL, token_id: tokenID })
+  const raw = parseFloat(res?.balance ?? '0')
+  if (!isFinite(raw)) return 0
+  // El balance viene en unidades base del conditional token (6 decimales).
+  return raw / 1e6
+}
+
+/** Cierra una posición vendiendo todas las shares que el funder tenga de ese token. */
+export async function closePosition(o: { tokenID: string; worstPrice: number }): Promise<{ orderId?: string; status: string }> {
+  const shares = await getHeldShares(o.tokenID)
+  if (shares <= 0) return { status: 'no_position' }
+  return sellOutcome({ tokenID: o.tokenID, shares, worstPrice: o.worstPrice })
+}
+
+function clampPrice(p: number): number {
+  return Math.min(Math.max(p, 0.001), 0.999)
 }
